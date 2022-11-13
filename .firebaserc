@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "codedetailsapp"
+  },
+  "targets": {
+    "codedetailsapp": {
+      "hosting": {
+        "code_details": [
+          "codedetailsapp"
+        ]
+      }
+    }
+  }
+}

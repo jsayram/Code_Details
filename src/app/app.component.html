@@ -1,0 +1,46 @@
+<div>
+    <nav class="navbar navbar-expand navbar-dark bg-dark">
+      <a href="#" class="navbar-brand">Code Details</a>
+      <div class="navbar-nav mr-auto">
+        <li class="nav-item">
+          <a routerLink="tutorials" class="nav-link">Courses</a>
+        </li>
+        <li class="nav-item">
+          <a routerLink="add" class="nav-link">Add</a>
+        </li>
+      </div>
+    </nav>
+   
+  
+    <div class='lg-padding m-3' layout='row' layout-wrap>
+       <h2>{{ title }}</h2>
+      <ais-instantsearch [config]="searchConfig">
+        <ais-search-box (change)="searchChange($event)"></ais-search-box>
+        <ais-hits *ngIf="showResults">
+          <ng-template let-hits="hits">
+            <!-- this is where we populate hits from teh search-->
+             <div *ngFor="let hit of hits" class="card" style="width: 18rem; margin-bottom: 10px;"> 
+               <img [src]="hit.img" class="card-img-top" alt="Card image cap" />
+                <div class="card-body card text-white bg-info mb-3">
+                  <h5 class="card-title">{{ hit.title }}</h5>
+                  <p class="card-text">{{ hit.description }}</p>
+                  <p class="card-text">{{ hit.url }}</p>
+                  <p class="card-text">{{ hit.tags[0] }}</p>
+                  <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewhere</a>
+                <ais-highlight [hit]="hit" attribute="title"></ais-highlight>
+                </div>
+                  <ais-snippet [hit]="hit" attribute="description"></ais-snippet>
+                <div>
+               </div> 
+              </div> 
+            <!-- <ol class="ais-Hits-list">
+              <li *ngFor="let hit of hits" class="ais-Hits-item">
+               {{hit.title}}
+              </li>
+            </ol> -->
+          </ng-template>
+        </ais-hits>
+      </ais-instantsearch>
+      <router-outlet></router-outlet>
+    </div>
+  </div>
