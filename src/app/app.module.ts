@@ -41,6 +41,9 @@ import { AddTutorialComponent } from './components/add-tutorial/add-tutorial.com
 import { TutorialDetailsComponent } from './components/tutorial-details/tutorial-details.component';
 import { TutorialsListComponent } from './components/tutorials-list/tutorials-list.component';
 
+import { TutorialService } from './services/tutorial.service';
+import { map } from 'rxjs/operators';
+import { Tutorial } from './models/tutorial.model';
 
 @NgModule({
   declarations: [
@@ -81,4 +84,10 @@ import { TutorialsListComponent } from './components/tutorials-list/tutorials-li
   providers: [],
   bootstrap: [AppComponent] //only found in the main app module
 })
-export class AppModule { }
+export class AppModule {
+  //retrive the data from the firestore database
+  tutorials?: Tutorial[];
+  currentTutorial?: Tutorial;
+  currentIndex = -1;
+  title = '';
+ }

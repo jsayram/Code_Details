@@ -5,4 +5,5 @@ export class Tutorial {
     url?: string;
     img?: string;
     tags?: string[];
+    pages?: string[];
   }

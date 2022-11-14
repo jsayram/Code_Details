@@ -6,6 +6,7 @@ import { Observable } from 'rxjs';
 import { map } from 'rxjs/operators';
 import { Tutorial } from './models/tutorial.model';
 import { AngularFireAuth } from '@angular/fire/compat/auth';
+import { TutorialService } from './services/tutorial.service';
 
 
  const searchClient = algoliasearch(
@@ -23,17 +24,22 @@ export class AppComponent {
   title: string = 'Code Details';
   searchConfig = {
     indexName: 'tutorialContent',
-    searchClient,
-  };
+    searchClient
+    };
+    
+  tutorials?: Tutorial[];
+  currentTutorial?: Tutorial;
+  currentIndex = -1;
 
   //it shows all results by default so adding this to not show results by default
-  showResults = false;
+  showResults: boolean | undefined;
   //constructor
-  constructor(  private firestore: AngularFirestore, public auth: AngularFireAuth) {
+  constructor(  private firestore: AngularFirestore, public auth: AngularFireAuth,private tutorialService: TutorialService) {
     this.auth.signInAnonymously();
   } //end constructor
   
     searchChange(query: string) {
+     
     if(query.length > 0) {
       this.showResults = true;
     }else {

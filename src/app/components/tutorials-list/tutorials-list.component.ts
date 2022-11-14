@@ -11,6 +11,7 @@ import { Tutorial } from 'src/app/models/tutorial.model';
 export class TutorialsListComponent implements OnInit {
   tutorials?: Tutorial[];
   currentTutorial?: Tutorial;
+  //tag ="";
   currentIndex = -1;
   title = '';
 

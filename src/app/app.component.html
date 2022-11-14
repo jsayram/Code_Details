@@ -14,18 +14,21 @@
   
     <div class='md-padding m-3 ' layout='row' layout-wrap>
        <h2>{{ title }}</h2>
+       
       <ais-instantsearch [config]="searchConfig">
-        <ais-search-box (change)="searchChange($event)"></ais-search-box>
-        <ais-hits *ngIf="showResults">
+        <ais-search-box  (change)="searchChange($event)" placeholder="Search Cards..."></ais-search-box>
+        <!-- <ais-hits *ngIf="showResults"> -->
+          <ais-hits>
           <ng-template let-hits="hits">
             <!-- this is where we populate hits from teh search-->
-             <div *ngFor="let hit of hits" class="card" style="width: 18rem; margin-bottom: 10px;"> 
+             <div *ngFor="let hit of hits; let tutorial of tutorials;" class="card" style="width: 18rem; margin-bottom: 10px;"> 
                <img [src]="hit.img" class="card-img-top" alt="Card image cap" />
-                <div class="card-body card text-white bg-info mb-3">
-                  <h5 class="card-title">{{ hit.title }}</h5>
-                  <p class="card-text">{{ hit.description }}</p>
-                  <p class="card-text">{{ hit.url }}</p>
-                  <p class="card-text">{{ hit.tags[0] }}</p>
+                <div class="card-body card text-black bg-info mb-3">
+                  <h2 class="card-title" >Title: {{ tutorial.title }}</h2>
+                  <p class="card-text">Description: {{ tutorial.description }}</p>
+                  <p class="card-text">URL: {{ tutorial.url}}</p>
+                  <p class="card-text">Tags: {{ hit.tags}}</p>
+                  <p class="card-text">Pages: {{ tutorial.pages }}</p>
                   <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewhere</a>
                 <ais-highlight [hit]="hit" attribute="title"></ais-highlight>
                 </div>
@@ -39,8 +42,11 @@
               </li>
             </ol> -->
           </ng-template>
-        </ais-hits>
-      </ais-instantsearch>
+        </ais-hits> 
+      
+         </ais-instantsearch>
+         <!-- <ais-pagination [totalPages]=""></ais-pagination>
+        -->
       <router-outlet></router-outlet>
     </div>
   </div>

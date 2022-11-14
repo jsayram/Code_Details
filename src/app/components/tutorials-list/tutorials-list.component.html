@@ -1,17 +1,72 @@
-<div class="list row">
+<div class="card grid row">
     <div class="col-md-6">
       <h4>Tutorials List</h4>
-      <ul class="list-group">
+      <ul class="grid-group">
         <li
           class="list-group-item"
-          *ngFor="let tutorial of tutorials; let i = index"
+          *ngFor="let tutorial of tutorials;
+                  let i = index;"
           [class.active]="i == currentIndex"
           (click)="setActiveTutorial(tutorial, i)"
+          style="background-color: grey; color: white; border: 1px solid black; 
+          border-radius: 5px; margin-bottom: 5px; padding: 5px;
+            text-align: center; font-size: 20px; font-weight: bold;
+            text-decoration: none;">
         >
-          {{ tutorial.title }}
+        <!-- THIS IS A WORKING WAY TO SEPERATE TAGS , NEEDS WORK MOVED TO A DIFFERNT PAGE 
+          , integrated with algolia search idealy-->
+          {{ tutorial.url}}
+          <br />
+          {{ tutorial.title}}
+          <br />
+          {{ tutorial.description }}
+          <div *ngFor="let tag of tutorial.tags;
+                       let i = index;"
+                       class="row">
+            <button class="btn btn-secondary"
+              *ngIf="i==0">
+              {{tag}}
+            </button>
+            <button class="btn btn-primary"
+              *ngIf="i==1">
+              {{tag}}
+            </button>
+            <button class="btn btn-success"
+              *ngIf="i==2">
+              {{tag}}
+            </button>
+            <button class="btn btn-danger"
+              *ngIf="i==3">
+              {{tag}}
+            </button>
+            <button class="btn btn-danger"
+              *ngIf="i==4">
+              {{tag}}
+            </button>
+            <button class="btn btn-warning"
+              *ngIf="i==5">
+              {{tag}}
+            </button>
+            <button class="btn btn-info"
+              *ngIf="i==5">
+              {{tag}}
+            </button>
+              
+          <!-- {{ tutorial.tags }} -->
+          </div>
+          
+          <br>
+          {{ tutorial.img}}
+          <br />
+          {{ tutorial.id }}
+          <br />
+          {{ tutorial.pages }}
         </li>
+        
+        
+        
       </ul>
-    </div>
+      
     <div class="col-md-6">
       <div *ngIf="currentTutorial">
         <app-tutorial-details
