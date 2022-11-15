@@ -3,3 +3,26 @@
     max-width: 750px;
     margin: auto;
   }
+
+  .list .list-item {
+    padding: 10px;
+    margin: 10px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+  }
+
+  .list .list-item:hover {
+    background-color: #eee;
+  }
+  
+  /*search bar*/
+  .searchbox {
+    display: flex;
+    justify-content: center;
+    width: 100%
+  }
+  .ais-Hits {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    width: 100%;
+  }

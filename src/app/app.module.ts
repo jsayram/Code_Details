@@ -47,10 +47,12 @@ import { Tutorial } from './models/tutorial.model';
 
 @NgModule({
   declarations: [
+    //declare the components
     AppComponent,
     AddTutorialComponent,
     TutorialDetailsComponent,
-    TutorialsListComponent,
+    TutorialsListComponent
+
   ],
   imports: [
     BrowserModule,

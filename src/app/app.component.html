@@ -1,6 +1,8 @@
-<div>
+
+<br>THIS IS THE APP MODULE CODE
+<div style="background-color: rgb(177, 229, 247);">
     <nav class="navbar navbar-expand navbar-dark bg-dark">
-      <a href="#" class="navbar-brand">Code Details</a>
+      <a href="#" class="navbar-brand center">Code Details</a>
       <div class="navbar-nav mr-auto">
         <li class="nav-item">
           <a routerLink="tutorials" class="nav-link">Courses</a>
@@ -8,21 +10,23 @@
         <li class="nav-item">
           <a routerLink="add" class="nav-link">Add</a>
         </li>
+        <li class="nav-item">
+          <a routerLink="details" class="nav-link">details</a>
+        </li>
       </div>
     </nav>
-   
-  
+<!---
     <div class='md-padding m-3 ' layout='row' layout-wrap>
        <h2>{{ title }}</h2>
        
       <ais-instantsearch [config]="searchConfig">
         <ais-search-box  (change)="searchChange($event)" placeholder="Search Cards..."></ais-search-box>
-        <!-- <ais-hits *ngIf="showResults"> -->
+        COMSTART <ais-hits *ngIf="showResults"> COMEND
           <ais-hits>
           <ng-template let-hits="hits">
-            <!-- this is where we populate hits from teh search-->
+            COMSRT this is where we populate hits from teh search COMEND
              <div *ngFor="let hit of hits; let tutorial of tutorials;" class="card" style="width: 18rem; margin-bottom: 10px;"> 
-               <img [src]="hit.img" class="card-img-top" alt="Card image cap" />
+               <img [src]="tutorial.img" class="card-img-top" alt="Card image cap" />
                 <div class="card-body card text-black bg-info mb-3">
                   <h2 class="card-title" >Title: {{ tutorial.title }}</h2>
                   <p class="card-text">Description: {{ tutorial.description }}</p>
@@ -36,17 +40,20 @@
                 <div>
                </div> 
               </div> 
-            <!-- <ol class="ais-Hits-list">
+            COMMSTART <ol class="ais-Hits-list">
               <li *ngFor="let hit of hits" class="ais-Hits-item">
                {{hit.title}}
               </li>
-            </ol> -->
+            </ol> COMEND
           </ng-template>
         </ais-hits> 
       
          </ais-instantsearch>
-         <!-- <ais-pagination [totalPages]=""></ais-pagination>
-        -->
-      <router-outlet></router-outlet>
-    </div>
+         COMSTART <ais-pagination [totalPages]=""></ais-pagination>
+        COMEND
+        --COMSRTART APP ROUTER OUTLET IS WHERE WE CONNECT THE REST OF THE MODULES AND HOW THEY SHOW HERE --COMEND
+        COMEND-->
+    <router-outlet> THIS IS THE ROUTER OUTLET</router-outlet> 
   </div>
+  <!-- </div> -->
+ <br> THIS IS END OF APP MODULE CODE

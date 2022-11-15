@@ -1,3 +1,68 @@
+<div class='md-padding m-3 ' layout='row' layout-wrap style="background-color:rgb(249, 101, 51)">
+  <h2>{{ title }} in Tutorial-List Component</h2>
+  
+ <ais-instantsearch [config]="searchConfig" >
+   <ais-search-box  (change)="searchChange($event)">
+                    placeholder="Search Cards..."
+                    [autofocus]="true"
+                    style="border: solid;"
+                    class="searchbox"
+                    >
+                  </ais-search-box>
+   <ais-hits *ngIf="showResults"> 
+     <ng-template let-hits="hits" class="ais-Hits">
+       <!-- this is where we populate hits from teh search-->
+       <div class="row">
+        <div *ngFor="let hit of hits;
+                     let i = index"
+                     class="card md-padding m-3 " 
+                     style="width: 18rem; margin-bottom: 10px;"> 
+            <img [src]="hit.img" class="card-img-top" alt="Card image cap" />
+            <div class="card-body card text-black bg-info">
+             <h2 class="card-title" >Title: {{hit.title }}</h2>
+             <!-- <p class="card-text">Description: </p> -->
+             <ais-highlight class="card-text" [hit]="hit" attribute="description"></ais-highlight>
+             <p class="card-text">URL: {{ hit.url}}</p>
+             <p class="card-text">Tags: {{ hit.tags}}</p>
+             <p class="card-text">Pages: {{ hit.pages }}</p>
+             <!-- <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewhere</a> -->
+           <!-- <ais-highlight [hit]="hit" attribute="description"></ais-highlight> -->
+           <ais-snippet [hit]="hit" attribute="title"></ais-snippet>
+           </div>
+      
+        </div>
+        </div>
+       <!-- <ol class="ais-Hits-list">
+         <li *ngFor="let hit of hits" class="ais-Hits-item">
+          {{hit.title}}
+         </li>
+       </ol> -->
+     </ng-template>
+    </ais-hits>
+ 
+    </ais-instantsearch>
+    <!-- <ais-pagination [totalPages]=""></ais-pagination>
+   -->
+   <!-- <div class="col-md-6 row-md-4">
+    <div *ngIf="currentTutorial">
+      <app-tutorial-details
+        (refreshList)="refreshList()"
+        [tutorial]="currentTutorial"
+      ></app-tutorial-details>
+    </div> --> 
+ <!-- <router-outlet></router-outlet> -->
+</div>
+
+<!-- <br>
+<br>
+<br>
+THIS IS THE OLD STUFF
+-------------------
+<br>
+<br>
+<br>
+
+
 <div class="card grid row">
     <div class="col-md-6">
       <h4>Tutorials List</h4>
@@ -13,9 +78,8 @@
             text-align: center; font-size: 20px; font-weight: bold;
             text-decoration: none;">
         >
-        <!-- THIS IS A WORKING WAY TO SEPERATE TAGS , NEEDS WORK MOVED TO A DIFFERNT PAGE 
-          , integrated with algolia search idealy-->
-          {{ tutorial.url}}
+         THIS IS A WORKING WAY TO SEPERATE TAGS , NEEDS WORK MOVED TO A DIFFERNT PAGE , integrated with algolia search idealy-->
+          <!-- {{ tutorial.url}}
           <br />
           {{ tutorial.title}}
           <br />
@@ -50,10 +114,10 @@
             <button class="btn btn-info"
               *ngIf="i==5">
               {{tag}}
-            </button>
+            </button> -->
               
           <!-- {{ tutorial.tags }} -->
-          </div>
+          <!-- </div>
           
           <br>
           {{ tutorial.img}}
@@ -65,19 +129,20 @@
         
         
         
-      </ul>
+      </ul> -->
       
-    <div class="col-md-6">
+    <!-- <div class="col-md-6 row-md-4">
       <div *ngIf="currentTutorial">
         <app-tutorial-details
           (refreshList)="refreshList()"
           [tutorial]="currentTutorial"
         ></app-tutorial-details>
-      </div>
+      </div> -->
   
-      <div *ngIf="!currentTutorial">
+      <!-- <div *ngIf="!currentTutorial">
         <br />
         <p>Please click on a Tutorial...</p>
       </div>
     </div>
-  </div>
+  </div>  -->
+
