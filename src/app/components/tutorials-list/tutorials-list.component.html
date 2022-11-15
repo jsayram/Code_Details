@@ -1,18 +1,17 @@
-<div class='md-padding m-3 ' layout='row' layout-wrap style="background-color:rgb(249, 101, 51)">
+<!-- <div class='md-padding m-3 ' layout='row' layout-wrap style="background-color:rgb(249, 101, 51)">
   <h2>{{ title }} in Tutorial-List Component</h2>
   
- <ais-instantsearch [config]="searchConfig" >
-   <ais-search-box  (change)="searchChange($event)">
-                    placeholder="Search Cards..."
-                    [autofocus]="true"
-                    style="border: solid;"
-                    class="searchbox"
+ <ais-instantsearch [config]="searchConfig" 
                     >
-                  </ais-search-box>
-   <ais-hits *ngIf="showResults"> 
-     <ng-template let-hits="hits" class="ais-Hits">
+  <ais-stats></ais-stats>
+  <ais-refinement-list attribute="title"></ais-refinement-list>
+   <ais-search-box ></ais-search-box> -->
+   
+  
+   <!-- <ais-hits *ngIf="showResults">  -->
+     <!-- <ng-template let-hits="hits"> -->
        <!-- this is where we populate hits from teh search-->
-       <div class="row">
+       <!-- <div class="row">
         <div *ngFor="let hit of hits;
                      let i = index"
                      class="card md-padding m-3 " 
@@ -20,27 +19,24 @@
             <img [src]="hit.img" class="card-img-top" alt="Card image cap" />
             <div class="card-body card text-black bg-info">
              <h2 class="card-title" >Title: {{hit.title }}</h2>
-             <!-- <p class="card-text">Description: </p> -->
              <ais-highlight class="card-text" [hit]="hit" attribute="description"></ais-highlight>
              <p class="card-text">URL: {{ hit.url}}</p>
              <p class="card-text">Tags: {{ hit.tags}}</p>
              <p class="card-text">Pages: {{ hit.pages }}</p>
-             <!-- <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewhere</a> -->
-           <!-- <ais-highlight [hit]="hit" attribute="description"></ais-highlight> -->
+              <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewhere</a> 
            <ais-snippet [hit]="hit" attribute="title"></ais-snippet>
            </div>
-      
         </div>
-        </div>
+        </div> -->
        <!-- <ol class="ais-Hits-list">
          <li *ngFor="let hit of hits" class="ais-Hits-item">
           {{hit.title}}
          </li>
        </ol> -->
-     </ng-template>
-    </ais-hits>
+     <!-- </ng-template> -->
+    <!-- </ais-hits> -->
  
-    </ais-instantsearch>
+    <!-- </ais-instantsearch> -->
     <!-- <ais-pagination [totalPages]=""></ais-pagination>
    -->
    <!-- <div class="col-md-6 row-md-4">
@@ -51,7 +47,7 @@
       ></app-tutorial-details>
     </div> --> 
  <!-- <router-outlet></router-outlet> -->
-</div>
+<!-- </div> -->
 
 <!-- <br>
 <br>
@@ -146,3 +142,50 @@ THIS IS THE OLD STUFF
     </div>
   </div>  -->
 
+  <div class="container ">
+    <ais-instantsearch [config]="searchConfig">
+      <ais-stats></ais-stats>
+      <ais-configure [searchParameters]="{ hitsPerPage: 4}"></ais-configure>
+      <div class="search-panel " >
+        <div class="search-panel__filters">
+          <ais-panel  header="Tags" class="card">
+            <ais-refinement-list attribute="tags" style="color:brown; margin:0em;"></ais-refinement-list>
+          </ais-panel>
+          <ais-panel header="titles">
+            <ais-refinement-list attribute="title" ></ais-refinement-list>
+          </ais-panel>
+        </div>
+        <div class="searchbox">
+            <ais-search-box placeholder=""></ais-search-box>
+        </div>
+        <div class="search-panel__results">
+          <ais-hits>
+            <ng-template let-hits="hits" let-results="results" class="card"> 
+              <div *ngIf="hits.length === 0">
+                No results found matching <strong></strong>.
+              </div>
+  
+              <ol class="ais-Hits-list">
+                <li class="ais-Hits-item card" *ngFor="let hit of hits">
+                  <article>
+                    <h1>
+                      <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
+                    </h1>
+  
+                    <p>
+                      <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
+                    </p>
+                  </article>
+                </li>
+              </ol>
+            </ng-template>
+          </ais-hits>
+  
+          <div>
+            <ais-pagination></ais-pagination>
+          </div>
+        </div>
+  
+      </div>
+    </ais-instantsearch>
+  </div>

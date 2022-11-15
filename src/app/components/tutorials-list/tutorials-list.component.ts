@@ -8,6 +8,9 @@ import { AngularFireAuth } from '@angular/fire/compat/auth';
 import { Observable } from 'rxjs';
 import algoliasearch from 'algoliasearch/lite';
 import { environment } from 'src/environments/environment';
+import { MultipleQueriesQuery } from '@algolia/client-search';
+import { query } from '@angular/animations'; 
+
 
 
 const searchClient = algoliasearch(
@@ -19,7 +22,7 @@ const searchClient = algoliasearch(
 @Component({
   selector: 'app-tutorials-list',
   templateUrl: './tutorials-list.component.html',
-  styleUrls: ['./tutorials-list.component.css']
+  styleUrls: ['./tutorials-list.component.css','../../../styles.css']
 })
 export class TutorialsListComponent implements OnInit {
   tutorials?: Tutorial[];
@@ -32,53 +35,64 @@ export class TutorialsListComponent implements OnInit {
     indexName: 'tutorialContent',
     searchClient
   };
+  //   //it shows all results by default so
+  //  // adding this to not show results by default
+  //  showResults= false;
   
   constructor(private tutorialService: TutorialService) { 
   }
  
 
   ngOnInit(): void {
-    this.retrieveTutorials();
+   // this.showResults= false;
   }
 
-  refreshList(): void {
-    this.currentTutorial = undefined;
-    this.currentIndex = -1;
-    this.retrieveTutorials();
-  }
+  // refreshList(): void {
+  //   this.currentTutorial = undefined;
+  //   this.currentIndex = -1;
+  //   // this.retrieveTutorials();
+  // }
 
-  retrieveTutorials(): void {
-    this.tutorialService.getAll().snapshotChanges().pipe(
-      map(changes =>
-        changes.map(c =>
-          ({ id: c.payload.doc.id, ...c.payload.doc.data() })
-        )
-      )
-    ).subscribe(data => {
-      this.tutorials = data;
-    });
-  }
+  // retrieveTutorials(): void {
+  //   this.tutorialService.getAll().snapshotChanges().pipe(
+  //     map(changes =>
+  //       changes.map(c =>
+  //         ({ id: c.payload.doc.id, ...c.payload.doc.data() })
+  //       )
+  //     )
+  //   ).subscribe(data => {
+  //     this.tutorials = data;
+  //   });
+  // }
 
-  setActiveTutorial(tutorial: Tutorial, index: number): void {
-    this.currentTutorial = tutorial;
-    this.currentIndex = index;
-  }
+  // setActiveTutorial(tutorial: Tutorial, index: number): void {
+  //   this.currentTutorial = tutorial;
+  //   this.currentIndex = index;
+  // }
 
-   //it shows all results by default so
-   // adding this to not show results by default
-   showResults= false;
-
-  searchChange(query: string) {
-    if(query.length > 0) {
-      this.showResults = true;
-    }else {
-      this.showResults = false;
-    }
-  } 
-  //reset search
-  // resetSearch(query: string) {
+  // searchChange(query: string) {
+  //   if(query.length > 0) {
+  //     this.showResults = true;
+  //   }else{
+  //     this.showResults = false;
+  //   }
+    
+  // } 
+  // searchSubmit(query: string) {
+  //   if(query.length > 0) {
+  //     this.showResults = true;
+  //   }else{
+  //     this.showResults = false;
+  //   }
+  // } 
+  // searchReset(query: string) {
   //   this.showResults = false;
   // }
+
+  // blurEvent(query: string) {
+  //   this.showResults = false;
+  // }
+
 
   
 }

@@ -2,25 +2,27 @@ import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
 
 //algolia search for instasearch firebase
-import { NgAisInstantSearchModule} from 'angular-instantsearch';
-import { NgAisSearchBoxModule} from 'angular-instantsearch';
-import { NgAisHitsModule} from 'angular-instantsearch';
-import { NgAisHighlightModule} from 'angular-instantsearch';
-import { NgAisRefinementListModule} from 'angular-instantsearch';
-import { NgAisClearRefinementsModule} from 'angular-instantsearch';
-import { NgAisConfigureModule} from 'angular-instantsearch';
-import { NgAisStatsModule} from 'angular-instantsearch';
-import { NgAisPaginationModule} from 'angular-instantsearch';
-import { NgAisSortByModule} from 'angular-instantsearch';
-import { NgAisRangeSliderModule} from 'angular-instantsearch';
-import { NgAisRangeInputModule} from 'angular-instantsearch';
-import { NgAisNumericMenuModule} from 'angular-instantsearch';
-import { NgAisBreadcrumbModule} from 'angular-instantsearch';
-import { NgAisCurrentRefinementsModule} from 'angular-instantsearch';
-import { NgAisMenuModule} from 'angular-instantsearch';
-import { NgAisToggleModule} from 'angular-instantsearch';
-import { NgAisHierarchicalMenuModule} from 'angular-instantsearch';
-import { NgAisSnippetModule} from 'angular-instantsearch';
+import { NgAisModule } from 'angular-instantsearch';
+// import { NgAisInstantSearchModule} from 'angular-instantsearch';
+// import { NgAisSearchBoxModule} from 'angular-instantsearch';
+// import { NgAisHitsModule} from 'angular-instantsearch';
+// import { NgAisHighlightModule} from 'angular-instantsearch';
+// import { NgAisRefinementListModule} from 'angular-instantsearch';
+// import { NgAisClearRefinementsModule} from 'angular-instantsearch';
+// import { NgAisConfigureModule} from 'angular-instantsearch';
+// import { NgAisStatsModule} from 'angular-instantsearch';
+// import { NgAisPaginationModule} from 'angular-instantsearch';
+// import { NgAisSortByModule} from 'angular-instantsearch';
+// import { NgAisRangeSliderModule} from 'angular-instantsearch';
+// import { NgAisRangeInputModule} from 'angular-instantsearch';
+// import { NgAisNumericMenuModule} from 'angular-instantsearch';
+// import { NgAisBreadcrumbModule} from 'angular-instantsearch';
+// import { NgAisCurrentRefinementsModule} from 'angular-instantsearch';
+// import { NgAisMenuModule} from 'angular-instantsearch';
+// import { NgAisToggleModule} from 'angular-instantsearch';
+// import { NgAisHierarchicalMenuModule} from 'angular-instantsearch';
+// import { NgAisSnippetModule} from 'angular-instantsearch';
+// import { NgAisPanelModule} from 'angular-instantsearch';
 
 
 import { FormsModule } from '@angular/forms';
@@ -45,37 +47,45 @@ import { TutorialService } from './services/tutorial.service';
 import { map } from 'rxjs/operators';
 import { Tutorial } from './models/tutorial.model';
 
+
 @NgModule({
   declarations: [
     //declare the components
     AppComponent,
     AddTutorialComponent,
     TutorialDetailsComponent,
-    TutorialsListComponent
+    TutorialsListComponent,
 
   ],
   imports: [
     BrowserModule,
     FormsModule,
-    NgAisHitsModule,
+    // NgAisHitsModule,
     AppRoutingModule,
+    
 
     //insatasearch algolia modules for the html document in the app.component.html
-    NgAisInstantSearchModule.forRoot(),
-    NgAisSearchBoxModule,
-    NgAisHitsModule,
-    NgAisHighlightModule,
-    NgAisRefinementListModule,
-    NgAisClearRefinementsModule,
-    NgAisConfigureModule,
-    NgAisStatsModule,
-    NgAisPaginationModule,
-    NgAisSortByModule,
-    NgAisRangeSliderModule,
-    NgAisRangeInputModule,
-    NgAisNumericMenuModule,
-    NgAisBreadcrumbModule,
-    NgAisSnippetModule,
+    // NgAisInstantSearchModule.forRoot(),
+    // NgAisSearchBoxModule,
+    // NgAisHitsModule,
+    // NgAisHighlightModule,
+    // NgAisRefinementListModule,
+    // NgAisClearRefinementsModule,
+    // NgAisConfigureModule,
+    // NgAisStatsModule,
+    // NgAisPaginationModule,
+    // NgAisSortByModule,
+    // NgAisRangeSliderModule,
+    // NgAisRangeInputModule,
+    // NgAisNumericMenuModule,
+    // NgAisBreadcrumbModule,
+    // NgAisSnippetModule,
+    // NgAisCurrentRefinementsModule,
+    // NgAisMenuModule,
+    // NgAisToggleModule,
+    // NgAisHierarchicalMenuModule,
+    // NgAisPanelModule,
+     NgAisModule.forRoot(),
 
     BrowserAnimationsModule,
     AngularFireModule.initializeApp(environment.firebase,'codedetailsapp'),
@@ -86,10 +96,4 @@ import { Tutorial } from './models/tutorial.model';
   providers: [],
   bootstrap: [AppComponent] //only found in the main app module
 })
-export class AppModule {
-  //retrive the data from the firestore database
-  tutorials?: Tutorial[];
-  currentTutorial?: Tutorial;
-  currentIndex = -1;
-  title = '';
- }
+export class AppModule {}
