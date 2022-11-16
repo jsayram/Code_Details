@@ -141,43 +141,53 @@ THIS IS THE OLD STUFF
       </div>
     </div>
   </div>  -->
-
-  <div class="container ">
+ 
+  
+  <div class="container">
+     
     <ais-instantsearch [config]="searchConfig">
       <ais-stats></ais-stats>
-      <ais-configure [searchParameters]="{ hitsPerPage: 4}"></ais-configure>
+      <div class="searchbox">
+        <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
+      </div>
+      <ais-configure [searchParameters]="{ hitsPerPage: 5}"></ais-configure>
+     
       <div class="search-panel " >
         <div class="search-panel__filters">
-          <ais-panel  header="Tags" class="card">
-            <ais-refinement-list attribute="tags" style="color:brown; margin:0em;"></ais-refinement-list>
+          <ais-panel  header="Tags" class="container">
+            <ais-refinement-list attribute="tags" [showMore]="true" [limit]="5" ></ais-refinement-list>
           </ais-panel>
-          <ais-panel header="titles">
-            <ais-refinement-list attribute="title" ></ais-refinement-list>
+          <ais-panel header="titles" class="container">
+            <ais-refinement-list attribute="title" [showMore]="true" [limit]="5" ></ais-refinement-list>
           </ais-panel>
         </div>
-        <div class="searchbox">
-            <ais-search-box placeholder=""></ais-search-box>
-        </div>
-        <div class="search-panel__results">
-          <ais-hits>
-            <ng-template let-hits="hits" let-results="results" class="card"> 
+        
+        <div class="search-panel__results container">
+          <ais-hits > 
+            <ng-template let-hits="hits" let-results="results"> 
+              
               <div *ngIf="hits.length === 0">
-                No results found matching <strong></strong>.
+                oh man! I think I need to add more content :( <strong></strong>.
               </div>
-  
-              <ol class="ais-Hits-list">
-                <li class="ais-Hits-item card" *ngFor="let hit of hits">
-                  <article>
+              <div class="ais-Hits-list container">
+                <div class="ais-Hits-item card" *ngFor="let hit of hits;
+                let tag of tutorials">
+              
+                  <div class="imgBx">
+                  <div class="contentBox">
+                    <img src="{{ hit.img }}" alt="Card Image ALT" />
+                    <h2>{{hit.title}}</h2>
                     <h1>
                       <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
                     </h1>
-  
-                    <p>
+                    <span>
                       <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
-                    </p>
-                  </article>
-                </li>
-              </ol>
+                    </span>
+                  </div>
+                </div>
+                <!-- </div> -->
+                </div>
+              </div>
             </ng-template>
           </ais-hits>
   
@@ -187,5 +197,33 @@ THIS IS THE OLD STUFF
         </div>
   
       </div>
+
+      
     </ais-instantsearch>
+  </div>
+
+ 
+  <div class="container">
+    <div class="card">
+      <div class="imgBx">
+        <img src="https://assets.codepen.io/4164355/shoes.png">
+      </div>
+      <div class="contentBx">
+        <h2>Nike Shoes</h2>
+        <div class="size">
+          <h3>Size :</h3>
+          <span>7</span>
+          <span>8</span>
+          <span>9</span>
+          <span>10</span>
+        </div>
+        <div class="color">
+          <h3>Color :</h3>
+          <span></span>
+          <span></span>
+          <span></span>
+        </div>
+        <a href="#">Buy Now</a>
+      </div>
+    </div>
   </div>

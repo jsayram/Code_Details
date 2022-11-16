@@ -22,7 +22,9 @@ const searchClient = algoliasearch(
 @Component({
   selector: 'app-tutorials-list',
   templateUrl: './tutorials-list.component.html',
-  styleUrls: ['./tutorials-list.component.css','../../../styles.css']
+  styleUrls: ['./tutorials-list.component.css',
+  '../../../styles.css',
+  '../../../styles.scss']
 })
 export class TutorialsListComponent implements OnInit {
   tutorials?: Tutorial[];
@@ -50,7 +52,7 @@ export class TutorialsListComponent implements OnInit {
   // refreshList(): void {
   //   this.currentTutorial = undefined;
   //   this.currentIndex = -1;
-  //   // this.retrieveTutorials();
+  //   this.retrieveTutorials();
   // }
 
   // retrieveTutorials(): void {
