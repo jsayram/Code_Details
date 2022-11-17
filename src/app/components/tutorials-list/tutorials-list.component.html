@@ -170,16 +170,11 @@ THIS IS THE OLD STUFF
             <div *ngIf="hits.length === 0"> oh man! I think I need to add more content :( <strong></strong>.
             </div>
             <div class="row">
-              <div class="ais-Hits-item card colum-2" 
+              <div class="ais-Hits-item mat-card " 
                   *ngFor="let hit of hits;"
                   (click)="openModal(hit.objectID)">
-
-                <p>{{hit.title}}</p>
-                <div >
-                <!-- <button (click)="openModal('custom-modal-1')">Open Modal 1</button> -->
-                </div>
                 <div>
-                  <p>A Custom Modal! {{hit.url}}</p>
+                  <!-- <p>{{hit.title}}</p> -->
                   <jw-modal id="{{hit.objectID}}">
                   <div style="padding-bottom:56.25%; position:relative; display:block; width: 100%">
                     <iframe 
@@ -194,20 +189,29 @@ THIS IS THE OLD STUFF
                     style="position:absolute; top:0; left: 0">
                     </iframe>
                   </div>
-                  <p>Home page text: <input type="text" [(ngModel)]="bodyText" /></p>
-                  <button (click)="closeModal('hit.objectID')">Close</button>
+                  <div class="container">
+                    <button (click)="closeModal(hit.objectID)" style="border: unset; background:transparent; display: block;
+                    margin-left: auto;
+                    margin-right: auto;">
+                    <button class="button-85" role="mat-button"><fa-icon [icon]="faCircleXmark"></fa-icon> Close Video</button>
+                    </button>
+                  </div>
+                  <!-- <h1>Home page text: <input type="text" [(ngModel)]="bodyText" /></h1> -->
                   </jw-modal>
                 </div>                                                                                                                                                                      
                 <h1> <a href="{{hit.url}}">{{hit.title}}</a></h1>
-                <p>{{hit.description}}</p>
-                <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez}</a>
+                <p>{{hit.title}}</p>
+                <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez</a>
+                
                 <h1>
                   <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
                 </h1>
+               
                 <span>
                   <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
                 </span>
-                </div>
+               
+              </div>
               </div>
             </ng-template>
           </ais-hits>

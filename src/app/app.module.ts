@@ -1,5 +1,8 @@
 import { NgModule } from '@angular/core';
 import { BrowserModule } from '@angular/platform-browser';
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
+
+
 
 //algolia search for instasearch firebase
 import { NgAisModule } from 'angular-instantsearch';
@@ -51,6 +54,21 @@ import { ModalModule } from './modal-w';
 import { Pipe, PipeTransform } from '@angular/core';
 import { DomSanitizer} from '@angular/platform-browser';
 
+
+//import fontawesome
+import { library, dom } from '@fortawesome/fontawesome-svg-core'; // below are the imports then just add to library icons below
+import { faEarth,faCircleXmark } from '@fortawesome/free-solid-svg-icons';
+import { faGithub,faLinkedin } from '@fortawesome/free-brands-svg-icons';
+
+//array of Icons added , than just say [icon]="['fas', 'circle-xmark']" as example fs is solic and fb is brands
+const icons = [
+                faEarth,
+                faGithub,
+                faLinkedin,
+                faCircleXmark
+              ];
+library.add(...icons);
+
 @Pipe({ name: 'safe' })
 export class SafePipe implements PipeTransform {
   constructor(private domSanitizer: DomSanitizer) {}
@@ -79,6 +97,8 @@ export class SafePipe implements PipeTransform {
     // NgAisHitsModule,
     AppRoutingModule,
     ModalModule,
+    FontAwesomeModule,
+
     
 
     //insatasearch algolia modules for the html document in the app.component.html

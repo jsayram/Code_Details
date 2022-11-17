@@ -13,6 +13,10 @@ import { query } from '@angular/animations';
 import { ModalService } from 'src/app/modal-w';
 import { Console } from 'console';
 
+//import fontawesome
+import { library, dom } from '@fortawesome/fontawesome-svg-core'; // below are the imports then just add to library icons below
+import { faEarth,faCircleXmark } from '@fortawesome/free-solid-svg-icons';
+import { faGithub,faLinkedin } from '@fortawesome/free-brands-svg-icons';
 
 
 const searchClient = algoliasearch(
@@ -28,6 +32,11 @@ const searchClient = algoliasearch(
   '../../../styles.css']
 })
 export class TutorialsListComponent implements OnInit {
+  //load the array of icons to use in the project
+  faEarth = faEarth;
+  faCircleXmark = faCircleXmark;
+  faGithub = faGithub;
+  faLinkedin = faLinkedin;
 
   bodyText?:string;
 
@@ -49,6 +58,7 @@ export class TutorialsListComponent implements OnInit {
   
   constructor(private tutorialService: TutorialService, 
               private modalService: ModalService) { 
+             
   }
  
 
