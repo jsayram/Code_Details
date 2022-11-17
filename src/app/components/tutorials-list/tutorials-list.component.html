@@ -146,88 +146,78 @@ THIS IS THE OLD STUFF
  <!--  -->
   <!--WORKING CODE FOR INSTASEARCH JUST COMMENTED OUT FOR NOW-->
   <!-- --------------------------------------->
-                                                                              <div class="scaffold container">
-                                                                                
-                                                                                <ais-instantsearch [config]="searchConfig">
-                                                                                  <ais-stats></ais-stats>
-                                                                                  <div class="searchbox">
-                                                                                    <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
-                                                                                  </div>
-                                                                                  <ais-configure [searchParameters]="{ hitsPerPage: 5}"></ais-configure>
-                                                                                
-                                                                                  <div class="search-panel " >
-                                                                                    <div class="search-panel__filters">
-                                                                                      <ais-panel  header="Tags" class="container">
-                                                                                        <ais-refinement-list attribute="tags" [showMore]="true" [limit]="5" ></ais-refinement-list>
-                                                                                      </ais-panel>
-                                                                                      <ais-panel header="titles" class="container">
-                                                                                        <ais-refinement-list attribute="title" [showMore]="true" [limit]="5" ></ais-refinement-list>
-                                                                                      </ais-panel>
-                                                                                    </div>
-                                                                                    
-                                                                                    <div class="search-panel__results ">
-                                                                                      <ais-hits > 
-                                                                                        <ng-template let-hits="hits" let-results="results"> 
-                                                                                          
-                                                                                          <div *ngIf="hits.length === 0">
-                                                                                            oh man! I think I need to add more content :( <strong></strong>.
-                                                                                          </div>
-                                                                                          <div class="row">
-                                                                                            <div class="ais-Hits-item card colum-2" 
-                                                                                            *ngFor="let hit of hits;">
-                                                                                            
-                                                                                              
-                                                                                                
-                                                                                                <h2>{{hit.title}}</h2>
-                                                                                                <div >
-                                                                                                  <button (click)="openModal('custom-modal-1')">Open Modal 1</button>
-                                                                                              </div>
-                                                                                              <div>
-                                                                                              <jw-modal id="custom-modal-1">
-                                                                                                  <h1>A Custom Modal!</h1>
-                                                                                            
-                                                                                                  <div class="container"> 
-                                                                                                  <iframe src="https://www.youtube.com/embed/hUMfUgMJT00"
-                                                                                                    title="pizza"
-                                                                                                    frameborder="0"
-                                                                                                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                                                                                                    allowfullscreen>
-                                                                                                   </iframe>
-                                                                                                  </div>
-                                                                                                  <p>Home page text: <input type="text" [(ngModel)]="bodyText" /></p>
-                                                                                                  <button (click)="closeModal('custom-modal-1')">Close</button>
-                                                                                              </jw-modal>
-                                                                                            </div>
+<div class="scaffold container">
+  <ais-instantsearch [config]="searchConfig">
+    <ais-stats></ais-stats>
+    <div class="searchbox">
+      <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
+    </div>
 
+    <ais-configure [searchParameters]="{ hitsPerPage: 5}"></ais-configure>
+    <div class="search-panel " >
+      <div class="search-panel__filters">
+        <ais-panel  header="Tags" class="container">
+          <ais-refinement-list attribute="tags" [showMore]="true" [limit]="5" ></ais-refinement-list>
+        </ais-panel>
+        <ais-panel header="titles" class="container">
+          <ais-refinement-list attribute="title" [showMore]="true" [limit]="5" ></ais-refinement-list>
+        </ais-panel>
+      </div> 
 
+      <div class="search-panel__results ">
+        <ais-hits > 
+          <ng-template let-hits="hits" let-results="results"> 
+            <div *ngIf="hits.length === 0"> oh man! I think I need to add more content :( <strong></strong>.
+            </div>
+            <div class="row">
+              <div class="ais-Hits-item card colum-2" 
+                  *ngFor="let hit of hits;"
+                  (click)="openModal(hit.objectID)">
 
-                                                                                                
-                                                                                              
-                                                                                              <h1> <a href="{{hit.url}}">{{hit.title}}</a></h1>
-                                                                                                <p>{{hit.description}}</p>
-                                                                                                <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez}</a>
-                                                                                                <h1>
-                                                                                                  <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
-                                                                                                </h1>
-                                                                                                <span>
-                                                                                                  <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
-                                                                                                </span>
-                                                                                              
-                                                                                            </div>
-                                                                                          </div>
-                                                                                        </ng-template>
-                                                                                      </ais-hits>
-                                                                              
-                                                                                      <div>
-                                                                                        <ais-pagination></ais-pagination>
-                                                                                      </div>
-                                                                                    </div>
-                                                                              
-                                                                                  </div>
-
-                                                                                  
-                                                                                </ais-instantsearch>
-                                                                              </div>
+                <p>{{hit.title}}</p>
+                <div >
+                <!-- <button (click)="openModal('custom-modal-1')">Open Modal 1</button> -->
+                </div>
+                <div>
+                  <p>A Custom Modal! {{hit.url}}</p>
+                  <jw-modal id="{{hit.objectID}}">
+                  <div style="padding-bottom:56.25%; position:relative; display:block; width: 100%">
+                    <iframe 
+                    class="responsive-iframe" 
+                    width="100%" 
+                    height="100%"
+                    [src]="hit.url | safe"
+                    title="pizza"
+                    frameborder="0"
+                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                    allowfullscreen=""
+                    style="position:absolute; top:0; left: 0">
+                    </iframe>
+                  </div>
+                  <p>Home page text: <input type="text" [(ngModel)]="bodyText" /></p>
+                  <button (click)="closeModal('hit.objectID')">Close</button>
+                  </jw-modal>
+                </div>                                                                                                                                                                      
+                <h1> <a href="{{hit.url}}">{{hit.title}}</a></h1>
+                <p>{{hit.description}}</p>
+                <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez}</a>
+                <h1>
+                  <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
+                </h1>
+                <span>
+                  <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
+                </span>
+                </div>
+              </div>
+            </ng-template>
+          </ais-hits>
+          <div>
+          <ais-pagination></ais-pagination>
+        </div>
+      </div>
+    </div>
+  </ais-instantsearch>
+</div>
 
 
 

@@ -11,6 +11,7 @@ import { environment } from 'src/environments/environment';
 import { MultipleQueriesQuery } from '@algolia/client-search';
 import { query } from '@angular/animations'; 
 import { ModalService } from 'src/app/modal-w';
+import { Console } from 'console';
 
 
 
@@ -40,6 +41,8 @@ export class TutorialsListComponent implements OnInit {
     indexName: 'tutorialContent',
     searchClient
   };
+
+  s: string = "InsideThe OPEN MODAL FUNCTION";
   //   //it shows all results by default so
   //  // adding this to not show results by default
   //  showResults= false;
@@ -53,12 +56,14 @@ export class TutorialsListComponent implements OnInit {
     this.bodyText = 'This text can be updated in modal 1';
   }
   openModal(id: string) {
+    console.log(this.s + id);
     this.modalService.open(id);
-}
+  }
 
-closeModal(id: string) {
+  closeModal(id: string) {
+    
     this.modalService.close(id);
-}
+  }
 
   // refreshList(): void {
   //   this.currentTutorial = undefined;

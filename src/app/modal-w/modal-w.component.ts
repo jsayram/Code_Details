@@ -19,6 +19,7 @@ export class ModalWComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         // ensure id attribute exists
+        console.log("Inside the modal-w.component.ts, where we check the id----"+ this.id );
         if (!this.id) {
             console.error('modal must have an id');
             return;
@@ -80,6 +81,5 @@ export class ModalWComponent implements OnInit, OnDestroy {
         };
         stopVideos();
         document.body.classList.remove('jw-modal-open');
-
     }
 }
