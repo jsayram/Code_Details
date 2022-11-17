@@ -46,6 +46,7 @@ import { TutorialsListComponent } from './components/tutorials-list/tutorials-li
 import { TutorialService } from './services/tutorial.service';
 import { map } from 'rxjs/operators';
 import { Tutorial } from './models/tutorial.model';
+import { ModalModule } from './modal-w';
 
 
 @NgModule({
@@ -55,6 +56,9 @@ import { Tutorial } from './models/tutorial.model';
     AddTutorialComponent,
     TutorialDetailsComponent,
     TutorialsListComponent,
+    
+   
+    
 
   ],
   imports: [
@@ -62,6 +66,7 @@ import { Tutorial } from './models/tutorial.model';
     FormsModule,
     // NgAisHitsModule,
     AppRoutingModule,
+    ModalModule,
     
 
     //insatasearch algolia modules for the html document in the app.component.html

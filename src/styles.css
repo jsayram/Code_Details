@@ -1,5 +1,5 @@
-/* You can add global styles to this file, and also import other style files */
 
+/*
 /* html, body { height: 100%; }
 body,
 h1 {
@@ -15,7 +15,6 @@ body {
 .ais-Breadcrumb-list,
 .ais-CurrentRefinements-list,
 .ais-HierarchicalMenu-list,
-.ais-Hits-list,
 .ais-Results-list,
 .ais-InfiniteHits-list,
 .ais-InfiniteResults-list,
@@ -212,7 +211,7 @@ a[class^='ais-'] {
 .ais-CurrentRefinements,
 .ais-GeoSearch,
 .ais-HierarchicalMenu,
-.ais-Hits,
+
 .ais-Results,
 .ais-HitsPerPage,
 .ais-ResultsPerPage,
@@ -223,23 +222,32 @@ a[class^='ais-'] {
 .ais-NumericMenu,
 .ais-NumericSelector,
 .ais-Pagination,
-.ais-Panel,
 .ais-PoweredBy,
 .ais-RangeInput,
 .ais-RangeSlider,
 .ais-RatingMenu,
-.ais-RefinementList,
+
 .ais-SearchBox,
 .ais-SortBy,
 .ais-Stats,
 .ais-ToggleRefinement {
-  color: #cccccc; 
+  color: #e5de07; 
 }
 
+.ais-Panel{
+  background-color: #e51d07;
+  color: #e5de07;
+  border-radius: 5px;
+  padding: 10px;
+  margin: 4px;
+  display: block;
+}
 /* my overiddes of above */
 .ais-Hits{ 
   list-style: none;
   color: rgb(216, 204, 204);
+  margin: 2rem;
+  content: icon;
 }
 
 
@@ -492,18 +500,20 @@ a[class^='ais-'] {
 .ais-InfiniteResults-list,
 .ais-Hits-list,
 .ais-Results-list {
-  margin-top: -1rem;
-  margin-left: -1rem;
+  margin-top: 1rem;
+  margin-left: 1rem;
   display: -webkit-box;
   display: -ms-flexbox;
   display: flex;
   -ms-flex-wrap: wrap;
-  flex-wrap: wrap; }
+  flex-wrap: wrap; 
+}
   .ais-Panel-body .ais-InfiniteHits-list, .ais-Panel-body
   .ais-InfiniteResults-list, .ais-Panel-body
   .ais-Hits-list, .ais-Panel-body
   .ais-Results-list {
-    margin: 0.5rem 0 0 -1rem; }
+    margin: 0.5rem 0 0 -1rem; 
+  }
 
 .ais-InfiniteHits-item,
 .ais-InfiniteResults-item,
@@ -824,22 +834,50 @@ a[class^='ais-'] {
   font-size: 1rem;
   }
 
-.ais-RefinementList-checkbox {
-  display: inline-table;
-  padding: 10rem;
-  padding: 1rem;
-  height: 1rem;
-  border: 1px solid #153fe6;
-  border-radius:3px;
-  background-color: #fff;
-  vertical-align: middle; }
+.ais-RefinementList-checkbox{
+  position: absolute;
+  margin-right:20em;
+  height: 25px;
+  width: 25px;
+  background-color: #eee;
+  border-radius: 10;
+}
 
 
+
+  .ais-RefinementList{
+    display: inline-block;
+  }
 
 
   /* ------------------------------------ */
   /* My CSS Added , not part of instasearch css */
   /* ------------------------------------- */
+  .ais-Hits-lisl .container{
+    /* padding-left: 3rem;
+    padding-right: 3rem; */
+    padding: 0 3rem;
+    display: flex;
+
+    grid-auto-flow: dence;
+   
+  }
+  .ais-Hits-list container{
+    /* padding-left: 3rem;
+    padding-right: 3rem; */
+    display: flex;
+    margin-left:10rem;
+
+    grid-auto-flow: dence;
+   
+  }
+
+  .ais-Highlight span{
+    color: #3a4570;
+    font-weight: 600;
+  }
+
+
   /* .parent {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
@@ -881,7 +919,8 @@ body{
   overflow: hidden;
 }
 
-.container .card:before{
+
+/* .container .card:before{
   content: '';
   position: absolute;
   top: 0;
@@ -891,9 +930,9 @@ body{
   background: #9bdc28;
   clip-path: circle(150px at 80% 20%);
   transition: 0.5s ease-in-out;
-}
+} */
 
-.container .card:hover:before{
+/* .container .card:hover:before{
   clip-path: circle(300px at 80% -20%);
 }
 
@@ -1013,13 +1052,13 @@ body{
   border-radius: 50%;
   margin: 0 5px;
   cursor: pointer;
-}
+} */
 
-.container .card .contentBx .color span:nth-child(2){
+/* .container .card .contentBx .color span:nth-child(2){
   background: #9bdc28;
-}
+} */
 
-.container .card .contentBx .color span:nth-child(3){
+/* .container .card .contentBx .color span:nth-child(3){
   background: #03a9f4;
 }
 
@@ -1047,5 +1086,4 @@ body{
   transform: translateY(0px);
   transition-delay: 0.75s;
   
-}
-
+} */

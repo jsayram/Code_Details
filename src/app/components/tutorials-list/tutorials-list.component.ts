@@ -10,6 +10,7 @@ import algoliasearch from 'algoliasearch/lite';
 import { environment } from 'src/environments/environment';
 import { MultipleQueriesQuery } from '@algolia/client-search';
 import { query } from '@angular/animations'; 
+import { ModalService } from 'src/app/modal-w';
 
 
 
@@ -23,10 +24,12 @@ const searchClient = algoliasearch(
   selector: 'app-tutorials-list',
   templateUrl: './tutorials-list.component.html',
   styleUrls: ['./tutorials-list.component.css',
-  '../../../styles.css',
-  '../../../styles.scss']
+  '../../../styles.css']
 })
 export class TutorialsListComponent implements OnInit {
+
+  bodyText?:string;
+
   tutorials?: Tutorial[];
   currentTutorial?: Tutorial;
   tag?:string;
@@ -41,13 +44,21 @@ export class TutorialsListComponent implements OnInit {
   //  // adding this to not show results by default
   //  showResults= false;
   
-  constructor(private tutorialService: TutorialService) { 
+  constructor(private tutorialService: TutorialService, 
+              private modalService: ModalService) { 
   }
  
 
   ngOnInit(): void {
-   // this.showResults= false;
+    this.bodyText = 'This text can be updated in modal 1';
   }
+  openModal(id: string) {
+    this.modalService.open(id);
+}
+
+closeModal(id: string) {
+    this.modalService.close(id);
+}
 
   // refreshList(): void {
   //   this.currentTutorial = undefined;
