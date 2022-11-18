@@ -152,7 +152,7 @@ THIS IS THE OLD STUFF
     <div class="searchbox">
       <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
     </div>
-
+    <!-- END OF FANCY SEARCH BOX -->
     <ais-configure [searchParameters]="{ hitsPerPage: 5}"></ais-configure>
     <div class="search-panel " >
       <div class="search-panel__filters">
@@ -170,7 +170,7 @@ THIS IS THE OLD STUFF
             <div *ngIf="hits.length === 0"> oh man! I think I need to add more content :( <strong></strong>.
             </div>
             <div class="row">
-              <div class="ais-Hits-item mat-card " 
+              <div class="ais-Hits-item card " 
                   *ngFor="let hit of hits;"
                   (click)="openModal(hit.objectID)">
                 <div>
@@ -189,18 +189,21 @@ THIS IS THE OLD STUFF
                     style="position:absolute; top:0; left: 0">
                     </iframe>
                   </div>
-                  <div class="container">
+                  <div class="container" style="margin-top:2rem">
+                    
                     <button (click)="closeModal(hit.objectID)" style="border: unset; background:transparent; display: block;
                     margin-left: auto;
                     margin-right: auto;">
-                    <button class="button-85" role="mat-button"><fa-icon [icon]="faCircleXmark"></fa-icon> Close Video</button>
+                    <button class="button-85" role="mat-button">
+                      <fa-icon [icon]="faCircleXmark" [styles]="{ stroke: 'red', color: 'white' }" size="1x" [spin]="true"></fa-icon>   Close Video
+                    </button>
                     </button>
                   </div>
                   <!-- <h1>Home page text: <input type="text" [(ngModel)]="bodyText" /></h1> -->
                   </jw-modal>
                 </div>                                                                                                                                                                      
                 <h1> <a href="{{hit.url}}">{{hit.title}}</a></h1>
-                <p>{{hit.title}}</p>
+                <img src="{{hit.img}}" alt="image" style="width:100%">
                 <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez</a>
                 
                 <h1>
@@ -221,6 +224,26 @@ THIS IS THE OLD STUFF
       </div>
     </div>
   </ais-instantsearch>
+</div>
+
+
+
+<div class="row">
+  <div class="small-7 medium-5 large-4 column end small-centered card">
+    <div class="card-top"><a href="#0">
+        <div class="overlay">
+          <h1>READ</h1>
+        </div></a><img class="card-img" src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/324479/yeti.png"/></div>
+    <div class="triangle">
+      <div class="circle-button" id="circleDrop"><img class="close" src="https://s3-us-west-2.amazonaws.com/s.cdpn.io/324479/close.svg"/></div>
+    </div>
+    <div class="card-middle">
+      <h5 class="more">Lorem ipsum dolor sit amet, consectetur adipisicing elit. Accusamus cumque natus delectus praesentium laudantium molestias.</h5>
+    </div>
+    <div class="card-bottom text-center">
+      <h2 class="card-title">Foundation</h2>
+    </div>
+  </div>
 </div>
 
 

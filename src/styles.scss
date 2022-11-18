@@ -1,0 +1,210 @@
+.ais-Hits-list{
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    align-items: center;
+    align-content: center;
+    margin: 0 auto;
+    width: 100%;
+    max-width: 100%;
+    padding: 0;
+    list-style: none;
+    background-color: rgb(73, 36, 36);
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.24);
+    transition: all .3s cubic-bezier(.25,.8,.25,1);
+}
+
+/**
+ * Hits
+ */
+
+ .ais-Hits-item,
+ .ais-InfiniteHits-item {
+   -webkit-box-align: center;
+   -ms-flex-align: center;
+   align-items: center;
+   background: rgb(91, 10, 254);
+   -webkit-box-shadow: 0 0 0 1px rgba(35, 38, 59, 0.05), 0 1px 10px 0 rgba(35, 38, 59, 0.15);
+   box-shadow: 0 0 0 1px rgba(35, 38, 59, 0.05), 0 1px 10px 0 rgba(35, 38, 59, 0.15);
+   font-size: 0.875rem;
+   font-weight: 400;
+   line-height: 1.25rem;
+   padding: 1.5rem; 
+    margin: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.12),0 1px 2px rgba(0,0,0,.24);
+    transition: all .3s cubic-bezier(.25,.8,.25,1);
+    display: inline;
+
+    width: 20rem;
+    height: 22rem;
+    background-color: #fff;
+    -webkit-text-fill-color: rgb(0, 0, 0);
+    -webkit-text-stroke-width: 1px;
+    -webkit-text-stroke-color: rgb(0, 0, 0);
+    border-radius: 4px;
+  
+    box-shadow: 0px 0px 20px 2px rgb(12, 25, 201);
+    /* in order: x offset, y offset, blur size, spread size, color */
+    /* blur size and spread size are optional (they default to 0) */
+
+  }
+  .ais-Hits-item:hover{
+    background-color: aqua;
+  }
+
+ 
+ .ais-Hits-item:only-of-type,
+ .ais-InfiniteHits-item:only-of-type {
+   border-radius: 3px; }
+ 
+ .ais-InfiniteHits-loadMore,
+ .ais-InfiniteHits-loadPrevious {
+   display: -webkit-box;
+   display: -ms-flexbox;
+   display: flex;
+   margin: 1rem auto; }
+
+
+
+
+
+
+
+
+
+
+
+
+// @use 'bourbon';
+// @use url(https://fonts.googleapis.com/css?family=Work+Sans:400,300,200,100);
+// @use url(https://fonts.googleapis.com/css?family=Open+Sans:400,300,600);
+
+$blue: #B2DCE5;
+$font: Work Sans;
+$card-border-radius: .75em;
+$background: #EDF7FA;
+
+body {
+  background: $background;
+}
+
+.card {
+  position: relative;
+  top: 20vh;
+  box-shadow: 0 10px 20px rgba(0,0,0,0.19), 0 6px 6px rgba(0,0,0,0.23);
+  border-radius: $card-border-radius;
+  padding: 0; // tight #nice bruh
+  transition: all 0.2s ease-in-out;
+  
+  &:nth-child(even) {
+    margin: 0 1em;
+  }
+}
+
+.card-top {
+  background: $blue;
+  padding: 3em;
+  @include border-top-radius($card-border-radius);
+  
+  .card-img {
+    display: block;
+    margin-left: auto;
+    margin-right: auto;
+    height: 12em;
+    width: auto;
+  }
+  
+  .overlay {
+    display: block;
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 17.75em;
+    width: 100%;
+    // @include border-top-radius($card-border-radius);
+    z-index: 10;
+    background: rgba(0, 0, 0, 0.55);
+    overflow: hidden;
+    transition: all 700ms ease;
+    opacity: 0;
+    
+    h1 {
+      text-align: center;
+      font-weight: 500;
+      color: #fff;
+      position: relative;
+      top: 50%;
+      transform: translateY(-50%);
+    }
+    
+    &:hover, &:focus {
+      opacity: 1;
+    }
+  }
+}
+
+.triangle {
+  position: relative;
+  @include triangle(3em, $blue, down);
+  margin: 0 auto -1.75em auto;
+  top: -.25em;
+  z-index: 20;
+}
+
+.card-middle {
+  display: none;
+  background: #efefef;
+  padding: 2em 1em 1em 1em;
+  
+  .more {
+    font-family: Open Sans;
+    font-weight: 400;
+  }
+}
+
+.card-bottom {
+  background: #f7f7f7;
+  padding: 1.75em 1em 1em 1em;
+  // @include border-bottom-radius($card-border-radius);
+  
+  .card-title {
+    font-weight: 100;
+  }
+}
+
+// testing
+.circle-button {
+  position: absolute;
+  bottom: 0;
+  right: 3.5em;
+  width: 70px;
+  height: 70px;
+  font-size: 1.5em;
+  color: #fff;
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  box-shadow: 0 3px 6px rgba(0,0,0,.275);
+  outline: none;
+  cursor: pointer;
+  transition: all 300ms ease;
+  
+  .close {
+    transition: transform 400ms ease;
+  }
+  
+  &:hover {
+    box-shadow: 0 6px 12px rgba(0,0,0,.275);
+  }
+}
+
+.closeRotate {
+  transform: rotate(45deg);
+}
+
+// base
+body, h1, h2, h3, h4, h5, h6, p {
+  font-family: $font;
+}
