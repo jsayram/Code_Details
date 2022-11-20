@@ -86,10 +86,6 @@ export class SafePipe implements PipeTransform {
     TutorialDetailsComponent,
     TutorialsListComponent,
     SafePipe
-    
-   
-    
-
   ],
   imports: [
     BrowserModule,
