@@ -153,32 +153,32 @@ THIS IS THE OLD STUFF
       <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
     </div>
 
-    <ais-configure [searchParameters]="{ hitsPerPage: 6}"></ais-configure>
+    <ais-configure [searchParameters]="{ hitsPerPage: 5}"></ais-configure>
     <div class="search-panel " >
       <div class="search-panel__filters">
         <ais-panel  header="Tags" class="container">
-          <ais-refinement-list attribute="tags" [showMore]="true" [limit]="6" ></ais-refinement-list>
+          <ais-refinement-list attribute="tags" [showMore]="true" [limit]="5" ></ais-refinement-list>
         </ais-panel>
         <ais-panel header="titles" class="container">
-          <ais-refinement-list attribute="title" [showMore]="true" [limit]="6" ></ais-refinement-list>
+          <ais-refinement-list attribute="title" [showMore]="true" [limit]="5" ></ais-refinement-list>
         </ais-panel>
       </div> 
 
-      <div class="search-panel__results">
-        <ais-hits> 
+      <div class="search-panel__results ">
+        <ais-hits > 
           <ng-template let-hits="hits" let-results="results"> 
             <div *ngIf="hits.length === 0"> oh man! I think I need to add more content :( <strong></strong>.
             </div>
             
-            <div class="row justify-content-center" style="--bs-gutter-x: 2rem;">
-              
-              <div class="card" 
+            
+            <div class="row">
+              <div class="ais-Hits-item mat-card " 
                   *ngFor="let hit of hits;"
                   (click)="openModal(hit.objectID)">
                 <div>
                   <!-- <p>{{hit.title}}</p> -->
                   <jw-modal id="{{hit.objectID}}">
-                  <div class="iframe-container">
+                  <div style="padding-bottom:56.25%; position:relative; display:block; width: 100%">
                     <iframe 
                     class="responsive-iframe" 
                     width="100%" 
@@ -201,69 +201,36 @@ THIS IS THE OLD STUFF
                   <!-- <h1>Home page text: <input type="text" [(ngModel)]="bodyText" /></h1> -->
                   </jw-modal>
                 </div>                                                                                                                                                                      
-                <img src="{{hit.img}}" alt="{{hits.title}}" class="card-image">
-
-               <footer class="card-footer card-blur"> 
-               <br>
-                <!-- <h3> <a href="{{hit.url}}">{{hit.title}}</a></h3> -->
+                <h1> <a href="{{hit.url}}">{{hit.title}}</a></h1>
+                <p>{{hit.title}}</p>
+                <a [routerLink]="['/tutorials', hit.objectID]" class="btn btn-primary">Go somewherez</a>
                 
-                <h3>
+                <h1>
                   <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
-                </h3>
-                <span class="card-span-highlight">
+                </h1>
+               
+                <span>
                   <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
                 </span>
-                <div>
-                <a [routerLink]="['/details', hit.objectID]" class="btn btn-primary" style="margin-top:1rem;">Go somewherez</a>
-                 </div> 
-                </footer>
-               </div>
-            </div> 
+               
+              </div>
+            </div>
+            <!-- THIS IS THE NEW CARD HTML TO FIT ABOVE-->
+            
+
+            <!-- END OF NEW HTML FOR CARD TO FIT ABOVE -->
+
             </ng-template>
           </ais-hits>
           <div>
           <ais-pagination></ais-pagination>
         </div>
       </div>
-
-
-
     </div>
   </ais-instantsearch>
 </div>
 
-<!-- <div class="background"></div>
-              <div id="curve" class="card">
-                  <div class="footer">
-                      <div class="connections">
-                          <div class="connection facebook"><div class="icon"></div></div>
-                          <div class="connection twitter"><div class="icon"></div></div>
-                          <div class="connection behance"><div class="icon"></div></div>
-                      </div>
-                      <svg id="curve">
-                          <path id="p" d="M0,200 Q80,100 400,200 V150 H0 V50" transform="translate(0 300)" />
-                          <rect id="dummyRect" x="0" y="0" height="450" width="400"
-                    fill="transparent" />
-                          
-                          <animate xlink:href="#p" attributeName="d" to="M0,50 Q80,100 400,50 V150 H0 V50" fill="freeze" begin="dummyRect.mouseover" end="dummyRect.mouseout" dur="0.1s" id="bounce1" />
-                          
-                          <animate xlink:href="#p" attributeName="d" to="M0,50 Q80,0 400,50 V150 H0 V50" fill="freeze" begin="bounce1.end" end="dummyRect.mouseout" dur="0.15s" id="bounce2" />
-                          
-                          <animate xlink:href="#p" attributeName="d" to="M0,50 Q80,80 400,50 V150 H0 V50" fill="freeze" begin="bounce2.end" end="dummyRect.mouseout" dur="0.15s" id="bounce3" />
-                          
-                          <animate xlink:href="#p" attributeName="d" to="M0,50 Q80,45 400,50 V150 H0 V50" fill="freeze" begin="bounce3.end" end="dummyRect.mouseout" dur="0.1s" id="bounce4" />
-                         
-                          <animate xlink:href="#p" attributeName="d" to="M0,50 Q80,50 400,50 V150 H0 V50" fill="freeze" begin="bounce4.end" end="dummyRect.mouseout" dur="0.05s" id="bounce5" />
 
-                          <animate xlink:href="#p" attributeName="d" to="M0,200 Q80,100 400,200 V150 H0 V50" fill="freeze" begin="dummyRect.mouseout" dur="0.15s" id="bounceOut" />
-                      </svg>
-                      <div class="info">
-                          <div class="name">Filan Fisteku</div>
-                          <div class="job">Architect Manager</div>
-                      </div>
-                  </div>
-                  <div class="card-blur"></div>
-              </div> -->
 
 <!-- 
     <div >

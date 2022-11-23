@@ -28,8 +28,7 @@ const searchClient = algoliasearch(
 @Component({
   selector: 'app-tutorials-list',
   templateUrl: './tutorials-list.component.html',
-  styleUrls: ['./tutorials-list.component.css',
-  '../../../styles.css']
+  styleUrls: ['../../../styles/components/tutorials-list.component.scss']
 })
 export class TutorialsListComponent implements OnInit {
   //load the array of icons to use in the project
