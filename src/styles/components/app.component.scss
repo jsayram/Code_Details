@@ -1,0 +1,11 @@
+.background {
+    /*add a gradient background*/
+    background:linear-gradient(45deg, rgba(20, 18, 59, 0.3), rgba(4, 0, 255, 0.2)), url("../../../src/assets/images/background.png");
+    background-size: cover;
+    background-repeat: repeat;
+    background-position: center;
+    background-attachment: local;
+    z-index: -10;
+    color: rgb(255, 255, 255);
+   
+}

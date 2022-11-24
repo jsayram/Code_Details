@@ -1,4 +1,110 @@
 
+/* note that there is a style tag on row 
+   that has --bs-gutter-x: 2rem;*/
+
+//make span elementes white if there is a black background
+// .card-span-highlight {
+//   color: white;
+// }
+
+$card-height: 25rem;
+$card-width: 20rem;
+$card-border-radius: 2rem ;
+
+.card {
+    position: relative;
+    height: $card-height;
+    width: $card-width;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    padding: 1rem;
+    margin-inline: 1rem;
+    margin-bottom: 2rem;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: 0 0 50px -10px rgb(37, 2, 62);
+    overflow: hidden;
+    border-radius: $card-border-radius;
+    cursor: pointer;
+    
+}
+
+.card-blur {
+    position: absolute;
+    height: $card-height;
+    width: $card-width;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: repeat;
+    box-shadow: 0 0 80px -10px black;
+    // overflow: hidden;
+    border-radius: $card-border-radius;
+    background-color: rgb(33, 6, 76);
+    opacity: 1;
+    transition: opacity 0.15s ease-in;
+    cursor: pointer;
+}
+
+.card:hover .card-blur {
+    opacity: .95;
+    cursor: pointer;
+    background-color: rgb(33, 6, 76);
+
+}
+
+.card-footer {
+    position: absolute;
+    height: auto;
+    width: auto;
+    bottom: 0;
+    margin-top: 50%;
+    cursor: pointer;
+    border: none;
+}
+.card-footer:hover {
+    cursor: pointer;
+    margin-top: 10%;
+    // margin-top: 10%;
+    transition: ease-in 0.5s;
+    transition-duration: 0.2s;
+    overflow: auto;
+    //allow scroll
+     overflow-y: scroll;
+
+}
+
+.card:hover {
+    transform: translateY(0px);
+}
+
+.card:hover .info {
+    transform: translateY(0px);
+}
+
+.card {
+    background-image: linear-gradient(45deg, #381a5e, #19023a);
+    color: #05F4B7;
+    border: none;
+}
+.card-image{
+    margin-top: -15px;
+    margin-left: -15px;
+    margin-right: -15px;
+    height: auto; 
+    width:111%; 
+    top: 0;
+    border-radius: $card-border-radius;
+}
+
+
+
 .ais-Breadcrumb-list,
 .ais-CurrentRefinements-list,
 .ais-HierarchicalMenu-list,
@@ -8,7 +114,7 @@
 .ais-InfiniteResults-list,
 .ais-Menu-list,
 .ais-NumericMenu-list,
-.ais-Pagination-list,
+
 .ais-RatingMenu-list,
 .ais-RefinementList-list,
 .ais-ToggleRefinement-list {
@@ -43,7 +149,8 @@
   -webkit-user-select: none;
   -moz-user-select: none;
   -ms-user-select: none;
-  user-select: none; }
+  user-select: none; 
+}
   .ais-ClearRefinements-button::-moz-focus-inner,
   .ais-CurrentRefinements-delete::-moz-focus-inner,
   .ais-CurrentRefinements-reset::-moz-focus-inner,
@@ -60,7 +167,8 @@
   .ais-SearchBox-reset::-moz-focus-inner,
   .ais-VoiceSearch-button::-moz-focus-inner {
     padding: 0;
-    border: 0; }
+    border: 0; 
+  }
   .ais-ClearRefinements-button[disabled],
   .ais-CurrentRefinements-delete[disabled],
   .ais-CurrentRefinements-reset[disabled],
@@ -210,7 +318,6 @@
 .ais-InfiniteHits-loadMore,
 .ais-RangeInput-submit,
 .ais-InfiniteHits-loadPrevious,
-.ais-Pagination-link,
 .ais-GeoSearch-redo,
 .ais-GeoSearch-reset,
 .ais-VoiceSearch-button {
@@ -268,9 +375,9 @@
 .ais-GeoSearch-redo:hover,
 .ais-GeoSearch-reset:hover,
 .ais-VoiceSearch-button:hover {
-  background-image: -webkit-gradient(linear, left top, left bottom, from(#fff), to(#f5f5fa));
-  background-image: linear-gradient(-180deg, #fff, #f5f5fa);
-  border-color: #d6d6e7; }
+  background-image: -webkit-gradient(linear, left top, left bottom, from(rgb(15, 0, 149)), to(#3239c5));
+  background-image: linear-gradient(-180deg, rgb(28, 43, 177), #772aae);
+  border-color: #ffffff; }
 
 .ais-HierarchicalMenu-showMore:focus,
 .ais-Menu-showMore:focus,
@@ -1081,24 +1188,6 @@
 .ais-RangeSlider .rheostat-marker {
   background-color: #d6d6e7; }
 
-/**
- * Pagination
- */
-.ais-Pagination-item:first-child > .ais-Pagination-link {
-  border-radius: 3px 0 0 3px; }
-
-.ais-Pagination-item + .ais-Pagination-item > .ais-Pagination-link {
-  border-radius: 0;
-  margin-left: -1px; }
-
-.ais-Pagination-item:last-child > .ais-Pagination-link {
-  border-radius: 0 3px 3px 0; }
-
-.ais-Pagination-item {
-  display: inline-block; }
-
-.ais-Pagination-item--selected .ais-Pagination-link {
-  font-weight: bold; }
 
 /**
  * Breadrumb
@@ -1123,3 +1212,68 @@
   .ais-SearchBox-input,
   .ais-RangeInput-input {
     font-size: 1rem; } }
+
+
+
+/* BELOW ARE MY CUSTUM CLASSES FOR ALGOLIA ELEMENTS */
+/**
+ * Pagination
+ */
+.ais-Pagination-item:first-child > .ais-Pagination-link {
+  border-radius: 3px 0 0 3px; }
+
+.ais-Pagination-item + .ais-Pagination-item > .ais-Pagination-link {
+  border-radius: 0;
+  margin-left: -1px; }
+
+.ais-Pagination-item:last-child > .ais-Pagination-link {
+  border-radius: 0 3px 3px 0; }
+
+.ais-Pagination-item {
+  display: inline-block;
+}
+  
+.ais-Pagination-item--selected .ais-Pagination-link {
+  font-weight: bold; }
+
+
+.ais-Pagination-list{
+  justify-content: center;
+  height: 5rem;
+  padding: 0;
+}
+
+.ais-Pagination-link {
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  appearance: none;
+  background-color: rgb(7, 3, 76);
+  background-image: -webkit-gradient(linear, left top, left bottom, from(rgb(18, 11, 111)), to(#4a3d9f));
+  background-image: linear-gradient(-180deg, rgb(24, 3, 69), #1e1e8e);
+  // border: 1px solid #000000;
+  border-radius: 10px;
+  -webkit-box-shadow: 0 1px 0 0 rgba(35, 38, 59, 0.05);
+  box-shadow: 0 1px 0 0 rgba(35, 38, 59, 0.05);
+  color: #c09cff;
+  cursor: pointer;
+  display: -webkit-inline-box;
+  display: -ms-inline-flexbox;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 300;
+  height: 3rem;
+  width: 3rem;
+  -webkit-box-pack: center;
+  -ms-flex-pack: center;
+  justify-content: center;
+  line-height: 1.25rem;
+  padding: 0 1rem;
+  place-items: center;
+  text-decoration: none;
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  opacity: 0.80;
+}
+
