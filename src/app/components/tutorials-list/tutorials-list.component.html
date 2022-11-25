@@ -148,10 +148,12 @@ THIS IS THE OLD STUFF
   <!-- --------------------------------------->
 <div class="scaffold container">
   <ais-instantsearch [config]="searchConfig">
-    <ais-stats></ais-stats>
-    <div class="searchbox">
-      <ais-search-box placeholder="Let's see if we have what you look for..."></ais-search-box>
+    
+    <div class="body-of-search">
+      <ais-search-box placeholder="Search Something..."></ais-search-box>
+     
     </div>
+    
 
     <ais-configure [searchParameters]="{ hitsPerPage: 6}"></ais-configure>
     <div class="search-panel " >
@@ -159,10 +161,11 @@ THIS IS THE OLD STUFF
         <ais-panel  header="Tags" class="container">
           <ais-refinement-list attribute="tags" [showMore]="true" [limit]="6" ></ais-refinement-list>
         </ais-panel>
-        <ais-panel header="titles" class="container">
+        <!-- <ais-panel header="titles" class="container">
           <ais-refinement-list attribute="title" [showMore]="true" [limit]="6" ></ais-refinement-list>
-        </ais-panel>
+        </ais-panel> -->
       </div> 
+      <ais-stats></ais-stats>
 
       <div class="search-panel__results">
         <ais-hits> 
