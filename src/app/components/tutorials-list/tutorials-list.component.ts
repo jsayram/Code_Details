@@ -27,8 +27,8 @@ const searchClient = algoliasearch(
 
 @Component({
   selector: 'app-tutorials-list',
-  templateUrl: './tutorials-list.component.html',
-  styleUrls: ['../../../styles/components/tutorials-list.component.scss']
+   templateUrl: './tutorials-list.component.html',
+   styleUrls: ['../../../styles/components/tutorials-list.component.scss']
 })
 export class TutorialsListComponent implements OnInit {
   //load the array of icons to use in the project
@@ -38,7 +38,7 @@ export class TutorialsListComponent implements OnInit {
   faLinkedin = faLinkedin;
 
   bodyText?:string;
-
+  searchAsYouType?: boolean;
   tutorials?: Tutorial[];
   currentTutorial?: Tutorial;
   tag?:string;

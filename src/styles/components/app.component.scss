@@ -1,6 +1,10 @@
 .background {
     /*add a gradient background*/
-    background:linear-gradient(45deg, rgba(20, 18, 59, 0.3), rgba(4, 0, 255, 0.2)), url("../../../src/assets/images/background.png");
+     background:linear-gradient(45deg, rgba(48, 19, 215, 0.314), rgba(52, 28, 190, 0.304)), url("../../../src/assets/images/background.png");
+   
+    //background-image: linear-gradient(to bottom, #2900d6, #350fd1, #3f1acd, #4722c8, #4d29c3, #4d2dc6, #4e31ca, #4e35cd, #4739d9, #3d3ce6, #2c41f2, #0045ff);
+   // background-image: linear-gradient(to right bottom, #2309e5, #1f14cf, #1e19b9, #1e1ba3, #1f1c8d, #24248d, #292b8d, #2e318d, #3841a3, #4152ba, #4a63d2, #5275ea);
+   
     background-size: cover;
     background-repeat: repeat;
     background-position: center;

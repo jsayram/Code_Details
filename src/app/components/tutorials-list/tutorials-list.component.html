@@ -146,26 +146,22 @@ THIS IS THE OLD STUFF
  <!--  -->
   <!--WORKING CODE FOR INSTASEARCH JUST COMMENTED OUT FOR NOW-->
   <!-- --------------------------------------->
-<div class="scaffold container">
+
+
+
+  <div class="scaffold container">
   <ais-instantsearch [config]="searchConfig">
     
     <div class="body-of-search">
-      <ais-search-box placeholder="Search Something..."></ais-search-box>
-     
+      <ais-search-box placeholder="Search Something..." submitTitle="Go" [searchAsYouType]=false></ais-search-box>
     </div>
     
 
-    <ais-configure [searchParameters]="{ hitsPerPage: 6}"></ais-configure>
+    <ais-configure [searchParameters]="{ hitsPerPage: 4}"></ais-configure>
     <div class="search-panel " >
-      <div class="search-panel__filters">
-        <ais-panel  header="Tags" class="container">
-          <ais-refinement-list attribute="tags" [showMore]="true" [limit]="6" ></ais-refinement-list>
-        </ais-panel>
-        <!-- <ais-panel header="titles" class="container">
-          <ais-refinement-list attribute="title" [showMore]="true" [limit]="6" ></ais-refinement-list>
-        </ais-panel> -->
-      </div> 
+    
       <ais-stats></ais-stats>
+     
 
       <div class="search-panel__results">
         <ais-hits> 
@@ -224,12 +220,25 @@ THIS IS THE OLD STUFF
             </div> 
             </ng-template>
           </ais-hits>
-          <div style="margin-bottom: 2rem; padding-bottom: 5rem;">
-            <ais-pagination></ais-pagination>
-          </div>
+         
+          
+           
+          
       </div>
-
-
+      
+      <div class="search-panel__filters">
+        <ais-panel  class="container-filters">
+          <h6 style="font-weight:100;">REFINE YOUR LIST</h6>
+          <br>
+          <ais-refinement-list [showMore]="true" attribute="tags" [limit]="6"></ais-refinement-list>
+        </ais-panel>
+        <!-- <ais-panel header="titles" class="container">
+          <ais-refinement-list attribute="title" [showMore]="true" [limit]="6" ></ais-refinement-list>
+        </ais-panel> -->
+      </div> 
+      <div class="pagination-container">
+ <ais-pagination [totalPages]="6"></ais-pagination>
+ </div>
 
     </div>
   </ais-instantsearch>
