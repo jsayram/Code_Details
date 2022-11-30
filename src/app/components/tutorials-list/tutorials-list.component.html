@@ -149,7 +149,7 @@ THIS IS THE OLD STUFF
 
 
 
-  <div class="scaffold container">
+  <div id="mainSearch">
   <ais-instantsearch [config]="searchConfig">
     
     <div class="body-of-search">
@@ -157,7 +157,7 @@ THIS IS THE OLD STUFF
     </div>
     
 
-    <ais-configure [searchParameters]="{ hitsPerPage: 4}"></ais-configure>
+    <ais-configure [searchParameters]="{ hitsPerPage: 8}"></ais-configure>
     <div class="search-panel " >
     
       <ais-stats></ais-stats>
@@ -166,10 +166,13 @@ THIS IS THE OLD STUFF
       <div class="search-panel__results">
         <ais-hits> 
           <ng-template let-hits="hits" let-results="results"> 
-            <div *ngIf="hits.length === 0"> oh man! I think I need to add more content :( <strong></strong>.
+            <div *ngIf="hits.length === 0" class="need-more-content">
+              <p>Nothing to show 😭</p>
+              <p>🥹 More content comming soon❗️</p>
             </div>
             
-            <div class="row justify-content-center" style="--bs-gutter-x: 2rem;">
+            <!-- <div class="row justify-content-center" style="--bs-gutter-x: 2rem;"> -->
+              <div class="card-container-flex">
               
               <div class="card" 
                   *ngFor="let hit of hits;"
@@ -194,7 +197,7 @@ THIS IS THE OLD STUFF
                     <button (click)="closeModal(hit.objectID)" style="border: unset; background:transparent; display: block;
                     margin-left: auto;
                     margin-right: auto;">
-                    <button class="button-85" role="mat-button"><fa-icon [icon]="faCircleXmark"></fa-icon> Close Video</button>
+                    <button class="button-85" role="mat-button"><fa-icon [icon]="faCircleXmark"></fa-icon>  Close Video</button>
                     </button>
                   </div>
                   <!-- <h1>Home page text: <input type="text" [(ngModel)]="bodyText" /></h1> -->
@@ -203,32 +206,34 @@ THIS IS THE OLD STUFF
                 <img src="{{hit.img}}" alt="{{hits.title}}" class="card-image">
 
                <footer class="card-footer card-blur"> 
-               <br>
-                <!-- <h3> <a href="{{hit.url}}">{{hit.title}}</a></h3> -->
-                
-                <h3>
-                  <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
-                </h3>
-                <span class="card-span-highlight">
-                  <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
-                </span>
-                <div>
-                <a [routerLink]="['/details', hit.objectID]" class="btn btn-primary" style="margin-top:1rem;">Go somewherez</a>
-                 </div> 
-                </footer>
+                <br>
+                  <h3>
+                    <ais-highlight attribute="title" [hit]="hit"></ais-highlight>
+                  </h3>
+                  <span class="card-span-highlight">
+                    <ais-highlight attribute="description" [hit]="hit"></ais-highlight>
+                  </span>
+                  <div >
+                    <a [routerLink]="['/details', hit.objectID]" class="btn btn-primary card-buttons">Code Details</a>
+                  </div> 
+                  <div class="tag-list-container">
+                  <div class="tag" *ngFor="let tag of hit.tags;
+                              let i = index;">
+                              <div>
+                        <button [routerLink]="['/details', hit.objectID]" class="btn tag-{{tag}}">#{{tag}}</button>
+                        </div>
+                  </div> 
+                  </div>
+                  </footer>
                </div>
             </div> 
             </ng-template>
-          </ais-hits>
-         
-          
-           
-          
+          </ais-hits>    
       </div>
       
       <div class="search-panel__filters">
         <ais-panel  class="container-filters">
-          <h6 style="font-weight:100;">REFINE YOUR LIST</h6>
+          <h4 style="font-weight:700;">Filter Video Through Tags 😉</h4>
           <br>
           <ais-refinement-list [showMore]="true" attribute="tags" [limit]="6"></ais-refinement-list>
         </ais-panel>
@@ -236,7 +241,13 @@ THIS IS THE OLD STUFF
           <ais-refinement-list attribute="title" [showMore]="true" [limit]="6" ></ais-refinement-list>
         </ais-panel> -->
       </div> 
+      <div class="pagination-title">
+      <h4 style="font-weight:700;">Check If There's More Pages 🤓</h4>
+          <br>
+          <br>
+          </div>
       <div class="pagination-container">
+        
  <ais-pagination [totalPages]="6"></ais-pagination>
  </div>
 

@@ -1,32 +1,58 @@
-
+/*Variables import*/
+@import "variables";
+@import "tags";
 /* note that there is a style tag on row 
    that has --bs-gutter-x: 2rem;*/
-
-//make span elementes white if there is a black background
-// .card-span-highlight {
-//   color: white;
-// }
-
-
-$card-height: 25rem;
-$card-width: 20rem;
-$card-border-radius: 2rem ;
-$global-font-family: 'Roboto', 'sans-serif', 'GilL Sans';
-
 *{
   font-family: $global-font-family; ;
 }
+
+#mainSearch {
+  width: 85%;
+  max-width: 2160px;
+  margin: auto;
+ 
+}
+
+
+.need-more-content{
+  margin-top: 2rem;
+  font-size: 2rem;
+  font-family: $global-font-family;
+  font-weight: 400;
+  color: rgb(9, 255, 185);
+  justify-content: center;
+  width: 100%;
+  text-align: center;
+  text-shadow: #171755;
+}
+//make span elementes white if there is a black background
+.card-span-highlight {
+  color: white;
+  font-family: $global-font-family;
+  font-weight: 200;
+}
+
+.card-container-flex{
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-around;
+  gap: 0.8rem;
+  row-gap: 5rem;
+}
+
 .card {
     position: relative;
     height: $card-height;
     width: $card-width;
-    top: 0;
-    right: 0;
-    left: 0;
-    bottom: 0;
+    // top: 0;
+    // right: 0;
+    // left: 0;
+    // bottom: 0;
     padding: 1rem;
-    margin-inline: 1rem;
-    margin-bottom: 2rem;
+    // margin-inline: 1rem;
+    // margin-bottom: 2rem;
     background-size: cover;
     background-position: center;
     background-repeat: no-repeat;
@@ -60,7 +86,7 @@ $global-font-family: 'Roboto', 'sans-serif', 'GilL Sans';
 .card:hover .card-blur {
     opacity: .95;
     cursor: pointer;
-    background-color: rgb(36, 2, 88);
+    background-color: rgb(58, 13, 91);
 
 }
 
@@ -108,6 +134,19 @@ $global-font-family: 'Roboto', 'sans-serif', 'GilL Sans';
     border-radius: $card-border-radius;
 }
 
+.card-buttons{
+  z-index: 20;
+  color: #00ffdd;
+  background-color: #4a1fa0;
+  border-radius: 10px;
+  margin-top: 1rem;
+  border: none;
+  font-family: $global-font-family;
+  font-weight: 400;
+  //add box shadow
+  box-shadow: 1px 100px -10px rgb(30, 0, 255);
+}
+
 div.ais-Stats{
    
     margin-bottom: 3rem;
@@ -149,6 +188,13 @@ div.ais-seach-panel__filters{
    display: flex;
     justify-content: center;
     flex-wrap: wrap;
+}
+
+.pagination-title {
+    color: #05F4B7;
+    font-size: 1.5rem;
+    font-weight: 200;
+    text-align: center;
 }
 
 .search-panel__filters{
@@ -830,7 +876,7 @@ div.ais-seach-panel__filters{
    height: 3.5rem;
    outline: none;
    left: 0;
-   margin-left: -40px;
+   margin-left: -100px;
    transition: ease-in-out .5s;
    z-index: 10;
   -webkit-box-shadow: rgba(0, 0, 0, 0.3) 0px 19px 38px, rgba(0, 0, 0, 0.22) 0px 15px 12px;
@@ -1571,7 +1617,7 @@ div.ais-seach-panel__filters{
   font-size: .9rem;
   font-weight: 100;
   height: 3rem;
-  width: 2rem;
+  width: 3rem;
   -webkit-box-pack: center;
   -ms-flex-pack: center;
   justify-content: center;

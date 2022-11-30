@@ -1,0 +1,215 @@
+@import "variables";
+
+.tag-list-container {
+    margin-top: 1rem;
+}
+/*conatiner for individual tag*/
+.tag {
+    display: inline-block;
+    // border-radius: 3px;
+     padding: .2em .2em .2em;
+    border-radius: 2px;
+    // background: $default-tag-bg;
+    color: $default-tag-color;
+    font-weight: 100;
+    margin: .15em .1em;
+}
+
+.tag-undefined{
+    background: gray;
+    color: #00d8ff;
+
+}
+
+h1.tag {
+    margin-left: 0;
+    margin-right: 0;
+}
+
+.tag-sm {
+    font-size: .7em;
+    display: inline-block;
+    letter-spacing: .15ch;
+    font-weight: 400
+}
+
+.tag-lg {
+    font-size: 1.2em;
+    border-radius: 4px
+}
+
+.tag-bg {
+    background: $default-tag-bg;
+}
+
+.tag-green,.tag-pro {
+    background: green;
+    color: #fff
+}
+
+.tag-purple {
+    background: purple;
+    color: #fff
+}
+
+.tag-contrast {
+    background: white;
+    color: black;
+}
+
+.tag-javascript {
+    background: #f0db4f;
+    color: #000
+}
+
+.tag-typescript {
+    background: #2775c3;
+    color: #fff
+}
+
+.tag-angular {
+    background: #dc0530;
+    color: #fff
+}
+
+.tag-firebase {
+    background: #ffcb2b;
+    color: #12181a
+}
+
+.tag-vue {
+    background: #41b883;
+    color: #35495e
+}
+
+.tag-rxjs {
+    background: pink;
+    color: gray;
+}
+
+.tag-node {
+    background: #90c53f;
+    color: #46483d
+}
+
+.tag-cloud-functions {
+    background: blue;
+    color: #fff;
+}
+
+.tag-flutter {
+    background: #54c5f8;
+    color: #003b6c;
+}
+
+.tag-google-maps {
+    background: #33a668;
+    color: #f8d845;
+}
+
+.tag-android {
+    background: #a4c34a;
+    color: #fff;
+}
+
+.tag-stripe {
+    color: #fff;
+    background: #6675e0;
+}
+
+.tag-machine-learning {
+    color: #fff;
+    background: rgb(123, 19, 196);
+}
+
+.tag-python {
+    color: #ffda5d;
+    background: #3879ab
+}
+
+.tag-svelte {
+    color: #fff;
+    background: #ff3e00
+}
+
+.tag-react {
+    color: #00d8ff;
+    background: #222
+}
+
+.tag-ios {
+    color: #fff;
+    background: #000
+}
+
+.tag-minimum-viable-product,
+.tag-mvp {
+    color: #fff;
+    background-image: linear-gradient(90deg,#ff8901,#db1d5f);
+    font-weight: 700
+}
+
+.tag-ionic {
+    background: #fff;
+    color: #4a8afc
+}
+
+.tag-nest {
+    color: #e0234e;
+    background: #000
+}
+
+.tag-graphql {
+    color: #fff;
+    background: #e10097
+}
+
+.tag-electron {
+    color: #313244;
+    background: #adecf3
+}
+
+.tag-c-sharp {
+    color: rgb(111, 0, 255);
+    background: #04f300;
+}
+
+.tag-asp-net {
+    color: #fff;
+    background: #5c2d91
+}
+.tag-java{
+    color: #fff;
+    background: #710a0a
+}
+
+.tag-beginner {
+    color: rgb(111, 0, 255);
+    background: #04f300;
+}
+.tag-flask{
+    color: rgb(5, 98, 55);
+    background: rgb(205, 87, 3)
+}
+
+.tag-go {
+    color: #fff;
+    background: #00add8
+}
+
+
+/*Special Classes With Escaped Charatacter*/
+.tag-c\# {
+    color: rgb(111, 0, 255);
+    background: #f30000;
+}
+
+.tag-\.net{
+    color: blue;
+    background: #4f4f4f;
+}
+
+.tag-c\+\+{
+    color: #fff;
+    background: #ffd900;
+}
