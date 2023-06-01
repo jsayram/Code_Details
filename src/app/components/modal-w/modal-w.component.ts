@@ -1,7 +1,7 @@
 import { Component, ViewEncapsulation, ElementRef, Input, OnInit, OnDestroy } from '@angular/core';
 import { Console } from 'console';
 
-import { ModalService } from '../services/modal.service';
+import { ModalService } from '../../services/modal.service';
 
 @Component({ 
     selector: 'jw-modal', 
@@ -32,7 +32,7 @@ export class ModalWComponent implements OnInit, OnDestroy {
         this.element.addEventListener('click', (el: { target: { className: string; }; }) => {
             if (el.target.className === 'jw-modal') {
                 this.close();
-                console.log("ClOSING THIS MODAL");
+                console.log("ClOSING THIS MODAL" + this.id);
                 
         
                 // var stopVideos = function () {
@@ -59,12 +59,14 @@ export class ModalWComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         this.modalService.remove(this.id);
         this.element.remove();
+        console.log("inside ngOnDestroy() method" + this.id );
     }
 
     // open modal
     open(): void {
         this.element.style.display = 'block';
         document.body.classList.add('jw-modal-open');
+        console.log("Opened jw-modal from open() in modal-w.component.ts ID="+ this.id);
     }
 
     // close modal
@@ -81,5 +83,6 @@ export class ModalWComponent implements OnInit, OnDestroy {
         };
         stopVideos();
         document.body.classList.remove('jw-modal-open');
+        console.log("Closed jw-modal from close() in modal-w.component.ts ID="+ this.id);
     }
 }

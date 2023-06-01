@@ -1,17 +1,33 @@
+@import 'bootstrap-scss/bootstrap.scss';
+
+
 /*Variables import*/
 @import "./components/variables";
+@import "./components/tags";
+// *{
+//     font-family: $global-font-family;
+//     border: 0.5px dotted red;
+// }
 
 /* 
 COMPONENTS SCSS
 */
+@import "./components/home-page.component.scss";
+@import "./components/background.component.scss";
 @import "./components/app.component.scss";
-@import "./components/tutorials-list.component.scss";
+
 @import "./components/tutorial-details.component.scss";
 @import "./components/add-tutorial.component.scss";
+@import "./components/navbar.component.scss";
 
+//@import "../../node_modules/instantsearch.css/themes/algolia.css";
+//@import "../app/components/search/search.component.scss";
+@import "./components/tutorials-list.component.scss";
 
 /*
 CARD MODAL WINDOW SCSS
 */
 @import "./components/modal-w.component.scss";
 
+
+// @import "../../node_modules/instantsearch.css/themes/reset.css";

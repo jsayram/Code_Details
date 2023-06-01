@@ -1,0 +1,83 @@
+
+<div class="background ">
+<div id="mainSearch">
+  <ais-instantsearch [config]="searchConfig"> 
+    <div class="body-of-search">
+      <ais-search-box placeholder="Search Something..." submitTitle="Go" [searchAsYouType]=false></ais-search-box>
+    </div>
+  <ais-configure [searchParameters]="{ hitsPerPage: 8}"></ais-configure>
+    <div class="search-panel">
+      <ais-stats></ais-stats>
+      <div class="search-panel__results"> 
+        <ais-hits> 
+          <ng-template let-hits="hits" let-results="results"> 
+            <div *ngIf="hits.length === 0" class="need-more-content">
+              <p>Nothing to show 😭</p>
+              <p>🥹 More content comming soon❗️</p>
+            </div>
+               <div class="card-container-flex">
+                <!-- Card modal code with click()-->
+                <div class="card" *ngFor="let hit of hits;" (click)="openModal(hit.objectID)">
+                  
+                  <jw-modal id="{{hit.objectID}}">
+                    <!--Add title from the hits -->
+                    <div class="title-container" style="text-align: center; color:white">
+                      <h3 >{{hit.title}}</h3>
+                    </div>
+
+
+
+                    <div class="iframe-container">
+                      <iframe width="100%" height="100%" [src]="hit.url | safe" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen style="position:absolute; top:0; left: 0"></iframe>
+                    </div>
+                    <div class="container" style="text-align: center;">
+                      <button (click)="closeModal(hit.objectID)">
+                        <button class="button-64" role="button"><span class="text">Close Window</span></button>
+                      </button>
+                    </div>
+
+
+                    
+                  </jw-modal> 
+                  <!-- add image from the hits  -->
+                  <img class="card-img" [src]="hit.img" alt="Card image {{hit.title}}">
+              
+                  <footer class="card-footer card-blur">
+                    <br>
+                    <h3><ais-highlight attribute="title" [hit]="hit"></ais-highlight></h3>
+                    <span class="card-span-highlight"><ais-highlight attribute="description" [hit]="hit"></ais-highlight></span>
+                    <div>
+                      <a [routerLink]="['/details']" class="btn btn-primary card-buttons">Code Details</a>
+                    </div>
+                    <div class="tag-list-container">
+                      <div class="tag" *ngFor="let tag of hit.tags; let i = index;">
+                          <span [routerLink]="['/', tag]" class="btn tag-{{tag}}">#{{tag}}</span>
+                      </div>
+                    </div>
+                  </footer>
+                </div>
+              </div>
+            </ng-template>
+          </ais-hits>    
+      </div>    
+      <div class="search-panel__filters">
+        <ais-panel  class="container-filters">
+          <h4 style="font-weight:700;">Filter Video Through Tags 😉</h4>
+          <br>
+          <ais-refinement-list [showMore]="true" attribute="tags" [limit]="6" type="radio"></ais-refinement-list>
+        </ais-panel>
+      </div> 
+      <div class="pagination-title">
+      <h4 style="font-weight:700;">Check If There's More Pages 🤓</h4>
+          <br>
+          <br>
+      </div>
+      <div class="pagination-container">       
+        <ais-pagination [totalPages]="6"></ais-pagination>
+      </div>
+    </div>
+  </ais-instantsearch> 
+</div>
+</div>
+
+  

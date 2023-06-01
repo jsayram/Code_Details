@@ -1,0 +1,100 @@
+<mat-toolbar class="navbar mat-elevation-z8">
+    <a class="navbar-brand" href="#">
+      <div alt="Logo" class="navbar-logo"></div>
+    </a>
+    <button
+      style="font-size: 100px; margin: 20px;"
+    
+      mat-icon-button    
+      *ngIf="sidenav.mode === 'over'"
+      (click)="sidenav.toggle()"
+     >
+      <mat-icon *ngIf="!sidenav.opened"> menu_open </mat-icon>
+      <mat-icon *ngIf="sidenav.opened"> close </mat-icon> 
+    </button>
+    <!-- <div class="navbar-links-container">
+      
+      <ul class="navbar-links">
+        <li><a class="navbar-link-item" href="#">HowTo's</a></li>
+        <li><a class="navbar-link-item" href="#">Vids</a></li>
+        <li><a class="navbar-link-item" href="#">Merch</a></li>
+      </ul>
+       <a class="navbar-cta" href="#">Sign In</a> 
+    </div> -->
+    
+  </mat-toolbar>
+  <mat-sidenav-container>
+    <mat-sidenav #sidenav="matSidenav" class="mat-elevation-z8" position="end">
+      <img
+        class="avatar mat-elevation-z8 navbar-logo-img"
+      />
+      <h4 class="name">Code_Details</h4>
+      <p class="designation">Software Engineer</p>
+  
+      <mat-divider></mat-divider>
+  
+      <button mat-button class="menu-button" routerLink="/all">
+        <mat-icon>home</mat-icon>
+        <span>All Content</span>
+      </button>
+      <button mat-button class="menu-button" routerLink="/tutorials">
+        <mat-icon>video</mat-icon>
+        <span>Tutorials</span>
+      </button>
+      <button mat-button class="menu-button" routerLink="/about">
+        <mat-icon>info</mat-icon>
+        <span>About</span>
+      </button>
+
+      <mat-divider></mat-divider>
+  
+      <button mat-button class="menu-button" routerLink="/help">
+        <mat-icon>help</mat-icon>
+        <span>Help</span>
+      </button>
+    </mat-sidenav>
+
+    <mat-sidenav-content>
+      <mat-tab-group preserveContent  
+                                     disableRipple="true" 
+                                     color="primary"            
+                                     animationDuration=100
+                                     inkBar="true"
+                                     color="primary"
+                                     style="color:aqua; background-color: blueviolet;"
+                                     mat-align-tabs="center">
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>video_library</mat-icon>
+            Videos
+          </ng-template>
+          <div class="content mat-elevation-z8">
+            content for tab #1 here
+           </div>
+        </mat-tab>
+  
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>tag</mat-icon>
+            Tags
+          </ng-template>
+          <div class="content mat-elevation-z8">
+            content for tab #2 here
+        </div>
+      </mat-tab>
+  
+        <mat-tab>
+          <ng-template mat-tab-label>
+            <mat-icon>text_snippet</mat-icon>
+            Content
+          </ng-template>
+          <div class="content mat-elevation-z8">
+              <router-outlet></router-outlet>
+          </div>
+        </mat-tab>
+      </mat-tab-group>
+    
+    </mat-sidenav-content>
+   
+  </mat-sidenav-container> 
+  

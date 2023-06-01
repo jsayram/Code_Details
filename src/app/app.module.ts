@@ -1,66 +1,58 @@
-import { NgModule } from '@angular/core';
-import { BrowserModule } from '@angular/platform-browser';
-import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-
-
-
-//algolia search for instasearch firebase
-import { NgAisModule } from 'angular-instantsearch';
-// import { NgAisInstantSearchModule} from 'angular-instantsearch';
-// import { NgAisSearchBoxModule} from 'angular-instantsearch';
-// import { NgAisHitsModule} from 'angular-instantsearch';
-// import { NgAisHighlightModule} from 'angular-instantsearch';
-// import { NgAisRefinementListModule} from 'angular-instantsearch';
-// import { NgAisClearRefinementsModule} from 'angular-instantsearch';
-// import { NgAisConfigureModule} from 'angular-instantsearch';
-// import { NgAisStatsModule} from 'angular-instantsearch';
-// import { NgAisPaginationModule} from 'angular-instantsearch';
-// import { NgAisSortByModule} from 'angular-instantsearch';
-// import { NgAisRangeSliderModule} from 'angular-instantsearch';
-// import { NgAisRangeInputModule} from 'angular-instantsearch';
-// import { NgAisNumericMenuModule} from 'angular-instantsearch';
-// import { NgAisBreadcrumbModule} from 'angular-instantsearch';
-// import { NgAisCurrentRefinementsModule} from 'angular-instantsearch';
-// import { NgAisMenuModule} from 'angular-instantsearch';
-// import { NgAisToggleModule} from 'angular-instantsearch';
-// import { NgAisHierarchicalMenuModule} from 'angular-instantsearch';
-// import { NgAisSnippetModule} from 'angular-instantsearch';
-// import { NgAisPanelModule} from 'angular-instantsearch';
-
-
+import { NgModule, Pipe, PipeTransform } from '@angular/core';
+import { BrowserModule, DomSanitizer } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
+import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+
+//material design modules
+import { MatToolbarModule } from '@angular/material/toolbar';
+import { MatSidenavModule } from '@angular/material/sidenav';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatDividerModule } from '@angular/material/divider';
+import { MatTabsModule} from '@angular/material/tabs';
+import { MatGridListModule } from '@angular/material/grid-list';
+import { MatCardModule } from '@angular/material/card';
+
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-
-//environment import
-import { environment } from '../environments/environment';
 
 //these are the angular firebase modules
 import { AngularFireModule } from '@angular/fire/compat'
 import { AngularFirestoreModule } from '@angular/fire/compat/firestore';
 import { AngularFireAuthModule } from '@angular/fire/compat/auth';
 import { AngularFireAnalyticsModule } from '@angular/fire/compat/analytics';
-import { AddTutorialComponent } from './components/add-tutorial/add-tutorial.component';
-import { TutorialDetailsComponent } from './components/tutorial-details/tutorial-details.component';
-import { TutorialsListComponent } from './components/tutorials-list/tutorials-list.component';
 
-import { TutorialService } from './services/tutorial.service';
-import { map } from 'rxjs/operators';
-import { Tutorial } from './models/tutorial.model';
-import { ModalModule } from './modal-w';
+//algolia search for instasearch firebase
+import { NgAisModule } from 'angular-instantsearch';
 
-import { Pipe, PipeTransform } from '@angular/core';
-import { DomSanitizer} from '@angular/platform-browser';
-
+//install scrolling module
+import { ScrollingModule } from '@angular/cdk/scrolling';
 
 //import fontawesome
+import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
 import { library, dom } from '@fortawesome/fontawesome-svg-core'; // below are the imports then just add to library icons below
 import { faEarth,faCircleXmark } from '@fortawesome/free-solid-svg-icons';
 import { faGithub,faLinkedin } from '@fortawesome/free-brands-svg-icons';
 
-//array of Icons added , than just say [icon]="['fas', 'circle-xmark']" as example fs is solic and fb is brands
+/*My Custom Components Below*/
+import { ModalModule } from './components/modal-w';
+import { AddTutorialComponent } from './components/add-tutorial/add-tutorial.component';
+import { TutorialDetailsComponent } from './components/tutorial-details/tutorial-details.component';
+import { TutorialsListComponent } from './components/tutorials-list/tutorials-list.component';
+import { HomePageComponent } from './components/home-page/home-page.component';
+import { NavbarComponent } from './components/navbar/navbar.component';
+import { SearchComponent } from './components/search/search.component';
+import { AllcontentComponent } from './components/allcontent/allcontent.component'; 
+
+//environment import
+import { environment } from '../environments/environment';
+
+/*Array of Icons added
+in the DOM just add the [icon] directive and it will show the icon
+[icon]="['fas', 'circle-xmark']" as example fas is the prefix and circle-xmark is the icon name
+check out the documentation for more info on the site https://fontawesome.com/search?m=free&o=r
+*/
 const icons = [
                 faEarth,
                 faGithub,
@@ -69,6 +61,10 @@ const icons = [
               ];
 library.add(...icons);
 
+/*This is the pipe to make the url safe to use in DOM it works like this
+name is safe and it takes a url string and returns a safe url
+<iframe [src]="tutorial.url | safe"></iframe>
+*/ 
 @Pipe({ name: 'safe' })
 export class SafePipe implements PipeTransform {
   constructor(private domSanitizer: DomSanitizer) {}
@@ -77,7 +73,6 @@ export class SafePipe implements PipeTransform {
   }
 } 
 
-
 @NgModule({
   declarations: [
     //declare the components
@@ -85,7 +80,11 @@ export class SafePipe implements PipeTransform {
     AddTutorialComponent,
     TutorialDetailsComponent,
     TutorialsListComponent,
-    SafePipe
+    SafePipe,
+    HomePageComponent,
+    NavbarComponent,
+    SearchComponent,
+    AllcontentComponent,
   ],
   imports: [
     BrowserModule,
@@ -94,37 +93,25 @@ export class SafePipe implements PipeTransform {
     AppRoutingModule,
     ModalModule,
     FontAwesomeModule,
+    ScrollingModule,
 
     
-
-    //insatasearch algolia modules for the html document in the app.component.html
-    // NgAisInstantSearchModule.forRoot(),
-    // NgAisSearchBoxModule,
-    // NgAisHitsModule,
-    // NgAisHighlightModule,
-    // NgAisRefinementListModule,
-    // NgAisClearRefinementsModule,
-    // NgAisConfigureModule,
-    // NgAisStatsModule,
-    // NgAisPaginationModule,
-    // NgAisSortByModule,
-    // NgAisRangeSliderModule,
-    // NgAisRangeInputModule,
-    // NgAisNumericMenuModule,
-    // NgAisBreadcrumbModule,
-    // NgAisSnippetModule,
-    // NgAisCurrentRefinementsModule,
-    // NgAisMenuModule,
-    // NgAisToggleModule,
-    // NgAisHierarchicalMenuModule,
-    // NgAisPanelModule,
-     NgAisModule.forRoot(),
+    NgAisModule.forRoot(),
 
     BrowserAnimationsModule,
+
     AngularFireModule.initializeApp(environment.firebase,'codedetailsapp'),
     AngularFirestoreModule,
     AngularFireAuthModule,
     AngularFireAnalyticsModule,
+    MatToolbarModule,
+    MatSidenavModule,
+    MatButtonModule,
+    MatIconModule,
+    MatDividerModule,
+    MatTabsModule,
+    MatGridListModule,
+    
   ],
   providers: [],
   bootstrap: [AppComponent] //only found in the main app module

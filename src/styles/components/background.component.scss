@@ -1,0 +1,36 @@
+@import 'variables';
+@import 'tags';
+  
+body {
+    // animation: dots-animation 30s linear infinite;
+    // background:
+    //   linear-gradient(90deg, $bg-color ($dot-space - $dot-size), transparent 1%) center,
+    //   linear-gradient($bg-color ($dot-space - $dot-size), transparent 1%) center,
+    //   $dot-color;
+    // background-size: $dot-space $dot-space;
+    background-color: $bg-color;
+  }
+  
+// @keyframes dots-animation {
+//   0% {
+//     background-position: 0 0;
+//   }
+//   25% {
+//     background-position: $dot-space/2 0, 0 $dot-space/2;
+//   }
+//   50% {
+//     background-position: $dot-space 0, 0 $dot-space;
+//   }
+//   75% {
+//     background-position: $dot-space/2 0, 0 $dot-space/2;
+//   }
+//   100% {
+//     background-position: 0 0;
+//   }
+// }
+
+// @keyframes AnimateBG { 
+//   0%{background-position:0% 50%}
+//   50%{background-position:100% 50%}
+//   100%{background-position:0% 50%}
+// }

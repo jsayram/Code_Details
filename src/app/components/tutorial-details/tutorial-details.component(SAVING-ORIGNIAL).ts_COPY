@@ -1,22 +1,20 @@
-
 import { Component, OnInit, Input, OnChanges, Output, EventEmitter } from '@angular/core';
 import { Tutorial } from 'src/app/models/tutorial.model';
 import { TutorialService } from 'src/app/services/tutorial.service';
+
 
 @Component({
   selector: 'app-tutorial-details',
   templateUrl: './tutorial-details.component.html',
   styleUrls: ['../../../styles/components/tutorial-details.component.scss']
 })
-
 export class TutorialDetailsComponent implements OnInit {
   @Input() tutorial?: Tutorial;
   @Output() refreshList: EventEmitter<any> = new EventEmitter();
   currentTutorial: Tutorial = {
     title: '',
-    description: ''
+    description: '',
   };
-  currentIndex = -1;
   message = '';
 
   constructor(private tutorialService: TutorialService) { }
@@ -30,15 +28,16 @@ export class TutorialDetailsComponent implements OnInit {
     this.currentTutorial = { ...this.tutorial };
   }
 
-  updatePublished(status: boolean): void {
-    if (this.currentTutorial.id) {
-      this.tutorialService.update(this.currentTutorial.id, { published: status })
-      .then(() => {
-        this.message = 'The status was updated successfully!';
-      })
-      .catch(err => console.log(err));
-    }
-  }
+  // updatePublished(status: boolean): void {
+  //   if (this.currentTutorial.id) {
+  //     this.tutorialService.update(this.currentTutorial.id, { published: status })
+  //     .then(() => {
+  //       this.currentTutorial.published = status;
+  //       this.message = 'The status was updated successfully!';
+  //     })
+  //     .catch(err => console.log(err));
+  //   }
+  // }
 
   updateTutorial(): void {
     const data = {
@@ -62,9 +61,5 @@ export class TutorialDetailsComponent implements OnInit {
         })
         .catch(err => console.log(err));
     }
-  }
-  setActiveTutorial(tutorial: Tutorial, index: number): void {
-    this.currentTutorial = tutorial;
-    this.currentIndex = index;
   }
 }

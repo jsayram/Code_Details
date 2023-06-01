@@ -1,10 +1,36 @@
 /*VARIABLES*/
-$card-height: 25rem;
-$card-width: 20rem;
+$card-height: 30rem;
+$card-width: 25rem;
 $card-border-radius: 2rem ;
 $global-font-family: 'Roboto', 'sans-serif', 'GilL Sans';
 
-
-/*tags*/
+/*TAGS*/
 $default-tag-color: #fff;
-$default-tag-bg: rgb(31, 9, 102);
+$default-tag-bg: rgb(14, 0, 81);
+
+
+//BACKGROUND VARIABLES
+// Colors
+$bg-color: hsl(258, 88%, 7%);
+$dot-color: rgb(255, 255, 255);
+  
+// Dimensions
+$dot-size: 0.5px;
+$dot-space: 100px;
+
+
+//System Color Pallete
+$Primary-text-color: #ddd0fb;// (RGB: 221, 208, 251)
+$Secondary-bg-color: #0a0312; //(RGB: 10, 3, 18)
+
+$Primary-color-button: #4b00bd;// (RGB: 75, 0, 189)
+$Secondary-color-button: #1fe0a6; //(RGB: 31, 224, 166)
+$Accent-color: #ae00ff; //(RGB: 174, 0, 255)
+
+$text-color : #ddd0fb;
+$background-color: #0a0312;
+
+//logos
+$MainLogo: url('../../assets/logos/MainLogoNoletters.svg');
+$MainLogo2: url('../../assets/logos/fullWhiteLetters.png');
+$MainLogo3: url('../../assets/logos/fullDarkAndWhiteLetters.png');

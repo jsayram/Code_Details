@@ -1,0 +1,31 @@
+.trigger {
+  background-color: lightblue;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+
+.reveal,
+.digit {
+  opacity: 0;
+  transition: opacity 1s;
+
+  &.visible {
+    opacity: 1;
+  }
+}
+
+#reveal1,
+#reveal2,
+.digit {
+  background-color: lightcoral;
+  padding: 20px;
+  //margin-bottom: 20px;
+}
+
+#gsap-anim {
+  background-color: lightgreen;
+  padding: 20px;
+  margin-bottom: 20px;
+  transform-origin: center;
+}
+ 

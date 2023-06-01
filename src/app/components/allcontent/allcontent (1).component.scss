@@ -1,0 +1,108 @@
+@import "../../../styles/components/variables";
+@import "../../../styles/components/tags";
+
+
+.card-container-flex{
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    justify-content: space-around;
+    gap: 0.8rem;
+    row-gap: 5rem;
+  }
+  .card {
+    position: relative;
+    height: $card-height;
+    width: $card-width;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    box-shadow: rgba(50, 50, 93, 0.25) 0px 50px 100px -20px, rgba(0, 0, 0, 0.3) 0px 30px 60px -30px;
+    overflow: hidden;
+    border-radius: $card-border-radius;
+    cursor: pointer;
+    background-image: linear-gradient(45deg, #574db2, #311cbc);
+    color: #05f4c8;
+    border: none;
+    transition: transform 0.3s ease-in-out;
+  }
+  
+  .card-blur {
+    position: absolute;
+    height: $card-height;
+    width: $card-width;
+    top: 0;
+    right: 0;
+    left: 0;
+    bottom: 0;
+    background-size: contain;
+    background-position: center;
+    background-repeat: repeat;
+    box-shadow: 0 0 80px -10px black;
+    border-radius: $card-border-radius;
+    background-color: rgb(29, 0, 77);
+    opacity: 1;
+    transition: opacity 0.15s ease-in;
+    cursor: pointer;
+  }
+  
+  .card:hover 
+  .card-blur {
+    opacity: .95;
+    cursor: pointer;
+    background-color: rgb(58, 13, 91);
+  }
+  
+  .card-footer {
+    position: absolute;
+    height: auto;
+    width: auto;
+    bottom: 0;
+    margin-top: 50%;
+    cursor: pointer;
+    border: none;
+    overflow-y: scroll;
+    padding: 1rem;
+    border-radius: 10% 70% 0% 0% / 10% 30% 0% 0% ;
+  }
+  
+  // .card-footer:hover {
+  //   cursor: pointer;
+  //   margin-top: 10%;
+  //   transition: ease-in 0.5s;
+  //   transition-duration: 0.2s;
+  //   overflow-y: scroll;
+  // }
+  
+  .card:hover {
+    transform: translateY(0px);
+    transform: scale(1.1);
+  }
+  
+  .info {
+    transform: translateY(0px);
+    transform: scale(1.1);
+  }
+  
+  .card-image {
+    margin-top: -15px;
+    margin-left: -15px;
+    margin-right: -15px;
+    height: auto;
+    width: 111%;
+    top: 0;
+    border-radius: $card-border-radius;
+  }
+  
+  .card-buttons {
+  z-index: 20;
+  color: #00ffdd;
+  background-color: #4a1fa0;
+  border-radius: 10px;
+  margin-top: 1rem;
+  border: none;
+  font-family: $global-font-family;
+  font-weight: 400;
+  box-shadow: 1px 100px -10px rgb(30, 0, 255);
+  }
+  

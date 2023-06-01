@@ -1,0 +1,34 @@
+ <div id="container">
+  <div id="trigger1"></div>
+  <section id="reveal1" 
+           #reveal1 
+           [@fadeIn]="reveal1.classList.contains('visible') ? 'visible' : 'hidden'">
+    <h2>Scene 1</h2>
+    <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque convallis sapien sit amet lacus iaculis efficitur.</p>
+    <img src="https://picsum.photos/600/800" alt="Placeholder" />
+  </section>
+
+  <div id="trigger2"></div>
+  <section id="reveal2" 
+           #reveal2 
+           [@Elastic]="reveal2.classList.contains('visible') ? 'visible' : 'hidden'">
+    <h2>Scene 2</h2>
+    <p>Aliquam vehicula, arcu nec tincidunt ultricies, justo dolor consequat ipsum, eu malesuada erat neque at sapien.</p>
+    <ul>
+      <li>Item 1</li>
+      <li>Item 2</li>
+      <li>Item 3</li>
+    </ul>
+  </section>
+
+  <div class="digits-container" style="width: 50%; justify-content: space-around;">
+    <div *ngFor="let item of ['Python', 'Java', 'C#', 'JavaScript', 'SQL','Python', 'Java', 'C#', 'JavaScript', 'SQL']; let i = index" 
+         #digit 
+         class="digit" 
+         [@Elastic]="digit.classList.contains('visible') ? 'visible' : 'hidden'">
+      <h3>{{ item }}</h3>
+      <p>Curabitur eget commodo augue, non tincidunt nunc. Sed mollis nisl velit, ut tempor justo facilisis non.</p>
+    </div>
+  </div>
+</div> 
+
