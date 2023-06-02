@@ -1,24 +1,34 @@
 //TODO: Change the color for the sign in button on all screen scizes media queries remove them
 @import "variables.scss";
 
-.navbar {
+.container {
+  -ms-overflow-style: none;  /* Internet Explorer 10+ */
+  scrollbar-width: none;  /* Firefox */
+}
+.container::-webkit-scrollbar { 
+  display: none;  /* Safari and Chrome */
+}
+
+  .mat-toolbar {
     background-color: none;
     display: flex;
     justify-content: space-between;
     align-items: center;
     height: 80px;
     padding: 0 3rem;
+    border-bottom: 0.5px solid rgba(0, 229, 255, 0.335);
+    border-width: 1px;
   }
   
   .navbar-brand {
     display: flex;
-    align-items: center;
+    align-items: left;
+    justify-content: left;
   }
   
   .navbar-logo {
     width: 10rem;
     height: 3rem;
-    margin-left: 10px;
     margin-right: 10px;
     background-image: $MainLogo2;
     background-size: contain;
@@ -67,140 +77,257 @@
     margin-left: 10px;
     justify-content: flex-end;
   }
+  
+.mat-sidenav {
+  margin-top: 10px;
+  margin-left: 20px;
+  width: 200px;
+  background: #12034a;
+  text-emphasis-color: white;
+  color: rgb(5, 1, 86);
+  border-width: 0.5px;
+  border-color: rgb(30 41 59 / var(--tw-border-opacity));
+  padding: 1.25rem;
+  border-radius: 10px;
+  text-align: center;
+}
+  
+.content {
+  height: calc(100vh - 130px);
+  border-radius: 10px;
+  margin-top: 10px;
+  justify-content: center;
+  align-items: center;
+  //background-color: rgba(76, 0, 255, 0.222);
+}
+  
+.mat-sidenav-container {
+  height: calc(100vh - 65px);
+}
+  
+.menu-button {
+  background: none;
+  color: white;
+  width: 100%;
+  display: flex;
+  align-items: right;
+  justify-content: space-between;
+  font-size: 1rem;
+
+  .mat-icon {
+    margin-right: 8px;
+  }
+}
+
+.mat-icon-button{
+  justify-content: space-between;
+  // margin:0px;
+  padding: 0px;
+  font-size: xx-large;
+  background-color: transparent;
+  .mat-icon{
+    color: white;
+    width: 100%;
+    height: 100%;
+  }
+  .material-icons{
+    color: rgb(72, 255, 0);
+    font-size: 40px;
+     //margin-right: 1rem;
+   // margin-bottom: 5px;
+  }
+}
+  
+.avatar {
+  margin-top: 16px;
+  width: 100px;
+  height: 100px;
+  border-radius: 50%;
+}
+  
+.name {
+  color: white;
+  margin-top: 8px;
+  font-weight: normal;
+}
+
+//this is the lable ( software enginering)
+.designation {
+  margin-top: 2px;
+  font-size: 0.7rem;
+  color: rgb(255, 255, 255);
+}
+
+.mat-divider {
+  margin-top: 16px;
+  margin-bottom: 16px;
+  background-color: rgb(255, 255, 255);
+}
+
 
 
 /////////MEDIA QUERIES BELOW
 
 
 
-//   @media screen and (max-width: 650px) {
-//     .navbar {
-//         padding: 0px;
-//       }
+@media screen and (max-width: 650px) {
 
-//     .navbar-logo {
-//         width: 3rem;
-//         height: 3rem;
-//         margin-left: 10px;
-//         background-image: $MainLogo2;
-//         background-size: contain;
-//         background-repeat: no-repeat;
-//     }
+  .navbar-logo {
+      width: 10rem;
+      height: 3rem;
+      margin-left: 10px;
+      background-image: $MainLogo2;
+      background-size: contain;
+      background-repeat: no-repeat;
+  }
 
-//     .navbar-links {
-//         padding: 4px 5px;
-//         font-size: 10px;
-//     }
-//     .navbar-link-item {
-//         font-size: 14px;
-//     }
-    
-//     .navbar-cta {
-//         font-size: 14px;
-//         padding: 4px 14px;
-//        // background-color: rgb(255, 0, 251);
-//         padding: 8px;
-//         border-radius: 16px;
-//         margin-left: 10px;
-//         margin-right: 5px;
-//     }
-    
-//     .navbar-links-container {
-//         margin-top: 3px;
-//     }
-// }
-
-// @media screen and (max-width: 450px) {
-//     .navbar { 
-//         padding: 0px;
-//       }
-
-//     .navbar-logo {
-//       width: 10rem;
-//       height: 3rem;
-//       margin-left: 10px;
-//       margin-right: 10px;
-//       background-image: $MainLogo2;
-//       background-size: contain;
-//       background-repeat: no-repeat;
-//     }
-
-//     .navbar-links {
-//         padding: 4px 5px;
-//         font-size: 10px;
-//     }
-//     .navbar-link-item{
-//         font-size: 14px;
-//     }
-    
-//     .navbar-cta {
-//         font-size: 14px;
-//         padding: 4px 14px;
-//        //background-color: rgb(255, 0, 251);
-//         padding-left: 10px;
-//         padding-right:10px;
-//         padding-top:5px;
-//         padding-bottom:5px;
-//         border-radius: 16px;
-//         margin-left: 10px;
-//         margin-right: 5px;
-//     }
-    
-//     .navbar-links-container {
-//         margin-top: 3px;
-//     }
-// }
-
-// @media screen and (max-width: 375px) {
-//     .navbar {
-//         padding: 0px;
-//       }
-//     .navbar-logo {
-//       flex: content;
-//         width: 10rem;
-       
-//         background-image: $MainLogo2;
-//         background-size: contain;
-//         background-repeat: no-repeat;
-//         justify-content: center;
-//         align-items: center;
-//     }
-//     .navbar-links {
-//         padding: 4px 11px;
-//     }
-//     .navbar-link-item{
-//         font-size: 12px;
-//     }
-    
-//     .navbar-cta {
-//         font-size: 14px;
-//         padding: 4px 14px;
-//        // background-color: rgb(255, 98, 0);
-//         padding: 5px;
-//         border-radius: 15px;
-//         margin-left: 0px;
-//         margin-right: 5px;
-//     }
-    
-//     .navbar-links-container {
-//         margin-top: 2px;
-//     }
-// }
-
-@media screen and (max-width: 321px) {
-    .navbar{
-        justify-content: center;
-        background-color: none;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 0;
+  .navbar-links {
+      padding: 4px 5px;
+      font-size: 10px;
+  }
+  .navbar-link-item {
+      font-size: 14px;
+  }
+  
+  .navbar-cta {
+      font-size: 14px;
+      padding: 4px 14px;
+      // background-color: rgb(255, 0, 251);
+      padding: 8px;
+      border-radius: 16px;
+      margin-left: 10px;
+      margin-right: 5px;
+  }
+  
+  .navbar-links-container {
+      margin-top: 3px;
+  }
+  .mat-icon-button{
+    justify-content: right;
+    margin:0px;
+    padding: 0px;
+    font-size: xx-large;
+    background-color: transparent;
+    .mat-icon{
+      width: 100%;
+      height: 100%;
     }
+    .material-icons{
+      color: rgb(0, 255, 242);
+      font-size: 30px;
+      // margin-left: 4rem;
+    }
+  }
+}
+
+@media screen and (max-width: 450px) {
+    .navbar-logo {
+      width: 8rem;
+        margin: auto;
+      background-image: $MainLogo2;
+      background-size: contain;
+      background-repeat: no-repeat;
+    }
+
+    .navbar-links {
+        padding: 4px 5px;
+        font-size: 10px;
+    }
+    .navbar-link-item{
+        font-size: 14px;
+    }
+    
+    .navbar-cta {
+        font-size: 14px;
+        padding: 4px 14px;
+       //background-color: rgb(255, 0, 251);
+        padding-left: 10px;
+        padding-right:10px;
+        padding-top:5px;
+        padding-bottom:5px;
+        border-radius: 16px;
+        margin-left: 10px;
+        margin-right: 5px;
+    }
+    
+    .navbar-links-container {
+        margin-top: 3px;
+    }
+    .mat-icon-button{
+      justify-content: right;
+     
+    
+      font-size: xx-large;
+      background-color: transparent;
+      .mat-icon{
+        width: 100%;
+        height: 100%;
+      }
+      .material-icons{
+        color: rgb(255, 234, 0);
+        font-size: 30px;
+         margin-left: 1.5rem;
+      }
+    }
+}
+
+@media screen and (max-width: 375px) {
+
     .navbar-logo {
       flex: content;
-        width: 10rem;
+        width: 8rem;
+        margin: auto;
+       
+        background-image: $MainLogo2;
+        background-size: contain;
+        background-repeat: no-repeat;
+        justify-content: center;
+        align-items: center;
+    }
+    .navbar-links {
+        padding: 4px 11px;
+    }
+    .navbar-link-item{
+        font-size: 12px;
+    }
+    
+    .navbar-cta {
+        font-size: 14px;
+        padding: 4px 14px;
+       // background-color: rgb(255, 98, 0);
+        padding: 5px;
+        border-radius: 15px;
+        margin-left: 0px;
+        margin-right: 5px;
+    }
+    
+    .navbar-links-container {
+        margin-top: 2px;
+    }
+    .mat-icon-button{
+      justify-content: right;
+      margin:0px;
+      padding: 0px;
+      font-size: xx-large;
+      background-color: transparent;
+      .mat-icon{
+        width: 100%;
+        height: 100%;
+      }
+      .material-icons{
+        color: rgb(25, 0, 255);
+        font-size: 30px;
+         margin-left: 3rem;
+      }
+    }
+    
+}
+
+@media screen and (max-width: 321px) {
+    .navbar-logo {
+        width: 8rem;
         height: 3rem;
-        
+        margin: auto;
         background-image: $MainLogo2;
         // background-size: contain;
         background-repeat: no-repeat;
@@ -227,152 +354,64 @@
     .navbar-links-container {
         margin-top: 2px;
     }
-}
-
-// @media screen and (max-width: 245px) {
-//     .navbar{
-//         justify-content: space-around;
-//     }
-//     .navbar-links {
-//         padding: 3px;
-//         font-size: 4px;
-//         margin-right: 0px;
-//         padding-left: 5px;
-//         padding-right: 5px;
-//     }
-//     .navbar-link-item {
-        
-//         font-size: 10px;
-//     }
-    
-//     .navbar-cta {
-//         font-size: 8px;
-//         padding: 5px 5px;
-//         border-radius: 10px;
-//         font-weight: bold;
-//         margin-left: 10px;
-//         margin-right: 10px;
-//     }
-    
-//     .navbar-links-container {
-//         margin-top: 5px;
-//     }
-// }
-
-
-.mat-toolbar {
-  background: #fb0404;
-  color: white;
-  font-size: 1.5rem;
-  font-weight: 300;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: right;
-  justify-content: space-between;
-  .mat-icon{
-    margin:0px;
-    background-color: none;
-  }
-}
-  
-.mat-sidenav {
-  margin-top: 20px;
-  margin-right:20px;
-  width: 250px;
-  border-right: none;
-  background: #38003f;
-  color: white;
-  border-radius: 10px;
-  padding: 16px;
-  text-align: center;
-}
-  
-.content {
-  height: calc(100vh - 130px);
-  border-radius: 10px;
-  margin: 16px;
-  margin-top: 0px;
-  padding: 16px;
-  overflow: auto;
-}
-  
-.mat-sidenav-container {
-  height: calc(100vh - 65px);
-}
-  
-.menu-button {
-  width: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: space-evenly;
-  font-size: 1rem;
-
-  .mat-icon {
-    margin-right: 8px;
-  }
-}
-
-.mat-icon-button{
-  margin:0px;
-  padding: 0px;
-  font-size: xx-large;
-  background-color: transparent;
-  .mat-icon{
-    color: white;
-    width: 100%;
-    height: 100%;
-  }
-  .material-icons{
-    color: white;
-    font-size: 50px;
-  }
-}
-  
-.avatar {
-  margin-top: 16px;
-  width: 100px;
-  height: 100px;
-  border-radius: 50%;
-}
-  
-.name {
-  margin-top: 8px;
-  font-weight: normal;
-}
-
-//this is the lable ( software enginering)
-.designation {
-  margin-top: 2px;
-  font-size: 0.7rem;
-  color: rgb(255, 255, 255);
-}
-
-.mat-divider {
-  margin-top: 16px;
-  margin-bottom: 16px;
-  background-color: rgba(255, 255, 255, 0.5);
-}
-
-// this is the tabs all together
-.mat-tab-group{
-  margin: 20px;
-  margin-right: 40px;
-  border-radius: 10px;
-}
-
-div.mat-tab-labels{
-  font-weight: 300;
-  box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
-  justify-content: space-around;
-  border-radius: 20px;
-
-  .mat-tab-label {
-    &.mat-tab-label-active {
-      font-weight: 500;
-      border-bottom: 2px solid rgb(0, 255, 208);
+    .mat-icon-button{
+      justify-content: center;
+      margin:0px;
+      padding: 0px;
+      font-size: xx-large;
+      background-color: transparent;
+      .mat-icon{
+        width: 100%;
+        height: 100%;
+      }
+      .material-icons{
+        color: rgb(255, 0, 0);
+        font-size: 30px;
+        margin-left: 2rem;
+      }
     }
-  }
+}
+
+@media screen and (max-width: 245px) {
+    .navbar-links {
+        padding: 3px;
+        font-size: 4px;
+        margin-right: 0px;
+        padding-left: 5px;
+        padding-right: 5px;
+    }
+    .navbar-link-item {
+        
+        font-size: 10px;
+    }
+    
+    .navbar-cta {
+        font-size: 8px;
+        padding: 5px 5px;
+        border-radius: 10px;
+        font-weight: bold;
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+    
+    .navbar-links-container {
+        margin-top: 5px;
+    }
+    .mat-icon-button{
+      justify-content: right;
+      margin:0px;
+      padding: 0px;
+      font-size: xx-large;
+      background-color: transparent;
+      .mat-icon{
+        width: 100%;
+        height: 100%;
+      }
+      .material-icons{
+        color: rgb(77, 255, 0);
+        font-size: 30px;
+        margin-left: 3rem;
+      }
+    }
 }
 
