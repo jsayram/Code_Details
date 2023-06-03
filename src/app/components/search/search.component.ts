@@ -36,22 +36,13 @@ export class SearchComponent implements OnInit {
   s: string = "INSIDE THE OPEN MODAL FUNCTION : ";
   
 
-  clearSearch() {
-    this.searchTerm = '';
-    this.hits = [];
-    
-}
-
 // search parameters
 searchParameters = {
-  hitsPerPage: 3,
+  hitsPerPage: 6,
   attributesToHighlight: ['title', 'description', 'tags','url'],
   highlightPreTag: '<strong>',
   highlightPostTag: '</strong>'
 };
-
-
- 
 
   ngOnInit(): void {
   }
@@ -67,27 +58,6 @@ searchParameters = {
   // closeModal(id: string) {
   //   this.modalService.close(id); 
   // }
-
-  // search() {
-  //   // Removes trailing spaces
-  //   let trimmedSearchTerm = this.searchTerm.trimEnd();
-  //   if (trimmedSearchTerm !== '') {
-  //     this.index.search(trimmedSearchTerm, this.searchParameters)
-  //       .then(({ hits }) => {
-  //         this.hits = hits;
-  //         if (hits.length === 0) { // No hits from Algolia
-  //           this.searchLabels();
-  //         }
-  //         this.cd.detectChanges();
-  //       })
-  //       .catch(err => {
-  //         console.log(err);
-  //       });
-  //   } else {
-  //     console.log("No search term provided.");
-  //   }
-  // }
-
 
   search() {
     // Removes trailing spaces
@@ -127,8 +97,25 @@ searchParameters = {
   }
   
 
+  toggleCloseButton() {
+    const closeButton = document.querySelector('.material-icons.close') as HTMLElement;
+    const searchButton = document.querySelector('.material-icons.search-icon') as HTMLElement;
+
+    if (this.searchTerm.trim() !== '') {
+      closeButton.classList.remove('d-none');
+      closeButton.classList.add('d-inline-block');
+    } else {
+      closeButton.classList.add('d-none');
+      closeButton.classList.remove('d-inline-block');
+    }
+  }
   
 
+  clearSearch() {
+    this.searchTerm = '';
+    this.hits = [];
+   // this.toggleCloseButton();
+  }
   
 
 }
