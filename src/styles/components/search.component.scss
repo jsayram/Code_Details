@@ -1,0 +1,55 @@
+// inport the global variables
+@import "variables.scss";
+
+.dark-theme {
+  background-color: #333;
+  color: #fff;
+}
+.custom-input {
+  font-family: $global-font-family;
+  background-color: transparent;
+  border: none;
+  transition: border-color 0.3s ease;
+  outline: none;
+  caret-color: #ff00f7; // cursor color
+  color: #fff;
+  &:focus {
+    border: none;
+    border-bottom: #6f00ff solid 2px;
+    box-shadow: none;
+  }
+
+}
+
+.material-icons {
+  color: inherit;
+  font-size: 24px;
+  vertical-align: middle;
+}
+
+.close {
+  margin: 0;
+  cursor: pointer;
+
+  &:hover {
+    color: #6f00ff;
+    //cursor is a sad face when hovring over the close button
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='15' height='25'><text x='0' y='15' >😭</text></svg>")
+        0 0,
+      auto;
+  }
+
+}  
+.search-icon {
+  margin: 0;
+  cursor: pointer;
+
+  &:hover {
+    color: #00ffc8;
+    //cursor is a sad face when hovring over the close button
+    cursor: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='15' height='25'><text x='0' y='15' >🤓</text></svg>")
+        0 0,
+      auto;
+  }
+
+}  
