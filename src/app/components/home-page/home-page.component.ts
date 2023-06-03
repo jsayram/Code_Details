@@ -55,7 +55,14 @@ export class HomePageComponent implements OnInit, AfterViewInit {
     }
 
     // Scene 4 to be added
-    // it can be seen in the java script how to easily convert to the typescript 
+    new ScrollMagic.Scene({
+      triggerElement: '#trigger4',
+      triggerHook: 0.9,
+      duration: '100%',
+      reverse: true,
+    })
+      .setClassToggle('#reveal4', 'visible')
+      .addTo(this.controller);
   }
 }
 

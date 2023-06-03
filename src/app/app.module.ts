@@ -1,5 +1,5 @@
 import { NgModule, Pipe, PipeTransform } from '@angular/core';
-import { BrowserModule, DomSanitizer } from '@angular/platform-browser';
+import { BrowserModule, DomSanitizer, SafeHtml } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 
@@ -12,7 +12,8 @@ import { MatDividerModule } from '@angular/material/divider';
 import { MatTabsModule} from '@angular/material/tabs';
 import { MatGridListModule } from '@angular/material/grid-list';
 import { MatCardModule } from '@angular/material/card';
-
+import { MatInputModule } from '@angular/material/input';
+import { MatFormFieldModule } from '@angular/material/form-field';
 
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -72,15 +73,31 @@ export class SafePipe implements PipeTransform {
     return this.domSanitizer.bypassSecurityTrustResourceUrl(url);
   }
 } 
+/* this is the pipe to make the html safe to use in DOM it works like this
+name is safeHtml and it takes a html string and returns a safe html
+<div [innerHTML]="tutorial.description | safeHtml"></div>
+*/
+@Pipe({
+  name: 'safeHtml'
+})
+export class SafeHtmlPipe implements PipeTransform {
+  constructor(private sanitizer: DomSanitizer) { }
+  transform(value: any): SafeHtml {
+    return this.sanitizer.bypassSecurityTrustHtml(value);
+  }
+}
 
 @NgModule({
   declarations: [
-    //declare the components
+    //pipe declarations
+    SafePipe,
+    SafeHtmlPipe,
+
+    //custom components
     AppComponent,
     AddTutorialComponent,
     TutorialDetailsComponent,
     TutorialsListComponent,
-    SafePipe,
     HomePageComponent,
     NavbarComponent,
     SearchComponent,
@@ -111,6 +128,10 @@ export class SafePipe implements PipeTransform {
     MatDividerModule,
     MatTabsModule,
     MatGridListModule,
+    MatCardModule,
+
+    MatInputModule,
+    MatFormFieldModule,
     
   ],
   providers: [],

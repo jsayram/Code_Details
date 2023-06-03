@@ -1,0 +1,38 @@
+<div class="container border rounded p-3 mb-4">
+    <div class="row">
+      <div class="col-12 col-md-6 mx-auto">
+        <mat-form-field class="example-full-width d-flex w-100" appearance="fill">
+            <mat-icon matPrefix>search</mat-icon>
+            <input matInput class="ml-2 mr-2" placeholder="Search Code Details" aria-label="Search Code Details"
+                   [(ngModel)]="searchTerm" 
+                   (keyup.enter)="search()">
+            <button mat-icon-button matSuffix *ngIf="searchTerm" aria-label="Clear" (click)="clearSearch()">
+              <mat-icon>close</mat-icon>
+            </button>
+        </mat-form-field>
+      </div>
+    </div>
+  </div>
+
+  <div class="container position-absolute w-100" *ngIf="hits.length > 0">
+    <ul class="list-group justify-content-center border rounded">
+        <li class="list-group-item border-0" *ngFor="let hit of hits">
+            <a [routerLink]="['/detail', hit.id]" class="text-decoration-none text-dark">
+                <h3 [innerHTML]="hit._highlightResult.title.value | safeHtml"></h3>
+                <h3 [innerHTML]="hit._highlightResult.description.value | safeHtml"></h3>
+              <div class="m-2">
+                <p>Tags for {{hit.title}}</p>
+                <button [routerLink]="['/', tag]" type="button" class="btn tag-{{tag}} btn-sm mx-1" *ngFor="let tag of hit.tags">#️⃣ {{tag}}</button>
+              </div>
+              <div class="m-2">
+                <p>Pages for {{hit.title}}</p>
+                <button [routerLink]="['/', page]" type="button" class="btn btn-primary btn-sm mx-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
+              </div>
+            </a>
+            <a [href]="hit.url | safe" target="_blank"><h3 [innerHTML]="hit._highlightResult.url.value | safeHtml"></h3></a>
+            <mat-divider></mat-divider>
+        </li>
+    </ul>
+</div>
+
+  

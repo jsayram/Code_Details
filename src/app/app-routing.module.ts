@@ -7,6 +7,7 @@ import { AddTutorialComponent } from './components/add-tutorial/add-tutorial.com
 import { TutorialDetailsComponent } from './components/tutorial-details/tutorial-details.component';
 import { HomePageComponent } from './components/home-page/home-page.component';
 import { AllcontentComponent } from './components/allcontent/allcontent.component';
+import { SearchComponent } from './components/search/search.component';
 
 const routes: Routes = [
   { path: '', redirectTo: 'home', pathMatch: 'full' },
@@ -17,6 +18,7 @@ const routes: Routes = [
   { path: 'details', component: TutorialDetailsComponent},
   { path: 'flutter', component: TutorialDetailsComponent },
   { path: 'tutorials/:id', component: TutorialDetailsComponent},
+  { path: 'search', component: SearchComponent},
   //path for anything else
   // { path: '**', redirectTo: 'home'}
 ];
