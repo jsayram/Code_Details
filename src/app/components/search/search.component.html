@@ -1,9 +1,12 @@
 <div class="container border rounded p-3 mb-4">
     <div class="row">
       <div class="col-12 col-md-6 mx-auto">
-        <form>
+        <form> 
           <div class="form-group d-flex justify-content-center">
-            <button class="material-icons search-icon mr-0" aria-label="search" (click)="search()">search</button>
+            <!-- <button class="material-icons search-icon mr-0" aria-label="search" (click)="search()">search</button>     -->
+            <button class="btn btn-link white material-icons search-icon mr-0" aria-label="search" (click)="search()">
+              <fa-icon [icon]="['fas', 'magnifying-glass']"></fa-icon>
+            </button>
             
             <input type="text" class="custom-input form-control ml-2" placeholder="Search Code Details" aria-label="Search Code Details"
                    [(ngModel)]="searchTerm" (keyup.enter)="search();"
@@ -11,7 +14,6 @@
                    (input)="toggleCloseButton()"
                    >
             <button class="material-icons close d-none" (click)="toggleCloseButton(); clearSearch()">close</button>                   
-         
           </div>
         </form>
       </div>

@@ -4,6 +4,7 @@ import { environment } from 'src/environments/environment';
 import { ModalService } from 'src/app/components/modal-w';
 import { ChangeDetectorRef } from '@angular/core';
 
+
 const searchClient = algoliasearch(
   environment.algolia.algoliaAPP_ID,
   environment.algolia.algoliaAdminAPI_KEY
@@ -15,6 +16,7 @@ const searchClient = algoliasearch(
   styleUrls: ['./search.component.scss']
 })
 export class SearchComponent implements OnInit {
+
   constructor(private modalService: ModalService, private cd: ChangeDetectorRef, private myElement: ElementRef) {
     this.index = searchClient.initIndex('tutorialContent');
   }
@@ -25,17 +27,13 @@ export class SearchComponent implements OnInit {
       this.hits = [];
     }
   }
-
-
-
+  
   index: SearchIndex;
   hits: any[] = [];
   searchTerm!: string;
 
-
   s: string = "INSIDE THE OPEN MODAL FUNCTION : ";
   
-
 // search parameters
 searchParameters = {
   hitsPerPage: 6,
@@ -61,7 +59,7 @@ searchParameters = {
 
   search() {
     // Removes trailing spaces
-    let trimmedSearchTerm = this.searchTerm.trimEnd();
+    let trimmedSearchTerm = this.searchTerm.trim();
     if (trimmedSearchTerm !== '') {
       this.index.search(trimmedSearchTerm, this.searchParameters)
         .then(({ hits }) => {

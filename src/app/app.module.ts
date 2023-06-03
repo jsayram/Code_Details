@@ -30,12 +30,6 @@ import { NgAisModule } from 'angular-instantsearch';
 //install scrolling module
 import { ScrollingModule } from '@angular/cdk/scrolling';
 
-//import fontawesome
-import { FontAwesomeModule } from '@fortawesome/angular-fontawesome';
-import { library, dom } from '@fortawesome/fontawesome-svg-core'; // below are the imports then just add to library icons below
-import { faEarth,faCircleXmark } from '@fortawesome/free-solid-svg-icons';
-import { faGithub,faLinkedin } from '@fortawesome/free-brands-svg-icons';
-
 /*My Custom Components Below*/
 import { ModalModule } from './components/modal-w';
 import { AddTutorialComponent } from './components/add-tutorial/add-tutorial.component';
@@ -49,18 +43,27 @@ import { AllcontentComponent } from './components/allcontent/allcontent.componen
 //environment import
 import { environment } from '../environments/environment';
 
+//fontawesome imports
+import { FontAwesomeModule, FaIconLibrary } from '@fortawesome/angular-fontawesome';
+import { faGithub, faLinkedin } from '@fortawesome/free-brands-svg-icons';
+import { faCircleXmark, faSearch, faClose, faMagnifyingGlass } from '@fortawesome/free-solid-svg-icons';
+import { faAddressBook } from '@fortawesome/free-regular-svg-icons'
+
+
 /*Array of Icons added
 in the DOM just add the [icon] directive and it will show the icon
 [icon]="['fas', 'circle-xmark']" as example fas is the prefix and circle-xmark is the icon name
 check out the documentation for more info on the site https://fontawesome.com/search?m=free&o=r
 */
 const icons = [
-                faEarth,
-                faGithub,
-                faLinkedin,
-                faCircleXmark
-              ];
-library.add(...icons);
+  faGithub,
+  faLinkedin,
+  faCircleXmark,
+  faSearch,
+  faClose,
+  faMagnifyingGlass,
+  faAddressBook
+];
 
 /*This is the pipe to make the url safe to use in DOM it works like this
 name is safe and it takes a url string and returns a safe url
@@ -102,6 +105,7 @@ export class SafeHtmlPipe implements PipeTransform {
     NavbarComponent,
     SearchComponent,
     AllcontentComponent,
+
   ],
   imports: [
     BrowserModule,
@@ -111,7 +115,6 @@ export class SafeHtmlPipe implements PipeTransform {
     ModalModule,
     FontAwesomeModule,
     ScrollingModule,
-
     
     NgAisModule.forRoot(),
 
@@ -129,7 +132,6 @@ export class SafeHtmlPipe implements PipeTransform {
     MatTabsModule,
     MatGridListModule,
     MatCardModule,
-
     MatInputModule,
     MatFormFieldModule,
     
@@ -137,4 +139,12 @@ export class SafeHtmlPipe implements PipeTransform {
   providers: [],
   bootstrap: [AppComponent] //only found in the main app module
 })
-export class AppModule {}
+export class AppModule {
+  /*This contructor is for the fontawesome icons
+  it takes the library and adds the icons to the library so they can be used in the DOM
+  example: <fa-icon [icon]="['fas', 'circle-xmark']"></fa-icon>
+  */
+  constructor(library: FaIconLibrary) {
+    library.addIcons(...icons)
+  }
+}
