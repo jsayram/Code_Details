@@ -1,48 +1,51 @@
 <div class="container border rounded p-3 mb-4">
     <div class="row">
-      <div class="col-12 col-md-6 mx-auto">
+      <div class="col-12 col-md-9 mx-auto">
         <form> 
           <div class="form-group d-flex justify-content-center">
             <button class="btn btn-link white material-icons search-icon mr-0" aria-label="search" (click)="search()">
               <fa-icon [icon]="['fas', 'magnifying-glass']" [size]="'lg'"></fa-icon>
             </button>
-            
             <input type="text" class="custom-input form-control ml-2" placeholder='Search Code Details' aria-label="Search Code Details"
                    [(ngModel)]="searchTerm" (keyup.enter)="search();"
                    [ngModelOptions]="{standalone: true}"
                    (input)="toggleCloseButton()"
-                   >
-            
+            >
             <button class="btn btn-link white material-icons close d-none mr-0" aria-label="close" (click)="toggleCloseButton(); clearSearch()">
-            <fa-icon [icon]="['fas', 'close']" [size]="'lg'"></fa-icon>
+              <fa-icon [icon]="['fas', 'close']" [size]="'lg'"></fa-icon>
             </button> 
-            
-          </div>
-             
+          </div>     
         </form>
       </div>
     </div>
   </div>
-
-  <div class="container position-absolute w-100" *ngIf="hits.length > 0">
-    <ul class="list-group justify-content-center border rounded">
-        <li class="list-group-item border-0" *ngFor="let hit of hits">
-            <a [routerLink]="['/detail', hit.id]" class="text-decoration-none text-dark">
-                <h3 [innerHTML]="hit._highlightResult.title.value | safeHtml"></h3>
-                <h3 [innerHTML]="hit._highlightResult.description.value | safeHtml"></h3>
-              <div class="m-2">
-                <p>Tags for {{hit.title}}</p>
-                <button [routerLink]="['/', tag]" type="button" class="btn tag-{{tag}} btn-sm mx-1" *ngFor="let tag of hit.tags">#️⃣ {{tag}}</button>
-              </div>
-              <div class="m-2">
-                <p>Pages for {{hit.title}}</p>
-                <button [routerLink]="['/', page]" type="button" class="btn btn-primary btn-sm mx-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
-              </div>
+  <div class="row" *ngIf="hits.length > 0">
+    <div class="col-12 col-md-9 mx-auto position-relative">
+      <ul class="list-group justify-content-center border rounded position-absolute w-100" style="z-index: 9999;">
+        <li class="list-group-item border-0 d-flex flex-column flex-lg-row text-white align-items-start text-left" style="background-color: #261447;" *ngFor="let hit of hits">
+          <div class="flex-grow-1 p-2">
+            <a [routerLink]="['/detail', hit.id]" class="text-decoration-none text-white">
+              <h2 class="d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
+              <h4 class="d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
+              <p class="small d-lg-none" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+              <p class="d-none d-lg-block" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+              <a [href]="hit.url | safe" target="_blank" class="text-white d-block mt-2"><p>Youtube Video</p></a>
             </a>
-            <a [href]="hit.url | safe" target="_blank"><h3 [innerHTML]="hit._highlightResult.url.value | safeHtml"></h3></a>
-            <mat-divider></mat-divider>
+          </div>
+          <div class="p-2">
+            <p class="small d-lg-none">Tags for {{hit.title}}</p>
+            <p class="d-none d-lg-block">Tags for {{hit.title}}</p>
+            <div>
+              <button [routerLink]="['/', tag]" type="button" class="btn btn-sm btn-outline-light mx-1 mb-1" *ngFor="let tag of hit.tags">#️⃣ {{tag}}</button>
+            </div>
+            <p class="small d-lg-none">Pages for {{hit.title}}</p>
+            <p class="d-none d-lg-block">Pages for {{hit.title}}</p>
+            <div>
+              <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
+            </div>
+          </div>
         </li>
-    </ul>
-</div>
-
+      </ul>
+    </div>
+  </div>
   

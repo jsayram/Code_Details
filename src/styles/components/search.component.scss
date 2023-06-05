@@ -53,3 +53,24 @@
   }
 
 }  
+
+.list-group-item:hover {
+  background-color: #39236c;
+}
+
+.list-group-item:active {
+  background-color: #4c327d;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+li.list-group-item {
+  animation: fadeIn 1s ease-in-out;
+}
