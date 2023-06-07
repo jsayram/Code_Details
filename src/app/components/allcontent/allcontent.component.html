@@ -1,40 +1,43 @@
-<div class="card-container-flex">
-
-    <div class="card" *ngFor="let hit of tutorials;"> 
-
-      <div class="card-header-flex">
-        <img (click)="openModal(hit.id!)" class="card-image" [src]="hit.img" alt="Card image {{hit.title}}">
+<div class="container-fluid">
+  <div class="col-lg-12">
+    <div class="row justify-content-center">
+      <div class="col-12 col-lg-12 col-md-12 mb-4" *ngFor="let hit of tutorials;">
+        <div class="card mx-auto d-flex flex-column card-style">
+          <img (click)="openModal(hit.id!)" class="card-img-top" [src]="hit.img" alt="Card image {{hit.title}}">
+          <div class="card-body d-flex flex-column">
+            <h5 class="card-title">{{hit.title}}</h5>
+            <div class="card-text flex-grow-1">
+              <div class="d-flex flex-wrap">
+                <button type="button" class="btn btn-outline-light btn-sm m-1" *ngFor="let tag of hit.tags;" (click)="closeModal('Nav-SearchID'); logToConsole(hit.id!,tag,'refreshed list too');" [routerLink]="['/',tag]">{{tag}}</button>
+              </div>
+            </div>
+            <a [routerLink]="['/details']" class="btn btn-primary mt-3">Code Details</a>
+          </div>
+          <div class="card-footer text-muted">THIS IS FOOTER</div>
+        </div>
         <jw-modal id="{{hit.id}}">
-          <div >
-            <div class="title-container">
-              <h3>{{hit.title}} THIS IS THE TITLE RIGHT NOW</h3>
-            </div>
-            <div class="iframe-container">
-              <iframe [src]="hit.url! | safe" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
-            </div>
-            <div class="container">
-              <button (click)="closeModal(hit.id!)">
-                <button class="button-64" role="button"><span class="text">Close Window</span></button>
-              </button>
+          <div class="modal-dialog modal-dialog-centered container-fluid position-fixed top-50 start-50 translate-middle modal-style">
+            <div class="modal-content px-3 py-3 modal-scroll">
+              <div class="modal-header">
+                <h5 class="modal-title" id="cardModalLabel">{{hit.title}} THIS IS THE TITLE RIGHT NOW</h5>
+                <button type="button" class="btn btn-outline-danger mb-3 ml-3 px-5 py-1 rounded-pill close" aria-label="Close" (click)="closeModal(hit.id!)"> 
+                  <fa-icon [icon]="['fas', 'close']" [size]="'lg'"></fa-icon>
+                </button>
+              </div>
+              <div class="modal-body d-flex justify-content-center video-modal">
+                <div class="video-container">
+                  <iframe class="embed-responsive-item" [src]="hit.url! | safe" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+                </div>
+              </div>
+              <div class="modal-description py-2">
+                <p>{{hit.description}}</p>
+                <p>{{hit.description}}</p>
+                <p>{{hit.description}}</p>
+                <p>{{hit.description}}</p>
+              </div>
             </div>
           </div>
         </jw-modal>
-        <h3 class="card-title">{{hit.title}} RIGHT HERE RIGHT NOW - BOTTom</h3>
-      </div>
-
-      <footer class="card-footer">
-      <div class="card-content" style="background-color: blueviolet;">
-        <div class="tag-list-container">
-          <div class="tag" *ngFor="let tag of hit.tags; let i = index;">
-            <a (click)="closeModal('Nav-SearchID')" (click)="logToConsole(hit.id!,tag,'refreshed list too')" [routerLink]="['/',tag]" class="btn tag-{{tag}}">{{tag}}</a>
-          </div>
-        </div>
-        <div class="card-buttons">
-          <a [routerLink]="['/details']" class="btn btn-primary">Code Details</a>
-        </div>
-      </div>
-        <h3>THIS IS FOOTER SHITTTT</h3>
-      </footer>
-      </div>
-    
+    </div>
   </div>
+</div>
