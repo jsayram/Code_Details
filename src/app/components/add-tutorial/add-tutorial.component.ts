@@ -6,7 +6,7 @@ import { FormsModule } from '@angular/forms';
 @Component({
   selector: 'app-add-tutorial',
   templateUrl: './add-tutorial.component.html',
-  styleUrls: ['../../../styles/components/add-tutorial.component.scss']
+  styleUrls: ['./add-tutorial.component.scss']
 })
 export class AddTutorialComponent implements OnInit {
   tutorial: Tutorial = new Tutorial();

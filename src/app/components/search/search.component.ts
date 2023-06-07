@@ -13,7 +13,7 @@ const searchClient = algoliasearch(
 @Component({
   selector: 'app-search',
   templateUrl: './search.component.html',
-  styleUrls: ['../../../styles/components/search.component.scss']
+  styleUrls: ['./search.component.scss']
 })
 export class SearchComponent implements OnInit {
 

@@ -5,7 +5,7 @@ import { animationTriggers} from '../../animations/animations';  // import the M
 @Component({
   selector: 'app-home-page',
   templateUrl: './home-page.component.html',
-  styleUrls: ['../../../styles/components/home-page.component.scss'],
+  styleUrls: ['./home-page.component.scss'],
   animations: [...Object.values(animationTriggers)],
 })
 

@@ -23,7 +23,7 @@ const searchClient = algoliasearch(
 @Component({
   selector: 'app-tutorials-list',
    templateUrl: './tutorials-list.component.html',
-   styleUrls: ['../../../styles/components/tutorials-list.component.scss']
+   styleUrls: ['./tutorials-list.component.scss']
 })
 
 export class TutorialsListComponent implements OnInit {

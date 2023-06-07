@@ -1,19 +1,22 @@
 <div class="container-fluid">
   <div class="col-lg-12">
-    <div class="row justify-content-center">
-      <div class="col-12 col-lg-12 col-md-12 mb-4" *ngFor="let hit of tutorials;">
-        <div class="card mx-auto d-flex flex-column card-style">
+    <div class="row row-cols-1 row-cols-sm-2 row-cols-md-2 row-cols-lg-4 justify-content-center">
+      <div class="col mb-4" *ngFor="let hit of tutorials;">
+        <div class="card mx-auto d-flex flex-column card-style ">
           <img (click)="openModal(hit.id!)" class="card-img-top" [src]="hit.img" alt="Card image {{hit.title}}">
           <div class="card-body d-flex flex-column">
             <h5 class="card-title">{{hit.title}}</h5>
-            <div class="card-text flex-grow-1">
+            <div class="card-text flex-grow-0">
               <div class="d-flex flex-wrap">
                 <button type="button" class="btn btn-outline-light btn-sm m-1" *ngFor="let tag of hit.tags;" (click)="closeModal('Nav-SearchID'); logToConsole(hit.id!,tag,'refreshed list too');" [routerLink]="['/',tag]">{{tag}}</button>
               </div>
             </div>
-            <a [routerLink]="['/details']" class="btn btn-primary mt-3">Code Details</a>
-          </div>
-          <div class="card-footer text-muted">THIS IS FOOTER</div>
+            <a [routerLink]="['/details']" class="btn btn-primary justify-content-center mt-3">Code Details</a>
+            <div class="card-footer text-muted d-flex justify-content-center">
+            <div class="flex-grow-1 d-flex">
+              <button type="button" class="d-flex btn btn-outline-light btn-sm m-1" *ngFor="let page of hit.pages;">{{page}}</button>
+            </div>
+        </div>
         </div>
         <jw-modal id="{{hit.id}}">
           <div class="modal-dialog modal-dialog-centered container-fluid position-fixed top-50 start-50 translate-middle modal-style">

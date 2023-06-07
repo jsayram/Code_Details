@@ -11,7 +11,7 @@ import { Subject } from 'rxjs';
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',
-  styleUrls: ['../../../styles/components/navbar.component.scss']
+  styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit, OnDestroy {
   @ViewChild(MatSidenav)

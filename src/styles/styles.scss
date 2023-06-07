@@ -1,33 +1,64 @@
-@import 'bootstrap-scss/bootstrap.scss';
-
-
 /*Variables import*/
 @import "./components/variables";
 @import "./components/tags";
-// *{
-//     font-family: $global-font-family;
-//     border: 0.5px dotted red;
-// }
 
-/* 
-COMPONENTS SCSS
-*/
-@import "./components/home-page.component.scss";
-@import "./components/background.component.scss";
-@import "./components/app.component.scss";
 
-@import "./components/tutorial-details.component.scss";
-@import "./components/add-tutorial.component.scss";
-@import "./components/navbar.component.scss";
+@import 'bootstrap-scss/bootstrap.scss';
+
+// @import "./components/tutorial-details.component.scss";
+// @import "./components/add-tutorial.component.scss";
+// @import "./components/navbar.component.scss";
 
 //@import "../../node_modules/instantsearch.css/themes/algolia.css";
 //@import "../app/components/search/search.component.scss";
-@import "./components/tutorials-list.component.scss";
+// @import "./components/tutorials-list.component.scss";
 
-/*
-CARD MODAL WINDOW SCSS
-*/
-@import "./components/modal-w.component.scss";
 
 
 // @import "../../node_modules/instantsearch.css/themes/reset.css";
+  
+body {
+    // animation: dots-animation 30s linear infinite;
+    // background:
+    //   linear-gradient(90deg, $bg-color ($dot-space - $dot-size), transparent 1%) center,
+    //   linear-gradient($bg-color ($dot-space - $dot-size), transparent 1%) center,
+    //   $dot-color;
+    // background-size: $dot-space $dot-space;
+    
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    text-emphasis-color: white;
+    color: white;
+    background-color: $bg-color;
+  }
+  
+// @keyframes dots-animation {
+//   0% {
+//     background-position: 0 0;
+//   }
+//   25% {
+//     background-position: $dot-space/2 0, 0 $dot-space/2;
+//   }
+//   50% {
+//     background-position: $dot-space 0, 0 $dot-space;
+//   }
+//   75% {
+//     background-position: $dot-space/2 0, 0 $dot-space/2;
+//   }
+//   100% {
+//     background-position: 0 0;
+//   }
+// }
+
+// @keyframes AnimateBG { 
+//   0%{background-position:0% 50%}
+//   50%{background-position:100% 50%}
+//   100%{background-position:0% 50%}
+// }
+
+
+/*
+CARD MODAL WINDOW SCSS Nees to always be last
+*/
+@import "../app/components/modal-w/modal-w.component.scss";
