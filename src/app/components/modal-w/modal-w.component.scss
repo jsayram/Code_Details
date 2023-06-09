@@ -1,148 +1,87 @@
 /* MODAL STYLES
 -------------------------------*/
-.iframe-container{
-  display: block;
-  position: center;
-  margin-block: 10px;
-  padding: 10px;
-  width:auto;
-  height:auto;
-  
-}
-
 jw-modal {
     /* modals are hidden by default */
-    display: none;
-
-    .jw-modal {
-        /* modal container fixed across whole screen */
-        position: fixed;
-        display: flex;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-       
-        /*gradient background purple*/
-        background: $background-color;
-        opacity: 0.85;
-
-        /* z-index must be higher than .jw-modal-background */
-        z-index: 2;
-        
-        /* enables scrolling for tall modals */
-       overflow: auto;
-
-        .jw-modal-body {
-           
-            //padding: 20px;
-            //matt background: #fff;
-            /*gradient background*/
-            background: linear-gradient(45deg, #000000, #1e0130);
-           // background: #952bd7;
-            border-radius: 2px;
-            box-shadow: 0 50px 50px rgba(0,0,0,.5);
-            margin-left: 10rem;
-            margin-right: 10rem;
-            margin-top: 5rem;
-            margin-bottom: 30rem;
-            
-            //padding: 1rem;
-            // max-width: 90rem;
-            // max-height: 100rem;
-        }
-    }
-
-    .jw-modal-background {
-        /* modal background fixed across whole screen */
-        position: relative;
-        top: 0;
-        right: 0;
-        bottom: 0;
-        left: 0;
-
-        /* semi-transparent black  */
-        //transparent background with $background-color
-        background-color: $background-color;
-        opacity: 0.75;
-        margin: 40%;
-        
-        /* z-index must be below .jw-modal and above everything else  */
-        z-index: 1;
-    }
+    display: none;  
 }
+
+.jw-modal {
+  // /* modal container fixed across whole screen */
+  position: fixed;
+  display: flex;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  /*gradient background purple*/
+  background: $background-color;
+  opacity: .96;
+
+  /* z-index must be higher than .jw-modal-background */
+  z-index: 2;
+  
+  /* enables scrolling for tall modals */
+  overflow: auto;
+}
+.jw-modal-body {
+  background: linear-gradient(45deg, #00ff55, #1e0130);
+  background: #952bd7;
+  border-radius: 40px;
+}
+
+
 
 body.jw-modal-open {
     /* body overflow is hidden to hide main scrollbar when modal window is open */
     overflow: hidden;
 }
 
-/* CSS FOR MODAL WINDOW BUTTON*/
-/* CSS */
-.button-64 {
-  align-items: center;
-  background-image: linear-gradient(144deg,#AF40FF, #5B42F3 50%,#00DDEB);
-  border: 0;
-  border-radius: 8px;
-  box-shadow: rgba(151, 65, 252, 0.2) 0 15px 30px -5px;
-  box-sizing: border-box;
-  color: $text-color;
-  display: flex;
-  font-family: Phantomsans, sans-serif;
-  font-size: 20px;
-  justify-content: center;
-  line-height: 1em;
-  max-width: 100%;
-  min-width: 140px;
-  padding: 3px;
-  text-decoration: none;
-  user-select: none;
-  -webkit-user-select: none;
-  touch-action: manipulation;
-  white-space: nowrap;
-  cursor: pointer;
+/* MODAL STYLES*/
+.modal-style {
+  background-color: rgb(19, 0, 103);
+  z-index: 999;
 }
 
-.button-64:active,
-.button-64:hover {
-  outline: 0;
+.modal-content-style {
+  //background-color: rgb(0, 81, 255);
+  border: 1px solid white;
 }
 
-.button-64 span {
-  background-color: rgb(5, 6, 45);
-  padding: 16px 24px;
-  border-radius: 6px;
+.modal-dialog {
+  min-width: 320px; /* Ensuring a minimum width */
+}
+
+.modal-content {
+  background-color: #000000; /* set the background color */
+  border: 1px solid white;
+}
+
+.modal-scroll {
+  max-height: 83vh; /* percentage of window height */
+  overflow-y: auto;
+}
+
+
+.video-container {
+  position: relative;
+  width: 100%;
+  padding-bottom: 56.25%; /* for 16:9 ratio */
+  height: 0;
+  overflow: hidden;
+}
+
+.video-container iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   width: 100%;
   height: 100%;
-  transition: 300ms;
-}
-
-.button-64:hover span {
-  background: none;
 }
 
 
-/*--------------MEDIA QUERIES BELOW------------------*/
-
-
-//media query for mobile
-// @media screen and (max-width: 820px) {
-//   .jw-modal-body div
-//    {
-//      //margin-top: 30%;
-//      // padding-top: 59.6px;
-//      //margin-bottom: 10px;
-      
-//    }
-//    .button-85 div .container{
-//     //padding-top: 100px;
-//     margin-top: 10%;
-//    }
-//  }
-
- @media (max-width: 768px) {
-  .button-64 {
-    font-size: 24px;
-    min-width: 196px;
+@media screen and (min-width: 680px) {
+    .modal-dialog {
+      width: 60%; /* Setting the width to 50% on screens wider than 800px */
+      max-width: 1020px; /* Set maximum width to 1020px */
   }
 }
