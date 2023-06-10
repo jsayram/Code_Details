@@ -8,12 +8,25 @@ import { delay, filter, takeUntil } from 'rxjs/operators';
 import { NavigationEnd, Router } from '@angular/router';
 import { Subject } from 'rxjs';
 
+import { faFacebookF, faTwitter, faInstagram, faLinkedinIn } from '@fortawesome/free-brands-svg-icons';
+
+
+
+
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',
   styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit, OnDestroy {
+  
+icons = {
+  faFacebookF,
+  faTwitter,
+  faInstagram,
+  faLinkedinIn
+};
+
   @ViewChild(MatSidenav)
   sidenav!: MatSidenav;
   sidenav2!: MatSidenav;

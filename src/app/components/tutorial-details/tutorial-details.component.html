@@ -1,5 +1,6 @@
-<div *ngIf="currentTutorial" class="edit-form" style="background-color:rgb(245, 219, 164)">
-    <h4>Tutorial - Details component</h4>
+<div class="d-flex justify-content-center align-items-center vh-100">
+  <div *ngIf="currentTutorial" class="edit-form card p-4 bg-dark text-white border border-white" style="width: 50rem;">
+    <h4 class="card-title">Tutorial - Details component</h4>
     <form>
       <div class="form-group">
         <label for="title">Title FOR THE TUTORIAL-DETAILS</label>
@@ -21,19 +22,22 @@
           name="description"
         />
       </div>
+
+      <div class="d-flex justify-content-start">
+        <button class="btn btn-danger mr-2 flex-grow-1" (click)="deleteTutorial()">
+          Delete
+        </button>
+
+        <button type="submit" class="btn btn-success flex-grow-1" (click)="updateTutorial()">
+          Update
+        </button>
+      </div>
     </form>
-  
-    <button class="badge badge-danger mr-2" (click)="deleteTutorial()">
-      Delete
-    </button>
-  
-    <button type="submit" class="badge badge-success" (click)="updateTutorial()">
-      Update
-    </button>
     <p>{{ message }}</p>
   </div>
-  
-  <div *ngIf="!currentTutorial">
-    <br />
-    <p>Cannot access this Tutorial...</p>
-  </div>
+</div>
+
+<div *ngIf="!currentTutorial" class="d-flex justify-content-center align-items-center vh-100">
+  <br />
+  <p>Cannot access this Tutorial...</p>
+</div>
