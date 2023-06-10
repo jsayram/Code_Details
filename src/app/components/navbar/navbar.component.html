@@ -1,25 +1,32 @@
 <mat-toolbar class="mat-elevation-z8">
-    <a class="navbar-brand" href="#">
-      <div alt="Logo" class="navbar-logo"></div>
+  <a class="navbar-brand" href="#">
+    <div alt="Logo" class="navbar-logo"></div>
+  </a>
+  <button mat-icon-button    
+    *ngIf="sidenav.mode === 'over'"
+    (click)="sidenav.toggle()"
+   >
+    <mat-icon *ngIf="!sidenav.opened"> menu_open </mat-icon>
+    <mat-icon *ngIf="sidenav.opened"> close </mat-icon> 
+  </button>
+
+  <div class="d-none d-md-flex ml-auto">
+    <a href="http://facebook.com/codedetailspage" class="btn btn-outline-light m-1">
+      <fa-icon [icon]="icons.faFacebookF"></fa-icon>
     </a>
-    <button mat-icon-button    
-      *ngIf="sidenav.mode === 'over'"
-      (click)="sidenav.toggle()"
-     >
-      <mat-icon *ngIf="!sidenav.opened"> menu_open </mat-icon>
-      <mat-icon *ngIf="sidenav.opened"> close </mat-icon> 
-    </button>
-    <!-- <div class="navbar-links-container">
-      
-      <ul class="navbar-links">
-        <li><a class="navbar-link-item" href="#">HowTo's</a></li>
-        <li><a class="navbar-link-item" href="#">Vids</a></li>
-        <li><a class="navbar-link-item" href="#">Merch</a></li>
-      </ul>
-       <a class="navbar-cta" href="#">Sign In</a> 
-    </div> -->
-    
+    <a href="http://twitter.com/code_details" class="btn btn-outline-light m-1">
+      <fa-icon [icon]="icons.faTwitter"></fa-icon>
+    </a>
+    <a href="http://instagram.com/code_details" class="btn btn-outline-light m-1">
+      <fa-icon [icon]="icons.faInstagram"></fa-icon>
+    </a>
+    <a href="http://linkedin.com" class="btn btn-outline-light m-1">
+      <fa-icon [icon]="icons.faLinkedinIn"></fa-icon>
+    </a>
+    <button class="btn btn-primary m-1">CTA</button>
+  </div>
 </mat-toolbar>
+
 
 
 
@@ -141,6 +148,21 @@
         </button>
         
         <mat-divider></mat-divider>
+        <div class="d-flex d-md-none flex-column align-items-center mb-4">
+          <a href="http://facebook.com/codedetailspage" class="btn btn-outline-light m-1">
+            <fa-icon [icon]="icons.faFacebookF"></fa-icon>
+          </a>
+          <a href="http://twitter.com/code_details" class="btn btn-outline-light m-1">
+            <fa-icon [icon]="icons.faTwitter"></fa-icon>
+          </a>
+          <a href="http://instagram.com/code_details" class="btn btn-outline-light m-1">
+            <fa-icon [icon]="icons.faInstagram"></fa-icon>
+          </a>
+          <a href="http://linkedin.com" class="btn btn-outline-light m-1">
+            <fa-icon [icon]="icons.faLinkedinIn"></fa-icon>
+          </a>
+          <button class="btn btn-primary m-1">CTA</button>
+        </div>
         <div style="margin-bottom:100px"><h2 style="color:white">Thanks! ☕️❤️</h2></div>
       </mat-sidenav>
 
