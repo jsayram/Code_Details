@@ -10,9 +10,6 @@ import { Subject } from 'rxjs';
 
 import { faFacebookF, faTwitter, faInstagram, faLinkedinIn } from '@fortawesome/free-brands-svg-icons';
 
-
-
-
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',
@@ -74,16 +71,6 @@ icons = {
       this.sidenav.open();
     });
   }
-  // observeRouter() {
-  //   this.router.events.pipe(
-  //     filter(event => event instanceof NavigationEnd),
-  //     takeUntil(this.destroyed$)
-  //   ).subscribe(() => {
-  //     if (this.sidenav.mode === 'over') {
-  //       this.sidenav.close();
-  //     }
-  //   });
-  // }
 
   OpenModal(id: string) {
     console.log("Open Modal Nav Bar ID = "+ id);
@@ -94,9 +81,4 @@ icons = {
     console.log("Close Modal Nav Bar ID = "+ id);
     this.modalService.close(id);
   }
-
-
-
-
-
 }
