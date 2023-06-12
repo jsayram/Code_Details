@@ -20,10 +20,13 @@
   </div>
 </div>
 <div id="noResults" class="alert alert-danger container search-results text-center text-black my-2" *ngIf="searched && hits.length === 0">
-  <h2 class="d-none d-lg-block">🥹 No Matched Results Found for {{searchTerm}}😭</h2>
-  <h4 class="d-lg-none">🥹 No Matched Results Found for {{searchTerm}} 😭</h4>
-  <p class="d-none d-lg-block">we will make a note of that 📝<br>more content comming soon</p>
-  <p class="d-lg-none">we will make a note of that 📝<br>more content comming soon</p>
+  <h2 class="d-none d-lg-block">🥹 No Matched Results Found for <code><strong>{{searchTerm}}</strong></code> 😭</h2>
+  <h4 class="d-lg-none">🥹 No Matched Results Found for <code><strong>{{searchTerm}}</strong></code> 😭</h4>
+  <p class="d-none d-lg-block">I will make a note of that 📝</p>
+  <p class="d-lg-none">I will make a note of that 📝</p>
+  <p>✨ Meanwhile, Check out my other content and see if something catches your 👀</p>
+  <h1>👇🎥▶️👇</h1>
+  <button class="btn btn-primary btn-lg" [routerLink]="['/all']" (click)="clearSearch();toggleCloseButton()">All Content</button>
 </div>
 <div class="container search-results" *ngIf="hits.length > 0">
   <div class="col-12 col-md-10 col-sm-12 mx-auto position-relative">
