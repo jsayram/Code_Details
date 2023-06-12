@@ -16,9 +16,8 @@
 }
 
 .tag-undefined{
-    background: gray;
+    background: rgb(0, 0, 0);
     color: #00d8ff;
-
 }
 
 h1.tag {
@@ -200,16 +199,16 @@ h1.tag {
 
 /*Special Classes With Escaped Charatacter*/
 .tag-c\# {
-    color: rgb(111, 0, 255);
-    background: #f30000;
+    color: rgb(0, 0, 0);
+    background: #7dffec;
 }
 
 .tag-\.net{
-    color: blue;
-    background: #4f4f4f;
+    color: rgb(0, 0, 0);
+    background: #cc00ff;
 }
 
 .tag-c\+\+{
-    color: #fff;
-    background: #ffd900;
+    color: #000000;
+    background: #ff6f00;
 }

@@ -10,81 +10,81 @@
   display: none;  /* Safari and Chrome */
 }
 
-  .mat-toolbar {
-    background-color: none;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    height: 80px;
-    padding: 0 3rem;
-    border-bottom: 0.5px solid rgba(0, 229, 255, 0.335);
-    border-width: 1px;
-  }
-  
-  .navbar-brand {
-    display: flex;
-    align-items: left;
-    justify-content: left;
-  }
-  
-  .navbar-logo {
-    width: 10rem;
-    height: 3rem;
-    margin-right: 10px;
-    background-image: $MainLogo2;
-    background-size: contain;
-    background-repeat: no-repeat;
-  }
-  .navbar-logo-img {
-    background-image: $MainLogo;
-  }
-  
-  .navbar-links-container {
-    display: flex;
-    justify-content: right;
-    align-items: center;
-  }
-  
-  .navbar-links {
-    accent-color: $Accent-color;
-    list-style: none;
-    margin: 0;
-    padding: 0;
-    display: flex;
-    border-radius: 50px;
-    padding: 8px;
-  }
-  
-  .navbar-links li {
-    margin: 10px;
-  }
-  
-  .navbar-link-item {
-    font-family: $global-font-family;
-    color:  $text-color;
-    //text-decoration: none;
-    font-weight: bold;
-    font-size: 20px;
-  }
-  
-  .navbar-cta {
-    background-color: $Primary-color-button;
-    color: $text-color;
-    padding: 10px 20px;
-    border-radius: 20px;
-    text-decoration: none;
-    font-weight: bold;
-    font-size: 16px;
-    margin-left: 10px;
-    justify-content: flex-end;
-  }
+.mat-toolbar {
+  background-color: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  height: 80px;
+  padding: 0 3rem;
+  border-bottom: 0.5px solid rgba(13, 0, 255, 0.335);
+  border-width: 1px;
+}
+
+.navbar-brand {
+  display: flex;
+  align-items: left;
+  justify-content: left;
+}
+
+.navbar-logo {
+  width: 10rem;
+  height: 3rem;
+  margin-right: 10px;
+  background-image: $MainLogo2;
+  background-size: contain;
+  background-repeat: no-repeat;
+}
+.navbar-logo-img {
+  background-image: $MainLogo;
+}
+
+.navbar-links-container {
+  display: flex;
+  justify-content: right;
+  align-items: center;
+}
+
+.navbar-links {
+  accent-color: $Accent-color;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  border-radius: 50px;
+  padding: 8px;
+}
+
+.navbar-links li {
+  margin: 10px;
+}
+
+.navbar-link-item {
+  font-family: $global-font-family;
+  color:  $text-color;
+  //text-decoration: none;
+  font-weight: bold;
+  font-size: 20px;
+}
+
+.navbar-cta {
+  background-color: $Primary-color-button;
+  color: $text-color;
+  padding: 10px 20px;
+  border-radius: 20px;
+  text-decoration: none;
+  font-weight: bold;
+  font-size: 16px;
+  margin-left: 10px;
+  justify-content: flex-end;
+}
   
 .mat-sidenav {
   margin-top: 10px;
   margin-left: 20px;
   width: 200px;
   background: #12034a;
-  text-emphasis-color: white;
+  text-emphasis-color: rgb(255, 0, 238);
   color: rgb(5, 1, 86);
   border-width: 0.5px;
   border-color: rgb(30 41 59 / var(--tw-border-opacity));

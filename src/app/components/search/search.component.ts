@@ -31,16 +31,18 @@ export class SearchComponent implements OnInit {
   index: SearchIndex;
   hits: any[] = [];
   searchTerm!: string;
+  searched!: boolean;
 
   s: string = "INSIDE THE OPEN MODAL FUNCTION : ";
   
 // search parameters
 searchParameters = {
   hitsPerPage: 6,
-  attributesToHighlight: ['title', 'description', 'tags','url'],
-  highlightPreTag: '<strong>',
-  highlightPostTag: '</strong>'
+  attributesToHighlight: ['title', 'description', 'tags', 'url'],
+  highlightPreTag: '<mark>',
+  highlightPostTag: '</mark>',
 };
+
 
   ngOnInit(): void {
   }
@@ -57,6 +59,12 @@ searchParameters = {
   //   this.modalService.close(id); 
   // }
 
+  onInput() {
+    if (!this.searchTerm) {
+      this.clearSearch();
+    }
+  }
+
   search() {
     // Removes trailing spaces
     let trimmedSearchTerm = this.searchTerm.trim();
@@ -64,7 +72,8 @@ searchParameters = {
       this.index.search(trimmedSearchTerm, this.searchParameters)
         .then(({ hits }) => {
           if (hits.length === 0) { // No hits from Algolia
-            this.searchLabels();
+            this.searched = true;
+           // this.searchLabels();  // dont deelte this TODO , future search of pages content incse of no search results found
           } else {
             this.hits = hits;
             this.cd.detectChanges();
@@ -112,7 +121,7 @@ searchParameters = {
   clearSearch() {
     this.searchTerm = '';
     this.hits = [];
-   // this.toggleCloseButton();
+    this.searched = false;
   }
   
 

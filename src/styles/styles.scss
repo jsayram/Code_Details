@@ -5,6 +5,8 @@
 
 @import 'bootstrap-scss/bootstrap.scss';
 
+
+
 // @import "./components/tutorial-details.component.scss";
 // @import "./components/add-tutorial.component.scss";
 // @import "./components/navbar.component.scss";
@@ -33,6 +35,12 @@ body {
     background-color: $bg-color;
   }
   
+mark{
+  font-style: italic;
+  font-weight: bold;
+  background-color: rgb(255, 255, 0);
+  color: rgb(0, 0, 0);
+}
 // @keyframes dots-animation {
 //   0% {
 //     background-position: 0 0;
@@ -62,3 +70,4 @@ body {
 CARD MODAL WINDOW SCSS Nees to always be last
 */
 @import "../app/components/modal-w/modal-w.component.scss";
+

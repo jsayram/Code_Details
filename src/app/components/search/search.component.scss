@@ -1,5 +1,7 @@
 // inport the global variables
 @import "../../../styles/components/variables";
+@import "../../../styles/components/tags";
+
 
 .dark-theme {
   background-color: #333;
@@ -73,4 +75,15 @@
 
 li.list-group-item {
   animation: fadeIn 1s ease-in-out;
+  background-color: #302051;
+  border-bottom: 1px solid #ffffff;
+}
+
+.custom-z-index {
+  z-index: 9999;
+}
+
+.content-container {
+  flex: 1;
+  word-wrap: break-word;
 }
