@@ -89,12 +89,31 @@ export class SafeHtmlPipe implements PipeTransform {
     return this.sanitizer.bypassSecurityTrustHtml(value);
   }
 }
+/* this is the pipe to extract the image from the youtube url it works like this
+name is extractImageFromEmbededYoutubeUrl and it takes a url string and returns a image url
+<img [src]="tutorial.url | extractImageFromYoutubeUrl" alt="tutorial image">
+*/
+@Pipe({
+  name: 'extractImageFromEmbededYoutubeUrl'
+})
+export class ExtractImageFromEmbededYoutubeUrlPipe implements PipeTransform {
+  transform(url: string, resolutionType: string='hqdefault'): string {
+    let videoId = url.split('embed/')[1];
+    const ampersandPosition = videoId.indexOf('&');
+    if (ampersandPosition !== -1) {
+      videoId = videoId.substring(0, ampersandPosition);
+    }
+    return `https://img.youtube.com/vi/${videoId}/${resolutionType}.jpg`;
+  }
+}
+
 
 @NgModule({
   declarations: [
     //pipe declarations
     SafePipe,
     SafeHtmlPipe,
+    ExtractImageFromEmbededYoutubeUrlPipe,
 
     //custom components
     AppComponent,

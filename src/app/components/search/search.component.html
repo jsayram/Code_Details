@@ -31,27 +31,34 @@
 <div class="container search-results" *ngIf="hits.length > 0">
   <div class="col-12 col-md-10 col-sm-12 mx-auto position-relative">
     <ul class="list-group justify-content-center border rounded position-absolute w-100 custom-z-index">
-      <li class="list-group-item d-flex flex-column flex-lg-row text-white align-items-start text-left" *ngFor="let hit of hits">
+      <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start text-left" *ngFor="let hit of hits">
         <div class="flex-grow-1 p-2 content-container">
           <a [routerLink]="['/detail', hit.id]" class="text-decoration-none text-white">
-            <h2 class="d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
-            <h4 class="d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
-            <p class="small d-lg-none" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
-            <p class="d-none d-lg-block" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
-            <a [href]="hit.url | safe" target="_blank" class="text-white d-block mt-2"><p>Youtube Video</p></a>
+            <h2 class="mb-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
+            <h4 class="mb-2 d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
+              <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
+                  [src]="hit.url | extractImageFromEmbededYoutubeUrl: 'mqdefault'" 
+                  onerror="this.src=(this.src.includes('maxresdefault')) 
+                      ? (this.src.replace('maxresdefault', 'hqdefault')) 
+                      : (this.src.replace('hqdefault', 'default'));" 
+                      >
+            <p class="mt-2 small d-lg-none" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+            <p class="mt-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+            <!-- <a [href]="hit.url | safe" target="_blank" class="text-white d-block mt-2">{{hit.url}}</a> -->
           </a>
         </div>
-        <div class="p-2 content-container">
-          <p class="small d-lg-none">Tags for {{hit.title}}</p>
-          <p class="d-none d-lg-block">Tags for {{hit.title}}</p>
-          <div>
+        <div class="d-flex justify-content-center flex-column content-container align-items-center my-auto">
+          <h3 class="mb-2 d-lg-none">Tags</h3> 
+          <h2 class="mb-2 d-none d-lg-block">Tags</h2>
+          <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
             <button [routerLink]="['/', tag]" type="button" class="btn btn-sm btn-outline-light mx-1 mb-1 tag-{{tag}}" *ngFor="let tag of hit.tags">#{{tag}}</button>
           </div>
-          <p class="small d-lg-none">Pages for {{hit.title}}</p>
-          <p class="d-none d-lg-block">Pages for {{hit.title}}</p>
-          <div>
+          <h3 class="mb-2 d-lg-none">Articles</h3>
+          <h2 class="mb-2 d-none d-lg-block">Articles</h2>
+          <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
             <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
-          </div>
+        </div>
+              
         </div>
       </li>
     </ul>
