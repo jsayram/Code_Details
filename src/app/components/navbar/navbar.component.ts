@@ -10,6 +10,8 @@ import { Subject } from 'rxjs';
 
 import { faFacebookF, faTwitter, faInstagram, faLinkedinIn } from '@fortawesome/free-brands-svg-icons';
 
+import { SearchComponent } from '../search/search.component';
+
 @Component({
   selector: 'app-navbar',
   templateUrl: './navbar.component.html',
@@ -27,6 +29,10 @@ icons = {
   @ViewChild(MatSidenav)
   sidenav!: MatSidenav;
   sidenav2!: MatSidenav;
+
+  //use the mothods from search compnent in the navbar component
+  @ViewChild(SearchComponent) 
+  searchComponent!: SearchComponent;
 
   destroyed$ = new Subject<void>();
 
