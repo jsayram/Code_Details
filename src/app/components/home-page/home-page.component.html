@@ -1,5 +1,4 @@
-
-<div class="container border mb-4 rounded-2 ">
+<div class="container border mb-4 rounded-2 bg-transparent">
   <div class="p-4 text-center">
     <h1 class="text-body-emphasis">Welcome To My Brain 🧠</h1>
     <p class="col-lg-5 mx-auto fs-5 text-muted">
@@ -13,38 +12,36 @@
   </div>
 </div>
 
-
-<div class="container">
+<div class="container-fluid bg-transparent">
   <div class="row">
-    <div class="col-md-6 mb-2">
+    <div class="col-sm-12 col-md-6 mb-2">
         <img src="https://picsum.photos/800/800" alt="Hero Image" class="img-fluid">
     </div>
-    <div class="col-md-6">
+    <div class="col-sm-12 col-md-6">
       <h1>Let's Learn Something 🤓</h1>
       <h4>Clearly Stated Subheadline</h4>
       <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed vestibulum malesuada eleifend. Sed in ipsum eget dolor efficitur feugiat vitae vitae sapien.</p>
       <a href="#" class="btn btn-primary btn-lg">Call to Action</a>
-    </div> 
-    
+    </div>
   </div>
   
   <div class="row mt-5">
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-4">
       <h3>Feature 1</h3>
       <p>Benefit-oriented description of Feature 1.</p>
     </div>
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-4">
       <h3>Feature 2</h3>
       <p>Benefit-oriented description of Feature 2.</p>
     </div>
-    <div class="col-md-4">
+    <div class="col-sm-12 col-md-4">
       <h3>Feature 3</h3>
       <p>Benefit-oriented description of Feature 3.</p>
     </div>
   </div>
   
   <div class="row mt-5">
-    <div class="col-md-6">
+    <div class="col-sm-12 col-md-6">
       <div class="testimonial">
         <img src="testimonial-image.jpg" alt="Testimonial Image" class="img-fluid rounded-circle">
         <blockquote>
@@ -53,7 +50,7 @@
         </blockquote>
       </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-sm-12 col-md-6">
       <div class="testimonial">
         <img src="testimonial-image.jpg" alt="Testimonial Image" class="img-fluid rounded-circle">
         <blockquote>
@@ -65,22 +62,19 @@
   </div>
 </div>
 
-
-
-
-
-
-<div class="container">
-  <div class="col-lg-3">
-    <div id="trigger1"></div>
-    <section id="reveal1" #reveal1 [@fadeIn]="reveal1.classList.contains('visible') ? 'visible' : 'hidden'">
-      <h2>Scene 1</h2>
-      <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque convallis sapien sit amet lacus iaculis efficitur.</p>
-      <img src="https://picsum.photos/600/800" alt="Placeholder" />
-    </section>
+<div class="container-fluid m-3 bg-transparent">
+  <div class="row">
+    <div class="col-lg-3">
+      <div id="trigger1"></div>
+      <section id="reveal1" #reveal1 [@fadeIn]="reveal1.classList.contains('visible') ? 'visible' : 'hidden'">
+        <h2>Scene 1</h2>
+        <p>Lorem ipsum dolor sit amet, consectetur adipiscing elit. Quisque convallis sapien sit amet lacus iaculis efficitur.</p>
+        <img src="https://picsum.photos/600/800" alt="Placeholder" />
+      </section>
+    </div>
   </div>
 
-  <div class="container">
+  <div class="row">
     <div id="trigger2"></div>
     <section id="reveal2" #reveal2 [@Elastic]="reveal2.classList.contains('visible') ? 'visible' : 'hidden'">
       <h2>Scene 2</h2>
@@ -94,66 +88,9 @@
   </div>
 
   <div class="digits-container">
-    <div *ngFor="let item of ['Python', 'Java', 'C#', 'JavaScript', 'SQL','Python', 'Java', 'C#', 'JavaScript', 'SQL']; 
-    let i = index "#digit class="digit"  
-    [@Elastic]="digit.classList.contains('visible') ? 'visible' : 'hidden'">
+    <div *ngFor="let item of ['Python', 'Java', 'C#', 'JavaScript', 'SQL','Python', 'Java', 'C#', 'JavaScript', 'SQL']; let i = index" #digit class="digit"  [@Elastic]="digit.classList.contains('visible') ? 'visible' : 'hidden'">
       <h3>{{ item }}</h3>
       <p>Curabitur eget commodo augue, non tincidunt nunc. Sed mollis nisl velit, ut tempor justo facilisis non.</p>
     </div>
   </div>
 </div>
-
-
-
-<div class="container m-3">
-  <div class="p-5 text-center m-3">
-    <!-- Rest of your code -->
-  </div>
-</div>
-
-<div class="container m-3">
-  <div class="row m-3">
-    <div class="col-md-6 mt-2 m-3">
-        <!-- Rest of your code -->
-    </div>
-    <div class="col-md-6 m-3">
-      <!-- Rest of your code -->
-    </div> 
-  </div>
-  
-  <div class="row mt-5 m-3">
-    <div class="col-md-4 m-3">
-      <!-- Rest of your code -->
-    </div>
-    <div class="col-md-4 m-3">
-      <!-- Rest of your code -->
-    </div>
-    <div class="col-md-4 m-3">
-      <!-- Rest of your code -->
-    </div>
-  </div>
-  
-  <div class="row mt-5 m-3">
-    <div class="col-md-6 m-3">
-      <!-- Rest of your code -->
-    </div>
-    <div class="col-md-6 m-3">
-      <!-- Rest of your code -->
-    </div>
-  </div>
-</div>
-
-<div class="container m-3">
-  <div class="m-3">
-    <!-- Rest of your code -->
-  </div>
-
-  <div class="m-3">
-    <!-- Rest of your code -->
-  </div>
-
-  <div class="digits-container m-3">
-    <!-- Rest of your code -->
-  </div>
-</div>
-
