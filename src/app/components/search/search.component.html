@@ -7,7 +7,8 @@
             <fa-icon [icon]="['fas', 'magnifying-glass']" [size]="'lg'"></fa-icon>
           </button>
           <input type="text" class="custom-input form-control ml-2" placeholder='Search Code Details' aria-label="Search Code Details"
-                [(ngModel)]="searchTerm" (keyup.enter)="search();"
+                [(ngModel)]="searchTerm" 
+                (keyup.enter)="search();"
                 [ngModelOptions]="{standalone: true}"
                 (input)="onInput();toggleCloseButton()"
           >
@@ -29,11 +30,13 @@
   <button class="btn btn-primary btn-lg" [routerLink]="['/all']" (click)="clearSearch();toggleCloseButton()">All Content</button>
 </div>
 <div class="container search-results" *ngIf="hits.length > 0">
-  <div class="col-12 col-md-10 col-sm-12 mx-auto position-relative">
-    <ul class="list-group justify-content-center border rounded position-absolute w-100 custom-z-index">
+  <div class="col-12 col-lg-8 col-md-11 col-sm-12 mx-auto position-relative">
+    <ul  class="list-group justify-content-center border rounded position-absolute w-100 custom-z-index">
       <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start text-left" *ngFor="let hit of hits">
         <div class="flex-grow-1 p-2 content-container">
-          <a [routerLink]="['/detail', hit.id]" class="text-decoration-none text-white">
+
+
+          <a [href]="hit.url" class="text-decoration-none text-white">
             <h2 class="mb-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
             <h4 class="mb-2 d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
               <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
@@ -44,8 +47,9 @@
                       >
             <p class="mt-2 small d-lg-none" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
             <p class="mt-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
-            <!-- <a [href]="hit.url | safe" target="_blank" class="text-white d-block mt-2">{{hit.url}}</a> -->
           </a>
+
+
         </div>
         <div class="d-flex justify-content-center flex-column content-container align-items-center my-auto">
           <h3 class="mb-2 d-lg-none">Tags</h3> 
@@ -64,4 +68,3 @@
     </ul>
   </div>
 </div>
-
