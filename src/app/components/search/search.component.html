@@ -40,7 +40,7 @@
             <h2 class="mb-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
             <h4 class="mb-2 d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
               <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
-                  [src]="hit.url | extractImageFromEmbededYoutubeUrl: 'mqdefault'" 
+                  [src]="hit.url | extractImageFromEmbeddedYoutubeUrl: 'mqdefault'" 
                   onerror="this.src=(this.src.includes('maxresdefault')) 
                       ? (this.src.replace('maxresdefault', 'hqdefault')) 
                       : (this.src.replace('hqdefault', 'default'));" 

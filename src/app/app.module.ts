@@ -94,9 +94,9 @@ name is extractImageFromEmbededYoutubeUrl and it takes a url string and returns 
 <img [src]="tutorial.url | extractImageFromYoutubeUrl" alt="tutorial image">
 */
 @Pipe({
-  name: 'extractImageFromEmbededYoutubeUrl'
+  name: 'extractImageFromEmbeddedYoutubeUrl'
 })
-export class ExtractImageFromEmbededYoutubeUrlPipe implements PipeTransform {
+export class ExtractImageFromEmbeddedYoutubeUrlPipe implements PipeTransform {
   transform(url: string, resolutionType: string='hqdefault'): string {
     let videoId = url.split('embed/')[1];
     const ampersandPosition = videoId.indexOf('&');
@@ -113,7 +113,7 @@ export class ExtractImageFromEmbededYoutubeUrlPipe implements PipeTransform {
     //pipe declarations
     SafePipe,
     SafeHtmlPipe,
-    ExtractImageFromEmbededYoutubeUrlPipe,
+    ExtractImageFromEmbeddedYoutubeUrlPipe,
 
     //custom components
     AppComponent,
