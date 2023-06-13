@@ -1,6 +1,8 @@
 //TODO: Change the color for the sign in button on all screen scizes media queries remove them
 @import "../../../styles/components/variables";
 
+$sideNavBackgroundColorHidden: #0C0222;
+
 .container {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
   scrollbar-width: none;  /* Firefox */
@@ -25,6 +27,7 @@
   display: flex;
   align-items: left;
   justify-content: left;
+  z-index: 11; //above search list overlay
 }
 
 .navbar-logo {
@@ -34,6 +37,7 @@
   background-image: $MainLogo2;
   background-size: contain;
   background-repeat: no-repeat;
+  z-index: 11; //above search list overlay
 }
 .navbar-logo-img {
   background-image: $MainLogo;
@@ -43,6 +47,7 @@
   display: flex;
   justify-content: right;
   align-items: center;
+  z-index: 11; //above search list overlay
 }
 
 .navbar-links {
@@ -53,10 +58,12 @@
   display: flex;
   border-radius: 50px;
   padding: 8px;
+  z-index: 11; //above search list overlay
 }
 
 .navbar-links li {
   margin: 10px;
+  z-index: 11; //above search list overlay
 }
 
 .navbar-link-item {
@@ -83,9 +90,9 @@
   margin-top: 10px;
   margin-left: 20px;
   width: 200px;
-  background: #12034a;
+  //background: #4a0303;
   text-emphasis-color: rgb(255, 0, 238);
-  color: rgb(5, 1, 86);
+ // color: rgb(5, 1, 86);
   border-width: 0.5px;
   border-color: rgb(30 41 59 / var(--tw-border-opacity));
   padding: 1.25rem;
@@ -168,10 +175,16 @@
 
 
 /////////MEDIA QUERIES BELOW
-
-
+@media screen and (max-width: 760px) {
+  .mat-sidenav{
+    background-color: $sideNavBackgroundColorHidden;
+  }
+}
 
 @media screen and (max-width: 650px) {
+  .mat-sidenav{
+    background-color: $sideNavBackgroundColorHidden;
+  }
 
   .navbar-logo {
       width: 10rem;
@@ -222,6 +235,9 @@
 }
 
 @media screen and (max-width: 450px) {
+    .mat-sidenav{
+      background-color: $sideNavBackgroundColorHidden;
+    }
     .navbar-logo {
       width: 8rem;
         margin: auto;
@@ -273,7 +289,9 @@
 }
 
 @media screen and (max-width: 375px) {
-
+    .mat-sidenav{
+      background-color: $sideNavBackgroundColorHidden;
+    }
     .navbar-logo {
       flex: content;
         width: 8rem;
@@ -325,6 +343,9 @@
 }
 
 @media screen and (max-width: 321px) {
+    .mat-sidenav{
+      background-color: $sideNavBackgroundColorHidden;
+    }
     .navbar-logo {
         width: 8rem;
         height: 3rem;
@@ -374,6 +395,9 @@
 }
 
 @media screen and (max-width: 245px) {
+    .mat-sidenav{
+      background-color: $sideNavBackgroundColorHidden;
+    }
     .navbar-links {
         padding: 3px;
         font-size: 4px;
@@ -382,7 +406,6 @@
         padding-right: 5px;
     }
     .navbar-link-item {
-        
         font-size: 10px;
     }
     

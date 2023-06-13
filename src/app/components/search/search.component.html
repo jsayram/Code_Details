@@ -11,6 +11,7 @@
                 (keyup.enter)="search();"
                 [ngModelOptions]="{standalone: true}"
                 (input)="onInput();toggleCloseButton()"
+                (keyup.escape)="clearSearch();"         
           >
           <button class="btn btn-link white material-icons close d-none mr-0" aria-label="close" (click)="toggleCloseButton(); clearSearch()">
             <fa-icon [icon]="['fas', 'close']" [size]="'lg'"></fa-icon>
@@ -31,6 +32,7 @@
 </div>
 <div class="container search-results" *ngIf="hits.length > 0">
   <div class="col-12 col-lg-8 col-md-11 col-sm-12 mx-auto position-relative">
+   <div class="overlay" (click)="hideList()" *ngIf="showList"></div>
     <ul  class="list-group justify-content-center border rounded position-absolute w-100 custom-z-index-searchlist" >
       <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start text-left" *ngFor="let hit of hits">
         <div class="flex-grow-1 p-2 content-container">

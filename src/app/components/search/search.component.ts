@@ -1,4 +1,4 @@
-import { Component, OnInit, HostListener, ElementRef  } from '@angular/core';
+import { Component, OnInit, HostListener, ElementRef} from '@angular/core';
 import algoliasearch, { SearchIndex } from 'algoliasearch/lite';
 import { environment } from 'src/environments/environment';
 import { ModalService } from 'src/app/components/modal-w';
@@ -32,6 +32,8 @@ export class SearchComponent implements OnInit {
   hits: any[] = [];
   searchTerm!: string;
   searched!: boolean;
+  showList = true;
+
 
   s: string = "INSIDE THE OPEN MODAL FUNCTION : ";
   
@@ -62,8 +64,14 @@ searchParameters = {
   onInput() {
     if (!this.searchTerm) {
       this.clearSearch();
+      this.showList = false;
     }
   }
+
+  hideList() {
+    this.showList = false;
+  }
+  
 
   search() {
     // Removes trailing spaces
@@ -76,7 +84,7 @@ searchParameters = {
            // this.searchLabels();  // dont delete this TODO , future search of pages content incse of no search results found
           } else {
             this.hits = hits;
-            document.querySelector('.search-results')?.scrollIntoView({ behavior: 'smooth' });
+            this.showList = true;
             this.cd.detectChanges();
           }
         })
@@ -113,8 +121,10 @@ searchParameters = {
       closeButton.classList.remove('d-none');
       closeButton.classList.add('d-inline-block');
     } else {
-      closeButton.classList.add('d-none');
       closeButton.classList.remove('d-inline-block');
+      closeButton.classList.add('d-none');
+      searchButton.classList.remove('d-none');
+      searchButton.classList.add('d-inline-block');
     }
   }
   
@@ -123,6 +133,8 @@ searchParameters = {
     this.searchTerm = '';
     this.hits = [];
     this.searched = false;
+    this.showList = false;
+    this.toggleCloseButton();
   }
   
 
