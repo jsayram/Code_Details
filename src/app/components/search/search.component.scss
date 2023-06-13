@@ -79,7 +79,8 @@ li.list-group-item {
   border-bottom: 1px solid #ffffff;
 }
 
-.custom-z-index {
+.custom-z-index-searchlist {
+  //list items from search bar are on top of all content behind it
   z-index: 9999;
 }
 

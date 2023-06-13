@@ -73,9 +73,10 @@ searchParameters = {
         .then(({ hits }) => {
           if (hits.length === 0) { // No hits from Algolia
             this.searched = true;
-           // this.searchLabels();  // dont deelte this TODO , future search of pages content incse of no search results found
+           // this.searchLabels();  // dont delete this TODO , future search of pages content incse of no search results found
           } else {
             this.hits = hits;
+            document.querySelector('.search-results')?.scrollIntoView({ behavior: 'smooth' });
             this.cd.detectChanges();
           }
         })
