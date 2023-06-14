@@ -2,26 +2,57 @@
 @import "../../../styles/components/variables";
 @import "../../../styles/components/tags";
 
+ $linearGradient: linear-gradient(90deg, rgb(21, 4, 254) 0%, rgb(65, 2, 255) 18%, rgb(0, 0, 255) 43%, rgb(87, 4, 255) 73%, rgba(0,37,255,1) 100%);
+ $stepFunction: ease-in-out;
+ $time: 0.4s;
 
 .dark-theme {
   background-color: #333;
   color: #fff;
 }
-.custom-input {
-  font-family: $global-font-family;
-  background-color: transparent;
-  border: none;
-  transition: border-color 0.3s ease;
-  outline: none;
-  caret-color: #ff00f7; // cursor color
-  color: #fff;
-  z-index: 11; // higher than overlay to make it clickable when overlay is active
+
+.search-box-component{
+   //add border thin with transition to show on focus 
+  border: 1px solid transparent;
+  border-radius: 10px;
+  transition: border-color $time/2 ease-in-out;
   &:focus {
-    border: none;
-    border-bottom: #6f00ff solid 2px;
+    border-color: #13007c;
     box-shadow: none;
   }
+  &:hover {
+    border-color: #0d00ff;
+    box-shadow: none;
+  }
+}
 
+.custom-input {
+font-family: $global-font-family;
+background-color: transparent;
+border: none;
+transition: border-color $time $stepFunction;
+outline: none;
+caret-color: #ff00f7; // cursor color
+color: #fff;
+z-index: 11; // higher than overlay to make it clickable when overlay is active
+border-bottom: transparent solid 1px;
+background-size: 0% 2px;
+background-repeat: no-repeat;
+background-position: 100% 100%;
+transition: background-size $time $stepFunction;
+  &:focus {
+    background-image: $linearGradient;
+    background-size: 100% 2px;
+    background-position: 0% 100%;
+    box-shadow: none;
+  }
+  &:hover {
+    background-image: $linearGradient;
+    border:none;
+    background-size: 100% 2px;
+    background-position: 0% 100%;
+    box-shadow: none;
+  }
 }
 
 .material-icons {
@@ -89,6 +120,7 @@ li.list-group-item {
 .content-container {
   flex: 1;
   word-wrap: break-word;
+  border:none;
 }
 
 
