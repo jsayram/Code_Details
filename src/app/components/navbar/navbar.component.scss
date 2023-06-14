@@ -2,7 +2,7 @@
 @import "../../../styles/components/variables";
 
 $sideNavBackgroundColorHidden: #0C0222;
-$sideNavBackgroundImageHidden: linear-gradient(to right bottom, #10072f, #0e082c, #0e082c, #0e082b, #0e082b, #10072d, #12052f, #150431, #180233);;
+$sideNavBackgroundImageHidden: $background-image-dark;
 
 .text-emphasis-color-pink{
   color: $Accent-color;

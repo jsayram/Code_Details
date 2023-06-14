@@ -21,16 +21,16 @@
     </div>
   </div>
 </div>
-<div id="noResults" class="border border-white container search-results text-center text-white my-4 p-4" *ngIf="searched && hits.length === 0">
+<div id="noResults" class="border-color-pink container search-results text-center text-white my-4 p-4" *ngIf="searched && hits.length === 0">
   <h2 class="d-none d-lg-block">🥹 No Matched Results 😭<br>👉 <code><strong>{{searchTerm}}</strong></code> ❌</h2>
   <h4 class="d-lg-none">🥹 No Matched Results 😭<br>👉 <code><strong>{{searchTerm}}</strong></code> ❌</h4>
   <p class="d-none d-lg-block">I will make a note of that 📝</p>
   <p class="d-lg-none">I will make a note of that 📝</p>
   <p>✨ Meanwhile, Check out my other content and see if something catches your 👀</p>
   <h1>👇 ▶️  #️⃣ 👇</h1>
-  <button class="btn btn-primary btn-lg m-2 w-50" [routerLink]="['/all']" (click)="clearSearch();toggleCloseButton()">All Content</button>
-  <button [routerLink]="['/', 'tags']" type="button" class="btn btn-primary btn-lg m-2 w-50">#TAGS</button>
-  <button [routerLink]="['/', 'projects']" type="button" class="btn btn-primary btn-lg m-2 w-50">Projects</button>
+  <button [routerLink]="['/all']" (click)="clearSearch();toggleCloseButton()" type="button" class="btn btn-primary-button-color btn-lg m-2 w-50">All Content</button>
+  <button [routerLink]="['/', 'tags']" (click)="clearSearch();toggleCloseButton()" type="button" class="btn btn-primary-button-color btn-lg m-2 w-50">#TAGS</button>
+  <button [routerLink]="['/', 'projects']" (click)="clearSearch();toggleCloseButton()" type="button" class="btn btn-primary-button-color btn-lg m-2 w-50">Projects</button>
 </div>
 <div class="container search-results" *ngIf="hits.length > 0">
   <div class="col-12 col-lg-8 col-md-11 col-sm-12 mx-auto position-relative">
@@ -71,14 +71,12 @@
               
         </div>
       </li>
-      <li class="list-group-item d-flex flex-wrap justify-content-center align-items-center text-white border border-white">
-        <h1>Didn't Find What You Were Looking for? 🧐</h1>
-        <h2>Here are all</h2>
-        <div class="m-1">
-        <button [routerLink]="['/', 'tags']" type="button" class="btn btn-xl btn-primary mx-1 mb-1"><strong>#TAGS</strong></button>
-        </div>
-        <h2>available</h2>
-      </li>
+       <div class="border-color-pink container text-center text-white my-4 p-4">
+        <h1 class="d-none d-lg-block">Didn't Find What You Were Looking for? 🧐</h1>
+        <h2 class="d-lg-none">Didn't Find What You Were Looking for? 🧐</h2>
+        <p>Check out the complete list of Tags 👇</p>
+        <button [routerLink]="['/', 'tags']" (click)="clearSearch();toggleCloseButton()" type="button" class="btn btn-primary-button-color btn-lg m-2 w-50">#TAGS</button>
+      </div>
     </ul>
   </div>
 </div>
