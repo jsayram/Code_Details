@@ -4,7 +4,6 @@ import { environment } from 'src/environments/environment';
 import { ModalService } from 'src/app/components/modal-w';
 import { ChangeDetectorRef } from '@angular/core';
 
-
 const searchClient = algoliasearch(
   environment.algolia.algoliaAPP_ID,
   environment.algolia.algoliaAdminAPI_KEY
@@ -16,6 +15,40 @@ const searchClient = algoliasearch(
   styleUrls: ['./search.component.scss']
 })
 export class SearchComponent implements OnInit {
+
+  /* pages created by for each of the links returned by the search */
+  /* cant have two keys that are the same*/
+  pagesCreated: {[key: string]: {link: string, title: string}} = {
+    '/page1-python': { 
+      link: '/page1-python', //links may change here but not in databse so we need to change them here
+      title: 'Article1-forPython1-page'
+    },
+    '/PAGE4-MEME': {
+      link: '/PAGE4-MEME',
+      title: 'Page 4 - Meme(INSERTED TITLE)'
+    },
+    '/page1': {
+      link: '/page1',
+      title: 'Page-1linkPlaceHolder'
+    },
+    '/page2': {
+      link: '/page2',
+      title: 'Page-2linkPlaceHolder'
+    },
+    '/page3': {
+      link: '/page3',
+      title: 'Page-3linkPlaceHolder'
+    },
+    '/page4': {
+      link: '/page4',
+      title: 'Page-4linkPlaceHolder'
+    },
+    '/page5': {
+      link: '/page5',
+      title: 'Page-5linkPlaceHolder'
+    }
+  };
+
 
   constructor(private modalService: ModalService, private cd: ChangeDetectorRef, private myElement: ElementRef) {
     this.index = searchClient.initIndex('tutorialContent');
@@ -136,6 +169,6 @@ searchParameters = {
     this.showList = false;
     this.toggleCloseButton();
   }
-  
+
 
 }
