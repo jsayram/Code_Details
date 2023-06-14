@@ -4,7 +4,7 @@
       <form> 
         <div class="form-group d-flex justify-content-center">
           <button class="btn btn-link white material-icons search-icon font-weight-italic mr-0" aria-label="search" (click)="search()">
-            <fa-icon [icon]="['fas', 'search']" [size]="'lg'"></fa-icon>
+            <fa-icon [icon]="['fas', 'search']" [size]="'sm'"></fa-icon>
           </button>
           <input type="text" class="custom-input form-control ml-2" placeholder='Search Code Details' aria-label="Search Code Details"
                 [(ngModel)]="searchTerm" 
@@ -14,7 +14,7 @@
                 (keyup.escape)="clearSearch();"         
           >
           <button class="btn btn-link white material-icons close d-none mr-0" aria-label="close" (click)="toggleCloseButton(); clearSearch()">
-            <fa-icon [icon]="['fas', 'close']" [size]="'lg'"></fa-icon>
+            <fa-icon [icon]="['fas', 'close']" [size]="'sm'"></fa-icon>
           </button> 
         </div>     
       </form>
@@ -33,7 +33,7 @@
 <div class="container search-results" *ngIf="hits.length > 0">
   <div class="col-12 col-lg-8 col-md-11 col-sm-12 mx-auto position-relative">
    <div class="overlay" (click)="hideList()" *ngIf="showList"></div>
-    <ul  class="list-group justify-content-center border rounded position-absolute w-100 custom-z-index-searchlist" >
+    <ul  class="list-group justify-content-center position-absolute w-100 custom-z-index-searchlist" >
       <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start text-left" *ngFor="let hit of hits">
         <div class="flex-grow-1 p-2 content-container">
 
