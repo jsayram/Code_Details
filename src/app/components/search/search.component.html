@@ -37,13 +37,13 @@
    <div class="overlay" (click)="hideList()" *ngIf="showList"></div>
     <ul  class="list-group justify-content-center position-absolute w-100 custom-z-index-searchlist" >
       
-      <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start text-left" *ngFor="let hit of hits">
-        <div class="flex-grow-1 p-2 content-container">
+      <li class="list-group-item d-flex flex-column flex-md-row text-white align-items-start" *ngFor="let hit of hits">
+        <div class="w-100 flex-grow-2 p-2 content-container">
 
 
           <a [href]="hit.url" target="_blank" class="text-decoration-none text-white">
-            <h2 class="mb-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
-            <h4 class="mb-2 d-lg-none" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
+            <h2 class="mb-2 d-none d-lg-block text-center" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
+            <h4 class="mb-2 d-lg-none text-center" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
               <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
                   [src]="hit.url | extractImageFromEmbeddedYoutubeUrl: 'mqdefault'" 
                   onerror="this.src=(this.src.includes('maxresdefault')) 
@@ -51,23 +51,47 @@
                       : (this.src.replace('hqdefault', 'default'));" 
                    
                       >
-            <p class="mt-2 small d-lg-none" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
-            <p class="mt-2 d-none d-lg-block" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+            <p class="mt-2 small d-lg-none text-left" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+            <p class="mt-2 d-none d-lg-block text-left" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
           </a>
 
 
         </div>
-        <div class="d-flex justify-content-center flex-column content-container align-items-center my-auto">
-          <h3 class="mb-2 d-lg-none">Tags</h3> 
-          <h2 class="mb-2 d-none d-lg-block">Tags</h2>
+        <div class="w-100 d-flex justify-content-center flex-column content-container align-items-center my-auto">
+          <h3 class="mb-2 d-lg-none">Main Topics</h3> 
+          <h2 class="mb-2 d-none d-lg-block">Main Topics</h2>
           <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
             <button [routerLink]="['/', tag]" type="button" class="btn btn-sm btn-outline-light mx-1 mb-1 tag-{{tag}}" *ngFor="let tag of hit.tags">#{{tag}}</button>
-          </div>
-          <h3 class="mb-2 d-lg-none">Articles</h3>
-          <h2 class="mb-2 d-none d-lg-block">Articles</h2>
+           </div>
+    
+            <!-- <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
+              <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
+            </div> -->
+         
+          
+          <p>THIS IS MY TESTING RESPOUREESD BELOW</p>
           <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
-            <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1" *ngFor="let page of hit.pages">🔗{{page}}</button>
-        </div>
+            <ng-container *ngIf="hit.pages && hit.pages.length > 0">
+              <h3 class="mb-2 d-lg-none">Resources</h3>
+              <h2 class="mb-2 d-none d-lg-block">Resources</h2>
+              <ng-container *ngFor="let page of hit.pages">
+                <ng-container [ngSwitch]="page">
+                  <ng-container *ngSwitchCase="'/page1-python'">
+                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1">🔗{{page}} EXTRACTED</button>
+                  </ng-container>
+                  <ng-container *ngSwitchCase="'/PAGE4-MEME'">
+                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1">🔗{{page}}</button>
+                  </ng-container>
+                  <!-- Add more ngSwitchCase blocks for additional comparisons -->
+                  <ng-container *ngSwitchDefault>
+                    <!-- Default case if none of the switch cases match -->
+                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-secondary mx-1 mb-1 disabled">🔗{{page}}</button>
+                  </ng-container>
+                </ng-container>
+              </ng-container>
+            </ng-container>
+          </div>
+          
               
         </div>
       </li>
