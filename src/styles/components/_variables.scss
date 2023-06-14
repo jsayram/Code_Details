@@ -26,8 +26,10 @@ $Secondary-bg-color: #0a0312; //(RGB: 10, 3, 18)
 $Primary-color-button: #4b00bd;// (RGB: 75, 0, 189)
 $Secondary-color-button: #1fe0a6; //(RGB: 31, 224, 166)
 $Accent-color: #ae00ff; //(RGB: 174, 0, 255)
+$Accent-color2: #1fe0a6; //(RGB: 255, 0, 238)
 
-$text-color : #ddd0fb;
+$text-color-light : #ffffff;
+$text-color-dark: #03011b;
 $background-color: #0a0312;
 
 //logos
@@ -35,3 +37,15 @@ $logoPath: '../../../src/assets/logos/';
 $MainLogo: url('#{$logoPath}MainLogoNoletters.svg');
 $MainLogo2: url('#{$logoPath}FullWhiteLetters.png');
 $MainLogo3: url('#{$logoPath}FullDarkAndWhiteLetters.png');
+
+
+.text-emphasis-color-pink{
+    color: $Accent-color;
+  }
+  .text-emphasis-color-torquise{
+    color: $Accent-color2;
+  }
+  .btn-primary-button-color{
+    background-color: $Primary-color-button;
+    color: $Primary-text-color;
+  }

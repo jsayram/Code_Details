@@ -3,6 +3,17 @@
 
 $sideNavBackgroundColorHidden: #0C0222;
 
+.text-emphasis-color-pink{
+  color: $Accent-color;
+}
+.text-emphasis-color-torquise{
+  color: $Accent-color2;
+}
+.btn-primary-button-color{
+  background-color: $Primary-color-button;
+  color: white;
+}
+
 .container {
   -ms-overflow-style: none;  /* Internet Explorer 10+ */
   scrollbar-width: none;  /* Firefox */
@@ -68,7 +79,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 .navbar-link-item {
   font-family: $global-font-family;
-  color:  $text-color;
+  color:  $text-color-light;
   //text-decoration: none;
   font-weight: bold;
   font-size: 20px;
@@ -76,7 +87,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 .navbar-cta {
   background-color: $Primary-color-button;
-  color: $text-color;
+  color: $text-color-light;
   padding: 10px 20px;
   border-radius: 20px;
   text-decoration: none;

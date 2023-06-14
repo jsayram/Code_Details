@@ -6,5 +6,7 @@ import { Component } from '@angular/core';
   styleUrls: ['./app.component.scss']
 })
 export class AppComponent {
+    //add current year 
+    currentYear = new Date().getFullYear(); // </p>&copy; {{currentYear}} </p>
 
 } //end class

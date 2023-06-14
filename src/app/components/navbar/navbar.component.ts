@@ -18,7 +18,7 @@ import { SearchComponent } from '../search/search.component';
   styleUrls: ['./navbar.component.scss']
 })
 export class NavbarComponent implements OnInit, OnDestroy {
-  
+ 
 icons = {
   faFacebookF,
   faTwitter,
@@ -61,7 +61,7 @@ icons = {
 
   //this is needed to observe the sidenav and change its mode based on the screen size (over or side), it is also needed to close the sidenav when the router changes (only in mobile mode)
   observeSidenav() {
-    this.observer.observe(['(max-width: 760px)']).pipe(
+    this.observer.observe(['(max-width: 766px)']).pipe(
       filter((res: any) => res.matches),
       takeUntil(this.destroyed$)
     ).subscribe(() => {
@@ -69,7 +69,7 @@ icons = {
       this.sidenav.close();
     });
 
-    this.observer.observe(['(min-width: 761px)']).pipe(
+    this.observer.observe(['(min-width: 765px)']).pipe(
       filter((res: any) => res.matches),
       takeUntil(this.destroyed$)
     ).subscribe(() => {
