@@ -69,27 +69,29 @@
             </div> -->
          
           
-          <p>THIS IS MY TESTING RESPOUREESD BELOW</p>
+          <h1>👇</h1>
           <div class="m-2 d-flex flex-wrap justify-content-center align-items-center">
             <ng-container *ngIf="hit.pages && hit.pages.length > 0">
               <h3 class="mb-2 d-lg-none">Resources</h3>
               <h2 class="mb-2 d-none d-lg-block">Resources</h2>
-              <ng-container *ngFor="let page of hit.pages">
-                <ng-container [ngSwitch]="page">
-                  <ng-container *ngSwitchCase="'/page1-python'">
-                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1">🔗{{page}} EXTRACTED</button>
+
+              <ng-container *ngFor="let page of hit.pages;let i = index;">
+
+                <ng-container [ngSwitch]="page">  
+                  <ng-container *ngSwitchCase="pagesCreated[page]?.link">
+                    <button [routerLink]="['/', pagesCreated[page]!.link]" type="button" class="btn btn-sm btn-primary-button-color mx-1 mb-1"> 🔗{{pagesCreated[page].title}}</button>
                   </ng-container>
-                  <ng-container *ngSwitchCase="'/PAGE4-MEME'">
-                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary mx-1 mb-1">🔗{{page}}</button>
-                  </ng-container>
+                  <!-- <ng-container *ngSwitchCase="'/PAGE4-MEME'">
+                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary-button-color mx-1 mb-1">🔗{{page}}</button>
+                  </ng-container> -->
                   <!-- Add more ngSwitchCase blocks for additional comparisons -->
                   <ng-container *ngSwitchDefault>
                     <!-- Default case if none of the switch cases match -->
-                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-secondary mx-1 mb-1 disabled">🔗{{page}}</button>
+                     <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-secondary mx-1 mb-1 disabled">🔗{{page}}</button>
                   </ng-container>
                 </ng-container>
+               </ng-container>
               </ng-container>
-            </ng-container>
           </div>
           
               
