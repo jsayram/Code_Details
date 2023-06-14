@@ -20,7 +20,7 @@ $dot-space: 100px;
 
 
 //System Color Pallete
-$Primary-text-color: #ddd0fb;// (RGB: 221, 208, 251)
+$Primary-text-color: #ffffff;// (RGB: 221, 208, 251)
 $Secondary-bg-color: #0a0312; //(RGB: 10, 3, 18)
 
 $Primary-color-button: #4b00bd;// (RGB: 75, 0, 189)
@@ -30,7 +30,10 @@ $Accent-color2: #1fe0a6; //(RGB: 255, 0, 238)
 
 $text-color-light : #ffffff;
 $text-color-dark: #03011b;
-$background-color: #0a0312;
+
+$background-color: $bg-color;
+$background-image-dark: linear-gradient(to right bottom, #1a0136, #160334, #130532, #10072f, #0e082c, #0e082c, #0e082b, #0e082b, #10072d, #12052f, #150431, #180233);
+$background-image-light: linear-gradient(to right bottom, #bebef8, #b6b4f5, #aea9f2, #a79fee, #a094ea, #a292ea, #a48feb, #a78deb, #b292ef, #bc97f3, #c69df7, #d0a2fb);
 
 //logos
 $logoPath: '../../../src/assets/logos/';

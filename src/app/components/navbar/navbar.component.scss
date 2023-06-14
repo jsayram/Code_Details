@@ -2,6 +2,7 @@
 @import "../../../styles/components/variables";
 
 $sideNavBackgroundColorHidden: #0C0222;
+$sideNavBackgroundImageHidden: linear-gradient(to right bottom, #10072f, #0e082c, #0e082c, #0e082b, #0e082b, #10072d, #12052f, #150431, #180233);;
 
 .text-emphasis-color-pink{
   color: $Accent-color;
@@ -11,7 +12,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 }
 .btn-primary-button-color{
   background-color: $Primary-color-button;
-  color: white;
+  color: $text-color-light;
 }
 
 .container {
@@ -117,7 +118,7 @@ $sideNavBackgroundColorHidden: #0C0222;
   margin-top: 10px;
   justify-content: center;
   align-items: center;
-  //background-color: rgba(76, 0, 255, 0.222);
+  background-color: transparent;
 }
   
 .mat-sidenav-container {
@@ -126,7 +127,7 @@ $sideNavBackgroundColorHidden: #0C0222;
   
 .menu-button {
   background: none;
-  color: white;
+  color: $text-color-light;
   width: 100%;
   display: flex;
   align-items: right;
@@ -145,7 +146,7 @@ $sideNavBackgroundColorHidden: #0C0222;
   font-size: xx-large;
   background-color: transparent;
   .mat-icon{
-    color: white;
+    color: $text-color-light;
     width: 100%;
     height: 100%;
   }
@@ -165,22 +166,22 @@ $sideNavBackgroundColorHidden: #0C0222;
 }
   
 .name {
-  color: white;
+  color: $text-color-light;
   margin-top: 8px;
-  font-weight: normal;
+  font-weight: lighter;
 }
 
 //this is the lable ( software enginering)
 .designation {
   margin-top: 2px;
   font-size: 0.7rem;
-  color: rgb(255, 255, 255);
+  color: $text-color-light;
 }
 
 .mat-divider {
   margin-top: 16px;
   margin-bottom: 16px;
-  background-color: rgb(255, 255, 255);
+  background-color: $text-color-light;
 }
 
 
@@ -188,13 +189,13 @@ $sideNavBackgroundColorHidden: #0C0222;
 /////////MEDIA QUERIES BELOW
 @media screen and (max-width: 760px) {
   .mat-sidenav{
-    background-color: $sideNavBackgroundColorHidden;
+    background-image: $sideNavBackgroundImageHidden;
   }
 }
 
 @media screen and (max-width: 650px) {
   .mat-sidenav{
-    background-color: $sideNavBackgroundColorHidden;
+    background-image: $sideNavBackgroundImageHidden;
   }
 
   .navbar-logo {
@@ -247,7 +248,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 @media screen and (max-width: 450px) {
     .mat-sidenav{
-      background-color: $sideNavBackgroundColorHidden;
+      background-image: $sideNavBackgroundImageHidden;
     }
     .navbar-logo {
       width: 8rem;
@@ -301,7 +302,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 @media screen and (max-width: 375px) {
     .mat-sidenav{
-      background-color: $sideNavBackgroundColorHidden;
+      background-image: $sideNavBackgroundImageHidden;
     }
     .navbar-logo {
       flex: content;
@@ -355,7 +356,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 @media screen and (max-width: 321px) {
     .mat-sidenav{
-      background-color: $sideNavBackgroundColorHidden;
+      background-image: $sideNavBackgroundImageHidden;
     }
     .navbar-logo {
         width: 8rem;
@@ -407,7 +408,7 @@ $sideNavBackgroundColorHidden: #0C0222;
 
 @media screen and (max-width: 245px) {
     .mat-sidenav{
-      background-color: $sideNavBackgroundColorHidden;
+      background-image: $sideNavBackgroundImageHidden;
     }
     .navbar-links {
         padding: 3px;
