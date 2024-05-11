@@ -1,0 +1,37 @@
+  
+  
+body {
+    font-family: sans-serif;
+    margin: 0;
+    padding: 0;
+    text-emphasis-color: $text-color-light;
+    color: $text-color-light;
+    background-image: $background-image-dark;
+}
+
+//html will look like this
+//<span class="highlight-container"><span class="highlight">Highlight</span></span>
+.highlight-container, 
+.highlight {
+  position: relative;
+}
+
+.highlight-container {
+  display: inline-block;
+}
+.highlight-container:before {
+  content: " ";
+  display: block;
+  height: 100%;
+  width: 100%;
+  margin-left: -3px;
+  margin-right: -6px;
+  position: absolute;
+  background: $Accent-color;
+  color: rgb(191, 0, 255);
+  transform: rotate(2deg);
+  top: -1px;
+  left: -1px;
+  border-radius: 20% 25% 20% 24%;
+  padding: 10px 12px 2px 10px;
+}

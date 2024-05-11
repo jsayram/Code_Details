@@ -44,17 +44,16 @@
           <a [href]="hit.url" target="_blank" class="text-decoration-none text-white">
             <h2 class="mb-2 d-none d-lg-block text-center" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h2>
             <h4 class="mb-2 d-lg-none text-center" [innerHTML]="hit._highlightResult.title.value | safeHtml"></h4>
-              <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
-                  [src]="hit.url | extractImageFromEmbeddedYoutubeUrl: 'mqdefault'" 
-                  onerror="this.src=(this.src.includes('maxresdefault')) 
-                      ? (this.src.replace('maxresdefault', 'hqdefault')) 
-                      : (this.src.replace('hqdefault', 'default'));" 
-                   
-                      >
-            <p class="mt-2 small d-lg-none text-left" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
-            <p class="mt-2 d-none d-lg-block text-left" [innerHTML]="hit._highlightResult.description.value | safeHtml"></p>
+            <img class="img-fluid w-100 mb-2 yt-thumbnail" alt="youtube-thumbnail"
+            [src]="hit.url | extractImageFromEmbeddedYoutubeUrl: 'mqdefault'" 
+            onerror="this.src=(this.src.includes('maxresdefault')) 
+                ? (this.src.replace('maxresdefault', 'hqdefault')) 
+                : (this.src.replace('hqdefault', 'default'));" 
+             
+                >
           </a>
-
+            <p class="mt-2 small d-lg-none text-left" [innerHTML]="hit._snippetResult.description.value | safeHtml"></p>
+            <p class="mt-2 d-none d-lg-block text-left" [innerHTML]="hit._snippetResult.description.value | safeHtml"></p>
 
         </div>
         <div class="w-100 d-flex justify-content-center flex-column content-container align-items-center my-auto">
@@ -74,20 +73,17 @@
             <ng-container *ngIf="hit.pages && hit.pages.length > 0">
               <h3 class="mb-2 d-lg-none">Resources</h3>
               <h2 class="mb-2 d-none d-lg-block">Resources</h2>
-
               <ng-container *ngFor="let page of hit.pages;let i = index;">
+                
 
                 <ng-container [ngSwitch]="page">  
                   <ng-container *ngSwitchCase="pagesCreated[page]?.link">
                     <button [routerLink]="['/', pagesCreated[page]!.link]" type="button" class="btn btn-sm btn-primary-button-color mx-1 mb-1"> 🔗{{pagesCreated[page].title}}</button>
                   </ng-container>
-                  <!-- <ng-container *ngSwitchCase="'/PAGE4-MEME'">
-                    <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-primary-button-color mx-1 mb-1">🔗{{page}}</button>
-                  </ng-container> -->
                   <!-- Add more ngSwitchCase blocks for additional comparisons -->
                   <ng-container *ngSwitchDefault>
                     <!-- Default case if none of the switch cases match -->
-                     <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-secondary mx-1 mb-1 disabled">🔗{{page}}</button>
+                     <button [routerLink]="['/', page]" type="button" class="btn btn-sm btn-secondary mx-1 mb-1 disabled">🤷🏻‍♂️{{page}}</button>
                   </ng-container>
                 </ng-container>
                </ng-container>

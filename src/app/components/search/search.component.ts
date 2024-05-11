@@ -70,19 +70,21 @@ export class SearchComponent implements OnInit {
 
   s: string = "INSIDE THE OPEN MODAL FUNCTION : ";
   
-// search parameters
 searchParameters = {
-  hitsPerPage: 6,
-  attributesToHighlight: ['title', 'description', 'tags', 'url'],
-  highlightPreTag: '<mark>',
-  highlightPostTag: '</mark>',
+  hitsPerPage: 6, 
+  attributesToHighlight: ['title', 'description', 'tags', 'url'], 
+  attributesToSnippet: ['description:20'], 
+  highlightPreTag: '<span class="highlight-container"><span class="highlight">',
+  highlightPostTag: '</span></span>',
+  removeStopWords: true, 
+  //removewordsIfNoResults: 'allOptional',
 };
 
 
   ngOnInit(): void {
   }
  ngAfterOnInt(): void {
-  this.cd.detectChanges();
+ // this.cd.detectChanges();
  }
 
   // openModal(id: string) {
@@ -118,7 +120,7 @@ searchParameters = {
           } else {
             this.hits = hits;
             this.showList = true;
-            this.cd.detectChanges();
+          //  this.cd.detectChanges();
           }
         })
         .catch(err => {
@@ -142,7 +144,7 @@ searchParameters = {
     });
   
     this.hits = matchedLabels;
-    this.cd.detectChanges();
+    //this.cd.detectChanges();
   }
   
 
@@ -170,5 +172,13 @@ searchParameters = {
     this.toggleCloseButton();
   }
 
+  private previousPage: any;
+
+  checkChange(page: any) {
+    if (page !== this.previousPage) {
+      console.log("No Key Found for: "+ page +" in pagesCreated");
+      this.previousPage = page;
+    }
+  }
 
 }
