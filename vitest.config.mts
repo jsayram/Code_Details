@@ -14,6 +14,8 @@ export default defineConfig({
     // Fail-closed isolation (B08): synthetic env, sockets only to the test DB.
     setupFiles: ["tests/support/vitest-setup.ts"],
     restoreMocks: true,
+    // Integration files share one test database; run files one at a time.
+    fileParallelism: false,
     // Node 26 defines its own (empty) localStorage global, which hides jsdom's.
     execArgv: ["--no-experimental-webstorage"],
   },
