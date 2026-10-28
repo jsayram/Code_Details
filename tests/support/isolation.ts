@@ -45,13 +45,26 @@ export function clerkFrontendHost(publishableKey: string): string | null {
 }
 
 /** Returns every problem with env; empty means isolated. */
-export function isolationProblems(env: Record<string, string | undefined>): string[] {
+export interface IsolationOptions {
+  /**
+   * The browser-test Next server runs `next dev` in Next's normal development
+   * mode (NODE_ENV=test makes Next rewrite tsconfig.json). Its env files are
+   * still never applied: CODEDETAILS_ENV_ISOLATED and __NEXT_PROCESSED_ENV hold.
+   */
+  devServer?: boolean;
+}
+
+export function isolationProblems(env: Record<string, string | undefined>, options: IsolationOptions = {}): string[] {
   const problems: string[] = [];
+  const nodeEnv = options.devServer ? "development" : "test";
 
   if (env.CODEDETAILS_ENV_ISOLATED !== "1") {
     problems.push("CODEDETAILS_ENV_ISOLATED must be 1 (env files would otherwise be loaded)");
   }
-  if (env.NODE_ENV !== "test") problems.push(`NODE_ENV must be test, got ${env.NODE_ENV ?? "unset"}`);
+  if (env.NODE_ENV !== nodeEnv) problems.push(`NODE_ENV must be ${nodeEnv}, got ${env.NODE_ENV ?? "unset"}`);
+  if (options.devServer && env.__NEXT_PROCESSED_ENV !== "true") {
+    problems.push("__NEXT_PROCESSED_ENV must be true so Next applies no .env file");
+  }
 
   for (const [name, value] of Object.entries(env)) {
     if (!value) continue;
@@ -99,8 +112,8 @@ export function isolationProblems(env: Record<string, string | undefined>): stri
   return problems;
 }
 
-export function assertIsolatedEnv(env: Record<string, string | undefined>): void {
-  const problems = isolationProblems(env);
+export function assertIsolatedEnv(env: Record<string, string | undefined>, options: IsolationOptions = {}): void {
+  const problems = isolationProblems(env, options);
   if (problems.length) throw new IsolationError(problems);
 }
 
@@ -111,14 +124,18 @@ const PASSTHROUGH = ["PATH", "HOME", "TMPDIR", "LANG", "TERM", "SHELL", "USER"];
  * from the parent process, everything else is synthetic. Pass the result as
  * the full env of any child process (never merge it into process.env).
  */
-export function isolatedEnv(extra: Record<string, string> = {}, dbPassword?: string): Record<string, string> {
+export function isolatedEnv(
+  extra: Record<string, string> = {},
+  dbPassword?: string,
+  options: IsolationOptions = {},
+): Record<string, string> {
   const env: Record<string, string> = {};
   for (const name of PASSTHROUGH) {
     const v = process.env[name];
     if (v) env[name] = v;
   }
   Object.assign(env, {
-    NODE_ENV: "test",
+    NODE_ENV: options.devServer ? "development" : "test",
     CODEDETAILS_ENV_ISOLATED: "1",
     // Tells Next's env loader the env is already processed, so it reads no .env file.
     __NEXT_PROCESSED_ENV: "true",
@@ -132,6 +149,6 @@ export function isolatedEnv(extra: Record<string, string> = {}, dbPassword?: str
     env.DATABASE_URL = `postgresql://postgres:${encodeURIComponent(dbPassword)}@127.0.0.1:${TEST_DB_PORT}/${TEST_DB_NAME}`;
   }
   Object.assign(env, extra);
-  assertIsolatedEnv(env);
+  assertIsolatedEnv(env, options);
   return env;
 }

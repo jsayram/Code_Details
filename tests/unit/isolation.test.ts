@@ -53,6 +53,14 @@ describe("isolation guard", () => {
     expect(isolationProblems({ ...base(), NODE_ENV: "development" }).join()).toMatch(/NODE_ENV/);
   });
 
+  it("allows NODE_ENV=development only for the dev server, with Next's env loading off", () => {
+    expect(isolationProblems(isolatedEnv({}, undefined, { devServer: true }), { devServer: true })).toEqual([]);
+    expect(isolationProblems({ ...base(), NODE_ENV: "development" }).join()).toMatch(/NODE_ENV/);
+    const noProcessed: Record<string, string> = isolatedEnv({}, undefined, { devServer: true });
+    delete noProcessed.__NEXT_PROCESSED_ENV;
+    expect(isolationProblems(noProcessed, { devServer: true }).join()).toMatch(/__NEXT_PROCESSED_ENV/);
+  });
+
   it("throws when building an unsafe environment", () => {
     expect(() => isolatedEnv({ DATABASE_URL: "postgresql://u:p@127.0.0.1:54322/postgres" })).toThrow(IsolationError);
   });

@@ -85,3 +85,4 @@ venv/
 /test-results/
 /playwright-report/
 /blob-report/
+.next-test/
