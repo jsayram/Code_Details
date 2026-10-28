@@ -1,0 +1,57 @@
+import AxeBuilder from "@axe-core/playwright";
+import { generateFixtures } from "../fixtures/generate";
+import { expect, test } from "./support";
+
+const listed = generateFixtures().projects.find((p) => p.case === "listed")!;
+const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
+
+// Triaged findings that exist today (Phase B, B07). Each is deferred, not
+// fixed: the backend migration preserves the frontend. A new rule or extra node
+// fails the test; a fixed one fails too, so this list gets updated on purpose.
+//   meta-viewport: the viewport meta sets maximum-scale=1 and user-scalable=no,
+//   blocking zoom. The fix exists on the preflight branch (d767a4b), deferred
+//   to the UI work (B01).
+const KNOWN: Record<string, Record<string, number>> = {
+  "/": { "meta-viewport": 1 },
+  [`/projects/${listed.slug}`]: { "meta-viewport": 1 },
+};
+
+for (const [path, known] of Object.entries(KNOWN)) {
+  test(`axe WCAG 2.2 A/AA on ${path} matches the triaged findings`, async ({ page }) => {
+    await page.goto(path);
+    await page.waitForLoadState("networkidle");
+    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+
+    const found = Object.fromEntries(results.violations.map((v) => [v.id, v.nodes.length]));
+    expect(found).toEqual(known);
+
+    // axe can't decide these (gradient text contrast, for example); they need a person.
+    test.info().annotations.push({
+      type: "axe-incomplete",
+      description: results.incomplete.map((r) => `${r.id} (${r.nodes.length})`).join(", ") || "none",
+    });
+  });
+}
+
+// What axe can't prove: keyboard reachability. In a real browser, Tab from the
+// top of the homepage reaches Sign In but never the theme switch, which is a
+// div with role=switch and no tabIndex (known gap, see B03 and d767a4b).
+test("keyboard: Tab reaches Sign In but not the theme switch (known gap)", async ({ page }) => {
+  await page.goto("/");
+  await expect(page.getByRole("heading", { level: 1, name: "{ Details }" })).toBeVisible();
+
+  const reached: string[] = [];
+  for (let i = 0; i < 15; i++) {
+    await page.keyboard.press("Tab");
+    reached.push(
+      await page.evaluate(() => {
+        const el = document.activeElement as HTMLElement | null;
+        if (!el || el === document.body) return "body";
+        return `${el.getAttribute("role") ?? el.tagName.toLowerCase()}:${(el.getAttribute("aria-label") ?? el.textContent ?? "").trim().slice(0, 30)}`;
+      }),
+    );
+  }
+  test.info().annotations.push({ type: "tab-order", description: reached.join(" | ") });
+  expect(reached.some((r) => /Sign In/.test(r))).toBe(true);
+  expect(reached.some((r) => r.startsWith("switch:"))).toBe(false);
+});
