@@ -12,5 +12,7 @@ export default defineConfig({
     include: ["tests/unit/**/*.test.{ts,tsx}", "tests/component/**/*.test.{ts,tsx}"],
     environment: "node",
     restoreMocks: true,
+    // Node 26 defines its own (empty) localStorage global, which hides jsdom's.
+    execArgv: ["--no-experimental-webstorage"],
   },
 });
