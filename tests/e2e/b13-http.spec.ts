@@ -23,12 +23,19 @@ test.describe("B13 over HTTP, signed out", () => {
     expect(chosen.status()).toBe(500);
   });
 
-  test("R07: the public project page ships the owner's email and Clerk subject to signed-out visitors", async ({ request }) => {
+  // Was the B13 reproduction (email and subject in the HTML); fixed for
+  // signed-out visitors by the C02 public projection, so it is now the denial
+  // test. Signed-in viewers still get the old read until D02r.
+  test("R07 (fixed signed out, C06): the public project page carries no owner email, subject, profile ID or tier", async ({ request }) => {
     const res = await request.get(`/projects/${listed.slug}`);
     expect(res.status()).toBe(200);
     const html = await res.text();
-    expect(html).toContain(A.profile!.email);
-    expect(html).toContain(A.subject!);
+    expect(html).toContain(listed.title);
+    expect(html).toContain(A.profile!.username);
+    expect(html).not.toContain(A.profile!.email);
+    expect(html).not.toContain(A.subject!);
+    expect(html).not.toContain(A.profile!.id);
+    expect(html).not.toMatch(/owner_tier|email_address|owner_user_id/);
   });
 
   test("R07 not reproduced here: /api/shared-projects/[username] omits emails and subjects", async ({ request }) => {

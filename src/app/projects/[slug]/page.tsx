@@ -21,6 +21,8 @@ import { PageBanner } from "@/components/ui/page-banner";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { cookies } from "next/headers";
+import { getProjectReadBackend } from "@/backend/projects";
+import { toProjectContentProps } from "@/backend/projects/legacy-props";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -39,14 +41,26 @@ export default async function ProjectPage({
   const { userId, sessionClaims } = await auth();
   const userEmail = sessionClaims?.email as string | undefined;
   
-  const project = (await getProjectBySlugServer(
-    resolvedParams.slug,
-    userId,
-    userEmail
-  )) as SelectProjectWithOwner;
-  const user = (await getProjectUsersProfileBySlugServer(
-    resolvedParams.slug
-  )) as SelectUserWithProject;
+  // Anonymous visitors get the C02 public projection only (no owner email,
+  // subject or tier in the page). Signed-in viewers keep the existing read
+  // until the session-scoped reads move (D02r).
+  let project: SelectProjectWithOwner | null;
+  let user: SelectUserWithProject | null;
+  if (!userId) {
+    const publicProject = await getProjectReadBackend().getPublicProjectBySlug(resolvedParams.slug);
+    ({ project, userProfile: user } = publicProject
+      ? toProjectContentProps(publicProject)
+      : { project: null, userProfile: null });
+  } else {
+    project = (await getProjectBySlugServer(
+      resolvedParams.slug,
+      userId,
+      userEmail
+    )) as SelectProjectWithOwner;
+    user = (await getProjectUsersProfileBySlugServer(
+      resolvedParams.slug
+    )) as SelectUserWithProject;
+  }
   const cookieStore = await cookies();
   const token = cookieStore.get("__supabase_auth_token")?.value || null;
 

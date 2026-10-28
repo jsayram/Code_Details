@@ -53,8 +53,10 @@ export async function loadFixtures(sql: Sql, set: FixtureSet = generateFixtures(
       values (${p.id}, ${p.title}, ${p.slug}, ${p.description}, ${subjectOf(set, p.ownerKey)}, ${p.category}, ${p.createdAt}, ${p.updatedAt},
               ${p.deletedAt ? p.deletedAt.replace("Z", "") : null}, ${favoriteCount(p.id)}, ${json(sql, p.urlLinks)},
               ${p.categoryData ? json(sql, p.categoryData) : null})`;
-    for (const tagId of p.tagIds) {
-      await sql`insert into project_tags (project_id, tag_id) values (${p.id}, ${tagId})`;
+    // Attach times one millisecond apart, so tag display order is the fixture order (C06).
+    for (const [i, tagId] of p.tagIds.entries()) {
+      const attachedAt = new Date(Date.parse(p.createdAt) + i).toISOString();
+      await sql`insert into project_tags (project_id, tag_id, created_at) values (${p.id}, ${tagId}, ${attachedAt})`;
     }
   }
 
