@@ -34,11 +34,10 @@ const env = {
   CONVEX_SELF_HOSTED_ADMIN_KEY: vars.CONVEX_SELF_HOSTED_ADMIN_KEY,
   NODE_OPTIONS: `--import ${path.join(root, "tests/e2e/server-net-guard.mjs")}`,
 };
-const res = spawnSync(path.join(root, "node_modules/.bin/convex"), ["deploy", "--yes", "--typecheck", "disable", ...process.argv.slice(2)], {
-  cwd: root,
-  env,
-  stdio: "inherit",
-});
+const convex = (args) => spawnSync(path.join(root, "node_modules/.bin/convex"), args, { cwd: root, env, stdio: "inherit" });
+let res = convex(["deploy", "--yes", "--typecheck", "disable", ...process.argv.slice(2)]);
+// Only this task-owned deployment may run the fixture functions (convex/fixtures.ts).
+if (res.status === 0) res = convex(["env", "set", "CODEDETAILS_FIXTURES_ALLOWED", "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");
