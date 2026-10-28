@@ -8,6 +8,10 @@ const FORBIDDEN_PORTS = new Set([54320, 54321, 54322, 54323, 54324, 54325, 54326
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 function target(args) {
+  // net.connect() and fetch hand Socket#connect one already-normalized array
+  // ([options, callback]). Unwrap it: before Phase C this form fell through to
+  // host "localhost" and was allowed whatever the real destination was.
+  if (Array.isArray(args[0])) return target(args[0]);
   const [first, second] = args;
   if (first && typeof first === "object" && !Array.isArray(first)) {
     return { host: first.host ?? "localhost", port: first.port === undefined ? undefined : Number(first.port), path: first.path };
@@ -20,7 +24,7 @@ const original = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function guardedConnect(...args) {
   const t = target(args);
   // Unix sockets and pipes stay on this machine (Next's own workers use them).
-  if (!t.path && (!LOOPBACK.has(t.host) || FORBIDDEN_PORTS.has(t.port))) {
+  if (!t.path && (!LOOPBACK.has(t.host) || !Number.isInteger(t.port) || FORBIDDEN_PORTS.has(t.port))) {
     const err = new Error(`[test isolation] outbound connection to ${t.host}:${t.port} refused`);
     err.code = "ECONNREFUSED";
     process.emitWarning(err.message);

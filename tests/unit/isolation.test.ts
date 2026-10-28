@@ -32,6 +32,9 @@ describe("isolation guard", () => {
     ["GITHUB_TOKEN", "ghp_abc", /non-synthetic/],
     ["DISCORD_WEBHOOK_API_KEY", "https://discord.invalid/x", /non-synthetic/],
     ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", syntheticPk("pet-liger-00.clerk.accounts.dev"), /\.invalid host/],
+    ["NEXT_PUBLIC_CONVEX_URL", "https://happy-otter-123.convex.cloud", /must be http:\/\/127\.0\.0\.1:3210|non-loopback/],
+    ["CONVEX_URL", "http://127.0.0.1:3211", /must be http:\/\/127\.0\.0\.1:3210/],
+    ["CONVEX_DEPLOYMENT", "dev:happy-otter-123", /CONVEX_DEPLOYMENT must not be set/],
   ])("rejects %s=%s", (name, value, problem) => {
     const problems = isolationProblems({ ...base(), [name]: value });
     expect(problems.join("\n")).toMatch(problem);
@@ -107,8 +110,20 @@ describe("network guard", () => {
     [54322, "127.0.0.1"],
     [54321, "127.0.0.1"],
     [443, "api.openai.com"],
+    [3211, "127.0.0.1"],
+    [443, "happy-otter-123.convex.cloud"],
   ])("refuses a socket to %s on %s", (port, host) => {
     expect(() => net.connect({ port, host })).toThrow(IsolationError);
+  });
+
+  it("refuses the normalized-array form net.connect() and fetch use", () => {
+    expect(() => net.connect({ port: 443, host: "api.openai.com" })).toThrow(IsolationError);
+    expect(() => net.createConnection({ port: 54322, host: "127.0.0.1" })).toThrow(IsolationError);
+  });
+
+  it("refuses fetch to a loopback port that isn't the test DB or the local Convex backend", async () => {
+    await expect(fetch("http://127.0.0.1:3211/")).rejects.toThrow();
+    await expect(fetch("http://127.0.0.1:54321/")).rejects.toThrow();
   });
 
   it("makes fetch to a provider fail without leaving the machine", async () => {

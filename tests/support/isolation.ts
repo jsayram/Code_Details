@@ -10,6 +10,9 @@
 /** Port of the task-owned test Postgres (tests/db/provision.sh), bound to 127.0.0.1 only. */
 export const TEST_DB_PORT = 55432;
 export const TEST_DB_NAME = "postgres";
+/** Task-owned local Convex backend (tests/convex/up.sh), client port, 127.0.0.1 only (Phase C). */
+export const TEST_CONVEX_PORT = 3210;
+export const TEST_CONVEX_URL = `http://127.0.0.1:${TEST_CONVEX_PORT}`;
 /** Nothing listens here; supabase-js calls fail fast instead of reaching a real API. */
 export const TEST_SUPABASE_URL = "http://127.0.0.1:9";
 
@@ -102,6 +105,13 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
       /* reported above */
     }
   }
+
+  // Any Convex URL must be the task-owned local backend; never a cloud deployment.
+  for (const name of ["CONVEX_URL", "NEXT_PUBLIC_CONVEX_URL", "CONVEX_SELF_HOSTED_URL"]) {
+    const value = env[name];
+    if (value && value !== TEST_CONVEX_URL) problems.push(`${name} must be ${TEST_CONVEX_URL}`);
+  }
+  if (env.CONVEX_DEPLOYMENT) problems.push("CONVEX_DEPLOYMENT must not be set (it selects a cloud or CLI-managed deployment)");
 
   const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
   if (pk) {
