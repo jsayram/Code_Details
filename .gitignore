@@ -79,3 +79,9 @@ venv/
 /scripts/usage_monitor.py
 /scripts/install_usage_monitor.py
 /scripts/test_usage_monitor.py
+
+# Test runtime state and artifacts (Phase B)
+.test-runtime/
+/test-results/
+/playwright-report/
+/blob-report/

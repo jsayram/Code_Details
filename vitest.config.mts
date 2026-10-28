@@ -9,8 +9,10 @@ export default defineConfig({
   envDir: false,
   resolve: { tsconfigPaths: true },
   test: {
-    include: ["tests/unit/**/*.test.{ts,tsx}", "tests/component/**/*.test.{ts,tsx}"],
+    include: ["tests/{unit,component,integration}/**/*.test.{ts,tsx}"],
     environment: "node",
+    // Fail-closed isolation (B08): synthetic env, sockets only to the test DB.
+    setupFiles: ["tests/support/vitest-setup.ts"],
     restoreMocks: true,
     // Node 26 defines its own (empty) localStorage global, which hides jsdom's.
     execArgv: ["--no-experimental-webstorage"],
