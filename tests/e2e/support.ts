@@ -42,3 +42,32 @@ export { expect };
 export async function horizontalOverflow(page: import("@playwright/test").Page): Promise<number> {
   return page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
 }
+
+/**
+ * Visible elements carrying text or an interactive role that extend past the
+ * viewport sideways. body has overflow-x: hidden, so scrollWidth alone can hide
+ * clipped content. Decorative layers don't count: empty ones (the homepage's
+ * 120%-wide background) and non-interactive ones with pointer-events: none
+ * (the floating code particles).
+ */
+export async function overflowingContent(page: import("@playwright/test").Page): Promise<string[]> {
+  return page.evaluate(() => {
+    const width = document.documentElement.clientWidth;
+    const interactive = "a, button, input, select, textarea, [role]";
+    const out: string[] = [];
+    for (const el of Array.from(document.querySelectorAll<HTMLElement>("body *"))) {
+      const style = getComputedStyle(el);
+      if (style.visibility === "hidden" || style.display === "none") continue;
+      const ownText = Array.from(el.childNodes).some((n) => n.nodeType === Node.TEXT_NODE && n.textContent!.trim());
+      const isInteractive = el.matches(interactive);
+      if (!ownText && !isInteractive) continue;
+      if (!isInteractive && style.pointerEvents === "none") continue;
+      const box = el.getBoundingClientRect();
+      if (box.width === 0 || box.height === 0) continue;
+      if (box.left < -1 || box.right > width + 1) {
+        out.push(`${el.tagName.toLowerCase()} "${(el.textContent ?? "").trim().slice(0, 40)}" ${Math.round(box.left)}..${Math.round(box.right)}`);
+      }
+    }
+    return out;
+  });
+}
