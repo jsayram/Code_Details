@@ -1,0 +1,56 @@
+// B13, HTTP level: requests through the real proxy and route stack of the
+// isolated server, signed out (the only identity the isolated stack can
+// produce over HTTP). Like tests/integration/b13-high-findings.test.ts, these
+// assert today's behavior; a D phase that fixes a finding turns its test into
+// the denial test.
+import { generateFixtures } from "../fixtures/generate";
+import { expect, test } from "./support";
+
+const set = generateFixtures();
+const A = set.personas.a;
+const listed = set.projects.find((p) => p.case === "listed")!;
+
+test.describe("B13 over HTTP, signed out", () => {
+  test("R06: sync-user accepts a signed-out body.userId and goes on to the Clerk lookup", async ({ request }) => {
+    // Control: no userId in the body is rejected.
+    const empty = await request.post("/api/auth/sync-user", { data: {} });
+    expect(empty.status()).toBe(401);
+
+    // With an attacker-chosen subject the handler passes its auth check and
+    // calls Clerk for that user. The isolation guard refuses the Clerk call,
+    // so the handler's catch-all answers 500 instead of 401.
+    const chosen = await request.post("/api/auth/sync-user", { data: { userId: A.subject } });
+    expect(chosen.status()).toBe(500);
+  });
+
+  test("R07: the public project page ships the owner's email and Clerk subject to signed-out visitors", async ({ request }) => {
+    const res = await request.get(`/projects/${listed.slug}`);
+    expect(res.status()).toBe(200);
+    const html = await res.text();
+    expect(html).toContain(A.profile!.email);
+    expect(html).toContain(A.subject!);
+  });
+
+  test("R07 not reproduced here: /api/shared-projects/[username] omits emails and subjects", async ({ request }) => {
+    const res = await request.get(`/api/shared-projects/${A.profile!.username}`);
+    expect(res.status()).toBe(200);
+    const text = await res.text();
+    expect(text).not.toContain(A.profile!.email);
+    expect(text).not.toContain(A.subject!);
+    // Side finding: a project with no tags is listed with tags ["NULL"].
+    const noTags = JSON.parse(text).data.data.find((r: { project: { slug: string } }) => r.project.slug === "fixture-no-description");
+    expect(noTags.tags).toEqual(["NULL"]);
+  });
+
+  test("controls: signed-in API routes redirect signed-out requests (D-6) instead of answering 401", async ({ request }) => {
+    for (const path of [`/api/projects?userId=${A.subject}&showDeleted=true`, `/api/profiles`, `/api/categories/counts`]) {
+      const res = await request.get(path, { maxRedirects: 0 });
+      expect(res.status(), path).toBe(307);
+    }
+  });
+
+  test("D-1: /projects/new matches the public /projects/:slug pattern and answers 200 signed out", async ({ request }) => {
+    const res = await request.get("/projects/new", { maxRedirects: 0 });
+    expect(res.status()).toBe(200);
+  });
+});
