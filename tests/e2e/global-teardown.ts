@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { connectTestDb } from "../support/test-db";
 import { cleanupFixtures } from "../fixtures/supabase";
+import { clearConvexFixtures } from "../fixtures/convex";
 
 // next dev rewrites the tracked next-env.d.ts to point at .next-test, and
 // Playwright stops the server too abruptly for the launcher to undo it.
@@ -16,6 +17,7 @@ export default async function globalTeardown() {
   const sql = await connectTestDb();
   try {
     await cleanupFixtures(sql);
+    if (process.env.CODEDETAILS_E2E_READ_BACKEND === "convex") await clearConvexFixtures();
   } finally {
     await sql.end();
   }

@@ -5,6 +5,7 @@ import { generateFixtures } from "../fixtures/generate";
 import { expect, test } from "./support";
 
 const set = generateFixtures();
+const backend = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" ? "convex" : "supabase";
 
 // Dev-mode HTML carries a per-request ID and dev-only debug-info rows whose
 // numbering varies run to run; both are stripped before comparing.
@@ -37,5 +38,28 @@ test.describe("public project read, signed out", () => {
     await expect(page.getByText("Alice Fixture").first()).toBeVisible();
     for (const tag of ["#Next.js", "#Postgres"]) await expect(page.getByText(tag, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("2 favorites")).toBeVisible();
+  });
+
+  test(`the page is served by the ${backend} read backend`, async ({ request }) => {
+    const listed = set.projects.find((p) => p.case === "listed")!;
+    const html = await (await request.get(`/projects/${listed.slug}`)).text();
+    // The Supabase fixture UUID appears only when Supabase served the project.
+    expect(html.includes(listed.id)).toBe(backend === "supabase");
+    // The private fixture is private only where visibility exists (Convex).
+    const priv = await request.get("/projects/fixture-private");
+    expect(priv.status()).toBe(backend === "convex" ? 404 : 200);
+  });
+
+  test("interactions: the owner avatar asks a signed-out visitor to sign in; the contents nav scrolls to a section", async ({ page }) => {
+    const listed = set.projects.find((p) => p.case === "listed")!;
+    await page.goto(`/projects/${listed.slug}`);
+    await page.waitForLoadState("networkidle");
+    await page.getByRole("button", { name: "View user profile" }).click();
+    await expect(page.getByText("You have to be logged in to view user profiles")).toBeVisible();
+    expect(new URL(page.url()).pathname).toBe(`/projects/${listed.slug}`);
+    // No edit control for a signed-out visitor: the contract carries no owner subject.
+    await expect(page.getByRole("button", { name: /Edit Project|Edit/ })).toHaveCount(0);
+    await page.getByRole("navigation").getByRole("button", { name: "Timeline" }).click();
+    await expect(page.getByRole("heading", { name: "Timeline" })).toBeInViewport();
   });
 });

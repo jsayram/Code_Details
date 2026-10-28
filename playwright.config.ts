@@ -5,12 +5,23 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { SYNTHETIC, isolatedEnv } from "./tests/support/isolation";
+import { SYNTHETIC, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
+import { convexAvailable } from "./tests/fixtures/convex";
 import { RUNTIME_DIR, readTestDbPassword } from "./tests/support/test-db";
 
 const PORT = 3100;
 const password = readTestDbPassword();
 if (!password) throw new Error("Browser tests need the isolated test database: run tests/db/provision.sh");
+
+// Phase C: CODEDETAILS_E2E_READ_BACKEND=convex runs the same suite with the
+// anonymous project read served by the task-owned local Convex backend
+// (development-only switch, C14). Default: Supabase, as before.
+export const READ_BACKEND = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" ? "convex" : "supabase";
+if (READ_BACKEND === "convex" && !convexAvailable()) {
+  throw new Error("Convex browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
+}
+const readBackendEnv: Record<string, string> =
+  READ_BACKEND === "convex" ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL } : {};
 
 // Synthetic Clerk keys whose frontend API is a .invalid host. A pk_live-shaped
 // key keeps Clerk's middleware from redirecting signed-out page loads to a
@@ -23,6 +34,7 @@ const serverEnv = isolatedEnv(
     CLERK_SECRET_KEY: `sk_test_${SYNTHETIC}_clerk`,
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
     NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up",
+    ...readBackendEnv,
   },
   password,
   { devServer: true },

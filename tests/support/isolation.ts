@@ -107,7 +107,7 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
   }
 
   // Any Convex URL must be the task-owned local backend; never a cloud deployment.
-  for (const name of ["CONVEX_URL", "NEXT_PUBLIC_CONVEX_URL", "CONVEX_SELF_HOSTED_URL"]) {
+  for (const name of ["CONVEX_URL", "NEXT_PUBLIC_CONVEX_URL", "CONVEX_SELF_HOSTED_URL", "CODEDETAILS_CONVEX_URL"]) {
     const value = env[name];
     if (value && value !== TEST_CONVEX_URL) problems.push(`${name} must be ${TEST_CONVEX_URL}`);
   }
