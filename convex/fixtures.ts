@@ -131,6 +131,17 @@ export const load = internalMutation({
   },
 });
 
+/** C17: every document of the fixture tables, for a before/after digest. */
+export const snapshot = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    assertFixturesAllowed();
+    const out: Record<string, unknown[]> = {};
+    for (const table of TABLES) out[table] = await ctx.db.query(table).collect();
+    return out;
+  },
+});
+
 /** C09a: titleSortKey values of listed projects, in by_listed_title index order. */
 export const listedTitleOrder = internalQuery({
   args: {},

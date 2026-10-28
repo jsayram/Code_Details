@@ -119,7 +119,7 @@ describe.skipIf(!convexAvailable())("C09–C12 Convex public project read", () =
     });
 
     it("an anonymous client can't call the internal fixture functions", async () => {
-      for (const [kind, name] of [["query", "fixtures:counts"], ["query", "fixtures:listedTitleOrder"], ["mutation", "fixtures:clear"]] as const) {
+      for (const [kind, name] of [["query", "fixtures:counts"], ["query", "fixtures:listedTitleOrder"], ["query", "fixtures:snapshot"], ["mutation", "fixtures:clear"], ["mutation", "fixtures:load"]] as const) {
         const fn = makeFunctionReference<typeof kind>(name);
         const call = kind === "query" ? anon.query(fn as never, {}) : anon.mutation(fn as never, {});
         await expect(call, name).rejects.toThrow(/Could not find public function|not found/i);

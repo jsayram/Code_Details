@@ -36,6 +36,7 @@ const ref = {
   counts: makeFunctionReference<"query">("fixtures:counts"),
   load: makeFunctionReference<"mutation">("fixtures:load"),
   listedTitleOrder: makeFunctionReference<"query">("fixtures:listedTitleOrder"),
+  snapshot: makeFunctionReference<"query">("fixtures:snapshot"),
 };
 export const getPublicBySlug = makeFunctionReference<"query", { slug: string }>("projects:getPublicBySlug");
 
@@ -111,4 +112,10 @@ export async function loadConvexFixtures(
 
 export async function listedTitleOrder(client = adminClient()): Promise<string[]> {
   return client.query(ref.listedTitleOrder, {});
+}
+
+/** SHA-256 over every fixture-table document (C17). */
+export async function convexDigest(client = adminClient()): Promise<string> {
+  const { createHash } = await import("node:crypto");
+  return createHash("sha256").update(JSON.stringify(await client.query(ref.snapshot, {}))).digest("hex");
 }
