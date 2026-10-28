@@ -48,6 +48,9 @@ export default defineConfig({
   workers: 1,
   forbidOnly: !!process.env.CI,
   retries: 0,
+  // Visual baselines change only on an explicit --update-snapshots, after review.
+  updateSnapshots: "none",
+  snapshotPathTemplate: "tests/e2e/__screenshots__/{testFilePath}/{arg}-{projectName}-{platform}{ext}",
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
   globalSetup: "./tests/e2e/global-setup.ts",
   globalTeardown: "./tests/e2e/global-teardown.ts",
