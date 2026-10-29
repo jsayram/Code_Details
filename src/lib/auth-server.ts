@@ -10,6 +10,7 @@
 //
 // The JWT cache stays off: every server render asks Convex for a fresh token,
 // so each one re-checks that the session is still live (D08A_REPORT, limits).
+import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
@@ -71,3 +72,26 @@ export async function viewerForCookies(cookie: string | null): Promise<{ role: "
 }
 
 const whoami = makeFunctionReference<"query", Record<string, never>, { username: string | null; role: string; tier: string } | null>("identity:whoami");
+
+const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
+
+/**
+ * D11 (decision A): the user ID the docs and generator routes compare with
+ * their data, which is still keyed by Clerk user IDs. With Clerk (the
+ * default), exactly Clerk's userId. With the development Better Auth switch
+ * on, the request's live session resolved to its account's own Clerk-era
+ * subject; null when there is no session or the account has no Clerk-era
+ * link, so those routes refuse exactly as they do for a signed-out user.
+ * Server-side only.
+ */
+export async function routeUserId(): Promise<string | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth") {
+    return (await auth()).userId;
+  }
+  try {
+    return (await viewerQuery(legacySubject))?.result ?? null;
+  } catch {
+    return null;
+  }
+}

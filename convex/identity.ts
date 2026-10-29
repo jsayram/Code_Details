@@ -16,3 +16,21 @@ export const whoami = query({
     return { username: profile?.username ?? null, role: viewer.role, tier: viewer.tier };
   },
 });
+
+// D11 (decision A): the caller's own Clerk-era subject, for the generator
+// routes whose data is still keyed by Clerk user IDs. Only ever the caller's
+// own: getViewer, then that user's "clerk" link. Null for anonymous callers,
+// accounts without a Clerk-era link, and anything getViewer refuses. Used by
+// server code only (src/lib/auth-server.ts routeUserId); never shown in the UI.
+export const legacySubject = query({
+  args: {},
+  handler: async (ctx): Promise<string | null> => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return null;
+    const links = await ctx.db
+      .query("authLinks")
+      .withIndex("by_user", (q) => q.eq("userId", viewer.userId))
+      .collect();
+    return links.find((l) => l.provider === "clerk")?.subject ?? null;
+  },
+});
