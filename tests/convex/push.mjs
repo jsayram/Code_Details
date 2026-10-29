@@ -19,10 +19,16 @@ const argv = process.argv.slice(2);
 const targetFlag = argv.indexOf("--target");
 const target = targetFlag === -1 ? "test" : argv[targetFlag + 1];
 if (targetFlag !== -1) argv.splice(targetFlag, 2);
-if (!["test", "import"].includes(target)) throw new Error(`unknown --target ${target}`);
-const runtime = target === "import"
-  ? { envFile: ".test-runtime/convex-import.env", state: ".test-runtime/convex-import", port: "3220", up: "scripts/d00b-import/backend-up.sh", allow: "CODEDETAILS_IMPORT_ALLOWED" }
-  : { envFile: ".test-runtime/convex.env", state: ".test-runtime/convex", port: "3210", up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" };
+// D08e: `--target manual` pushes to the manual-check backend
+// (scripts/dev-auth/backend-up.sh, 127.0.0.1:3230) where Jose tries the real
+// GitHub app by hand. It gets neither the fixtures nor the import flag, and
+// this script never sets GitHub values there (set-github-secrets.mjs does).
+if (!["test", "import", "manual"].includes(target)) throw new Error(`unknown --target ${target}`);
+const runtime = {
+  import: { envFile: ".test-runtime/convex-import.env", state: ".test-runtime/convex-import", port: "3220", up: "scripts/d00b-import/backend-up.sh", allow: "CODEDETAILS_IMPORT_ALLOWED" },
+  manual: { envFile: ".test-runtime/convex-manual.env", state: ".test-runtime/convex-manual", port: "3230", up: "scripts/dev-auth/backend-up.sh", allow: null },
+  test: { envFile: ".test-runtime/convex.env", state: ".test-runtime/convex", port: "3210", up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" },
+}[target];
 const envFile = path.join(root, runtime.envFile);
 if (!fs.existsSync(envFile)) {
   console.error(`no local Convex backend: run ${runtime.up} first`);
@@ -114,6 +120,18 @@ if (target === "test") {
     ["GITHUB_CLIENT_SECRET", "SYNTHETIC-github-client-secret"],
   );
 }
+if (target === "manual") {
+  const secretFile = path.join(root, runtime.state, "better-auth-secret");
+  if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
+  betterAuth.push(
+    ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
+    ["SITE_URL", "http://localhost:3000"],
+    ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
+    ["CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION", "1"],
+    // The pinned Mailpit from tests/mail/up.sh; its UI is http://127.0.0.1:8025.
+    ["CODEDETAILS_EMAIL_HTTP_URL", "http://127.0.0.1:8025/api/v1/send"],
+  );
+}
 let res = { status: 0 };
 for (const [name, value] of dryRun ? [] : [
   ["CODEDETAILS_AUTH_ISSUER", issuer.issuer],
@@ -126,7 +144,7 @@ for (const [name, value] of dryRun ? [] : [
 if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
 // Only this task-owned deployment may run the fixture functions (convex/fixtures.ts),
 // or, on the import backend, the importer (convex/importer.ts).
-if (res.status === 0 && !dryRun) res = convex(["env", "set", runtime.allow, "1"]);
+if (res.status === 0 && !dryRun && runtime.allow) res = convex(["env", "set", runtime.allow, "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");
