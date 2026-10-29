@@ -5,7 +5,7 @@ import { usernameHistory } from "@/db/schema/username-history";
 import { eq, or, and } from "drizzle-orm";
 import { notFound, serverError, success } from "@/lib/api-errors";
 import { toPublicProfileRow } from "@/backend/profiles/public-profile";
-import { convexPublicProfile } from "@/backend/profiles/read";
+import { convexPublicProfile, convexPublicStats } from "@/backend/profiles/read";
 import { emptyProfileStats, readProfileStats } from "@/db/profile-read";
 
 // D04a (P08 R07): the public projection only. The lookup no longer matches
@@ -34,9 +34,10 @@ export async function GET(
       }
       if (fromConvex?.kind === "profile") {
         const { profile } = fromConvex;
-        // Convex statistics come with D04c's maintained counters.
-        const joined = profile.created_at ? new Date(profile.created_at) : null;
-        return success(includeStats ? { profile, stats: emptyProfileStats(joined) } : { profile });
+        if (!includeStats) return success({ profile });
+        // D04c: from the maintained project counters.
+        const stats = (await convexPublicStats(username)) ?? emptyProfileStats(profile.created_at);
+        return success({ profile, stats });
       }
       return notFound("profile", { identifier: username, identifierType: "username" });
     }

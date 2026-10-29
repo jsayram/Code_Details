@@ -215,3 +215,116 @@ export const updateMine = mutation({
     return { ok: true, profile: await toPublic(ctx, updated) };
   },
 });
+
+// D04c (P08 R26): public statistics from the maintained project counters.
+// Only listed projects and favorites on listed projects count (a deleted or
+// private project isn't public, P07 §8). Each per-user range is read from its
+// index and capped; a hit cap is reported as `capped`, never hidden.
+export const STATS_RANGE_CAP = 500;
+export const DIRECTORY_CAP = 1000;
+
+export interface PublicStats {
+  totalProjects: number;
+  activeProjects: number;
+  communityProjects: number;
+  totalLikes: number;
+  totalTags: number;
+  projectsFavorited: number;
+  projectsReceivedFavorites: number;
+  joinedDate: string;
+  mostLikedProject: { title: string; favorites: number } | null;
+  capped: boolean;
+}
+
+async function listedProjectsOf(ctx: QueryCtx, userId: Doc<"users">["_id"]) {
+  const rows = await ctx.db
+    .query("projects")
+    .withIndex("by_owner_listed_created", (q) => q.eq("ownerId", userId).eq("listed", true))
+    .take(STATS_RANGE_CAP + 1);
+  return { rows: rows.slice(0, STATS_RANGE_CAP), capped: rows.length > STATS_RANGE_CAP };
+}
+
+export const getPublicStats = query({
+  args: { handle: v.string() },
+  handler: async (ctx, { handle }): Promise<PublicStats | null> => {
+    if (handle.length > MAX_LOOKUP_LENGTH) return null;
+    const key = usernameKey(handle);
+    if (!key) return null;
+    const byKey = await ctx.db
+      .query("profiles")
+      .withIndex("by_usernameKey", (q) => q.eq("usernameKey", key))
+      .first();
+    const profile = byKey ? await activeProfile(ctx, byKey.userId) : null;
+    if (!profile) return null;
+
+    const own = await listedProjectsOf(ctx, profile.userId);
+    const tags = new Set<string>();
+    let likes = 0;
+    let mostLiked: Doc<"projects"> | null = null;
+    for (const p of own.rows) {
+      likes += p.favoriteCount;
+      for (const t of p.tagIds) tags.add(t);
+      if (!mostLiked || p.favoriteCount > mostLiked.favoriteCount) mostLiked = p;
+    }
+
+    const favRows = await ctx.db
+      .query("favorites")
+      .withIndex("by_user_listed_created", (q) => q.eq("userId", profile.userId).eq("listed", true))
+      .take(STATS_RANGE_CAP + 1);
+    const favs = favRows.slice(0, STATS_RANGE_CAP);
+    let community = 0;
+    for (const f of favs) {
+      const project = await ctx.db.get(f.projectId);
+      if (project && project.listed && project.ownerId !== profile.userId) community++;
+    }
+
+    return {
+      totalProjects: own.rows.length,
+      activeProjects: own.rows.length,
+      communityProjects: community,
+      totalLikes: likes,
+      totalTags: tags.size,
+      projectsFavorited: favs.length,
+      projectsReceivedFavorites: likes,
+      joinedDate: iso(profile.createdAt),
+      mostLikedProject: mostLiked ? { title: mostLiked.title, favorites: mostLiked.favoriteCount } : null,
+      capped: own.capped || favRows.length > STATS_RANGE_CAP,
+    };
+  },
+});
+
+export interface DirectoryRow extends PublicProfile {
+  projectCount: number;
+  totalFavorites: number;
+  lastActivity: string | null;
+}
+
+/** The user directory: every public profile with its listed-project counts, newest first. */
+export const listPublic = query({
+  args: {},
+  handler: async (ctx): Promise<{ rows: DirectoryRow[]; capped: boolean }> => {
+    const profiles = await ctx.db.query("profiles").take(DIRECTORY_CAP + 1);
+    let capped = profiles.length > DIRECTORY_CAP;
+    const rows: DirectoryRow[] = [];
+    for (const doc of profiles.slice(0, DIRECTORY_CAP)) {
+      const profile = await activeProfile(ctx, doc.userId);
+      if (!profile) continue;
+      const own = await listedProjectsOf(ctx, profile.userId);
+      capped ||= own.capped;
+      let totalFavorites = 0;
+      let last = 0;
+      for (const p of own.rows) {
+        totalFavorites += p.favoriteCount;
+        last = Math.max(last, p.updatedAt, p.createdAt);
+      }
+      rows.push({
+        ...(await toPublic(ctx, profile)),
+        projectCount: own.rows.length,
+        totalFavorites,
+        lastActivity: last ? iso(last) : null,
+      });
+    }
+    rows.sort((a, b) => (a.createdAt < b.createdAt ? 1 : a.createdAt > b.createdAt ? -1 : 0));
+    return { rows, capped };
+  },
+});

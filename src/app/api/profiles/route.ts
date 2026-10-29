@@ -4,12 +4,21 @@ import { projects } from "@/db/schema/projects";
 import { desc, sql, eq, isNull } from "drizzle-orm";
 import { success, databaseError } from "@/lib/api-errors";
 import { toPublicProfileRow } from "@/backend/profiles/public-profile";
+import { convexDirectory } from "@/backend/profiles/read";
 
 // Next.js Route Segment Config - Cache for 5 minutes, revalidate in background
 export const revalidate = 300; // 5 minutes in seconds
 
 export async function GET() {
   try {
+    // D04c: from Convex under the read switch (listed projects' counters).
+    const fromConvex = await convexDirectory();
+    if (fromConvex !== undefined) {
+      const response = success(fromConvex);
+      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
+      return response;
+    }
+
     const allProfiles = await executeQuery(async (db) =>
       db
         // D04a (P08 R07): public columns only. The list goes to every
