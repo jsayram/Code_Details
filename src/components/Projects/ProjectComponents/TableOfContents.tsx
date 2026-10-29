@@ -54,11 +54,15 @@ export function TableOfContents({
   const [visibleSections, setVisibleSections] = useState<string[]>([]);
   const observerRef = useRef<IntersectionObserver | null>(null);
 
-  // Filter sections to only include those that exist in the DOM
-  const existingSections = sections.filter((section) => {
-    if (typeof document === "undefined") return true;
-    return document.getElementById(section.id) !== null;
-  });
+  // Only list sections that exist in the DOM. The server can't check, so the
+  // server render and the first client render both list every section (they
+  // must match, or React discards the server HTML); the list narrows once
+  // mounted.
+  const [presentIds, setPresentIds] = useState<string[] | null>(null);
+  useEffect(() => {
+    setPresentIds(sections.filter((s) => document.getElementById(s.id) !== null).map((s) => s.id));
+  }, [sections]);
+  const existingSections = presentIds === null ? sections : sections.filter((s) => presentIds.includes(s.id));
 
   // Set up IntersectionObserver for scroll-spy
   useEffect(() => {
