@@ -1,13 +1,16 @@
 "use server";
 
-import { eq, sql, and } from "drizzle-orm";
+import { eq, sql, and, inArray } from "drizzle-orm";
+import { getAccessibleProjectsServer } from "@/db/actions";
 import {
-  createProjectServer,
-  getAccessibleProjectsServer,
-  deleteProjectServer,
-  getProjectTagNames,
-} from "@/db/actions";
-import { isProjectOwner, updateProjectRow, type ProjectUpdate } from "@/db/project-write";
+  insertProjectRow,
+  isProjectOwner,
+  purgeProjectRow,
+  restoreProjectRow,
+  softDeleteProjectRow,
+  updateProjectRow,
+  type ProjectUpdate,
+} from "@/db/project-write";
 import { checkCategoryData } from "@/backend/projects/project-update-rules";
 import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
 import { chooseAuthBackend } from "@/backend/auth";
@@ -90,12 +93,31 @@ export async function getProjectBySlugServer(slug: string) {
   }));
 }
 
-// Server action to create a new project
-export async function createProject(project: InsertProject, userId: string) {
+// D03 (P08 R02): the Supabase writes below (create, delete, restore, purge)
+// take the caller from the Clerk session. Under the Better Auth switch they
+// write nothing to Supabase: there are no mixed-provider writes.
+async function clerkWriter(): Promise<string | null> {
+  if (chooseAuthBackend().backend !== "clerk") return null;
+  const { userId } = await auth();
+  return userId ?? null;
+}
+
+// Server action to create a new project.
+//
+// D03 (P08 R02, SEC-D02-MASS): the creator comes from the session; the second
+// argument is the client's own idea of its user ID, ignored and kept only so
+// the callers don't change. Only the validated, whitelisted columns reach the
+// insert (insertProjectRow), so the input can't set an owner, deleted_at,
+// total_favorites, an ID or timestamps.
+export async function createProject(
+  project: InsertProject,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
+    const userId = await clerkWriter();
     if (!userId) {
-      return unauthorizedError("User ID is required to create a project");
+      return unauthorizedError("You must be signed in to create a project");
     }
 
     // Validate input with Zod schema
@@ -121,22 +143,16 @@ export async function createProject(project: InsertProject, userId: string) {
     const detailIssues = checkCategoryData(validatedData.category, validatedData.category_data, validatedData.field_order, { strictKeys: false });
     if (detailIssues.length) return validationError(detailIssues[0].message, detailIssues);
 
-    const trimmedProject = {
-      ...project,
+    const newProject = await insertProjectRow(userId, {
       title: validatedData.title,
       slug: validatedData.slug,
       description: validatedData.description,
       category: validatedData.category,
-      user_id: userId,
       url_links: validatedData.url_links,
       tags: validatedData.tags,
-      category_data: validatedData.category_data ?? undefined,
-      field_order: validatedData.field_order ?? undefined,
-    };
-
-    console.log('Creating project with data:', JSON.stringify(trimmedProject, null, 2));
-
-    const newProject = await createProjectServer(trimmedProject);
+      category_data: validatedData.category_data ?? null,
+      field_order: validatedData.field_order ?? null,
+    });
     // Revalidate the projects list page
     revalidatePath(pathToRevalidate);
     revalidateTag(CACHE_TAGS.PROJECTS, {});
@@ -164,12 +180,17 @@ export async function getProject(slug: string) {
 }
 
 
-// Server action to delete a project
-export async function removeProject(id: string, userId: string) {
+// Server action to soft-delete a project. D03 (R02): the owner comes from the
+// session; the second argument is ignored.
+export async function removeProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
+    const userId = await clerkWriter();
     if (!userId) {
-      return unauthorizedError("User ID is required to delete a project");
+      return unauthorizedError("You must be signed in to delete a project");
     }
 
     // First check if the user is the owner of this project
@@ -178,17 +199,24 @@ export async function removeProject(id: string, userId: string) {
       return notOwnerError("project");
     }
 
-    const deletedProject = await deleteProjectServer(id);
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+    const deletedProject = await softDeleteProjectRow(id);
+    if (!deletedProject) {
+      return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
+    }
+    revalidateAfterLifecycleChange();
     return actionSuccess(mapDrizzleProjectToProject(deletedProject));
   } catch (error) {
     console.error("Failed to remove project:", error);
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
+}
+
+function revalidateAfterLifecycleChange() {
+  revalidatePath(pathToRevalidate);
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
 }
 
 // Server action to update a project.
@@ -373,12 +401,18 @@ export async function getUserOwnProjects() {
   }
 }
 
-// Server action to permanently delete a project
-export async function permanentlyDeleteProject(id: string, userId: string) {
+// Server action to permanently delete a project. D03 (R02): the owner comes
+// from the session; the second argument is ignored. Only a project in the
+// graveyard can be purged.
+export async function permanentlyDeleteProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
+    const userId = await clerkWriter();
     if (!userId) {
-      return unauthorizedError("User ID is required to delete a project");
+      return unauthorizedError("You must be signed in to delete a project");
     }
 
     // First check if the user is the owner of this project
@@ -387,32 +421,11 @@ export async function permanentlyDeleteProject(id: string, userId: string) {
       return notOwnerError("project");
     }
 
-    // Permanently delete the project
-    await executeQuery(async (db) => {
-      // First verify the project exists and is deleted
-      const [project] = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.id, id))
-        .limit(1);
+    if (!(await purgeProjectRow(id))) {
+      return validationError("Project must be in the graveyard before permanent deletion");
+    }
 
-      if (!project) {
-        throw new Error("Project not found");
-      }
-
-      if (!project.deleted_at) {
-        throw new Error("Project must be in the graveyard before permanent deletion");
-      }
-
-      // If checks pass, perform the permanent deletion
-      await db.delete(projects).where(eq(projects.id, id));
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+    revalidateAfterLifecycleChange();
     return actionSuccess(null);
   } catch (error) {
     console.error("Failed to permanently delete project:");
@@ -420,12 +433,18 @@ export async function permanentlyDeleteProject(id: string, userId: string) {
   }
 }
 
-// Server action to restore a deleted project
-export async function restoreProject(id: string, userId: string) {
+// Server action to restore a deleted project. D03 (R02): the owner comes from
+// the session; the second argument is ignored. Restore is valid only from
+// deleted (P07 §5.11).
+export async function restoreProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
+    const userId = await clerkWriter();
     if (!userId) {
-      return unauthorizedError("User ID is required to restore a project");
+      return unauthorizedError("You must be signed in to restore a project");
     }
 
     // First check if the user is the owner of this project
@@ -434,30 +453,12 @@ export async function restoreProject(id: string, userId: string) {
       return notOwnerError("project");
     }
 
-    // Restore the project by clearing deleted_at
-    const restoredProject = await executeQuery(async (db) => {
-      const [updated] = await db
-        .update(projects)
-        .set({ 
-          deleted_at: null,
-          updated_at: new Date()
-        })
-        .where(eq(projects.id, id))
-        .returning();
-      
-      if (!updated) {
-        throw new Error("Project not found");
-      }
+    const restoredProject = await restoreProjectRow(id);
+    if (!restoredProject) {
+      return validationError("Only a deleted project can be restored");
+    }
 
-      const tags = await getProjectTagNames(id);
-      return { ...updated, tags };
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+    revalidateAfterLifecycleChange();
     return actionSuccess(mapDrizzleProjectToProject(restoredProject));
   } catch (error) {
     console.error("Failed to restore project:");
@@ -579,17 +580,25 @@ export async function removeProjectFavorite(
   }
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+// D03 (SEC-D03-SQLI): the IDs come from the client (this is a callable
+// action), so they are bound as parameters, never spliced into the SQL, and
+// anything that isn't a UUID is dropped.
 export async function getProjectTagCounts(projectIds: string[]) {
+  const ids = Array.isArray(projectIds)
+    ? [...new Set(projectIds.filter((id): id is string => typeof id === "string" && UUID_RE.test(id)))].slice(0, 1000)
+    : [];
   return executeQuery(async (db) => {
-    if (projectIds.length === 0) return {};
-    
+    if (ids.length === 0) return {};
+
     const tagCounts = await db
       .select({
         project_id: project_tags.project_id,
         count: sql<number>`count(*)`,
       })
       .from(project_tags)
-      .where(sql`${project_tags.project_id} IN (${sql.join(projectIds.map(id => sql.raw(`'${id}'`)), sql.raw(', '))})`)
+      .where(inArray(project_tags.project_id, ids))
       .groupBy(project_tags.project_id);
 
     const result: Record<string, number> = {};

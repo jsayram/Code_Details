@@ -20,6 +20,7 @@ import type {
 } from "@/constants/project-category-fields";
 import { PROFANITY_LIST } from "@/constants/profanity-list";
 import { cn } from "@/lib/utils";
+import { safeHref } from "@/lib/safe-href";
 import { RepoTechImport } from "./RepoTechImport";
 
 // =============================================================================
@@ -216,9 +217,9 @@ function UrlFieldRenderer({
             className
           )}
         />
-        {urlValue && isValidUrl && (
+        {urlValue && isValidUrl && safeHref(urlValue) && (
           <a
-            href={urlValue}
+            href={safeHref(urlValue)}
             target="_blank"
             rel="noopener noreferrer"
             className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
@@ -827,9 +828,13 @@ export function DisplayFieldValue({
 
     case "url": {
       const urlValue = value as string;
+      // Not http(s): shown as text, never as a link (safeHref).
+      if (!safeHref(urlValue)) {
+        return <span className={className}>{urlValue}</span>;
+      }
       return (
         <a
-          href={urlValue}
+          href={safeHref(urlValue)}
           target="_blank"
           rel="noopener noreferrer"
           className={cn(

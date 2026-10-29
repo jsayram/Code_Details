@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 import useSWR from 'swr';
+import { safeHref } from "@/lib/safe-href";
 
 interface LinkedDocInfo {
   hasLinkedDoc: boolean;
@@ -257,7 +258,7 @@ export function LinkedDocumentationSection({
                 className="border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10"
               >
                 <a
-                  href={linkedDoc.repoUrl}
+                  href={safeHref(linkedDoc.repoUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >

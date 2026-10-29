@@ -8,7 +8,7 @@ import {
   project_tags,
   tags,
 } from "./schema";
-import { InsertProject, SelectProject, SelectProjectWithOwner } from "./schema/projects";
+import { SelectProject, SelectProjectWithOwner } from "./schema/projects";
 import { SelectProfile } from "./schema/profiles";
 import { SelectFavorite } from "./schema/favorites";
 import { eq, sql, desc, and, isNull, inArray, getTableColumns } from "drizzle-orm";
@@ -19,24 +19,9 @@ import { ProjectCategory } from "@/constants/project-categories";
  * These functions should only be used in server components or API routes
  */
 
-/**
- * Adds a new project to the database
- * @param project The project data to add
- * @returns The newly created project
- */
-export async function addProject(
-  project: InsertProject
-): Promise<SelectProject> {
-  return await executeQuery(async (db) => {
-    const result = await db.insert(projects).values(project).returning();
-
-    if (!result || result.length === 0) {
-      throw new Error("Failed to create project");
-    }
-
-    return result[0];
-  });
-}
+// addProject was removed (D03, P08 R03): an unused export of this "use
+// server" file that inserted any row for any caller. Creation goes through
+// createProject in src/app/actions/projects.ts.
 
 /**
  * Gets a project by slug

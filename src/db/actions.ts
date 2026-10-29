@@ -7,65 +7,13 @@ import { profiles } from "./schema/profiles";
 import { project_tags } from "./schema/project_tags";
 import { tags } from "./schema/tags";
 import { favorites } from "./schema/favorites";
-import {
-  InsertProject,
-  SelectProject,
-} from "./schema/projects";
+import { SelectProject } from "./schema/projects";
 import { eq, isNull, or, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
-/**
- * Server-side function to create a new project
- */
-export async function createProjectServer(
-  project: InsertProject
-): Promise<SelectProject> {
-  return await executeQuery(async (db) => {
-    // Create the project
-    const [createdProject] = await db
-      .insert(projects)
-      .values(project)
-      .returning();
-
-    // If there are tags, associate them with the project
-    if (project.tags && project.tags.length > 0) {
-      // For each tag, either get it or create it if it doesn't exist
-      for (const tagName of project.tags) {
-        // Check if tag exists
-        let tagId = null;
-        const existingTags = await db
-          .select({ id: tags.id })
-          .from(tags)
-          .where(eq(tags.name, tagName.trim()));
-
-        if (existingTags.length > 0) {
-          tagId = existingTags[0].id;
-        } else {
-          // Create the tag
-          const [createdTag] = await db
-            .insert(tags)
-            .values({ name: tagName.trim() })
-            .returning({ id: tags.id });
-          tagId = createdTag.id;
-        }
-
-        // Create a relation between project and tag
-        await db.insert(project_tags).values({
-          project_id: createdProject.id,
-          tag_id: tagId,
-        });
-      }
-    }
-
-    // Return the created project with tags
-    const projectWithTags = {
-      ...createdProject,
-      tags: project.tags || [],
-    };
-
-    return projectWithTags;
-  });
-}
+// createProjectServer moved to src/db/project-write.ts as insertProjectRow
+// (D03, P08 R03): as an export of this "use server" file it inserted any row,
+// any owner and any link, for any caller.
 
 /**
  * Helper function to get tag names for a project
@@ -131,32 +79,8 @@ export const getCachedUserById = unstable_cache(
   }
 );
 
-/**
- * Server-side function to soft delete a project
- */
-export async function deleteProjectServer(id: string): Promise<SelectProject> {
-  return await executeQuery(async (db) => {
-    // Update the project to set deleted_at timestamp
-    const [updatedProject] = await db
-      .update(projects)
-      .set({
-        deleted_at: new Date(),
-        updated_at: new Date(),
-      })
-      .where(eq(projects.id, id))
-      .returning();
-
-    if (!updatedProject) {
-      throw new Error(`Project with ID ${id} not found`);
-    }
-
-    // Get the tags associated with the project
-    const tags = await getProjectTagNames(id);
-
-    // Return the soft-deleted project with its tags
-    return { ...updatedProject, tags };
-  });
-}
+// deleteProjectServer moved to src/db/project-write.ts as softDeleteProjectRow
+// (D03, P08 R03): it soft-deleted any project for any caller.
 
 // updateProjectServer moved to src/db/project-write.ts as updateProjectRow (D02,
 // P08 R03): as an export of this "use server" file it wrote any column of any

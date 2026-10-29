@@ -15,6 +15,7 @@ import {
   Link as LinkIcon,
 } from "lucide-react";
 import { ProjectLink, LinkType, getLinkDisplayLabel } from "@/types/project-links";
+import { safeHref } from "@/lib/safe-href";
 
 interface ProjectLinksDisplayProps {
   links: ProjectLink[];
@@ -38,7 +39,9 @@ export function ProjectLinksDisplay({
   links,
   className = "",
 }: ProjectLinksDisplayProps) {
-  if (!links || links.length === 0) {
+  // Links that aren't http(s) are left out (safeHref).
+  const safeLinks = (links ?? []).filter((link) => safeHref(link.url));
+  if (safeLinks.length === 0) {
     return null;
   }
 
@@ -70,7 +73,7 @@ export function ProjectLinksDisplay({
       </CardHeader>
       <CardContent>
         <div className="flex flex-wrap gap-3">
-          {links.map((link, index) => (
+          {safeLinks.map((link, index) => (
             <Button
               key={index}
               variant={getButtonVariant(link.type)}
@@ -78,7 +81,7 @@ export function ProjectLinksDisplay({
               asChild
             >
               <a
-                href={link.url}
+                href={safeHref(link.url)}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="cursor-pointer"

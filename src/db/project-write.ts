@@ -1,11 +1,12 @@
-// The project update against Supabase (moved here from src/db/actions.ts in
-// D02, P08 R03). Deliberately not a "use server" module: Next exposes every
+// The project writes against Supabase: update (moved here from
+// src/db/actions.ts in D02, P08 R03) and create, soft delete, restore and
+// purge (D03). Deliberately not a "use server" module: Next exposes every
 // export of one as a callable server action, and as exports of that file
 // these wrote any column of any project with no identity check
-// (updateProjectServer) and told anyone who owns what (isProjectOwner). Only
-// server code calls them, after the caller's identity came from the session
-// (src/app/actions/projects.ts).
-import { and, eq, sql } from "drizzle-orm";
+// (updateProjectServer, createProjectServer, deleteProjectServer) and told
+// anyone who owns what (isProjectOwner). Only server code calls them, after
+// the caller's identity came from the session (src/app/actions/projects.ts).
+import { and, eq, isNotNull, isNull, sql } from "drizzle-orm";
 import { executeQuery } from "./server";
 import { projects, type SelectProject } from "./schema/projects";
 import { project_tags } from "./schema/project_tags";
@@ -73,5 +74,91 @@ export async function updateProjectRow(id: string, update: ProjectUpdate): Promi
       return row;
     });
     return { ...updated, tags: await getProjectTagNames(id) };
+  });
+}
+
+/** The columns a create may write; the owner comes from the session, everything else from defaults. */
+export interface ProjectInsert {
+  title: string;
+  slug: string;
+  description?: string | null;
+  category: string;
+  url_links?: ProjectLink[];
+  tags?: string[];
+  category_data?: Record<string, unknown> | null;
+  field_order?: string[] | null;
+}
+
+/**
+ * D03 (R03, SEC-D02-MASS): inserts a project owned by `ownerUserId` with only
+ * the whitelisted columns (no id, deleted_at, total_favorites or timestamps
+ * from the input), and its tags, in one transaction. Tags are deduplicated by
+ * nameKey as in the update.
+ */
+export async function insertProjectRow(ownerUserId: string, input: ProjectInsert): Promise<SelectProject> {
+  return await executeQuery(async (db) => {
+    const created = await db.transaction(async (tx) => {
+      const [row] = await tx
+        .insert(projects)
+        .values({
+          user_id: ownerUserId,
+          title: input.title,
+          slug: input.slug,
+          description: input.description ?? null,
+          category: input.category,
+          url_links: input.url_links ?? null,
+          category_data: input.category_data ?? null,
+          field_order: input.field_order ?? null,
+        })
+        .returning();
+      for (const { name } of dedupeTags(input.tags ?? []).tags) {
+        const [existing] = await tx.select({ id: tags.id }).from(tags).where(eq(tags.name, name));
+        const tagId = existing?.id ?? (await tx.insert(tags).values({ name }).returning({ id: tags.id }))[0].id;
+        await tx.insert(project_tags).values({ project_id: row.id, tag_id: tagId }).onConflictDoNothing();
+      }
+      return row;
+    });
+    return { ...created, tags: await getProjectTagNames(created.id) };
+  });
+}
+
+/** D03: active -> deleted. Null when the project is missing or already deleted. */
+export async function softDeleteProjectRow(id: string): Promise<SelectProject | null> {
+  return await executeQuery(async (db) => {
+    const [row] = await db
+      .update(projects)
+      .set({ deleted_at: new Date(), updated_at: new Date() })
+      .where(and(eq(projects.id, id), isNull(projects.deleted_at)))
+      .returning();
+    return row ? { ...row, tags: await getProjectTagNames(id) } : null;
+  });
+}
+
+/** D03 (P07 §5.11): restore is valid only from deleted. Null otherwise. */
+export async function restoreProjectRow(id: string): Promise<SelectProject | null> {
+  return await executeQuery(async (db) => {
+    const [row] = await db
+      .update(projects)
+      .set({ deleted_at: null, updated_at: new Date() })
+      .where(and(eq(projects.id, id), isNotNull(projects.deleted_at)))
+      .returning();
+    return row ? { ...row, tags: await getProjectTagNames(id) } : null;
+  });
+}
+
+/**
+ * D03: permanent deletion, only from deleted. The foreign keys remove the
+ * project's tags, favorites and image rows; tag submissions keep a null
+ * project. Image files in Supabase Storage are not removed here (they never
+ * were); the Convex purge schedules their deletion. False when nothing was
+ * deleted.
+ */
+export async function purgeProjectRow(id: string): Promise<boolean> {
+  return await executeQuery(async (db) => {
+    const rows = await db
+      .delete(projects)
+      .where(and(eq(projects.id, id), isNotNull(projects.deleted_at)))
+      .returning({ id: projects.id });
+    return rows.length > 0;
   });
 }

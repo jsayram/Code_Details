@@ -78,18 +78,18 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   const deletedAt = async (id: string) => (await sql`select deleted_at from projects where id = ${id}`)[0].deleted_at;
 
   describe("R02 project and favorite actions trust a client-supplied userId", () => {
-    it("[action] a signed-out caller soft-deletes A's project by passing A's subject", async () => {
+    it("[action] (fixed, D03) a signed-out caller passing A's subject can't soft-delete A's project", async () => {
       signInAs(null);
       const result = await actions.removeProject(listed.id, A.subject!);
-      expect(result.success).toBe(true);
-      expect(await deletedAt(listed.id)).not.toBeNull();
+      expect(result).toMatchObject({ success: false, code: "UNAUTHORIZED" });
+      expect(await deletedAt(listed.id)).toBeNull();
     });
 
-    it("[action] B, signed in, restores A's deleted project by passing A's subject", async () => {
+    it("[action] (fixed, D03) B, signed in, passing A's subject can't restore A's deleted project", async () => {
       signInAs(B.subject);
       const result = await actions.restoreProject(deletedRecent.id, A.subject!);
-      expect(result.success).toBe(true);
-      expect(await deletedAt(deletedRecent.id)).toBeNull();
+      expect(result).toMatchObject({ success: false, code: "NOT_OWNER" });
+      expect(await deletedAt(deletedRecent.id)).not.toBeNull();
     });
 
     it("[action] B, signed in, adds a favorite in A's name", async () => {
@@ -102,10 +102,9 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   });
 
   describe("R03 unguarded \"use server\" write exports in src/db", () => {
-    it("[function] deleteProjectServer soft-deletes any project with no identity at all", async () => {
-      signInAs(null);
-      await dbActions.deleteProjectServer(bobProject.id);
-      expect(await deletedAt(bobProject.id)).not.toBeNull();
+    it("[function] (fixed, D03) deleteProjectServer is no longer a \"use server\" export", async () => {
+      expect((dbActions as Record<string, unknown>).deleteProjectServer).toBeUndefined();
+      expect(await deletedAt(bobProject.id)).toBeNull();
     });
   });
 
