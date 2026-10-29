@@ -11,7 +11,6 @@ import { serverError, invalidInput, notFound, success } from "@/lib/api-errors";
 import { fetchClerkUser } from "@/services/clerkServerFetchUserService";
 import { ClerkSessionData } from "@/types/models/clerkSessionData";
 import { Webhook } from "svix";
-import { headers } from "next/headers";
 import { revalidateTag } from "next/cache";
 import {
   createOrUpdateUserProfile,
@@ -33,13 +32,18 @@ async function handleUserCreated(data: ClerkUserData) {
   
   try {
     const result = await createOrUpdateUserProfile(data);
-    
+    // The shared sync reports failure in its result instead of throwing. Answer
+    // non-200 so Clerk retries (D01, R18).
+    if (result.status === "error") {
+      return serverError("Error creating profile");
+    }
+
     // Invalidate user profile cache so fresh data is served immediately
     revalidateTag(CACHE_TAGS.USER_PROFILE, {});
-    
-    return success(result);
-  } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Error creating profile");
+
+    return success({ status: result.status });
+  } catch {
+    return serverError("Error creating profile");
   }
 }
 
@@ -49,13 +53,18 @@ async function handleUserUpdated(data: ClerkUserData) {
   
   try {
     const result = await createOrUpdateUserProfile(data);
-    
+    // The shared sync reports failure in its result instead of throwing. Answer
+    // non-200 so Clerk retries (D01, R18).
+    if (result.status === "error") {
+      return serverError("Error updating profile");
+    }
+
     // Invalidate user profile cache so fresh data is served immediately
     revalidateTag(CACHE_TAGS.USER_PROFILE, {});
-    
-    return success(result);
-  } catch (error) {
-    return serverError(error instanceof Error ? error.message : "Error updating profile");
+
+    return success({ status: result.status });
+  } catch {
+    return serverError("Error updating profile");
   }
 }
 
@@ -196,20 +205,18 @@ export async function POST(req: Request) {
     return serverError("Webhook secret not configured");
   }
 
-  // Get the headers asynchronously
-  const headersList = await headers();
-  const svix_id = headersList.get("svix-id");
-  const svix_timestamp = headersList.get("svix-timestamp");
-  const svix_signature = headersList.get("svix-signature");
+  const svix_id = req.headers.get("svix-id");
+  const svix_timestamp = req.headers.get("svix-timestamp");
+  const svix_signature = req.headers.get("svix-signature");
 
   // If there are no headers, error out
   if (!svix_id || !svix_timestamp || !svix_signature) {
     return invalidInput("Missing svix headers");
   }
 
-  // Get the body
-  const payload = await req.json();
-  const body = JSON.stringify(payload);
+  // Verify the exact bytes Clerk signed. Parsing and re-serializing first
+  // changes them, so valid deliveries could fail verification (D01, R18).
+  const body = await req.text();
 
   // Create a new Svix instance with your secret.
   const wh = new Webhook(WEBHOOK_SECRET);
@@ -233,46 +240,26 @@ export async function POST(req: Request) {
     switch (eventType) {
       case "user.created": {
         const { data } = evt as { type: string; data: ClerkUserData };
-        console.log(
-          "Raw Clerk user.created event:",
-          JSON.stringify(data, null, 2)
-        );
         return await handleUserCreated(data);
       }
 
       case "user.updated": {
         const { data } = evt as { type: string; data: ClerkUserData };
-        console.log(
-          "Raw Clerk user.updated event:",
-          JSON.stringify(data, null, 2)
-        );
         return await handleUserUpdated(data);
       }
 
       case "user.deleted": {
         const { data } = evt as { type: string; data: ClerkUserData };
-        console.log(
-          "Raw Clerk user.deleted event:",
-          JSON.stringify(data, null, 2)
-        );
         return await handleUserDeleted(data);
       }
 
       case "session.created": {
         const { data } = evt as { type: string; data: ClerkSessionData };
-        console.log(
-          "Raw Clerk session.created event:",
-          JSON.stringify(data, null, 2)
-        );
         return await handleSessionCreated(data);
       }
 
       case "session.removed": {
         const { data } = evt as { type: string; data: ClerkSessionData };
-        console.log(
-          "Raw Clerk session.removed event:",
-          JSON.stringify(data, null, 2)
-        );
         return await handleSessionRemoved(data);
       }
 

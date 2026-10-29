@@ -143,41 +143,11 @@ export async function createOrUpdateUserProfile(data: ClerkUserData) {
       // User exists - update their profile (preserve tier if not provided in metadata)
       console.log(`✅ User ${user_id} already exists, updating profile`);
       
-      // Check if username is changing
-      const oldUsername = existingProfile.username;
-      const newUsername = userData.username;
-      const usernameChanged = oldUsername && newUsername && oldUsername !== newUsername;
-      
-      if (usernameChanged) {
-        console.log(`📝 Username changed from "${oldUsername}" to "${newUsername}", logging to history`);
-        
-        // Log the old username to history table for redirect support
-        const { error: historyError } = await supabaseServer
-          .from("username_history")
-          .upsert({
-            old_username: oldUsername,
-            user_id: user_id,
-            new_username: newUsername,
-            changed_at: new Date().toISOString(),
-          }, {
-            onConflict: 'old_username'
-          });
-        
-        if (historyError) {
-          console.error("Error logging username change to history:", historyError);
-          // Don't throw - we still want to update the profile even if history fails
-        } else {
-          console.log(`✅ Username history logged: "${oldUsername}" -> "${newUsername}"`);
-        }
-      }
-      
+      // Username, names and avatar belong to the app once the profile exists:
+      // the provider seeds them at creation only (P07 §5.4, D01 interim fix
+      // for R19). Before this, every sync silently undid local edits.
       interface ProfileUpdateData {
         email_address: string | null;
-        first_name: string;
-        last_name: string;
-        full_name: string;
-        username: string;
-        profile_image_url: string | undefined;
         role: string;
         updated_at: string;
         tier?: string;
@@ -185,11 +155,6 @@ export async function createOrUpdateUserProfile(data: ClerkUserData) {
 
       const updateData: ProfileUpdateData = {
         email_address: userData.email_address,
-        first_name: userData.first_name,
-        last_name: userData.last_name,
-        full_name: userData.full_name,
-        username: userData.username,
-        profile_image_url: userData.profile_image_url,
         role: userData.role,
         updated_at: new Date().toISOString(),
       };
@@ -214,9 +179,6 @@ export async function createOrUpdateUserProfile(data: ClerkUserData) {
         status: "updated",
         message: `User ${user_id} profile updated successfully`,
         user: existingProfile,
-        usernameChanged,
-        oldUsername: usernameChanged ? oldUsername : undefined,
-        newUsername: usernameChanged ? newUsername : undefined,
       };
     } else {
       // User doesn't exist - create new profile
