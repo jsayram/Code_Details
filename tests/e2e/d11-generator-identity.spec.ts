@@ -108,8 +108,8 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
-  // The Clerk-era personas are on the test backend only when global setup loads the Convex fixtures.
-  test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs CODEDETAILS_E2E_READ_BACKEND=convex (the D01 personas)");
+  // D08h: global setup loads the D01 personas in Better Auth mode, so a missing
+  // persona is a failure (releasePersona throws), never a silent skip.
   let persona: APIRequestContext;
   let unlinked: APIRequestContext;
 
