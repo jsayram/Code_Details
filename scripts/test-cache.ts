@@ -130,9 +130,10 @@ async function runCacheTests() {
   const { getCachedUserTier } = await import('../src/app/actions/user-tier.js');
   
   
+  // D04a (SEC-D04-ANALYTICS): only the admin-checked wrappers are exported.
   const { 
-    getCachedTopContributors,
-    getCachedTagPipelineAnalytics 
+    fetchTopContributors,
+    fetchTagPipelineAnalytics 
   } = await import('../src/app/actions/advanced-analytics.js');
   
   const { 
@@ -157,8 +158,8 @@ async function runCacheTests() {
   console.log('\n🔧 Testing Admin Cache...');
   results.push(await testCachePerformance('admin:getCachedDashboardStats', () => adminDashboardStats()));
   results.push(await testCachePerformance('admin:getCachedTagSubmissions', () => adminTagSubmissions()));
-  results.push(await testCachePerformance('admin:getCachedTopContributors', () => getCachedTopContributors(10)));
-  results.push(await testCachePerformance('admin:getCachedTagPipeline', () => getCachedTagPipelineAnalytics()));
+  results.push(await testCachePerformance('admin:getCachedTopContributors', () => fetchTopContributors(10)));
+  results.push(await testCachePerformance('admin:getCachedTagPipeline', () => fetchTagPipelineAnalytics()));
   
   if (results.length > 0) {
     displayResults(results);

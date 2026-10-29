@@ -8,6 +8,8 @@ import { favorites } from "@/db/schema/favorites";
 import { tag_submissions } from "@/db/schema/tag_submissions";
 import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isAdmin } from "@/lib/admin-utils";
+import { chooseAuthBackend } from "@/backend/auth";
+import { routeViewer } from "@/lib/auth-server";
 import { redirect } from "next/navigation";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
@@ -59,6 +61,12 @@ export interface TagPipelineMetrics {
 }
 
 async function checkAdminAccess() {
+  // Under the Better Auth switch the admin role is users.role (D08g1); the
+  // Clerk path below is unchanged.
+  if (chooseAuthBackend().backend === "better-auth") {
+    if (!(await routeViewer())?.isAdmin) redirect("/dashboard");
+    return;
+  }
   const { userId } = await auth();
   
   if (!userId) {
@@ -74,8 +82,11 @@ async function checkAdminAccess() {
   }
 }
 
-// Cached version of top contributors query
-export const getCachedTopContributors = unstable_cache(
+// Cached version of top contributors query. SEC-D04-ANALYTICS: not exported.
+// An export of this "use server" file is a callable action, and this one
+// handed every contributor's provider subject and tier to any caller, signed
+// in or not. Admins read it through fetchTopContributors/getTopContributors.
+const getCachedTopContributors = unstable_cache(
   async (limit: number) => {
     return executeQuery(async (db) => {
       // Get comprehensive contributor stats
@@ -152,7 +163,8 @@ export const getCachedTopContributors = unstable_cache(
 );
 
 // Cached version of tag pipeline analytics
-export const getCachedTagPipelineAnalytics = unstable_cache(
+// SEC-D04-ANALYTICS: not exported either; it carries submitter emails.
+const getCachedTagPipelineAnalytics = unstable_cache(
   async () => {
     return executeQuery(async (db) => {
       // ... all the tag pipeline logic
@@ -274,6 +286,7 @@ export const getCachedTagPipelineAnalytics = unstable_cache(
 
 // Wrapper functions that support force refresh
 export async function getTopContributors(limit: number, forceRefresh = false) {
+  await checkAdminAccess();
   if (forceRefresh) {
     console.log('[getTopContributors] 🔄 Force refresh - revalidating contributors cache');
     revalidateTag(CACHE_TAGS.CONTRIBUTORS, {});
@@ -286,6 +299,7 @@ export async function getTopContributors(limit: number, forceRefresh = false) {
 }
 
 export async function getTagPipelineAnalytics(forceRefresh = false) {
+  await checkAdminAccess();
   if (forceRefresh) {
     console.log('[getTagPipelineAnalytics] 🔄 Force refresh - revalidating tag pipeline cache');
     revalidateTag(CACHE_TAGS.TAG_SUBMISSIONS, {});

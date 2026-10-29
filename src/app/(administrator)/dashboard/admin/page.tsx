@@ -53,7 +53,7 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ClientOnly } from "@/components/ClientOnly";
 import { fetchAdminDashboardData } from "@/app/actions/admin-dashboard";
 import { fetchAllUsersAction, updateUserAction, checkIsSuperAdmin } from "@/app/actions/user-management";
-import { getCachedTopContributors, getCachedTagPipelineAnalytics, getTopContributors, getTagPipelineAnalytics } from "@/app/actions/advanced-analytics";
+import { fetchTopContributors, fetchTagPipelineAnalytics, getTopContributors, getTagPipelineAnalytics } from "@/app/actions/advanced-analytics";
 import type { TopContributor, TagPipelineMetrics } from "@/app/actions/advanced-analytics";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
@@ -1167,8 +1167,8 @@ function DashboardContent() {
   const loadAnalytics = React.useCallback(async (forceRefresh = false) => {
     try {
       const [contributors, pipelineMetrics] = await Promise.all([
-        forceRefresh ? getTopContributors(20, true) : getCachedTopContributors(20),
-        forceRefresh ? getTagPipelineAnalytics(true) : getCachedTagPipelineAnalytics(),
+        forceRefresh ? getTopContributors(20, true) : fetchTopContributors(20),
+        forceRefresh ? getTagPipelineAnalytics(true) : fetchTagPipelineAnalytics(),
       ]);
       setTopContributors(contributors);
       setTagPipelineMetrics(pipelineMetrics);
