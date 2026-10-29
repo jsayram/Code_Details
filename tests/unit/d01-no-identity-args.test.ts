@@ -11,7 +11,8 @@ import { describe, expect, it } from "vitest";
 import { queryGeneric } from "convex/server";
 
 const CONVEX_DIR = path.resolve(__dirname, "../../convex");
-const NOT_FUNCTION_MODULES = new Set(["schema.ts", "auth.config.ts"]);
+// convex.config.ts only runs inside the Convex runtime (D08a) and defines no functions.
+const NOT_FUNCTION_MODULES = new Set(["schema.ts", "auth.config.ts", "convex.config.ts"]);
 const IDENTITY_NAME = /user|owner|viewer|subject|email|identity|account|author|creator|member|caller|actor|token|session/i;
 const IDENTITY_TABLES = new Set(["users", "authLinks", "profiles"]);
 

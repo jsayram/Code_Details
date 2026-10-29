@@ -4,6 +4,7 @@
 // CODEDETAILS_FIXTURES_ALLOWED=1, which only tests/convex/up.sh sets. That
 // keeps `clear` from ever touching a real deployment this code is pushed to.
 import { v } from "convex/values";
+import { components } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
@@ -14,6 +15,7 @@ function assertFixturesAllowed() {
 }
 
 const TABLES = ["projects", "profiles", "tags", "authLinks", "users"] as const;
+const AUTH_MODELS = ["session", "account", "verification", "user"] as const;
 
 export const clear = internalMutation({
   args: {},
@@ -24,6 +26,14 @@ export const clear = internalMutation({
       const docs = await ctx.db.query(table).collect();
       for (const doc of docs) await ctx.db.delete(doc._id);
       removed[table] = docs.length;
+    }
+    // D08a: Better Auth's own tables, so no auth user outlives its app account.
+    // The signing keys (jwks) stay; they belong to the deployment.
+    for (const model of AUTH_MODELS) {
+      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: { model },
+        paginationOpts: { cursor: null, numItems: 1000 },
+      });
     }
     return removed;
   },
@@ -156,5 +166,69 @@ export const listedTitleOrder = internalQuery({
       .withIndex("by_listed_title", (q) => q.eq("listed", true))
       .collect();
     return docs.map((d) => d.titleSortKey);
+  },
+});
+
+/** D08a: Better Auth rows and the app rows that point at them, for one email. */
+export const authState = internalQuery({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    assertFixturesAllowed();
+    const authUser = await ctx.runQuery(components.betterAuth.adapter.findOne, {
+      model: "user",
+      where: [{ field: "email", value: email }],
+    });
+    if (!authUser) return null;
+    const sessions = await ctx.runQuery(components.betterAuth.adapter.findMany, {
+      model: "session",
+      where: [{ field: "userId", value: authUser._id }],
+      paginationOpts: { cursor: null, numItems: 100 },
+    });
+    const users = await ctx.db
+      .query("users")
+      .withIndex("by_authUserId", (q) => q.eq("authUserId", authUser._id))
+      .collect();
+    const links = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "better-auth").eq("subject", authUser._id))
+      .collect();
+    return { authUserId: authUser._id as string, sessionIds: sessions.page.map((s: { _id: string }) => s._id), users, links };
+  },
+});
+
+/** D08a: every app document as text, to show no email was copied into one. */
+export const appTablesText = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    assertFixturesAllowed();
+    const tables = ["users", "authLinks", "profiles", "usernames", "projects", "auditEvents", "contentChanges"] as const;
+    const out: unknown[] = [];
+    for (const table of tables) out.push(await ctx.db.query(table).collect());
+    return JSON.stringify(out);
+  },
+});
+
+/** D08a: moves a Better Auth session's expiry into the past, as time would. */
+export const expireSession = internalMutation({
+  args: { sessionId: v.string() },
+  handler: async (ctx, { sessionId }) => {
+    assertFixturesAllowed();
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: { model: "session", where: [{ field: "_id", value: sessionId }], update: { expiresAt: Date.now() - 1000 } },
+    });
+  },
+});
+
+/** D08a: puts the app account behind a Better Auth user into another status. */
+export const setAccountStatus = internalMutation({
+  args: { authUserId: v.string(), status: v.union(v.literal("active"), v.literal("deleting")) },
+  handler: async (ctx, { authUserId, status }) => {
+    assertFixturesAllowed();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authUserId", (q) => q.eq("authUserId", authUserId))
+      .unique();
+    if (!user) throw new Error("no account for that auth user");
+    await ctx.db.patch(user._id, status === "deleting" ? { status, deletionRequestedAt: Date.now() } : { status });
   },
 });

@@ -4,7 +4,7 @@
 // into .env.local (C07 found `dev` does, even with --env-file). The CLI runs
 // with the loopback-only socket guard, and every .env* file is hashed before
 // and after; any change fails the push loudly.
-import { createHash, generateKeyPairSync } from "node:crypto";
+import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -79,11 +79,27 @@ if (!fs.existsSync(issuerFile)) {
 }
 const issuer = JSON.parse(fs.readFileSync(issuerFile, "utf8"));
 const jwks = { keys: [{ ...issuer.publicJwk, kid: issuer.kid, alg: "ES256", use: "sig" }] };
+// D08a: Better Auth on the test backend only. The secret is a throwaway made
+// once per state folder, like the issuer above; SITE_URL is the loopback dev
+// origin browsers will use at D08b (tests send it as Origin). Email and
+// password is enabled here for synthetic users and nowhere else. The import
+// backend gets none of this.
+const betterAuth = [];
+if (target === "test") {
+  const secretFile = path.join(root, runtime.state, "better-auth-secret");
+  if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
+  betterAuth.push(
+    ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
+    ["SITE_URL", "http://localhost:3000"],
+    ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
+  );
+}
 let res = { status: 0 };
 for (const [name, value] of dryRun ? [] : [
   ["CODEDETAILS_AUTH_ISSUER", issuer.issuer],
   ["CODEDETAILS_AUTH_AUDIENCE", issuer.audience],
   ["CODEDETAILS_AUTH_JWKS", `data:text/plain;charset=utf-8;base64,${Buffer.from(JSON.stringify(jwks)).toString("base64")}`],
+  ...betterAuth,
 ]) {
   if (res.status === 0) res = convex(["env", "set", name, value]);
 }

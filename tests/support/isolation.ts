@@ -13,6 +13,9 @@ export const TEST_DB_NAME = "postgres";
 /** Task-owned local Convex backend (tests/convex/up.sh), client port, 127.0.0.1 only (Phase C). */
 export const TEST_CONVEX_PORT = 3210;
 export const TEST_CONVEX_URL = `http://127.0.0.1:${TEST_CONVEX_PORT}`;
+/** Same backend's site port (HTTP actions): Better Auth's /api/auth routes (D08a). */
+export const TEST_CONVEX_SITE_PORT = 3211;
+export const TEST_CONVEX_SITE_URL = `http://127.0.0.1:${TEST_CONVEX_SITE_PORT}`;
 /** Nothing listens here; supabase-js calls fail fast instead of reaching a real API. */
 export const TEST_SUPABASE_URL = "http://127.0.0.1:9";
 

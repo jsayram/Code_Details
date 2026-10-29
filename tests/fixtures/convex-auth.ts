@@ -36,6 +36,8 @@ export interface TokenOptions {
   /** Sign with this key instead of the deployment's (a forged token). */
   key?: KeyObject;
   kid?: string;
+  /** Claims to add, e.g. a Better Auth sessionId this issuer has no business naming (D08a). */
+  extraClaims?: Record<string, unknown>;
 }
 
 export function signToken(subject: string, options: TokenOptions = {}): string {
@@ -48,6 +50,7 @@ export function signToken(subject: string, options: TokenOptions = {}): string {
     sub: subject,
     iat: now - 5,
     exp: now + (options.expiresIn ?? 300),
+    ...options.extraClaims,
   };
   const input = `${b64url(JSON.stringify(header))}.${b64url(JSON.stringify(claims))}`;
   const key = options.key ?? createPrivateKey({ key: issuer.privateJwk, format: "jwk" });

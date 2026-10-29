@@ -110,7 +110,10 @@ describe("network guard", () => {
     [54322, "127.0.0.1"],
     [54321, "127.0.0.1"],
     [443, "api.openai.com"],
-    [3211, "127.0.0.1"],
+    // D08a opened 3211 (the test backend's site port); the import backend's
+    // ports stay closed, so no test can reach Jose's imported data.
+    [3220, "127.0.0.1"],
+    [3221, "127.0.0.1"],
     [443, "happy-otter-123.convex.cloud"],
   ])("refuses a socket to %s on %s", (port, host) => {
     expect(() => net.connect({ port, host })).toThrow(IsolationError);
@@ -122,7 +125,8 @@ describe("network guard", () => {
   });
 
   it("refuses fetch to a loopback port that isn't the test DB or the local Convex backend", async () => {
-    await expect(fetch("http://127.0.0.1:3211/")).rejects.toThrow();
+    await expect(fetch("http://127.0.0.1:3220/")).rejects.toThrow();
+    await expect(fetch("http://127.0.0.1:3221/")).rejects.toThrow();
     await expect(fetch("http://127.0.0.1:54321/")).rejects.toThrow();
   });
 
