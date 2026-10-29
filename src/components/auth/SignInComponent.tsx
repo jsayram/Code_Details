@@ -4,6 +4,8 @@ import { SignIn } from "@clerk/nextjs";
 import { Card, CardContent } from "../ui/card";
 import { Lock } from "lucide-react";
 import { motion } from "framer-motion";
+import { useAuthBackend } from "@/backend/auth/context";
+import { BetterAuthSignIn } from "./better-auth/AuthScreens";
 
 interface SignInComponentProps {
   withIcon?: boolean;
@@ -18,6 +20,7 @@ export function SignInComponent({
   titleText = "",
   subTitleText = "",
 }: SignInComponentProps) {
+  const backend = useAuthBackend();
   return (
     <>
       {(withIcon || withTitle) && (
@@ -43,6 +46,10 @@ export function SignInComponent({
         </motion.div>
       )}
 
+      {/* D08f3b: the app's own screens while the development Better Auth switch is on. */}
+      {backend === "better-auth" ? (
+        <BetterAuthSignIn />
+      ) : (
       <Card className="w-full bg-background shadow-none rounded-lg border-0 backdrop-blur-sm">
         <CardContent className="p-0">
           <SignIn
@@ -106,6 +113,7 @@ export function SignInComponent({
           />
         </CardContent>
       </Card>
+      )}
     </>
   );
 }

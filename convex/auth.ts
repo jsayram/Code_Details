@@ -113,6 +113,11 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       },
     },
     telemetry: { enabled: false },
+    // D08f3b: errors that end in a redirect (a refused GitHub sign-in, a bad
+    // or used email link via /api/auth/error) land on the app's own screen,
+    // which shows wording for the ?error= code and nothing else. Relative, so
+    // the browser stays on the origin it came through (the app's /api/auth).
+    onAPIError: { errorURL: "/sign-in/error" },
     plugins: [
       convex({
         authConfig,

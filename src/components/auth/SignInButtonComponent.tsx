@@ -1,7 +1,25 @@
+"use client";
+
 import { SignInButton } from "@clerk/nextjs";
+import { Slot } from "@radix-ui/react-slot";
+import { usePathname, useRouter } from "next/navigation";
+import type { ReactElement } from "react";
+import { useAuthBackend } from "@/backend/auth/context";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
+
+// D08f3b: with the development Better Auth switch on, the same button goes
+// to the app's /sign-in screen (and back here afterwards) instead of opening
+// Clerk's modal. With Clerk it is Clerk's SignInButton with the same props.
+function SignInTrigger({ children, ...props }: React.ComponentProps<typeof SignInButton> & { children: ReactElement }) {
+  const backend = useAuthBackend();
+  const router = useRouter();
+  const pathname = usePathname();
+  if (backend === "clerk") return <SignInButton {...props}>{children}</SignInButton>;
+  const back = pathname && pathname !== "/" && !pathname.startsWith("/sign-") ? `?redirect_url=${encodeURIComponent(pathname)}` : "";
+  return <Slot onClick={() => router.push(`/sign-in${back}`)}>{children}</Slot>;
+}
 
 interface SignInButtonProps {
   text?: string;
@@ -17,7 +35,7 @@ export const SignInButtonComponent = ({
   variant = "terminal",
 }: SignInButtonProps) => {
   return (
-    <SignInButton
+    <SignInTrigger
       mode="modal"
       appearance={{
         elements: {
@@ -78,6 +96,6 @@ export const SignInButtonComponent = ({
           )}
         </Button>
       )}
-    </SignInButton>
+    </SignInTrigger>
   );
 };

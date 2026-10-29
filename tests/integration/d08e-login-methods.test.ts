@@ -218,7 +218,11 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
         headers: { "x-forwarded-for": "2001:db8:e5::1" },
       });
       expect(res.status).toBe(302);
-      expect(new URL(res.headers.get("location")!).searchParams.get("error")).toBe("state_mismatch");
+      // D08f3b: the app's own error screen, as a relative redirect on the origin the browser came through.
+      const location = new URL(res.headers.get("location")!, "http://origin.invalid");
+      expect(location.origin).toBe("http://origin.invalid");
+      expect(location.pathname).toBe("/sign-in/error");
+      expect(location.searchParams.get("error")).toBe("state_mismatch");
     });
   });
 
