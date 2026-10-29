@@ -1,8 +1,8 @@
 // Server-side Better Auth helpers for Next.js (D08b), only while the
 // development switch (src/backend/auth) says better-auth. They talk to the
 // local Convex backend: `handler` forwards /api/auth/* to its site port, and
-// getToken fetches a Convex token with the request's own cookies, which is how
-// server code reads as the signed-in user (viewerQuery below).
+// serverToken fetches a Convex token with the request's own cookies, which is
+// how server code reads as the signed-in user (viewerQuery below).
 //
 // The component's fetchAuthQuery/preloadAuthQuery aren't used: they find the
 // deployment through NEXT_PUBLIC_CONVEX_URL, which this app doesn't set. The
@@ -12,9 +12,11 @@
 // so each one re-checks that the session is still live (D08A_REPORT, limits).
 import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
+import { headers } from "next/headers";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
 import { isAdmin } from "@/lib/admin-utils";
+import { INTERNAL_AUTH_HEADER } from "../../convex/authRules";
 
 // The package is ESM-only and the root tsconfig resolves app files as
 // CommonJS (NodeNext, no "type": "module"; the ts-node scripts depend on that),
@@ -38,6 +40,29 @@ export async function betterAuthServer(): Promise<BetterAuthNext | null> {
 }
 
 /**
+ * SEC-D08-RL: a Convex token for these cookies, fetched by this server from the
+ * auth site. It sends only the cookie and the internal secret
+ * (CODEDETAILS_INTERNAL_AUTH_SECRET, server env), never the browser's other
+ * headers, so a client's X-Forwarded-For can't pick a rate-limit bucket, and
+ * the auth site lets these calls past the limiter that would otherwise put
+ * every user's check into one shared bucket. The session cookie is still
+ * checked there. Null without a live session.
+ */
+async function serverToken(convexSiteUrl: string, cookie: string | null): Promise<string | null> {
+  if (!cookie) return null;
+  const headers: Record<string, string> = { cookie, "accept-encoding": "identity" };
+  const secret = process.env.CODEDETAILS_INTERNAL_AUTH_SECRET;
+  if (secret) headers[INTERNAL_AUTH_HEADER] = secret;
+  const res = await fetch(`${convexSiteUrl}/api/auth/convex/token`, { headers, cache: "no-store" });
+  if (!res.ok) return null;
+  return ((await res.json()) as { token?: string } | null)?.token ?? null;
+}
+
+async function requestCookie(): Promise<string | null> {
+  return (await headers()).get("cookie");
+}
+
+/**
  * Runs a Convex query as the request's signed-in user (or anonymously when the
  * request has no live session). Null when Better Auth is switched off.
  */
@@ -45,10 +70,20 @@ export async function viewerQuery<Q extends FunctionReference<"query", "public",
   query: Q,
 ): Promise<{ result: Q["_returnType"] } | null> {
   const choice = chooseAuthBackend();
-  const helpers = await betterAuthServer();
-  if (choice.backend !== "better-auth" || !helpers) return null;
-  const token = await helpers.getToken();
-  return { result: await fetchQuery(query, {}, { token, url: choice.convexUrl }) };
+  if (choice.backend !== "better-auth") return null;
+  const token = await serverToken(choice.convexSiteUrl, await requestCookie());
+  return { result: await fetchQuery(query, {}, { token: token ?? undefined, url: choice.convexUrl }) };
+}
+
+/** Whether the request has a live Better Auth session (a token comes back); null when the switch is off. */
+export async function betterAuthSignedIn(): Promise<boolean | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth") return null;
+  try {
+    return !!(await serverToken(choice.convexSiteUrl, await requestCookie()));
+  } catch {
+    return false;
+  }
 }
 
 /**
@@ -62,8 +97,7 @@ export async function viewerForCookies(cookie: string | null): Promise<{ role: "
   const choice = chooseAuthBackend();
   if (choice.backend !== "better-auth" || !cookie) return null;
   try {
-    const res = await fetch(`${choice.convexSiteUrl}/api/auth/convex/token`, { headers: { cookie }, cache: "no-store" });
-    const token = res.ok ? ((await res.json()) as { token?: string } | null)?.token : undefined;
+    const token = await serverToken(choice.convexSiteUrl, cookie);
     if (!token) return null;
     const viewer = await fetchQuery(whoami, {}, { token, url: choice.convexUrl });
     return viewer ? { role: viewer.role === "admin" ? "admin" : "user" } : null;

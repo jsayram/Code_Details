@@ -95,6 +95,19 @@ const jwks = { keys: [{ ...issuer.publicJwk, kid: issuer.kid, alg: "ES256", use:
 // password is enabled here for synthetic users and nowhere else. The import
 // backend gets none of this.
 const betterAuth = [];
+/** A throwaway made once per state folder; SYNTHETIC-marked so the test server's isolation check accepts it. */
+function throwawaySecret(name) {
+  const file = path.join(root, runtime.state, name);
+  if (!fs.existsSync(file)) fs.writeFileSync(file, `SYNTHETIC-${randomBytes(32).toString("base64url")}`, { mode: 0o600 });
+  return fs.readFileSync(file, "utf8").trim();
+}
+// SEC-D08-RL: the static JWKS (convex/auth.config.ts), so Convex checks tokens
+// without fetching them from the auth site. Kept per state folder. Convex won't
+// deploy an auth config that reads an unset env var, so the first push sets the
+// placeholder "unset" (convex/authRules.ts staticJwks), deploys, asks the
+// deployment for its current keys (auth:latestJwks), and deploys again with them.
+const jwksFile = path.join(root, runtime.state, "jwks.json");
+betterAuth.push(["JWKS", fs.existsSync(jwksFile) ? fs.readFileSync(jwksFile, "utf8").trim() : "unset"]);
 if (target === "test") {
   const secretFile = path.join(root, runtime.state, "better-auth-secret");
   if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
@@ -113,6 +126,10 @@ if (target === "test") {
     ["CODEDETAILS_EMAIL_HTTP_URL", `http://127.0.0.1:${slot.mailPort}/api/v1/send`],
     ["GITHUB_CLIENT_ID", "SYNTHETIC-github-client-id"],
     ["GITHUB_CLIENT_SECRET", "SYNTHETIC-github-client-secret"],
+    // SEC-D08-RL: the Next.js server's internal secret for its token calls
+    // (convex/authRules.ts), a throwaway like the one above; playwright.config.ts
+    // gives the browser-test server the same value.
+    ["CODEDETAILS_INTERNAL_AUTH_SECRET", throwawaySecret("internal-auth-secret")],
   );
 }
 if (target === "manual") {
@@ -137,6 +154,18 @@ for (const [name, value] of dryRun ? [] : [
   if (res.status === 0) res = convex(["env", "set", name, value]);
 }
 if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
+if (res.status === 0 && !dryRun && !fs.existsSync(jwksFile)) {
+  const out = spawnSync(path.join(root, "node_modules/.bin/convex"), ["run", "auth:latestJwks"], { cwd: projectDir, env, encoding: "utf8" });
+  const jwks = out.status === 0 ? JSON.parse(out.stdout.trim()) : null;
+  if (typeof jwks !== "string" || !Array.isArray(JSON.parse(jwks)) || JSON.parse(jwks).length === 0) {
+    console.error("could not read the deployment's JWKS for the static auth config");
+    res = { status: 1 };
+  } else {
+    fs.writeFileSync(jwksFile, jwks, { mode: 0o600 });
+    res = convex(["env", "set", "JWKS", jwks]);
+    if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
+  }
+}
 // Only this task-owned deployment may run the fixture functions (convex/fixtures.ts),
 // or, on the import backend, the importer (convex/importer.ts).
 if (res.status === 0 && !dryRun && runtime.allow) res = convex(["env", "set", runtime.allow, "1"]);

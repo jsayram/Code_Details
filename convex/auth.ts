@@ -23,8 +23,9 @@ import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { internalAction } from "./_generated/server";
 import { createAccountRows } from "./accounts";
-import { emailVerificationRequired } from "./authRules";
+import { INTERNAL_AUTH_HEADER, emailVerificationRequired, isInternalAuthCall, staticJwks } from "./authRules";
 import { opaqueVerificationLink } from "./emailLinks";
 import { sendAuthEmail } from "./email";
 import authConfig from "./auth.config";
@@ -105,6 +106,15 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
         "/request-password-reset": { window: 300, max: 3 },
         "/send-verification-email": { window: 300, max: 3 },
         "/reset-password": { window: 300, max: 5 },
+        // SEC-D08-RL: Convex fetches the public keys here for token checks, with
+        // no client IP, so every check shared one bucket and signed-in users
+        // read as signed out once it filled. Public keys grant nothing; with
+        // JWKS set (below) Convex doesn't fetch at all, this is the fallback.
+        "/convex/jwks": false,
+        // The Next.js server's own token calls skip the limiter only with the
+        // internal secret (authRules.ts); anyone else gets the default rule.
+        "/convex/token": (request, current) =>
+          isInternalAuthCall(request.headers.get(INTERNAL_AUTH_HEADER), process.env.CODEDETAILS_INTERNAL_AUTH_SECRET) ? false : current,
       },
     },
     advanced: {
@@ -121,6 +131,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     plugins: [
       convex({
         authConfig,
+        // SEC-D08-RL: the static JWKS (deployment env JWKS, written by
+        // tests/convex/push.mjs from auth:latestJwks), so token checks need no
+        // fetch. While it is the placeholder, the component fetches /convex/jwks.
+        jwks: staticJwks(process.env.JWKS),
         // The token carries only what Convex needs: sub (the auth user ID),
         // sessionId, iss, aud, iat, exp. By default the plugin copies the
         // whole auth user, email included, into every token (P07 §5.5).
@@ -128,3 +142,14 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       }),
     ],
   });
+
+/**
+ * SEC-D08-RL: the deployment's current signing keys as the static JWKS string
+ * (an existing key is kept, not rotated). Internal: tests/convex/push.mjs runs
+ * it with the admin key and stores the result in the deployment env as JWKS.
+ * The value includes the private key, so it is server env only.
+ */
+export const latestJwks = internalAction({
+  args: {},
+  handler: async (ctx): Promise<string> => JSON.stringify(await createAuth(ctx).api.getLatestJwks()),
+});
