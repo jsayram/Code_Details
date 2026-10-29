@@ -37,7 +37,7 @@ describe.skipIf(!convexAvailable())("C09–C12 Convex public project read", () =
 
   describe("C09 fixture", () => {
     it("loads every non-purged fixture project, persona with a subject, profile and tag", async () => {
-      expect(await convexFixtureCounts()).toEqual({ projects: 12, profiles: 6, tags: 16, authLinks: 7, users: 7 });
+      expect(await convexFixtureCounts()).toEqual({ projects: 13, profiles: 7, tags: 16, authLinks: 8, users: 8 });
       expect(Object.keys(ids).sort()).toEqual(set.projects.filter((p) => !p.purged).map((p) => p.slug).sort());
     });
 
@@ -61,7 +61,7 @@ describe.skipIf(!convexAvailable())("C09–C12 Convex public project read", () =
   describe("C10 public shape", () => {
     it.each(set.projects.map((p) => [p.case, p.slug]))("%s matches the C02 spec", async (_case, slug) => {
       const got = await read(slug);
-      const expected = expectedPublicProject(set, slug);
+      const expected = expectedPublicProject(set, slug, "convex");
       if (expected === null) {
         expect(got).toBeNull();
         return;
@@ -124,7 +124,7 @@ describe.skipIf(!convexAvailable())("C09–C12 Convex public project read", () =
         const call = kind === "query" ? anon.query(fn as never, {}) : anon.mutation(fn as never, {});
         await expect(call, name).rejects.toThrow(/Could not find public function|not found/i);
       }
-      expect((await convexFixtureCounts()).projects).toBe(12);
+      expect((await convexFixtureCounts()).projects).toBe(13);
     });
 
     it("the deployment exposes no other public function that reads projects", async () => {

@@ -20,7 +20,7 @@ describe("fixture generator", () => {
 
   it("covers every P07 §10 persona", () => {
     expect(Object.keys(set.personas).sort()).toEqual(
-      ["a", "admin", "anonymous", "b", "deleting", "noProfile", "renamed", "reserved"],
+      ["a", "admin", "anonymous", "b", "deleting", "emailUsername", "noProfile", "renamed", "reserved"],
     );
     expect(set.personas.anonymous.subject).toBeNull();
     expect(set.personas.noProfile.subject).not.toBeNull();
@@ -46,6 +46,9 @@ describe("fixture generator", () => {
     expect(byCase.unicode.title).toMatch(/[؀-ۿ]/);
     expect(byCase.deletedLongAgo.deletedAt! < byCase.deletedRecent.deletedAt!).toBe(true);
     expect(byCase.ownedByB.ownerKey).toBe("b");
+    expect(byCase.ownedByEmailUsername.ownerKey).toBe("emailUsername");
+    expect(set.personas.emailUsername.profile!.username).toMatch(/^[^@]+@synthetic\.invalid$/);
+    expect(set.personas.emailUsername.profile!.fullName).toBeNull();
   });
 
   it("covers self-favorites, favorites on deleted projects and tag-name edge cases", () => {

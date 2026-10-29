@@ -12,6 +12,14 @@ import { type PublicProject, assertPublicProject, publicCategoryData, publicLink
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
+/**
+ * Some legacy profiles use their email address as the username. Publish only
+ * the part before the "@", which is what the page showed before Phase C; the
+ * contract check still refuses a full address. Convex has no such usernames:
+ * its import gives them generated handles (P07 §5.2).
+ */
+const publicUsername = (username: string) => (username.includes("@") ? username.split("@")[0] : username);
+
 /** Code-point order on the lowercased name; the same rule the Convex seeder uses. */
 const byName = (a: string, b: string) => {
   const x = a.toLowerCase();
@@ -74,7 +82,7 @@ export const supabaseProjectReader: ProjectReadBackend = {
         createdAt: iso(row.createdAt),
         updatedAt: iso(row.updatedAt),
         owner: row.ownerUsername
-          ? { username: row.ownerUsername, fullName: row.ownerFullName, avatarUrl: row.ownerAvatarUrl }
+          ? { username: publicUsername(row.ownerUsername), fullName: row.ownerFullName, avatarUrl: row.ownerAvatarUrl }
           : null,
       };
       assertPublicProject(result);

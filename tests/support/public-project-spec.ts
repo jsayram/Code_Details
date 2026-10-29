@@ -5,15 +5,25 @@
 // because each backend has its own.
 import type { PublicProject } from "@/backend/projects/public-project";
 import { publicCategoryData } from "@/backend/projects/public-project";
-import type { FixtureSet, Project } from "../fixtures/generate";
+import { type FixtureSet, type Project, convexImportUsername, supabasePublicUsername } from "../fixtures/generate";
 
 export type ExpectedPublicProject = Omit<PublicProject, "id">;
 
-/** Null means not-found: missing, private, deleted and purged all look the same. */
-export function expectedPublicProject(set: FixtureSet, slug: string): ExpectedPublicProject | null {
+/**
+ * Null means not-found: missing, private, deleted and purged all look the same.
+ * The backends differ only for an email-shaped username: Supabase publishes its
+ * local part, Convex the handle the import generated (P07 §5.2).
+ */
+export function expectedPublicProject(
+  set: FixtureSet,
+  slug: string,
+  backend: "supabase" | "convex" = "supabase",
+): ExpectedPublicProject | null {
   const p: Project | undefined = set.projects.find((x) => x.slug === slug);
   if (!p || p.purged || p.deletedAt || p.visibility !== "public") return null;
-  const owner = set.personas[p.ownerKey].profile;
+  const persona = set.personas[p.ownerKey];
+  const owner = persona.profile;
+  const username = (u: string) => (backend === "convex" ? convexImportUsername(persona.subject!, u) : supabasePublicUsername(u));
   const tagName = (id: string) => set.tags.find((t) => t.id === id)!.name;
   return {
     slug: p.slug,
@@ -31,6 +41,6 @@ export function expectedPublicProject(set: FixtureSet, slug: string): ExpectedPu
     listed: true,
     createdAt: p.createdAt,
     updatedAt: p.updatedAt,
-    owner: owner ? { username: owner.username, fullName: owner.fullName, avatarUrl: owner.imageUrl } : null,
+    owner: owner ? { username: username(owner.username), fullName: owner.fullName, avatarUrl: owner.imageUrl } : null,
   };
 }

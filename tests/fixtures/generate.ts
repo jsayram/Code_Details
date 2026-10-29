@@ -30,7 +30,14 @@ export function fixtureId(seed: string, key: string): string {
 
 const at = (days: number) => new Date(EPOCH + days * DAY).toISOString();
 
-export type PersonaKey = "anonymous" | "a" | "b" | "admin" | "noProfile" | "deleting" | "renamed" | "reserved";
+/** What the Supabase reader publishes for a username: an email-shaped one loses everything from the "@". */
+export const supabasePublicUsername = (username: string) => (username.includes("@") ? username.split("@")[0] : username);
+
+/** P07 §5.2: the Convex import gives an email-shaped username a generated handle; others are kept. */
+export const convexImportUsername = (subject: string, username: string) =>
+  username.includes("@") ? `user-${createHash("sha256").update(subject).digest("hex").slice(0, 6)}` : username;
+
+export type PersonaKey = "anonymous" | "a" | "b" | "admin" | "noProfile" | "deleting" | "renamed" | "reserved" | "emailUsername";
 
 export interface Persona {
   key: PersonaKey;
@@ -43,7 +50,8 @@ export interface Persona {
     username: string;
     firstName: string;
     lastName: string;
-    fullName: string;
+    /** Null when the profile has no name, so the page falls back to the username. */
+    fullName: string | null;
     role: string | null;
     tier: "free" | "pro";
     imageUrl: string | null;
@@ -78,7 +86,8 @@ export type ProjectCase =
   | "oneTag"
   | "caseVariantTags"
   | "changedSlug"
-  | "ownedByB";
+  | "ownedByB"
+  | "ownedByEmailUsername";
 
 export interface Project {
   case: ProjectCase;
@@ -194,6 +203,12 @@ export function generateFixtures(seed: string = FIXTURE_SEED): FixtureSet {
     deleting: persona("deleting", "fixture-leaving", "Dee", "Parting", {}, "deleting"),
     renamed: persona("renamed", "fixture-new-name", "Rene", "Named"),
     reserved: persona("reserved", "fixture-claimant", "Res", "Erved"),
+    // Legacy accounts whose username is their email address and who never set a
+    // name (2 such profiles in the local data). The page shows only the local part.
+    emailUsername: persona("emailUsername", `fixture.legacy@${FIXTURE_EMAIL_DOMAIN}`, "", "", {
+      email: `fixture.legacy@${FIXTURE_EMAIL_DOMAIN}`,
+      fullName: null,
+    }),
   };
 
   const usernameHistory: UsernameChange[] = [
@@ -268,6 +283,12 @@ export function generateFixtures(seed: string = FIXTURE_SEED): FixtureSet {
     }),
     project("changedSlug", { title: "Fixture Changed Slug", slug: "fixture-slug-new", previousSlug: "fixture-slug-old" }),
     project("ownedByB", { title: "Fixture Bob's Project", slug: "fixture-bob-project", ownerKey: "b", tagIds: [tagByName("Rust")] }),
+    project("ownedByEmailUsername", {
+      title: "Fixture Legacy Owner Project",
+      slug: "fixture-legacy-owner",
+      ownerKey: "emailUsername",
+      tagIds: [tagByName("Go")],
+    }),
   ];
 
   const byCase = (c: ProjectCase) => projects.find((p) => p.case === c)!.id;

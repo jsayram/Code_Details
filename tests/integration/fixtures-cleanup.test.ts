@@ -51,7 +51,7 @@ describe.skipIf(!testDbAvailable())("fixture cleanup (B10)", () => {
       expect(zero(await countFixtureRows(sql))).toBe(false);
 
       const removed = await cleanupFixtures(sql);
-      expect(removed.projects).toBe(12);
+      expect(removed.projects).toBe(13);
       expect(zero(await countFixtureRows(sql))).toBe(true);
       expect(await publicTableDigest(sql)).toBe(baseline);
     }
@@ -67,7 +67,7 @@ describe.skipIf(!testDbAvailable())("fixture cleanup (B10)", () => {
     await sql`insert into favorites (profile_id, project_id) values (${SENTINEL.profileId}, ${projectId})`;
 
     const removed = await cleanupFixtures(sql);
-    expect(removed.projects).toBe(13);
+    expect(removed.projects).toBe(14);
     expect(removed.tags).toBe(17);
     expect(zero(await countFixtureRows(sql))).toBe(true);
 

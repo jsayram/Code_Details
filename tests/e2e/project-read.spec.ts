@@ -1,7 +1,7 @@
 // Phase C: the public project page for signed-out visitors, whichever read
 // backend serves it. Not-found must not reveal whether a project exists:
 // deleted and missing slugs give the same status and the same page.
-import { generateFixtures } from "../fixtures/generate";
+import { convexImportUsername, generateFixtures, supabasePublicUsername } from "../fixtures/generate";
 import { expect, test } from "./support";
 
 const set = generateFixtures();
@@ -38,6 +38,20 @@ test.describe("public project read, signed out", () => {
     await expect(page.getByText("Alice Fixture").first()).toBeVisible();
     for (const tag of ["#Next.js", "#Postgres"]) await expect(page.getByText(tag, { exact: true }).first()).toBeVisible();
     await expect(page.getByText("2 favorites")).toBeVisible();
+  });
+
+  test("an owner whose username is an email address: the page renders without the address", async ({ page }) => {
+    const p = set.projects.find((x) => x.case === "ownedByEmailUsername")!;
+    const owner = set.personas[p.ownerKey];
+    const address = owner.profile!.username;
+    // Supabase shows the local part, as the page did before Phase C; Convex the imported handle.
+    const shown = backend === "convex" ? convexImportUsername(owner.subject!, address) : supabasePublicUsername(address);
+    const res = await page.goto(`/projects/${p.slug}`);
+    expect(res!.status()).toBe(200);
+    await expect(page.getByRole("heading", { level: 1, name: p.title }).filter({ visible: true })).toBeVisible();
+    await expect(page.getByText(`by ${shown}`, { exact: true }).first()).toBeVisible();
+    expect(await res!.text()).not.toContain(address);
+    await expect(page.locator("body")).not.toContainText("@synthetic.invalid");
   });
 
   test(`the page is served by the ${backend} read backend`, async ({ request }) => {
