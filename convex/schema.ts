@@ -228,6 +228,8 @@ export default defineSchema({
       v.literal("role.changed"),
       v.literal("username.changed"),
       v.literal("slug.changed"),
+      // D08d: a Clerk-era account took over a Better Auth login (handover).
+      v.literal("account.linked"),
     ),
     actorId: v.optional(v.id("users")),
     subjectTable: v.string(),

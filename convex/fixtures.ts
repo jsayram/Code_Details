@@ -30,6 +30,8 @@ export const clear = internalMutation({
     // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
     // stays out of TABLES (and of counts/snapshot) and is just emptied here.
     for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
+    // D08d: the handover writes account.linked audit rows.
+    for (const doc of await ctx.db.query("auditEvents").collect()) await ctx.db.delete(doc._id);
     // D08a: Better Auth's own tables, so no auth user outlives its app account.
     // The signing keys (jwks) stay; they belong to the deployment.
     for (const model of AUTH_MODELS) {

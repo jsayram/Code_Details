@@ -116,12 +116,7 @@ export const repairHalfFinishedSignUps = internalMutation({
         kept++;
         continue;
       }
-      if (userId) {
-        for (const row of await ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
-        for (const row of await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
-        for (const row of await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
-        await ctx.db.delete(userId);
-      }
+      if (userId) await removeSignUpAccount(ctx, userId);
       await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
         input: { model: "session", where: [{ field: "userId", value: authUser._id }] },
         paginationOpts: PAGE,
@@ -135,8 +130,19 @@ export const repairHalfFinishedSignUps = internalMutation({
   },
 });
 
+/**
+ * Deletes an app account made by sign-up: its usernames, profiles, authLinks and
+ * users row. Callers check holdsOnlySignUpRows first.
+ */
+export async function removeSignUpAccount(ctx: MutationCtx, userId: Id<"users">): Promise<void> {
+  for (const row of await ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
+  for (const row of await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
+  for (const row of await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", userId)).collect()) await ctx.db.delete(row._id);
+  await ctx.db.delete(userId);
+}
+
 /** Every image belongs to a project, so projects cover images too. */
-async function holdsOnlySignUpRows(ctx: MutationCtx, userId: Id<"users">): Promise<boolean> {
+export async function holdsOnlySignUpRows(ctx: MutationCtx, userId: Id<"users">): Promise<boolean> {
   const user = await ctx.db.get(userId);
   if (!user || user.status !== "active" || user.role !== "user") return false;
   const links = await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", userId)).collect();

@@ -13,6 +13,7 @@ import type * as accounts from "../accounts.js";
 import type * as auth from "../auth.js";
 import type * as crons from "../crons.js";
 import type * as fixtures from "../fixtures.js";
+import type * as handover from "../handover.js";
 import type * as http from "../http.js";
 import type * as identity from "../identity.js";
 import type * as importCore from "../importCore.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   crons: typeof crons;
   fixtures: typeof fixtures;
+  handover: typeof handover;
   http: typeof http;
   identity: typeof identity;
   importCore: typeof importCore;
