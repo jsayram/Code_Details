@@ -34,6 +34,10 @@ export const clear = internalMutation({
     // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
     // stays out of TABLES (and of counts/snapshot) and is just emptied here.
     for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
+    // D02: the project update's own tables (slug history, tag join, search outbox).
+    for (const table of ["projectSlugs", "projectTags", "contentChanges"] as const) {
+      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
+    }
     // D08d wrote account.linked audit rows; emptied in case an old run left some.
     for (const doc of await ctx.db.query("auditEvents").collect()) await ctx.db.delete(doc._id);
     // D08a: Better Auth's own tables, so no auth user outlives its app account.
@@ -95,6 +99,7 @@ export const load = internalMutation({
       status: v.union(v.literal("active"), v.literal("deleted")),
       deletedAt: v.optional(v.number()),
       tagKeys: v.array(v.string()),
+      previousSlug: optionalString,
       favoriteCount: v.number(),
       rankingFavoriteCount: v.number(),
       shuffleKey: v.number(),
@@ -136,7 +141,7 @@ export const load = internalMutation({
     }
     const projects: Record<string, Id<"projects">> = {};
     for (const p of args.projects) {
-      const { ownerKey, tagKeys, ...rest } = p;
+      const { ownerKey, tagKeys, previousSlug, ...rest } = p;
       const ownerId = users.get(ownerKey);
       if (!ownerId) throw new Error(`project ${p.slug} has unknown owner ${ownerKey}`);
       const tagIds = tagKeys.map((k) => {
@@ -152,6 +157,12 @@ export const load = internalMutation({
         listed: rest.status === "active" && rest.visibility === "public",
         contentVersion: 1,
       });
+      // D02: slug history and the project-tag join, as the importer writes them.
+      const projectId = projects[p.slug];
+      await ctx.db.insert("projectSlugs", { slug: p.slug, projectId, state: "current", createdAt: p.createdAt });
+      if (previousSlug) await ctx.db.insert("projectSlugs", { slug: previousSlug, projectId, state: "previous", createdAt: p.createdAt });
+      const listed = rest.status === "active" && rest.visibility === "public";
+      for (const [position, tagId] of tagIds.entries()) await ctx.db.insert("projectTags", { projectId, tagId, position, listed });
     }
     for (const f of args.favorites ?? []) {
       const userId = users.get(f.userKey);
@@ -388,5 +399,27 @@ export const simulateGithubSignUp = internalMutation({
       input: { model: "account", data: { accountId: githubId, providerId: "github", userId: authUser._id, createdAt: now, updatedAt: now } },
     });
     return authUser._id;
+  },
+});
+
+/** D02: one project's update-side rows (slug history, tag join, audit, outbox, its tags' counters), by current or old slug. */
+export const projectWriteState = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    const slugs = await ctx.db.query("projectSlugs").withIndex("by_project_state", (q) => q.eq("projectId", projectId)).collect();
+    const joins = await ctx.db.query("projectTags").withIndex("by_project_position", (q) => q.eq("projectId", projectId)).collect();
+    const audit = await ctx.db.query("auditEvents").withIndex("by_subject", (q) => q.eq("subjectTable", "projects").eq("subjectId", projectId)).collect();
+    const outbox = await ctx.db.query("contentChanges").withIndex("by_entity", (q) => q.eq("entityType", "project").eq("entityId", projectId)).collect();
+    const tags = await ctx.db.query("tags").collect();
+    return {
+      project,
+      slugs: slugs.map((s) => ({ slug: s.slug, state: s.state })).sort((a, b) => a.slug.localeCompare(b.slug)),
+      joins: joins.map((j) => ({ tagId: j.tagId, position: j.position, listed: j.listed })),
+      audit: audit.map((a) => ({ kind: a.kind, actorId: a.actorId, details: a.details })),
+      outbox: outbox.map((o) => ({ change: o.change, sourceVersion: o.sourceVersion })),
+      tags: tags.map((t) => ({ id: t._id, name: t.name, nameKey: t.nameKey, listedProjectCount: t.listedProjectCount, status: t.status })),
+    };
   },
 });

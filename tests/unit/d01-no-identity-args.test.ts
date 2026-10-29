@@ -25,7 +25,7 @@ interface Registered {
   exportArgs?: () => string;
 }
 
-type ValidatorJson = { type: string; value?: unknown; tableName?: string };
+type ValidatorJson = { type: string; value?: unknown; tableName?: string; keys?: ValidatorJson; values?: { fieldType: ValidatorJson } };
 
 /** Every identity-shaped field name or ID in an exported args validator. */
 function identityProblems(argsJson: string): string[] {
@@ -41,9 +41,11 @@ function identityProblems(argsJson: string): string[] {
     }
     if (node.type === "array") walk(node.value as ValidatorJson, `${where}[]`);
     if (node.type === "union") (node.value as ValidatorJson[]).forEach((m, i) => walk(m, `${where}|${i}`));
+    // D02: the first record argument showed Convex puts keys/values on the
+    // node itself, not under value.
     if (node.type === "record") {
-      const r = node.value as { keys: ValidatorJson; values: { fieldType: ValidatorJson } };
-      walk(r.values.fieldType, `${where}{}`);
+      walk(node.keys!, `${where}{key}`);
+      walk(node.values!.fieldType, `${where}{}`);
     }
   };
   walk(JSON.parse(argsJson) as ValidatorJson, "args");
@@ -67,7 +69,7 @@ async function publicFunctions(): Promise<{ name: string; argsJson: string }[]> 
 describe("D01 no public Convex function takes an identity argument", () => {
   it("finds the public functions (guards against an empty scan)", async () => {
     const names = (await publicFunctions()).map((f) => f.name).sort();
-    expect(names).toEqual(expect.arrayContaining(["identity:whoami", "projects:getOwnBySlug", "projects:getPublicBySlug"]));
+    expect(names).toEqual(expect.arrayContaining(["identity:whoami", "projects:getOwnBySlug", "projects:getPublicBySlug", "projects:update"]));
   });
 
   it("every public function's arguments are free of identity", async () => {
@@ -82,6 +84,9 @@ describe("D01 no public Convex function takes an identity argument", () => {
     expect(identityProblems(argsOf({ args: { slug: v.string(), opts: v.object({ ownerKey: v.string() }) }, handler: async () => null }))).toHaveLength(1);
     expect(identityProblems(argsOf({ args: { target: v.id("users") }, handler: async () => null }))).toHaveLength(1);
     expect(identityProblems(argsOf({ args: { who: v.optional(v.union(v.null(), v.id("profiles"))) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.string(), v.id("users")) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.id("authLinks"), v.string()) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.string(), v.array(v.string())) }, handler: async () => null }))).toEqual([]);
     expect(identityProblems(argsOf({ handler: async () => null }))).toEqual(["args: v.any() accepts anything, identities included"]);
     expect(identityProblems(argsOf({ args: { slug: v.string() }, handler: async () => null }))).toEqual([]);
   });

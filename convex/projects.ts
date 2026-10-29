@@ -3,10 +3,18 @@
 // backends can't drift apart in shape. Anonymous by design: no identity
 // argument, and it never returns users, emails or provider subjects.
 import { v } from "convex/values";
-import { query, type QueryCtx } from "./_generated/server";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getViewer, type Viewer } from "./viewer";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
+  CATEGORY_FIELDS_VERSION,
+  type Issue,
+  checkCategoryData,
+  normalizeProjectPatch,
+  titleSortKey,
+} from "../src/backend/projects/project-update-rules";
+import {
+  PUBLIC_PROJECT_VERSION,
   type PublicProject,
   type PublicProjectOwner,
   assertPublicProject,
@@ -251,3 +259,252 @@ export const myCategoryCounts = query({
     return counts;
   },
 });
+
+// ---------------------------------------------------------------------------
+// D02: the project update (P07 §4 "one mutation", P08 R27–R29). The caller
+// comes from getViewer only; the arguments name the project, the version the
+// caller read and the fields to change, never a user. The mutation is the
+// transaction: every check runs before the first write, so a refused update
+// writes nothing, and an accepted one writes the project, its tags, its slug
+// history, the tag counters, the audit row and the search outbox together.
+
+/** The owner's edit view of a project: no email, provider subject, role, tier or owner ID. */
+export interface EditableProject {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  category: string;
+  categoryData: Record<string, string | number | boolean | string[]> | null;
+  fieldOrder: string[] | null;
+  links: { url: string; label?: string; type?: string }[];
+  tags: string[];
+  favoriteCount: number;
+  visibility: "public" | "private";
+  createdAt: string;
+  updatedAt: string;
+  contentVersion: number;
+  owner: PublicProjectOwner | null;
+}
+
+export type UpdateResult =
+  | { ok: true; project: EditableProject; previousSlug: string | null }
+  | { ok: false; code: "not_found" }
+  | { ok: false; code: "stale"; contentVersion: number }
+  | { ok: false; code: "invalid"; issues: Issue[] };
+
+async function toEditable(ctx: QueryCtx, project: Doc<"projects">): Promise<EditableProject> {
+  return {
+    id: project._id,
+    slug: project.slug,
+    title: project.title,
+    description: project.description ?? null,
+    category: project.category,
+    categoryData: project.categoryData ?? null,
+    fieldOrder: project.fieldOrder ?? null,
+    links: project.links,
+    tags: await activeTagNames(ctx, project),
+    favoriteCount: project.favoriteCount,
+    visibility: project.visibility,
+    createdAt: iso(project.createdAt),
+    updatedAt: iso(project.updatedAt),
+    contentVersion: project.contentVersion,
+    owner: await publicOwner(ctx, project.ownerId),
+  };
+}
+
+/** The caller's own active project, or null (missing, deleted or someone else's all look the same). */
+async function ownActiveProject(ctx: QueryCtx, viewer: Viewer | null, project: Doc<"projects"> | null) {
+  if (!viewer || !project || project.ownerId !== viewer.userId || project.status !== "active") return null;
+  return project;
+}
+
+/**
+ * D02: the owner's own project for the edit page, with the contentVersion the
+ * save must send back. `viewerAuthSubject` is the caller's own token subject:
+ * the page hands it to ProjectContent, whose owner check compares the
+ * session's user ID with the profile's. Null for anyone else.
+ */
+export const getMineForEdit = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }): Promise<(EditableProject & { viewerAuthSubject: string }) | null> => {
+    const viewer = await getViewer(ctx);
+    const identity = await ctx.auth.getUserIdentity();
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    const own = await ownActiveProject(ctx, viewer, project);
+    if (!own || !identity) return null;
+    return { ...(await toEditable(ctx, own)), viewerAuthSubject: identity.subject };
+  },
+});
+
+/**
+ * D02 (R28): where an old slug points now. The current slug of the project
+ * that used to have it, when that project is listed or the caller owns it;
+ * null otherwise (unknown, current already, private, deleted).
+ */
+export const currentSlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }): Promise<string | null> => {
+    const row = await ctx.db
+      .query("projectSlugs")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    if (!row || row.state !== "previous") return null;
+    const project = await ctx.db.get(row.projectId);
+    if (!project || project.slug === slug) return null;
+    if (project.listed) return project.slug;
+    return (await ownActiveProject(ctx, await getViewer(ctx), project))?.slug ?? null;
+  },
+});
+
+const categoryValue = v.union(v.string(), v.number(), v.boolean(), v.array(v.string()));
+
+export const update = mutation({
+  args: {
+    // A string, not v.id: a malformed or foreign ID gets the same not_found as
+    // someone else's project instead of a validator error that tells them apart.
+    projectId: v.string(),
+    expectedContentVersion: v.number(),
+    // Closed: any other key (ownerId, status, visibility, listed, counters,
+    // contentVersion, timestamps...) is refused before the handler runs.
+    patch: v.object({
+      title: v.optional(v.string()),
+      slug: v.optional(v.string()),
+      description: v.optional(v.union(v.string(), v.null())),
+      category: v.optional(v.string()),
+      links: v.optional(v.array(v.object({ url: v.string(), label: v.optional(v.string()), type: v.optional(v.string()) }))),
+      tags: v.optional(v.array(v.string())),
+      categoryData: v.optional(v.union(v.record(v.string(), categoryValue), v.null())),
+      fieldOrder: v.optional(v.union(v.array(v.string()), v.null())),
+    }),
+  },
+  handler: async (ctx, { projectId, expectedContentVersion, patch }): Promise<UpdateResult> => {
+    const viewer = await getViewer(ctx);
+    const id = ctx.db.normalizeId("projects", projectId);
+    const project = await ownActiveProject(ctx, viewer, id ? await ctx.db.get(id) : null);
+    if (!viewer || !project) return { ok: false, code: "not_found" };
+    if (project.contentVersion !== expectedContentVersion) {
+      return { ok: false, code: "stale", contentVersion: project.contentVersion };
+    }
+
+    // ---- Checks (no writes) ----
+    const { value, issues } = normalizeProjectPatch(patch, project.category);
+    if (value.category !== undefined && value.category !== project.category && patch.categoryData === undefined) {
+      // A category change without new details: the stored details must fit the new category.
+      issues.push(...checkCategoryData(value.category, project.categoryData, project.fieldOrder, { strictKeys: true }));
+    }
+    const slugChanges = value.slug !== undefined && value.slug !== project.slug;
+    if (slugChanges) {
+      const held = await ctx.db
+        .query("projectSlugs")
+        .withIndex("by_slug", (q) => q.eq("slug", value.slug!))
+        .collect();
+      const live = await ctx.db
+        .query("projects")
+        .withIndex("by_slug", (q) => q.eq("slug", value.slug!))
+        .first();
+      if (held.some((r) => r.projectId !== project._id) || (live && live._id !== project._id)) {
+        issues.push({ field: "slug", message: "This slug is already taken" });
+      }
+    }
+    const resolved: { nameKey: string; name: string; tag: Doc<"tags"> | null }[] = [];
+    for (const t of value.tags ?? []) {
+      const tag = await ctx.db
+        .query("tags")
+        .withIndex("by_nameKey", (q) => q.eq("nameKey", t.nameKey))
+        .first();
+      if (tag?.status === "retired") issues.push({ field: "tags", message: `The tag "${tag.name}" is retired` });
+      resolved.push({ ...t, tag });
+    }
+    if (issues.length) return { ok: false, code: "invalid", issues };
+
+    // ---- Writes ----
+    const now = Date.now();
+    const contentVersion = project.contentVersion + 1;
+    const doc: Partial<Doc<"projects">> = { contentVersion, updatedAt: now };
+    if (value.title !== undefined) {
+      doc.title = value.title;
+      doc.titleSortKey = titleSortKey(value.title);
+    }
+    if (value.description !== undefined) doc.description = value.description ?? undefined;
+    if (value.category !== undefined) doc.category = value.category;
+    if (value.links !== undefined) doc.links = value.links;
+    if (value.categoryData !== undefined) {
+      doc.categoryData = value.categoryData ?? undefined;
+      doc.categoryDataVersion = value.categoryData ? CATEGORY_FIELDS_VERSION : undefined;
+    }
+    if (value.fieldOrder !== undefined) doc.fieldOrder = value.fieldOrder ?? undefined;
+
+    if (value.tags !== undefined) {
+      const tagIds: Id<"tags">[] = [];
+      for (const r of resolved) {
+        tagIds.push(
+          r.tag?._id ??
+            (await ctx.db.insert("tags", { name: r.name, nameKey: r.nameKey, status: "active", listedProjectCount: 0, createdAt: now })),
+        );
+      }
+      const old = await ctx.db
+        .query("projectTags")
+        .withIndex("by_project_position", (q) => q.eq("projectId", project._id))
+        .collect();
+      for (const row of old) await ctx.db.delete(row._id);
+      for (const [position, tagId] of tagIds.entries()) {
+        await ctx.db.insert("projectTags", { projectId: project._id, tagId, position, listed: project.listed });
+      }
+      if (project.listed) {
+        const before = new Set(project.tagIds);
+        const after = new Set(tagIds);
+        for (const tagId of before) if (!after.has(tagId)) await bumpListedCount(ctx, tagId, -1);
+        for (const tagId of after) if (!before.has(tagId)) await bumpListedCount(ctx, tagId, 1);
+      }
+      doc.tagIds = tagIds;
+      doc.tagCount = tagIds.length;
+    }
+
+    if (slugChanges) {
+      const slug = value.slug!;
+      const rows = await ctx.db
+        .query("projectSlugs")
+        .withIndex("by_project_state", (q) => q.eq("projectId", project._id))
+        .collect();
+      for (const row of rows) if (row.state === "current") await ctx.db.patch(row._id, { state: "previous" });
+      if (!rows.some((r) => r.slug === project.slug)) {
+        // A project with no history yet: its old slug is kept as previous.
+        await ctx.db.insert("projectSlugs", { slug: project.slug, projectId: project._id, state: "previous", createdAt: project.createdAt });
+      }
+      const again = rows.find((r) => r.slug === slug);
+      if (again) await ctx.db.patch(again._id, { state: "current" });
+      else await ctx.db.insert("projectSlugs", { slug, projectId: project._id, state: "current", createdAt: now });
+      doc.slug = slug;
+      await ctx.db.insert("auditEvents", {
+        kind: "slug.changed",
+        actorId: viewer.userId,
+        subjectTable: "projects",
+        subjectId: project._id,
+        at: now,
+        details: { from: project.slug, to: slug },
+      });
+    }
+
+    await ctx.db.patch(project._id, doc);
+    await ctx.db.insert("contentChanges", {
+      entityType: "project",
+      entityId: project._id,
+      change: project.listed ? "upsert" : "remove",
+      sourceVersion: contentVersion,
+      projectionVersion: PUBLIC_PROJECT_VERSION,
+      createdAt: now,
+      attempts: 0,
+    });
+    const saved = (await ctx.db.get(project._id))!;
+    return { ok: true, project: await toEditable(ctx, saved), previousSlug: slugChanges ? project.slug : null };
+  },
+});
+
+async function bumpListedCount(ctx: MutationCtx, tagId: Id<"tags">, by: 1 | -1) {
+  const tag = await ctx.db.get(tagId);
+  if (tag) await ctx.db.patch(tagId, { listedProjectCount: Math.max(0, tag.listedProjectCount + by) });
+}

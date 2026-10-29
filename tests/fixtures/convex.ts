@@ -97,6 +97,8 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
     status: p.deletedAt ? ("deleted" as const) : ("active" as const),
     deletedAt: p.deletedAt ? ms(p.deletedAt) : undefined,
     tagKeys: p.tagIds,
+    // D02: the slug history the importer writes (the changed-slug case keeps its old slug).
+    previousSlug: p.previousSlug ?? undefined,
     favoriteCount: favorites(p.id).length,
     rankingFavoriteCount: favorites(p.id).filter((f) => f.personaKey !== p.ownerKey).length,
     shuffleKey: (i * 0.618034) % 1,
