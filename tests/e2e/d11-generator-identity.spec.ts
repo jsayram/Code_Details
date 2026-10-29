@@ -72,6 +72,10 @@ const ROUTES: Array<{ name: string; call: (c: APIRequestContext) => Promise<impo
   { name: "PUT /api/docs/[slug]/[filename]", call: (c) => c.put(`/api/docs/${DOCS.theirs}/${CHAPTER}`, { data: {} }) },
   { name: "PATCH /api/docs/[slug]/link-project", call: (c) => c.patch(`/api/docs/${DOCS.theirs}/link-project`, { data: {} }) },
   { name: "DELETE /api/docs/[slug]/link-project", call: (c) => c.delete(`/api/docs/${DOCS.theirs}/link-project`) },
+  // D11s: the doc reads now check identity themselves too
+  { name: "GET /api/docs/[slug]/[filename]", call: (c) => c.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`) },
+  { name: "GET /api/docs/[slug]/meta", call: (c) => c.get(`/api/docs/${DOCS.theirs}/meta`) },
+  { name: "GET /api/docs/[slug]/download", call: (c) => c.get(`/api/docs/${DOCS.theirs}/download`) },
   { name: "POST /api/generate-docs", call: (c) => c.post("/api/generate-docs", { data: {} }) },
   { name: "POST /api/llm", call: (c) => c.post("/api/llm", { data: {} }) },
   { name: "POST /api/llm-test", call: (c) => c.post("/api/llm-test", { data: {} }) },
@@ -95,14 +99,6 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
       await ctx.dispose();
     });
   }
-
-  test("GET /api/docs/[slug]/[filename] (no check of its own): refused by the proxy as today", async ({ playwright }) => {
-    const ctx = await client(playwright);
-    const status = (await ctx.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`)).status();
-    if (betterAuth) expect(status).toBe(401);
-    else expect([307, 404]).toContain(status);
-    await ctx.dispose();
-  });
 });
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
@@ -137,8 +133,31 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     for (const r of ROUTES) expect((await r.call(unlinked)).status(), r.name).toBe(401);
   });
 
-  test("the chapter read has no identity check, so any signed-in user reads any doc (existing behaviour, untouched)", async () => {
-    expect((await unlinked.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`)).status()).toBe(200);
+  test("D11s: the owner reads its own chapter, metadata and ZIP", async () => {
+    const ch = await persona.get(`/api/docs/${DOCS.mine}/${CHAPTER}`);
+    expect(ch.status()).toBe(200);
+    expect(await ch.text()).toContain("Synthetic chapter.");
+    expect((await persona.get(`/api/docs/${DOCS.mine}/meta`)).status()).toBe(200);
+    expect((await persona.get(`/api/docs/${DOCS.mine}/download`)).status()).toBe(200);
+  });
+
+  test("D11s: someone else's unlinked doc reads exactly like a missing one (404)", async () => {
+    const missing = await persona.get(`/api/docs/d11-fixture-missing/${CHAPTER}`);
+    const theirs = await persona.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`);
+    expect(theirs.status()).toBe(404);
+    expect(await theirs.text()).toBe(await missing.text());
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/meta`)).status()).toBe(404);
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/download`)).status()).toBe(404);
+    // A userId in the query string changes nothing: identity comes from the session.
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/${CHAPTER}?userId=${B.subject}`)).status()).toBe(404);
+  });
+
+  test("D11s: encoded traversal never leaves the output root", async () => {
+    for (const url of [`/api/docs/%2E%2E/${CHAPTER}`, `/api/docs/${DOCS.mine}/..%2F${DOCS.theirs}%2F${CHAPTER}`, `/api/docs/${DOCS.mine}/..%2F_meta.json`, `/api/docs/%2E%2E/meta`, `/api/docs/%2E%2E/download`]) {
+      const res = await persona.get(url);
+      expect([400, 404], url).toContain(res.status());
+      expect(await res.text(), url).not.toContain("Synthetic chapter.");
+    }
   });
 
   test("the handed-over login lists only its own docs", async () => {

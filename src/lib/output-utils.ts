@@ -5,7 +5,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
-import { docsOutputRoot } from './docs-output-root';
+import { docDir, docsOutputRoot, isSafeChapterFilename } from './docs-output-root';
 
 // ============================================================================
 // Types
@@ -163,7 +163,7 @@ export async function ensureOutputDir(): Promise<void> {
  * Ensure project directory exists
  */
 export async function ensureProjectDir(projectSlug: string): Promise<string> {
-  const projectDir = path.join(OUTPUT_DIR, projectSlug);
+  const projectDir = docDir(projectSlug, OUTPUT_DIR);
   await fs.mkdir(projectDir, { recursive: true });
   return projectDir;
 }
@@ -218,7 +218,7 @@ export async function saveProjectMeta(
  */
 export async function getProjectMeta(projectSlug: string): Promise<ProjectMeta | null> {
   try {
-    const metaPath = path.join(OUTPUT_DIR, projectSlug, '_meta.json');
+    const metaPath = path.join(docDir(projectSlug, OUTPUT_DIR), '_meta.json');
     const content = await fs.readFile(metaPath, 'utf-8');
     return JSON.parse(content) as ProjectMeta;
   } catch {
@@ -231,7 +231,8 @@ export async function getProjectMeta(projectSlug: string): Promise<ProjectMeta |
  */
 export async function getChapter(projectSlug: string, filename: string): Promise<string | null> {
   try {
-    const filepath = path.join(OUTPUT_DIR, projectSlug, filename);
+    if (!isSafeChapterFilename(filename)) return null;
+    const filepath = path.join(docDir(projectSlug, OUTPUT_DIR), filename);
     return await fs.readFile(filepath, 'utf-8');
   } catch {
     return null;
@@ -272,7 +273,7 @@ export async function listProjects(): Promise<ProjectMeta[]> {
  */
 export async function projectExists(projectSlug: string): Promise<boolean> {
   try {
-    const metaPath = path.join(OUTPUT_DIR, projectSlug, '_meta.json');
+    const metaPath = path.join(docDir(projectSlug, OUTPUT_DIR), '_meta.json');
     await fs.access(metaPath);
     return true;
   } catch {
@@ -285,7 +286,7 @@ export async function projectExists(projectSlug: string): Promise<boolean> {
  */
 export async function deleteProject(projectSlug: string): Promise<boolean> {
   try {
-    const projectDir = path.join(OUTPUT_DIR, projectSlug);
+    const projectDir = docDir(projectSlug, OUTPUT_DIR);
     await fs.rm(projectDir, { recursive: true, force: true });
     return true;
   } catch {
@@ -302,7 +303,7 @@ export async function getProjectChapters(projectSlug: string): Promise<Array<{
   content: string;
 }>> {
   try {
-    const projectDir = path.join(OUTPUT_DIR, projectSlug);
+    const projectDir = docDir(projectSlug, OUTPUT_DIR);
     const files = await fs.readdir(projectDir);
     const chapters: Array<{
       filename: string;
@@ -347,7 +348,7 @@ export async function updateProjectMeta(
       projectSlug, // Ensure slug is not changed
     };
     
-    const metaPath = path.join(OUTPUT_DIR, projectSlug, '_meta.json');
+    const metaPath = path.join(docDir(projectSlug, OUTPUT_DIR), '_meta.json');
     await fs.writeFile(metaPath, JSON.stringify(updatedMeta, null, 2), 'utf-8');
     
     return updatedMeta;
