@@ -3,12 +3,21 @@
 // ports even on loopback, so the server can't reach Clerk, Stripe, an LLM
 // provider or the development database whatever the app code tries.
 import net from "node:net";
+import { ACTIVE, NEVER_TEST_PORTS, otherSlotPorts } from "../support/slot.cjs";
 
 const FORBIDDEN_PORTS = new Set([54320, 54321, 54322, 54323, 54324, 54325, 54326, 54327, 54329]);
 // D08b: the browser-test app server (start-isolated-server.mjs sets the flag)
 // also may not reach the D00b import backend (3220 client, 3221 site). The
 // importer and `push.mjs --target import` load this guard too and need 3220.
-if (process.env.CODEDETAILS_NET_GUARD_APP_SERVER === "1") for (const p of [3220, 3221]) FORBIDDEN_PORTS.add(p);
+if (process.env.CODEDETAILS_NET_GUARD_APP_SERVER === "1") {
+  for (const p of [3220, 3221]) FORBIDDEN_PORTS.add(p);
+  // Test slots (tests/support/slot.cjs): the app server also may not reach the
+  // normal dev server or the manual-check backend (below: nor any other slot).
+  for (const p of NEVER_TEST_PORTS) FORBIDDEN_PORTS.add(p);
+}
+// Every process this guard loads into (app server, the Convex CLI under
+// push.mjs, the importer) is refused every other test slot's ports.
+for (const p of otherSlotPorts(ACTIVE.slot)) FORBIDDEN_PORTS.add(p);
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 function target(args) {
