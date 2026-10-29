@@ -4,6 +4,7 @@
 // argument, and it never returns users, emails or provider subjects.
 import { v } from "convex/values";
 import { query } from "./_generated/server";
+import { getViewer } from "./viewer";
 import type { Doc } from "./_generated/dataModel";
 import {
   type PublicProject,
@@ -68,5 +69,32 @@ export const getPublicBySlug = query({
     };
     assertPublicProject(result);
     return result;
+  },
+});
+
+/**
+ * D01: the owner's own view of one project, private or deleted included. The
+ * owner comes from the session, never from an argument; anyone else, signed
+ * in or not, gets null, the same answer as for a missing slug. A minimal
+ * shape for now: D02r builds the owner reads on this check.
+ */
+export const getOwnBySlug = query({
+  args: { slug: v.string() },
+  handler: async (ctx, { slug }) => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return null;
+    const project = await ctx.db
+      .query("projects")
+      .withIndex("by_slug", (q) => q.eq("slug", slug))
+      .first();
+    if (!project || project.ownerId !== viewer.userId) return null;
+    return {
+      id: project._id,
+      slug: project.slug,
+      title: project.title,
+      visibility: project.visibility,
+      status: project.status,
+      listed: project.listed,
+    };
   },
 });

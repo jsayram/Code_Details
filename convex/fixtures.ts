@@ -13,7 +13,7 @@ function assertFixturesAllowed() {
   }
 }
 
-const TABLES = ["projects", "profiles", "tags", "users"] as const;
+const TABLES = ["projects", "profiles", "tags", "authLinks", "users"] as const;
 
 export const clear = internalMutation({
   args: {},
@@ -45,6 +45,7 @@ export const load = internalMutation({
   args: {
     users: v.array(v.object({
       key: v.string(),
+      subject: v.string(),
       role: v.union(v.literal("user"), v.literal("admin")),
       tier: v.union(v.literal("free"), v.literal("pro"), v.literal("diamond")),
       status: v.union(v.literal("active"), v.literal("deleting")),
@@ -89,8 +90,11 @@ export const load = internalMutation({
     }
     const users = new Map<string, Id<"users">>();
     for (const u of args.users) {
-      const { key, ...doc } = u;
-      users.set(key, await ctx.db.insert("users", doc));
+      const { key, subject, ...doc } = u;
+      const userId = await ctx.db.insert("users", doc);
+      users.set(key, userId);
+      // D01: the synthetic Clerk-era subject, so tests can sign in as this persona.
+      await ctx.db.insert("authLinks", { userId, provider: "clerk", subject, linkedAt: doc.createdAt });
     }
     for (const p of args.profiles) {
       const { userKey, avatarUrl, ...rest } = p;

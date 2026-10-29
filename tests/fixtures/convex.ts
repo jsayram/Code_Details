@@ -52,6 +52,7 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
   const personas = Object.values(set.personas).filter((p) => p.subject);
   const users = personas.map((p) => ({
     key: p.key,
+    subject: p.subject!,
     role: p.profile?.role === "admin" ? ("admin" as const) : ("user" as const),
     tier: p.profile?.tier ?? "free",
     status: p.accountState,

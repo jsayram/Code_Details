@@ -9,7 +9,9 @@
  */
 
 import type * as fixtures from "../fixtures.js";
+import type * as identity from "../identity.js";
 import type * as projects from "../projects.js";
+import type * as viewer from "../viewer.js";
 
 import type {
   ApiFromModules,
@@ -19,7 +21,9 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   fixtures: typeof fixtures;
+  identity: typeof identity;
   projects: typeof projects;
+  viewer: typeof viewer;
 }>;
 
 /**

@@ -1,4 +1,4 @@
-// Convex schema, Phase C (C08): only the subset of the accepted P07 model that
+// Convex schema, Phase C (C08) plus D01's authLinks: only the subset of the accepted P07 model that
 // the public project read needs. Field names, types and index names follow
 // p07-model/P07_REPORT.md §3.1, §3.3, §3.5 and §3.7; tables and fields not
 // listed here arrive with the D phases that use them. Schema validation stays
@@ -21,6 +21,17 @@ export default defineSchema({
   })
     .index("by_authUserId", ["authUserId"])
     .index("by_status_deleteAfter", ["status", "deleteAfter"]),
+
+  // §3.2 Provider subjects (D01). The only way from a signed-in token to a
+  // users row; a mutation keeps (provider, subject) unique. Never linked by email.
+  authLinks: defineTable({
+    userId: v.id("users"),
+    provider: v.union(v.literal("clerk"), v.literal("better-auth")),
+    subject: v.string(),
+    linkedAt: v.number(),
+  })
+    .index("by_provider_subject", ["provider", "subject"])
+    .index("by_user", ["userId"]),
 
   // §3.3 Public profile, a separate table so public reads can't touch users.
   profiles: defineTable({

@@ -37,7 +37,7 @@ describe.skipIf(!convexAvailable())("C09–C12 Convex public project read", () =
 
   describe("C09 fixture", () => {
     it("loads every non-purged fixture project, persona with a subject, profile and tag", async () => {
-      expect(await convexFixtureCounts()).toEqual({ projects: 12, profiles: 6, tags: 16, users: 7 });
+      expect(await convexFixtureCounts()).toEqual({ projects: 12, profiles: 6, tags: 16, authLinks: 7, users: 7 });
       expect(Object.keys(ids).sort()).toEqual(set.projects.filter((p) => !p.purged).map((p) => p.slug).sort());
     });
 
