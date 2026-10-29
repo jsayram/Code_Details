@@ -85,7 +85,7 @@ export const SYNTHETIC_PASSWORD = "synthetic-Password-123";
 const ref = {
   authState: makeFunctionReference<"query", { email: string }>("fixtures:authState"),
   appTablesText: makeFunctionReference<"query">("fixtures:appTablesText"),
-  expireSession: makeFunctionReference<"mutation", { sessionId: string }>("fixtures:expireSession"),
+  expireSession: makeFunctionReference<"mutation", { sessionId: string; expiresAt?: number }>("fixtures:expireSession"),
   setAccountStatus: makeFunctionReference<"mutation", { authUserId: string; status: "active" | "deleting" }>("fixtures:setAccountStatus"),
 };
 
@@ -98,6 +98,7 @@ export interface AuthState {
 
 export const authState = (email: string): Promise<AuthState | null> => adminClient().query(ref.authState, { email });
 export const appTablesText = (): Promise<string> => adminClient().query(ref.appTablesText, {});
-export const expireSession = (sessionId: string) => adminClient().mutation(ref.expireSession, { sessionId });
+export const expireSession = (sessionId: string, expiresAt?: number) =>
+  adminClient().mutation(ref.expireSession, expiresAt === undefined ? { sessionId } : { sessionId, expiresAt });
 export const setAccountStatus = (authUserId: string, status: "active" | "deleting") =>
   adminClient().mutation(ref.setAccountStatus, { authUserId, status });

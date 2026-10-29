@@ -1,6 +1,7 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
+import { betterAuthEnabled } from "@/backend/auth";
 
 const isPublicRoute = createRouteMatcher([
         "/",  // Allow access to the root page
@@ -13,6 +14,11 @@ const isPublicRoute = createRouteMatcher([
         "/api/webhook/clerk", // Allow Clerk webhook endpoint
         "/api/auth/sync-user", // Allow sync endpoint (prevent auth loop)
 ]);
+
+// D08b: Better Auth's own endpoints and the dev viewer check, public only
+// while its development switch is on (src/backend/auth). Off, they stay behind
+// Clerk exactly as before, and the routes answer 404 anyway.
+const isBetterAuthRoute = createRouteMatcher(["/api/auth/(.*)", "/api/dev/viewer"]);
 
 const isAdminRoute = createRouteMatcher([
   "/dashboard/admin(.*)",
@@ -119,7 +125,7 @@ export default clerkMiddleware(async (auth, req) => {
     });
   }
 
-  if (!isPublicRoute(req)) {
+  if (!isPublicRoute(req) && !(isBetterAuthRoute(req) && betterAuthEnabled())) {
     await auth.protect();
   }
 }) as any; // Type assertion for Next.js 16 proxy compatibility

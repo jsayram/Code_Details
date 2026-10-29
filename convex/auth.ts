@@ -8,8 +8,10 @@
 // users. Everywhere else no method is enabled.
 //
 // Every value comes from the deployment env: BETTER_AUTH_SECRET (a throwaway
-// on the test backend), SITE_URL (where browsers reach /api/auth) and the
-// built-in CONVEX_SITE_URL (the token issuer). Telemetry is off.
+// on the test backend), SITE_URL (where browsers reach /api/auth), optional
+// CODEDETAILS_AUTH_TRUSTED_ORIGINS (comma-separated extra app origins, e.g. the
+// browser-test server; D08b) and the built-in CONVEX_SITE_URL (the token
+// issuer). Telemetry is off.
 import { createClient, type AuthFunctions, type GenericCtx } from "@convex-dev/better-auth";
 import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
@@ -58,6 +60,7 @@ export const { onCreate, onUpdate, onDelete } = authComponent.triggersApi();
 export const createAuth = (ctx: GenericCtx<DataModel>) =>
   betterAuth({
     baseURL: process.env.SITE_URL,
+    trustedOrigins: (process.env.CODEDETAILS_AUTH_TRUSTED_ORIGINS ?? "").split(",").filter(Boolean),
     secret: process.env.BETTER_AUTH_SECRET,
     database: authComponent.adapter(ctx),
     emailAndPassword: {

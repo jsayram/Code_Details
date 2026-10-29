@@ -5,7 +5,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { SYNTHETIC, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
+import { SYNTHETIC, TEST_CONVEX_SITE_URL, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
 import { convexAvailable } from "./tests/fixtures/convex";
 import { RUNTIME_DIR, readTestDbPassword } from "./tests/support/test-db";
 
@@ -23,6 +23,18 @@ if (READ_BACKEND === "convex" && !convexAvailable()) {
 const readBackendEnv: Record<string, string> =
   READ_BACKEND === "convex" ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL } : {};
 
+// D08b: CODEDETAILS_E2E_AUTH_BACKEND=better-auth also turns on the
+// development-only Better Auth switch (/api/auth/* and /api/dev/viewer served
+// through the local backend). Clerk stays the login either way.
+export const AUTH_BACKEND = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth" ? "better-auth" : "clerk";
+if (AUTH_BACKEND === "better-auth" && !convexAvailable()) {
+  throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
+}
+const authBackendEnv: Record<string, string> =
+  AUTH_BACKEND === "better-auth"
+    ? { CODEDETAILS_AUTH_BACKEND: "better-auth", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL, CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL }
+    : {};
+
 // Synthetic Clerk keys whose frontend API is a .invalid host. A pk_live-shaped
 // key keeps Clerk's middleware from redirecting signed-out page loads to a
 // development-instance handshake on that host.
@@ -35,6 +47,7 @@ const serverEnv = isolatedEnv(
     NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
     NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up",
     ...readBackendEnv,
+    ...authBackendEnv,
   },
   password,
   { devServer: true },

@@ -208,13 +208,16 @@ export const appTablesText = internalQuery({
   },
 });
 
-/** D08a: moves a Better Auth session's expiry into the past, as time would. */
+/**
+ * D08a: moves a Better Auth session's expiry into the past, as time would.
+ * D08b: or to `expiresAt`, e.g. close to its end to make it due for refresh.
+ */
 export const expireSession = internalMutation({
-  args: { sessionId: v.string() },
-  handler: async (ctx, { sessionId }) => {
+  args: { sessionId: v.string(), expiresAt: v.optional(v.number()) },
+  handler: async (ctx, { sessionId, expiresAt }) => {
     assertFixturesAllowed();
     await ctx.runMutation(components.betterAuth.adapter.updateOne, {
-      input: { model: "session", where: [{ field: "_id", value: sessionId }], update: { expiresAt: Date.now() - 1000 } },
+      input: { model: "session", where: [{ field: "_id", value: sessionId }], update: { expiresAt: expiresAt ?? Date.now() - 1000 } },
     });
   },
 });

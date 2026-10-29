@@ -92,6 +92,8 @@ if (target === "test") {
     ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
     ["SITE_URL", "http://localhost:3000"],
     ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
+    // D08b: the browser-test server (playwright.config.ts, port 3100) next to SITE_URL.
+    ["CODEDETAILS_AUTH_TRUSTED_ORIGINS", "http://localhost:3100"],
   );
 }
 let res = { status: 0 };
