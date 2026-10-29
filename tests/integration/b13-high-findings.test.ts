@@ -154,30 +154,37 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  describe("R06 /api/auth/sync-user trusts body.userId when signed out", () => {
-    it("[handler] a signed-out caller makes the server look up and sync any subject", async () => {
+  // Was the B13 reproduction (a signed-out body.userId made the server look up
+  // and sync any subject). Fixed in D01: identity comes only from the session.
+  describe("R06 (fixed, D01) /api/auth/sync-user takes identity only from the session", () => {
+    // Next still hands the handler the request; the handler no longer reads it.
+    const post = (payload: unknown) =>
+      (syncUserRoute.POST as (req: Request) => Promise<Response>)(new Request("http://localhost:3100/api/auth/sync-user", { method: "POST", body: JSON.stringify(payload) }));
+
+    it("[handler] a signed-out caller naming another subject is rejected before any Clerk lookup", async () => {
       signInAs(null);
       clerkGetUser.mockClear();
-      const req = new Request("http://localhost:3100/api/auth/sync-user", {
-        method: "POST",
-        body: JSON.stringify({ userId: B.subject }),
-      });
-      const res = await syncUserRoute.POST(req);
-      // The Clerk lookup ran for the attacker-chosen subject, with no session.
-      expect(clerkGetUser).toHaveBeenCalledWith(B.subject);
-      // The profile write then goes to supabase-js with the service-role key.
-      // The isolated stack runs no PostgREST, so that call fails, and the
-      // handler still answers 200 success:true with an inner error status
-      // (it swallows sync failures). The write itself is not reproduced here.
-      expect(res.status).toBe(200);
-      const json = await body(res);
-      expect(json.success).toBe(true);
-      expect(json.data.status).toBe("error");
+      const res = await post({ userId: B.subject });
+      expect(res.status).toBe(401);
+      expect(clerkGetUser).not.toHaveBeenCalled();
     });
 
-    it("[handler] without a userId in the body it does reject (control)", async () => {
+    it("[handler] a signed-in caller naming someone else still syncs only themself", async () => {
+      signInAs(A.subject);
+      clerkGetUser.mockClear();
+      const { currentUser } = await import("@clerk/nextjs/server");
+      const res = await post({ userId: B.subject });
+      expect(currentUser).toHaveBeenCalled();
+      expect(clerkGetUser).not.toHaveBeenCalled();
+      // The isolated stack runs no PostgREST, so the profile write fails; the
+      // handler now says so (500) instead of answering 200 with an inner error.
+      expect(res.status).toBe(500);
+      expect(await res.text()).not.toContain(B.subject!);
+    });
+
+    it("[handler] without a session or a body it rejects (control)", async () => {
       signInAs(null);
-      const res = await syncUserRoute.POST(new Request("http://localhost:3100/api/auth/sync-user", { method: "POST", body: "{}" }));
+      const res = await syncUserRoute.POST();
       expect(res.status).toBe(401);
     });
   });

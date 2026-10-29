@@ -4,50 +4,28 @@
  * This is a fallback for when webhooks aren't available (local dev without ngrok)
  * Uses shared user sync utilities to avoid duplication with webhook logic
  */
-import { auth, currentUser, clerkClient } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidateTag } from "next/cache";
-import { createOrUpdateUserProfile, recentlyVerifiedUsers, CACHE_TTL, cleanupCache } from "@/lib/user-sync-utils";
+import { createOrUpdateUserProfile } from "@/lib/user-sync-utils";
 import { ClerkUserData } from "@/types/models/clerkUserData";
 import { unauthorized, serverError, success } from "@/lib/api-errors";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 
-export async function POST(request: Request) {
+export async function POST() {
   try {
-    // Get the authenticated user from Clerk
+    // Identity comes only from the Clerk session (D01, R06). The proxy forwards
+    // the visitor's cookies; a userId in the body is never read.
     const { userId } = await auth();
-    
-    // If not authenticated via cookies, try to get userId from request body (for middleware calls)
-    let targetUserId: string = userId || "";
     if (!userId) {
-      const body = await request.json().catch(() => ({}));
-      targetUserId = body.userId || "";
-      
-      if (!targetUserId) {
-        return unauthorized();
-      }
+      return unauthorized();
     }
 
-    // User doesn't exist or cache expired - fetch from Clerk and sync
-    const targetEmail = userId 
-      ? (await currentUser())?.emailAddresses[0]?.emailAddress 
-      : (await (await clerkClient()).users.getUser(targetUserId))?.emailAddresses[0]?.emailAddress;
-    
-    console.log(`🔄 Syncing user ${targetUserId} (${targetEmail || 'no email'}) to database (client-side sync)`);
-    
-    // Fetch user data from Clerk - use clerkClient if called from middleware, currentUser if authenticated
-    let user;
-    if (userId) {
-      // Regular authenticated request - use currentUser()
-      user = await currentUser();
-    } else {
-      // Middleware request - use clerkClient to fetch by userId
-      const client = await clerkClient();
-      user = await client.users.getUser(targetUserId);
-    }
-    
+    const user = await currentUser();
     if (!user) {
       return serverError("Could not fetch user data from Clerk");
     }
+
+    console.log(`🔄 Syncing user ${userId} to database (client-side sync)`);
 
     // Convert Clerk's currentUser() format to ClerkUserData format
     const clerkUserData: ClerkUserData = {
@@ -64,13 +42,17 @@ export async function POST(request: Request) {
 
     // Use shared utility to create/update user
     const result = await createOrUpdateUserProfile(clerkUserData);
+    if (result.status === "error") {
+      return serverError("User sync failed");
+    }
 
     // Invalidate user profile cache after sync
     revalidateTag(CACHE_TAGS.USER_PROFILE, {});
 
-    console.log(`✅ User ${targetUserId} synced successfully (client-side): ${result.status}`);
-    
-    return success(result);
+    console.log(`✅ User ${userId} synced successfully (client-side): ${result.status}`);
+
+    // Status only: the profile row (email included) never goes back over HTTP.
+    return success({ status: result.status });
   } catch (error) {
     return serverError();
   }

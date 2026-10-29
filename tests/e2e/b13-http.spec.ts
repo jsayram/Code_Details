@@ -11,16 +11,13 @@ const A = set.personas.a;
 const listed = set.projects.find((p) => p.case === "listed")!;
 
 test.describe("B13 over HTTP, signed out", () => {
-  test("R06: sync-user accepts a signed-out body.userId and goes on to the Clerk lookup", async ({ request }) => {
-    // Control: no userId in the body is rejected.
+  // Was the B13 reproduction (a body userId got past the auth check). Fixed
+  // in D01: the handler ignores the body and answers 401 to anyone signed out.
+  test("R06 (fixed, D01): sync-user rejects a signed-out body.userId", async ({ request }) => {
     const empty = await request.post("/api/auth/sync-user", { data: {} });
     expect(empty.status()).toBe(401);
-
-    // With an attacker-chosen subject the handler passes its auth check and
-    // calls Clerk for that user. The isolation guard refuses the Clerk call,
-    // so the handler's catch-all answers 500 instead of 401.
     const chosen = await request.post("/api/auth/sync-user", { data: { userId: A.subject } });
-    expect(chosen.status()).toBe(500);
+    expect(chosen.status()).toBe(401);
   });
 
   // Was the B13 reproduction (email and subject in the HTML); fixed for

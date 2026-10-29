@@ -111,10 +111,9 @@ export default clerkMiddleware(async (auth, req) => {
   if (userId && !shouldSkipSync && shouldSyncUser(userId)) {
     fetch(`${req.nextUrl.origin}/api/auth/sync-user`, {
       method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId })
+      // The visitor's own session cookies: sync-user reads identity from
+      // them and ignores any body (D01, R06).
+      headers: { cookie: req.headers.get('cookie') ?? '' },
     }).catch(() => {
       // Silently fail - sync will happen on next request
     });
