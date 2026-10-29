@@ -5,7 +5,6 @@ import { requireAdmin } from "@/lib/admin-utils";
 import { getAllUsers, updateUserProfile, type UpdateProfileData, type SortOption, type TierFilter } from "@/db/operations/userManagementOperations";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
-import { MIN_USERNAME_LENGTH, MAX_USERNAME_LENGTH } from "@/constants/project-limits";
 
 /**
  * Fetch paginated users with optional search (Super Admin only)
@@ -57,16 +56,8 @@ export async function updateUserAction(
   // Require super admin access
   requireAdmin(userEmail);
 
-  // Validate updates
-  if (updates.username) {
-    const trimmedUsername = updates.username.trim();
-    if (trimmedUsername.length < MIN_USERNAME_LENGTH) {
-      throw new Error(`Username must be at least ${MIN_USERNAME_LENGTH} characters`);
-    }
-    if (trimmedUsername.length > MAX_USERNAME_LENGTH) {
-      throw new Error(`Username must be at most ${MAX_USERNAME_LENGTH} characters`);
-    }
-  }
+  // Usernames: the shared rules run inside updateUserProfile (D04b), and only
+  // when the name actually changes.
 
   if (updates.tier && !['free', 'pro', 'diamond'].includes(updates.tier)) {
     throw new Error("Invalid tier value");

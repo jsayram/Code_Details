@@ -1,9 +1,8 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
 import { executeQuery } from "@/db/server";
 import { profiles } from "@/db/schema/profiles";
 import { usernameHistory } from "@/db/schema/username-history";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { 
@@ -12,10 +11,15 @@ import {
   notOwner,
   validationError, 
   serverError,
-  success 
+  success,
+  conflict,
 } from "@/lib/api-errors";
 import { updateProfileSchema, formatZodErrors } from "@/types/schemas/profile";
-import { toPublicProfileRow } from "@/backend/profiles/public-profile";
+import { toPublicProfileRow, usernameKey } from "@/backend/profiles/public-profile";
+import { updateProfileOnConvex } from "@/backend/profiles/profile-update";
+import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { updateProfileRow } from "@/db/profile-write";
+import { routeViewer } from "@/lib/auth-server";
 import { convexPublicProfile } from "@/backend/profiles/read";
 
 // D04a (P08 R07): the public projection only (no email, tier, provider
@@ -97,25 +101,58 @@ export async function GET(
   }
 }
 
+// D04b (P08 R22): the owner edits their own profile. Identity comes from the
+// session (routeViewer), never from Clerk directly. A rename follows the
+// shared username rules and writes the history row in the same transaction
+// (src/db/profile-write.ts); under both development switches the edit goes to
+// the Convex profiles:updateMine mutation instead.
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ username: string }> }
 ) {
   try {
-    // 1. Authentication check
-    const { userId } = await auth();
-    if (!userId) {
+    const { username } = await context.params;
+
+    // 1. Authentication check. Under both switches the mutation learns the
+    // caller from the Better Auth session itself (a new account has no
+    // Clerk-era subject, so routeViewer would say signed out).
+    const toConvex = projectWritesToConvex();
+    const viewer = toConvex ? null : await routeViewer();
+    if (!toConvex && !viewer) {
       return unauthorized("You must be signed in to update a profile");
     }
 
-    const { username } = await context.params;
+    // 2. Parse and validate request body
+    const body = await request.json().catch(() => null);
+    const validation = updateProfileSchema.safeParse(body);
+    if (!validation.success) {
+      return validationError(
+        formatZodErrors(validation.error),
+        "Invalid profile data provided"
+      );
+    }
+    const validatedData = validation.data;
 
-    // 2. Check if the profile exists and user owns it
+    if (toConvex) {
+      const result = await updateProfileOnConvex(username, validatedData);
+      if (result.ok) {
+        revalidateTag(CACHE_TAGS.USER_PROFILE, {});
+        return success({ profile: result.profile });
+      }
+      if (result.code === "not_signed_in") return unauthorized("You must be signed in to update a profile");
+      if (result.code === "not_found") return notFound("profile", { identifier: username, identifierType: "username" });
+      if (result.code === "taken") return conflict("profile", "username");
+      return validationError([{ field: result.field, message: result.message }], result.message);
+    }
+
+    if (!viewer) return unauthorized("You must be signed in to update a profile");
+
+    // 3. Check the profile exists (case-insensitive) and the user owns it
     const existingProfile = await executeQuery(async (db) => {
       const result = await db
         .select()
         .from(profiles)
-        .where(eq(profiles.username, username))
+        .where(eq(sql`lower(${profiles.username})`, usernameKey(username)))
         .limit(1);
       return result[0] || null;
     });
@@ -127,53 +164,32 @@ export async function PUT(
       });
     }
 
-    // 3. Authorization check - user must own the profile
-    if (existingProfile.user_id !== userId) {
+    if (existingProfile.user_id !== viewer.userId) {
       return notOwner("profile", {
         resource: "profile",
         identifier: username,
         operation: "PUT",
-        userId,
       });
     }
 
-    // 4. Parse and validate request body
-    const body = await request.json();
-    const validation = updateProfileSchema.safeParse(body);
-    
-    if (!validation.success) {
-      return validationError(
-        formatZodErrors(validation.error),
-        "Invalid profile data provided"
-      );
-    }
-
-    const validatedData = validation.data;
-
-    // 5. Update the profile
-    const updatedProfile = await executeQuery(async (db) => {
-      const [result] = await db
-        .update(profiles)
-        .set({
-          ...(validatedData.username && { username: validatedData.username }),
-          ...(validatedData.email_address && { email_address: validatedData.email_address }),
-          ...(validatedData.profile_image_url !== undefined && { profile_image_url: validatedData.profile_image_url }),
-          ...(validatedData.full_name !== undefined && { full_name: validatedData.full_name }),
-          ...(validatedData.first_name !== undefined && { first_name: validatedData.first_name }),
-          ...(validatedData.last_name !== undefined && { last_name: validatedData.last_name }),
-          ...(validatedData.bio !== undefined && { bio: validatedData.bio }),
-          updated_at: new Date(),
-        })
-        .where(eq(profiles.username, username))
-        .returning();
-
-return result;
+    // 4. Update the profile (the columns that exist; first/last name and bio
+    // have no column and were never stored)
+    const result = await updateProfileRow({ userId: viewer.userId }, {
+      ...(validatedData.username !== undefined && { username: validatedData.username }),
+      ...(validatedData.email_address && { email_address: validatedData.email_address }),
+      ...(validatedData.profile_image_url !== undefined && { profile_image_url: validatedData.profile_image_url }),
+      ...(validatedData.full_name !== undefined && { full_name: validatedData.full_name }),
     });
+    if (!result.ok) {
+      if (result.code === "not_found") return notFound("profile", { identifier: username, identifierType: "username" });
+      if (result.code === "taken") return conflict("profile", "username");
+      return validationError([{ field: "username", message: result.message }], result.message);
+    }
 
     // Invalidate user profile cache after update
     revalidateTag(CACHE_TAGS.USER_PROFILE, {});
 
-    return success({ profile: updatedProfile });
+    return success({ profile: toPublicProfileRow(result.profile) });
   } catch (error) {
     console.error("Error updating profile:");
     return serverError(error, "Failed to update profile");

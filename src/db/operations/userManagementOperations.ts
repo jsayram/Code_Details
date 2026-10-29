@@ -1,6 +1,7 @@
 import { executeQuery } from "../server";
 import { eq, sql, or, ilike, desc, SQL } from "drizzle-orm";
 import { profiles } from "../schema/profiles";
+import { updateProfileRow } from "../profile-write";
 import { DEFAULT_PAGE, DEFAULT_USERS_PER_PAGE } from "@/constants/project-limits";
 
 // Type for profile update payload with SQL timestamp
@@ -142,6 +143,18 @@ export async function updateUserProfile(
   profileId: string,
   updates: UpdateProfileData
 ): Promise<UserProfile> {
+  // D04b (P08 R22): a rename follows the username rules and writes the
+  // history row in the same transaction, like the owner's own edit.
+  if (updates.username !== undefined) {
+    const result = await updateProfileRow({ profileId }, updates);
+    if (!result.ok) throw new Error(result.code === "not_found" ? "User profile not found" : result.message);
+    const { id, user_id, username, full_name, email_address, tier, profile_image_url, created_at, updated_at } = result.profile;
+    return {
+      id, user_id, username, full_name, email_address, tier, profile_image_url,
+      created_at: created_at ? new Date(created_at) : null,
+      updated_at: updated_at ? new Date(updated_at) : null,
+    };
+  }
   return executeQuery(async (db) => {
     const updateData: ProfileUpdatePayload = {
       ...updates,

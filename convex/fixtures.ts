@@ -542,3 +542,32 @@ export const addUsernameClaim = internalMutation({
     });
   },
 });
+
+// D04b: what a profile edit wrote, for the profile tests: the profile, every
+// username claim of its user, and its audit and outbox rows.
+export const profileWriteState = internalQuery({
+  args: { userUsernameKey: v.string() },
+  handler: async (ctx, { userUsernameKey }) => {
+    assertFixturesAllowed();
+    const profile = await ctx.db
+      .query("profiles")
+      .withIndex("by_usernameKey", (q) => q.eq("usernameKey", userUsernameKey))
+      .first();
+    if (!profile) return null;
+    const usernames = await ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", profile.userId)).collect();
+    const audit = await ctx.db
+      .query("auditEvents")
+      .withIndex("by_subject", (q) => q.eq("subjectTable", "profiles").eq("subjectId", profile._id))
+      .collect();
+    const outbox = await ctx.db
+      .query("contentChanges")
+      .withIndex("by_entity", (q) => q.eq("entityType", "profile").eq("entityId", profile._id))
+      .collect();
+    return {
+      profile: { username: profile.username, usernameKey: profile.usernameKey, fullName: profile.fullName ?? null, avatar: profile.avatar ?? null },
+      usernames: usernames.map((u) => ({ usernameKey: u.usernameKey, state: u.state, reservedUntil: u.reservedUntil ?? null })),
+      audit: audit.map((a) => ({ kind: a.kind, actorId: a.actorId ?? null, details: a.details ?? null })),
+      outbox: outbox.map((o) => ({ change: o.change })),
+    };
+  },
+});
