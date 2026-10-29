@@ -10,6 +10,7 @@ import { Github } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useId, useState, type FormEvent, type ReactNode } from "react";
+import { useHydrated } from "@/components/auth/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -36,20 +37,25 @@ function Field({ label, ...props }: { label: string } & React.ComponentProps<typ
   );
 }
 
-function Form({ onSubmit, children }: { onSubmit: () => Promise<void>; children: ReactNode }) {
+// f7 (D08g3a): the fields are uncontrolled, so whatever the browser already
+// holds when React hydrates (typed early, or autofilled) stays; values are read
+// from the form on submit. The submit button stays disabled until hydration,
+// so a form can't be sent natively (with a password) before its handler exists.
+function Form({ onSubmit, children }: { onSubmit: (data: FormData) => Promise<void>; children: ReactNode }) {
   const [pending, setPending] = useState(false);
-  const submit = async (e: FormEvent) => {
+  const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (pending) return;
+    const data = new FormData(e.currentTarget); // before the fieldset disables the fields
     setPending(true);
     try {
-      await onSubmit();
+      await onSubmit(data);
     } finally {
       setPending(false);
     }
   };
   return (
-    <form onSubmit={submit} className="grid gap-5" aria-busy={pending}>
+    <form method="post" onSubmit={submit} className="grid gap-5" aria-busy={pending}>
       <fieldset disabled={pending} className="grid gap-5">
         {children}
       </fieldset>
@@ -57,24 +63,35 @@ function Form({ onSubmit, children }: { onSubmit: () => Promise<void>; children:
   );
 }
 
+function SubmitButton({ children }: { children: ReactNode }) {
+  const hydrated = useHydrated();
+  return (
+    <Button type="submit" disabled={!hydrated} className={PRIMARY_BUTTON}>
+      {children}
+    </Button>
+  );
+}
+
+const text = (data: FormData, name: string) => String(data.get(name) ?? "");
+
 /** "Send a new link" for an address the user typed; the same answer whether or not it has an account. */
 function NewLinkForm({ kind, initialEmail = "" }: { kind: "verify" | "reset"; initialEmail?: string }) {
-  const [email, setEmail] = useState(initialEmail);
   const [message, setMessage] = useState<Message>(null);
   return (
     <>
       <Form
-        onSubmit={async () => {
+        onSubmit={async (data) => {
+          const email = text(data, "email");
           const res = kind === "verify" ? await sendVerificationLink(email) : await authPost("/request-password-reset", { email, redirectTo: RESET_PATH });
           if (res.status === 429) return setMessage({ tone: "error", text: TOO_MANY });
           if (res.status === 0) return setMessage({ tone: "error", text: UNREACHABLE });
           setMessage({ tone: "success", text: "If that email needs a link, we've sent a new one. It works once, for an hour." });
         }}
       >
-        <Field label="Email address" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Button type="submit" className={PRIMARY_BUTTON}>
+        <Field label="Email address" name="email" type="email" autoComplete="email" defaultValue={initialEmail} />
+        <SubmitButton>
           Send a new link
-        </Button>
+        </SubmitButton>
       </Form>
       {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
     </>
@@ -138,7 +155,6 @@ function SignInScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<Message>(params.get("verified") === "1" ? { tone: "success", text: "Email confirmed. Sign in to continue." } : null);
   const [unverified, setUnverified] = useState(false);
 
@@ -161,9 +177,11 @@ function SignInScreen() {
     >
       <GitHubSignIn callbackURL={safeRedirect(params.get("redirect_url"))} />
       <Form
-        onSubmit={async () => {
+        onSubmit={async (data) => {
           setUnverified(false);
-          const res = await authPost("/sign-in/email", { email, password });
+          const email = text(data, "email");
+          setEmail(email);
+          const res = await authPost("/sign-in/email", { email, password: text(data, "password") });
           if (res.status === 200) {
             await refreshSession();
             router.push(safeRedirect(params.get("redirect_url")));
@@ -179,16 +197,16 @@ function SignInScreen() {
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't sign you in. Please try again." });
         }}
       >
-        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
+        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" name="email" />
         <div className="grid gap-2">
-          <Field label="Password" type="password" autoComplete="current-password" placeholder="Enter your password" value={password} onChange={(e) => setPassword(e.target.value)} />
+          <Field label="Password" type="password" autoComplete="current-password" placeholder="Enter your password" name="password" />
           <Link href={RESET_PATH} className={`${LINK} justify-self-end text-xs`}>
             Forgot password?
           </Link>
         </div>
-        <Button type="submit" className={PRIMARY_BUTTON}>
+        <SubmitButton>
           Continue
-        </Button>
+        </SubmitButton>
       </Form>
       {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
       {unverified ? (
@@ -202,9 +220,6 @@ function SignInScreen() {
 
 function SignUpScreen() {
   const params = useSearchParams();
-  const [name, setName] = useState("");
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [message, setMessage] = useState<Message>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
 
@@ -232,7 +247,8 @@ function SignUpScreen() {
     >
       <GitHubSignIn callbackURL={safeRedirect(params.get("redirect_url"))} />
       <Form
-        onSubmit={async () => {
+        onSubmit={async (data) => {
+          const [name, email, password] = [text(data, "name"), text(data, "email"), text(data, "password")];
           if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
           const res = await authPost("/sign-up/email", { name, email, password, callbackURL: VERIFIED_CALLBACK });
           // Better Auth answers 200 for an address that already has an account too.
@@ -244,12 +260,12 @@ function SignUpScreen() {
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't create your account. Please try again." });
         }}
       >
-        <Field label="Name" autoComplete="name" placeholder="Your name" value={name} onChange={(e) => setName(e.target.value)} />
-        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" value={email} onChange={(e) => setEmail(e.target.value)} />
-        <Field label="Password" type="password" autoComplete="new-password" placeholder="At least 8 characters" minLength={MIN_PASSWORD} value={password} onChange={(e) => setPassword(e.target.value)} />
-        <Button type="submit" className={PRIMARY_BUTTON}>
+        <Field label="Name" name="name" autoComplete="name" placeholder="Your name" />
+        <Field label="Email address" name="email" type="email" autoComplete="email" placeholder="Enter your email address" />
+        <Field label="Password" name="password" type="password" autoComplete="new-password" placeholder="At least 8 characters" minLength={MIN_PASSWORD} />
+        <SubmitButton>
           Continue
-        </Button>
+        </SubmitButton>
       </Form>
       {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
     </AuthCard>
@@ -259,8 +275,6 @@ function SignUpScreen() {
 function ResetScreen() {
   const params = useSearchParams();
   const token = params.get("token");
-  const [password, setPassword] = useState("");
-  const [confirm, setConfirm] = useState("");
   const [message, setMessage] = useState<Message>(null);
   const [done, setDone] = useState(false);
   const [badToken, setBadToken] = useState(false);
@@ -288,7 +302,8 @@ function ResetScreen() {
   return (
     <AuthCard title="Choose a new password" footer={<BackToSignIn />}>
       <Form
-        onSubmit={async () => {
+        onSubmit={async (data) => {
+          const [password, confirm] = [text(data, "password"), text(data, "confirm")];
           if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
           if (password !== confirm) return setMessage({ tone: "error", text: "The passwords don't match." });
           const res = await authPost("/reset-password", { newPassword: password, token });
@@ -298,11 +313,11 @@ function ResetScreen() {
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't change your password. Please try again." });
         }}
       >
-        <Field label="New password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} value={password} onChange={(e) => setPassword(e.target.value)} />
-        <Field label="Confirm new password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} value={confirm} onChange={(e) => setConfirm(e.target.value)} />
-        <Button type="submit" className={PRIMARY_BUTTON}>
+        <Field label="New password" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} />
+        <Field label="Confirm new password" name="confirm" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} />
+        <SubmitButton>
           Change password
-        </Button>
+        </SubmitButton>
       </Form>
       {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
     </AuthCard>
@@ -396,9 +411,9 @@ export function HandoverScreen() {
               setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't link these. Please try again." });
             }}
           >
-            <Button type="submit" className={PRIMARY_BUTTON}>
+            <SubmitButton>
               Link my account
-            </Button>
+            </SubmitButton>
           </Form>
         </div>
       ) : null}
