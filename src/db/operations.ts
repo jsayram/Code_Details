@@ -1,5 +1,8 @@
-"use server";
-
+// D03 (P08 R03): no longer a "use server" module. Next exposed every export
+// here as a callable server action: favorites written for any profile with no
+// identity check (addProjectFavorite, removeProjectFavorite) and project lists
+// carrying owner emails (getRecentProjects, getProjectsByTag) for anyone. Only
+// src/app/actions/projects.ts imports this file (getProfileByUserId).
 import { executeQuery } from "./server";
 import {
   projects,
@@ -19,8 +22,8 @@ import { ProjectCategory } from "@/constants/project-categories";
  * These functions should only be used in server components or API routes
  */
 
-// addProject was removed (D03, P08 R03): an unused export of this "use
-// server" file that inserted any row for any caller. Creation goes through
+// addProject was removed (D03, P08 R03): an unused export that, while this
+// was a "use server" file, inserted any row for any caller. Creation goes through
 // createProject in src/app/actions/projects.ts.
 
 /**

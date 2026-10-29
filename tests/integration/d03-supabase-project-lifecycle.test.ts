@@ -136,6 +136,12 @@ describe.skipIf(!testDbAvailable())("D03-a Supabase project lifecycle", () => {
       expect(dbActions.createProjectServer).toBeUndefined();
       expect(operations.addProject).toBeUndefined();
     });
+
+    it("R03 denial: src/db/operations.ts is no longer a \"use server\" module (its favorite writes and email-carrying lists aren't callable)", async () => {
+      const { readFileSync } = await import("node:fs");
+      const source = readFileSync(`${process.cwd()}/src/db/operations.ts`, "utf8");
+      expect(source).not.toMatch(/^\s*["']use server["']/m);
+    });
   });
 
   describe("soft delete", () => {
