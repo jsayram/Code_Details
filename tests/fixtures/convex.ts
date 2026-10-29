@@ -68,7 +68,15 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
     avatarUrl: opt(p.profile!.imageUrl),
     createdAt: ms(p.profile!.createdAt),
   }));
-  const tags = set.tags.map((t) => ({ key: t.id, name: t.name, nameKey: sortKey(t.name), createdAt: ms("2026-01-01T00:00:00.000Z") }));
+  // D00a: tags.listedProjectCount (P07 §3.7) counts the listed projects carrying the tag.
+  const isListed = (p: FixtureSet["projects"][number]) => !p.purged && !p.deletedAt && p.visibility === "public";
+  const tags = set.tags.map((t) => ({
+    key: t.id,
+    name: t.name,
+    nameKey: sortKey(t.name),
+    listedProjectCount: set.projects.filter((p) => isListed(p) && p.tagIds.includes(t.id)).length,
+    createdAt: ms("2026-01-01T00:00:00.000Z"),
+  }));
   const favorites = (projectId: string) => set.favorites.filter((f) => f.projectId === projectId);
   const projects = set.projects.filter((p) => !p.purged).map((p, i) => ({
     ownerKey: p.ownerKey,
