@@ -27,6 +27,9 @@ export const clear = internalMutation({
       for (const doc of docs) await ctx.db.delete(doc._id);
       removed[table] = docs.length;
     }
+    // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
+    // stays out of TABLES (and of counts/snapshot) and is just emptied here.
+    for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
     // D08a: Better Auth's own tables, so no auth user outlives its app account.
     // The signing keys (jwks) stay; they belong to the deployment.
     for (const model of AUTH_MODELS) {
@@ -233,5 +236,38 @@ export const setAccountStatus = internalMutation({
       .unique();
     if (!user) throw new Error("no account for that auth user");
     await ctx.db.patch(user._id, status === "deleting" ? { status, deletionRequestedAt: Date.now() } : { status });
+  },
+});
+
+/**
+ * D08c: turns a normal sign-up into a half-finished one, as if the
+ * credential and session writes after the auth user's insert had failed.
+ */
+export const stripCredentials = internalMutation({
+  args: { authUserId: v.string() },
+  handler: async (ctx, { authUserId }) => {
+    assertFixturesAllowed();
+    for (const model of ["account", "session"] as const) {
+      await ctx.runMutation(components.betterAuth.adapter.deleteMany, {
+        input: { model, where: [{ field: "userId", value: authUserId }] },
+        paginationOpts: { cursor: null, numItems: 100 },
+      });
+    }
+  },
+});
+
+/** D08c: the profile and username claims behind a Better Auth user. */
+export const accountRows = internalQuery({
+  args: { authUserId: v.string() },
+  handler: async (ctx, { authUserId }) => {
+    assertFixturesAllowed();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authUserId", (q) => q.eq("authUserId", authUserId))
+      .unique();
+    if (!user) return null;
+    const profiles = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect();
+    const usernames = await ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", user._id)).collect();
+    return { userId: user._id as string, profiles, usernames };
   },
 });

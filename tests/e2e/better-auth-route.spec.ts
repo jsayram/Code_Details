@@ -9,7 +9,8 @@ import { SYNTHETIC_PASSWORD, expireSession, syntheticEmail } from "../fixtures/b
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
-const NEW_ACCOUNT = { username: null, role: "user", tier: "free" };
+// D08c: a new account has a generated handle.
+const NEW_ACCOUNT = { username: expect.stringMatching(/^user-[0-9a-z]{6}$/), role: "user", tier: "free" };
 
 /** One browser's worth of cookies, sending the app origin like a same-site fetch. */
 async function browserLike(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, origin = BASE_URL) {
@@ -93,6 +94,24 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
     expect(ms(refreshed.session.expiresAt)).toBeGreaterThan(soon + 24 * 60 * 60 * 1000);
     expect(setCookies(res).some((c) => c.startsWith("better-auth.session_token="))).toBe(true);
     expect(await viewer(ctx)).toEqual(NEW_ACCOUNT);
+    await ctx.dispose();
+  });
+
+  test("D08c: switching accounts in one browser through the app origin", async ({ playwright }) => {
+    const [a, b] = [syntheticEmail("next-switch-a"), syntheticEmail("next-switch-b")];
+    for (const email of [a, b]) {
+      const ctx = await browserLike(playwright);
+      expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+      await ctx.dispose();
+    }
+    const ctx = await browserLike(playwright);
+    expect((await ctx.post("/api/auth/sign-in/email", { data: { email: a, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+    const asA = (await viewer(ctx)) as { username: string };
+    expect((await ctx.post("/api/auth/sign-out", { data: {} })).status()).toBe(200);
+    expect((await ctx.post("/api/auth/sign-in/email", { data: { email: b, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+    const asB = (await viewer(ctx)) as { username: string };
+    expect(asB).toEqual(NEW_ACCOUNT);
+    expect(asB.username).not.toBe(asA.username);
     await ctx.dispose();
   });
 

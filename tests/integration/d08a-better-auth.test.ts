@@ -32,7 +32,8 @@ import {
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
 
 const whoami = makeFunctionReference<"query">("identity:whoami");
-const NEW_ACCOUNT = { username: null, role: "user", tier: "free" };
+// D08c: a new account has a generated handle.
+const NEW_ACCOUNT = { username: expect.stringMatching(/^user-[0-9a-z]{6}$/), role: "user", tier: "free" };
 
 async function signedUp(label: string) {
   const email = syntheticEmail(label);
@@ -67,12 +68,13 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08a Better Auth 
       expect(state.links).toEqual([expect.objectContaining({ userId: state.users[0]._id, provider: "better-auth", subject: state.authUserId })]);
     });
 
-    it("copies no email or name into any app table (P07 §5.5)", async () => {
+    it("copies no email into any app table (P07 §5.5)", async () => {
+      // The provider name is seeded into profiles.fullName once (D08c, §5.4);
+      // the address never is.
       const { email } = await signedUp("noemail");
       const text = await appTablesText();
       expect(text).not.toContain(email);
       expect(text).not.toContain("@synthetic.invalid");
-      expect(text).not.toContain("Synthetic Person");
     });
 
     it("refuses a second sign-up with the same email and keeps one account", async () => {

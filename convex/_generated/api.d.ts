@@ -8,7 +8,10 @@
  * @module
  */
 
+import type * as accountRules from "../accountRules.js";
+import type * as accounts from "../accounts.js";
 import type * as auth from "../auth.js";
+import type * as crons from "../crons.js";
 import type * as fixtures from "../fixtures.js";
 import type * as http from "../http.js";
 import type * as identity from "../identity.js";
@@ -24,7 +27,10 @@ import type {
 } from "convex/server";
 
 declare const fullApi: ApiFromModules<{
+  accountRules: typeof accountRules;
+  accounts: typeof accounts;
   auth: typeof auth;
+  crons: typeof crons;
   fixtures: typeof fixtures;
   http: typeof http;
   identity: typeof identity;

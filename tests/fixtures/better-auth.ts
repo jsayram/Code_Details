@@ -55,8 +55,8 @@ export async function authFetch(
   return { status: res.status, body: parsed, setCookies: res.headers.getSetCookie(), jar: absorb(new Map(jar), res) };
 }
 
-export const signUp = (email: string, password: string, name = "Synthetic Person") =>
-  authFetch("/sign-up/email", { body: { email, password, name } });
+export const signUp = (email: string, password: string, name = "Synthetic Person", extra: { image?: string } = {}) =>
+  authFetch("/sign-up/email", { body: { email, password, name, ...extra } });
 export const signIn = (email: string, password: string, jar: Jar = new Map()) =>
   authFetch("/sign-in/email", { body: { email, password }, jar });
 export const signOut = (jar: Jar) => authFetch("/sign-out", { body: {}, jar });
@@ -87,6 +87,9 @@ const ref = {
   appTablesText: makeFunctionReference<"query">("fixtures:appTablesText"),
   expireSession: makeFunctionReference<"mutation", { sessionId: string; expiresAt?: number }>("fixtures:expireSession"),
   setAccountStatus: makeFunctionReference<"mutation", { authUserId: string; status: "active" | "deleting" }>("fixtures:setAccountStatus"),
+  stripCredentials: makeFunctionReference<"mutation", { authUserId: string }>("fixtures:stripCredentials"),
+  accountRows: makeFunctionReference<"query", { authUserId: string }>("fixtures:accountRows"),
+  repair: makeFunctionReference<"mutation", { createdBefore?: number; createdAfter?: number }>("accounts:repairHalfFinishedSignUps"),
 };
 
 export interface AuthState {
@@ -102,3 +105,14 @@ export const expireSession = (sessionId: string, expiresAt?: number) =>
   adminClient().mutation(ref.expireSession, expiresAt === undefined ? { sessionId } : { sessionId, expiresAt });
 export const setAccountStatus = (authUserId: string, status: "active" | "deleting") =>
   adminClient().mutation(ref.setAccountStatus, { authUserId, status });
+
+export interface AccountRows {
+  userId: string;
+  profiles: { username: string; usernameKey: string; fullName?: string; firstName?: string; lastName?: string; avatar?: { kind: string; url?: string } }[];
+  usernames: { usernameKey: string; state: string }[];
+}
+
+export const stripCredentials = (authUserId: string) => adminClient().mutation(ref.stripCredentials, { authUserId });
+export const accountRows = (authUserId: string): Promise<AccountRows | null> => adminClient().query(ref.accountRows, { authUserId });
+export const repairHalfFinishedSignUps = (args: { createdBefore?: number; createdAfter?: number }): Promise<{ removed: number; kept: number }> =>
+  adminClient().mutation(ref.repair, args);

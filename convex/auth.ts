@@ -17,6 +17,7 @@ import { convex } from "@convex-dev/better-auth/plugins";
 import { betterAuth } from "better-auth/minimal";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
+import { createAccountRows } from "./accounts";
 import authConfig from "./auth.config";
 
 // Typed explicitly: internal.auth's type is derived from this module, which
@@ -28,25 +29,13 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
   triggers: {
     user: {
       // Runs in the same transaction as the component's insert of the auth
-      // user, so the app account and its link exist as soon as the auth user
-      // does. A new auth user is always a new account: nothing here looks for
-      // an existing one by email (P07 §3.2). Linking Clerk-era accounts is
-      // D08d. The profile row (handle, seeded name/avatar) arrives with D08c.
+      // user, so the app account, its link, profile and handle exist as soon
+      // as the auth user does (convex/accounts.ts, D08c). A new auth user is
+      // always a new account: nothing here looks for an existing one by email
+      // (P07 §3.2). Linking Clerk-era accounts is D08d. There is deliberately
+      // no onUpdate: provider name/avatar changes never reach the profile.
       onCreate: async (ctx, authUser) => {
-        const existing = await ctx.db
-          .query("authLinks")
-          .withIndex("by_provider_subject", (q) => q.eq("provider", "better-auth").eq("subject", authUser._id))
-          .unique();
-        if (existing) return;
-        const now = Date.now();
-        const userId = await ctx.db.insert("users", {
-          authUserId: authUser._id,
-          role: "user",
-          tier: "free",
-          status: "active",
-          createdAt: now,
-        });
-        await ctx.db.insert("authLinks", { userId, provider: "better-auth", subject: authUser._id, linkedAt: now });
+        await createAccountRows(ctx, authUser);
       },
       // Deleting an auth user leaves the app account in place; the account
       // lifecycle (14-day grace, purge, removing links) is D04d. Without a
