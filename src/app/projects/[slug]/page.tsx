@@ -5,7 +5,7 @@ import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
 import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectContent";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
 import { auth } from "@clerk/nextjs/server";
 import { LogIn } from "lucide-react";
@@ -20,6 +20,7 @@ import { cookies } from "next/headers";
 import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import { getProjectForViewer } from "@/backend/projects/viewer-read";
+import { currentSlugFor, ownProjectForEdit } from "@/backend/projects/owner-edit";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -44,10 +45,13 @@ export default async function ProjectPage({
   let project: SelectProjectWithOwner | null;
   let user: SelectUserWithProject | null;
   if (!userId) {
-    const publicProject = await getProjectReadBackend().getPublicProjectBySlug(resolvedParams.slug);
-    ({ project, userProfile: user } = publicProject
-      ? toProjectContentProps(publicProject)
-      : { project: null, userProfile: null });
+    // D02: under both development switches a Better Auth owner gets their
+    // own project with the version the save needs; everyone else, and every
+    // other mode, gets the public projection as before.
+    const own = await ownProjectForEdit(resolvedParams.slug);
+    const publicProject = own ? null : await getProjectReadBackend().getPublicProjectBySlug(resolvedParams.slug);
+    ({ project, userProfile: user } = own
+      ?? (publicProject ? toProjectContentProps(publicProject) : { project: null, userProfile: null }));
   } else {
     const read = await getProjectForViewer(resolvedParams.slug);
     project = read?.project ?? null;
@@ -57,6 +61,9 @@ export default async function ProjectPage({
   const token = cookieStore.get("__supabase_auth_token")?.value || null;
 
   if (!project) {
+    // D02 (P08 R28): an old slug redirects to the current one (Convex read only).
+    const moved = await currentSlugFor(resolvedParams.slug);
+    if (moved) redirect(`/projects/${moved}`);
     notFound();
   }
 

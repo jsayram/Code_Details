@@ -34,7 +34,7 @@ import { SelectProject } from "@/db/schema/projects";
 import { validateUrlFormat } from "@/lib/url-validation";
 import { toast } from "sonner";
 import { useUser, useAuth } from "@clerk/nextjs";
-import { SignedOut } from "@/components/auth/AuthGate";
+import { SignedOut, useViewerId } from "@/components/auth/AuthGate";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createProject, updateProject } from "@/app/actions/projects";
@@ -152,9 +152,13 @@ export function ProjectContent({
   const projectIdRef = useRef<string | null>(null);
 
   // Derived state with proper memoization
+  // D02: the session's user ID. With Clerk it is exactly useAuth's userId;
+  // under the Better Auth switch it is the Better Auth session's, which the
+  // Convex owner view puts in userProfile.user_id.
+  const viewerId = useViewerId();
   const isOwner = useMemo(() => {
-    return !!userId && !!userProfile?.user_id && userId === userProfile.user_id;
-  }, [userId, userProfile?.user_id]);
+    return !!viewerId && !!userProfile?.user_id && viewerId === userProfile.user_id;
+  }, [viewerId, userProfile?.user_id]);
 
   // Handle edit mode with useMemo to prevent unnecessary re-renders
   const isEditMode = useMemo(() => {
@@ -552,7 +556,7 @@ export function ProjectContent({
   const handleSaveChanges = async () => {
     setIsUpdating(true);
     try {
-      if (!userId) throw new Error("You must be logged in to update a project");
+      if (!viewerId) throw new Error("You must be logged in to update a project");
 
       // Re-validate all URLs before saving (in case state changed)
       const hasInvalidUrls = formData.url_links.some(link => {
@@ -614,7 +618,7 @@ export function ProjectContent({
 
       if (create) {
         // Create new project
-        result = await createProject(projectData, userId);
+        result = await createProject(projectData, userId ?? "");
         if (result.success) {
           toast.success("Project created successfully!");
           // Navigate to the new project if we have a slug
@@ -629,7 +633,13 @@ export function ProjectContent({
       } else {
         // Update existing project
         if (!project?.id) throw new Error("Project ID is missing");
-        result = await updateProject(project.id, projectData, userId);
+        // D02: the Convex owner view carries the version the edit started from.
+        const contentVersion = (project as { content_version?: number }).content_version;
+        result = await updateProject(
+          project.id,
+          contentVersion === undefined ? projectData : { ...projectData, content_version: contentVersion },
+          userId
+        );
         if (result.success) {
           toast.success("Project updated successfully!");
           
