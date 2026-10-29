@@ -31,15 +31,29 @@ export const test = base.extend<{ blocked: Blocked[]; hydrationErrors: string[] 
   hydrationErrors: [
     async ({ context }, use, testInfo) => {
       const errors: string[] = [];
+      // FLAKE-HYD-HOME: the whole message too (React lists the differing
+      // element as +/- lines below the first), attached to the test and printed
+      // to the run's log, so a rare mismatch can be read after the fact.
+      const full: string[] = [];
       context.on("console", (m) => {
-        if (m.type() === "error" && HYDRATION_ERROR.test(m.text())) errors.push(m.text().split("\n")[0]);
+        if (m.type() === "error" && HYDRATION_ERROR.test(m.text())) {
+          errors.push(m.text().split("\n")[0]);
+          full.push(`[console.error on ${m.location().url}]\n${m.text()}`);
+        }
       });
       context.on("weberror", (e) => {
         const message = e.error().message;
-        if (HYDRATION_ERROR.test(message)) errors.push(message.split("\n")[0]);
+        if (HYDRATION_ERROR.test(message)) {
+          errors.push(message.split("\n")[0]);
+          full.push(`[page error on ${e.page()?.url() ?? "?"}]\n${e.error().stack ?? message}`);
+        }
       });
       await use(errors);
-      if (errors.length) testInfo.annotations.push({ type: "hydration-errors", description: errors.join(" | ") });
+      if (errors.length) {
+        testInfo.annotations.push({ type: "hydration-errors", description: errors.join(" | ") });
+        await testInfo.attach("hydration-errors.txt", { body: full.join("\n\n"), contentType: "text/plain" });
+        console.log(`HYDRATION-ERROR-FULL ${testInfo.titlePath.join(" > ")}\n${full.join("\n\n")}\nHYDRATION-ERROR-END`);
+      }
       expect(errors, "the page logged a hydration error").toEqual([]);
     },
     { auto: true },
