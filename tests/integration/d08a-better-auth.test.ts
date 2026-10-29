@@ -26,6 +26,7 @@ import {
   signIn,
   signOut,
   signUp,
+  signUpRaw,
   syntheticEmail,
   type Jar,
 } from "../fixtures/better-auth";
@@ -77,10 +78,13 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08a Better Auth 
       expect(text).not.toContain("@synthetic.invalid");
     });
 
-    it("refuses a second sign-up with the same email and keeps one account", async () => {
+    it("a second sign-up with the same email creates nothing and starts no session", async () => {
+      // D08e: with verification required, Better Auth answers a repeat sign-up
+      // like a new one (so it doesn't reveal which addresses exist), but
+      // creates no user and no session.
       const { email, state } = await signedUp("twice");
-      const again = await signUp(email, SYNTHETIC_PASSWORD);
-      expect(again.status).toBeGreaterThanOrEqual(400);
+      const again = await signUpRaw(email, SYNTHETIC_PASSWORD);
+      expect(again.jar.has("better-auth.session_token")).toBe(false);
       const after = (await authState(email))!;
       expect(after.authUserId).toBe(state.authUserId);
       expect(after.users).toHaveLength(1);

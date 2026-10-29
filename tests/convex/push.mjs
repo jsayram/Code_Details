@@ -104,6 +104,14 @@ if (target === "test") {
     // D08d: the Next.js server <-> Convex handover secret, a throwaway like the
     // one above; playwright.config.ts gives the test server the same value.
     ["CODEDETAILS_HANDOVER_SECRET", handoverSecret()],
+    // D08e: verification required, as in production; auth emails go to the
+    // fake receiver the D08e tests run on 127.0.0.1:3299 (nothing listens
+    // otherwise, and sending just logs). GitHub gets synthetic values so the
+    // provider is registered; they can never complete a real login.
+    ["CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION", "1"],
+    ["CODEDETAILS_EMAIL_HTTP_URL", "http://127.0.0.1:3299/api/v1/send"],
+    ["GITHUB_CLIENT_ID", "SYNTHETIC-github-client-id"],
+    ["GITHUB_CLIENT_SECRET", "SYNTHETIC-github-client-secret"],
   );
 }
 let res = { status: 0 };

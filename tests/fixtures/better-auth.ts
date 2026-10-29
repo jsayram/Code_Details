@@ -30,21 +30,39 @@ const cookieHeader = (jar: Jar) => [...jar].map(([k, v]) => `${k}=${v}`).join(";
 
 export interface AuthCall {
   status: number;
+  /** The Location header of a redirect, if any. */
+  location?: string;
   body: unknown;
   setCookies: string[];
   jar: Jar;
 }
 
 /** One call to a Better Auth endpoint; cookies in `jar` go along and come back updated. */
+/**
+ * D08e: a client IP for the rate limiter. Without one every request would
+ * share a single bucket, so each call gets its own address from the
+ * documentation range (2001:db8::/32) unless a test pins one.
+ */
+let ipCounter = 0;
+export const freshClientIp = () => `2001:db8:d08e:${(Date.now() % 0xffff).toString(16)}::${(++ipCounter).toString(16)}`;
+
 export async function authFetch(
   route: string,
-  { method = "POST", body, jar = new Map(), origin = SITE_ORIGIN }: { method?: string; body?: unknown; jar?: Jar; origin?: string | null } = {},
+  {
+    method = "POST",
+    body,
+    jar = new Map(),
+    origin = SITE_ORIGIN,
+    ip = freshClientIp(),
+  }: { method?: string; body?: unknown; jar?: Jar; origin?: string | null; ip?: string } = {},
 ): Promise<AuthCall> {
-  const headers: Record<string, string> = {};
+  const headers: Record<string, string> = { "x-forwarded-for": ip };
   if (origin) headers.origin = origin;
   if (jar.size) headers.cookie = cookieHeader(jar);
   if (body !== undefined) headers["content-type"] = "application/json";
-  const res = await fetch(`${AUTH}${route}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
+  // Never follow redirects: a verify or callback link answers with one, and
+  // the test wants to see it (and its cookies), not the page it points to.
+  const res = await fetch(`${AUTH}${route}`, { method, headers, body: body === undefined ? undefined : JSON.stringify(body), redirect: "manual" });
   const text = await res.text();
   let parsed: unknown = text;
   try {
@@ -52,11 +70,32 @@ export async function authFetch(
   } catch {
     // keep the text
   }
-  return { status: res.status, body: parsed, setCookies: res.headers.getSetCookie(), jar: absorb(new Map(jar), res) };
+  return {
+    status: res.status,
+    location: res.headers.get("location") ?? undefined,
+    body: parsed,
+    setCookies: res.headers.getSetCookie(),
+    jar: absorb(new Map(jar), res),
+  };
 }
 
-export const signUp = (email: string, password: string, name = "Synthetic Person", extra: { image?: string } = {}) =>
+/** The bare sign-up call. With verification required (D08e) it starts no session. */
+export const signUpRaw = (email: string, password: string, name = "Synthetic Person", extra: { image?: string } = {}) =>
   authFetch("/sign-up/email", { body: { email, password, name, ...extra } });
+
+/**
+ * A synthetic user who signed up, verified the address and signed in, which
+ * is what the D08a–d tests mean by "signed up". The verification click is a
+ * fixture here; the real email round trip is tested in d08e-login-methods.
+ * The result carries the sign-in's cookies and the sign-up's status.
+ */
+export async function signUp(email: string, password: string, name = "Synthetic Person", extra: { image?: string } = {}): Promise<AuthCall> {
+  const raw = await signUpRaw(email, password, name, extra);
+  if (raw.status !== 200) return raw;
+  await verifyEmail(email);
+  const signedIn = await signIn(email, password);
+  return { ...signedIn, status: signedIn.status === 200 ? raw.status : signedIn.status };
+}
 export const signIn = (email: string, password: string, jar: Jar = new Map()) =>
   authFetch("/sign-in/email", { body: { email, password }, jar });
 export const signOut = (jar: Jar) => authFetch("/sign-out", { body: {}, jar });
@@ -90,6 +129,7 @@ const ref = {
   stripCredentials: makeFunctionReference<"mutation", { authUserId: string }>("fixtures:stripCredentials"),
   accountRows: makeFunctionReference<"query", { authUserId: string }>("fixtures:accountRows"),
   repair: makeFunctionReference<"mutation", { createdBefore?: number; createdAfter?: number }>("accounts:repairHalfFinishedSignUps"),
+  verifyEmail: makeFunctionReference<"mutation", { email: string }>("fixtures:verifyEmail"),
 };
 
 export interface AuthState {
@@ -116,3 +156,5 @@ export const stripCredentials = (authUserId: string) => adminClient().mutation(r
 export const accountRows = (authUserId: string): Promise<AccountRows | null> => adminClient().query(ref.accountRows, { authUserId });
 export const repairHalfFinishedSignUps = (args: { createdBefore?: number; createdAfter?: number }): Promise<{ removed: number; kept: number }> =>
   adminClient().mutation(ref.repair, args);
+
+export const verifyEmail = (email: string) => adminClient().mutation(ref.verifyEmail, { email });

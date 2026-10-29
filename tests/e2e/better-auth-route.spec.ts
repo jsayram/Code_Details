@@ -5,16 +5,21 @@
 // way a server component will. With the switch off (the normal runs), none of
 // it exists. Synthetic users only; Clerk stays the app's login in both.
 import type { APIRequestContext, APIResponse } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, expireSession, syntheticEmail } from "../fixtures/better-auth";
+import { SYNTHETIC_PASSWORD, expireSession, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
 // D08c: a new account has a generated handle.
 const NEW_ACCOUNT = { username: expect.stringMatching(/^user-[0-9a-z]{6}$/), role: "user", tier: "free" };
 
-/** One browser's worth of cookies, sending the app origin like a same-site fetch. */
-async function browserLike(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, origin = BASE_URL) {
-  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin } });
+/**
+ * One browser's worth of cookies, sending the app origin like a same-site
+ * fetch. D08e: each gets its own client IP, as a proxy in front of the app
+ * would set it; Next.js keeps a supplied x-forwarded-for unchanged, so Better
+ * Auth's limiter sees one client per context instead of one shared loopback.
+ */
+async function browserLike(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, origin = BASE_URL, ip = freshClientIp()) {
+  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin, "x-forwarded-for": ip } });
 }
 
 // The Convex adapter returns dates as epoch milliseconds; Better Auth's own
@@ -29,13 +34,27 @@ const viewer = async (ctx: APIRequestContext) => {
   return ((await res.json()) as { viewer: unknown }).viewer;
 };
 
+/**
+ * D08e: sign-up through the app starts no session until the address is
+ * verified. Verify through the fixture (the emailed link is tested in
+ * d08e-login-methods) and sign in, in the same cookie jar.
+ */
+async function signUpAndIn(ctx: APIRequestContext, email: string): Promise<APIResponse> {
+  const up = await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } });
+  expect(up.status()).toBe(200);
+  expect(setCookies(up).some((c) => c.startsWith("better-auth.session_token=") && !/max-age=0/i.test(c))).toBe(false);
+  await verifyEmail(email);
+  const signIn = await ctx.post("/api/auth/sign-in/email", { data: { email, password: SYNTHETIC_PASSWORD } });
+  expect(signIn.status()).toBe(200);
+  return signIn;
+}
+
 test.describe("D08b Better Auth through /api/auth (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
 
-  test("sign-up sets the session cookie on the app origin, and server code sees the new account", async ({ playwright }) => {
+  test("sign-in after a verified sign-up sets the session cookie on the app origin, and server code sees the new account", async ({ playwright }) => {
     const ctx = await browserLike(playwright);
-    const res = await ctx.post("/api/auth/sign-up/email", { data: { email: syntheticEmail("next-signup"), password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } });
-    expect(res.status()).toBe(200);
+    const res = await signUpAndIn(ctx, syntheticEmail("next-signup"));
     const session = setCookies(res).find((c) => c.startsWith("better-auth.session_token="));
     expect(session).toBeDefined();
     expect(session).toMatch(/;\s*HttpOnly/i);
@@ -50,7 +69,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
   test("sign-in and sign-out: the server stops seeing the user after sign-out", async ({ playwright }) => {
     const email = syntheticEmail("next-signout");
     const signup = await browserLike(playwright);
-    expect((await signup.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    await signUpAndIn(signup, email);
     await signup.dispose();
 
     const ctx = await browserLike(playwright);
@@ -74,7 +93,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
   test("a cookie-carrying request from a foreign origin is refused", async ({ playwright }) => {
     const email = syntheticEmail("next-origin");
     const ctx = await browserLike(playwright);
-    expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    await signUpAndIn(ctx, email);
     const res = await ctx.post("/api/auth/sign-out", { data: {}, headers: { origin: "http://evil.synthetic.invalid" } });
     expect(res.status()).toBe(403);
     expect(await viewer(ctx)).toEqual(NEW_ACCOUNT); // still signed in
@@ -83,7 +102,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
 
   test("refresh: a session near its end is extended by get-session", async ({ playwright }) => {
     const ctx = await browserLike(playwright);
-    expect((await ctx.post("/api/auth/sign-up/email", { data: { email: syntheticEmail("next-refresh"), password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    await signUpAndIn(ctx, syntheticEmail("next-refresh"));
     const first = (await (await ctx.get("/api/auth/get-session")).json()) as SessionBody;
     const soon = Date.now() + 60 * 60 * 1000; // one hour left of a 7-day session
     await expireSession(first.session.id, soon);
@@ -101,7 +120,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
     const [a, b] = [syntheticEmail("next-switch-a"), syntheticEmail("next-switch-b")];
     for (const email of [a, b]) {
       const ctx = await browserLike(playwright);
-      expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+      await signUpAndIn(ctx, email);
       await ctx.dispose();
     }
     const ctx = await browserLike(playwright);
@@ -113,6 +132,20 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
     expect(asB).toEqual(NEW_ACCOUNT);
     expect(asB.username).not.toBe(asA.username);
     await ctx.dispose();
+  });
+
+  test("D08e: through the app, the 11th sign-in attempt in a minute from one client gets 429", async ({ playwright }) => {
+    const ctx = await browserLike(playwright);
+    const codes: number[] = [];
+    for (let i = 0; i < 11; i++) {
+      codes.push((await ctx.post("/api/auth/sign-in/email", { data: { email: syntheticEmail("next-rl"), password: "wrong-Password-1" } })).status());
+    }
+    expect(codes.slice(0, 10).every((c) => c === 401)).toBe(true);
+    expect(codes[10]).toBe(429);
+    const other = await browserLike(playwright);
+    expect((await other.post("/api/auth/sign-in/email", { data: { email: syntheticEmail("next-rl2"), password: "wrong-Password-1" } })).status()).toBe(401);
+    await ctx.dispose();
+    await other.dispose();
   });
 
   test("/api/auth/sync-user is still the Clerk route, not Better Auth's", async ({ request }) => {
@@ -149,7 +182,7 @@ test.describe("D08d handover route, signed out (either switch state)", () => {
     const ctx = await browserLike(playwright);
     // A Better Auth session alone is not enough: the Clerk side is missing.
     if (betterAuth) {
-      expect((await ctx.post("/api/auth/sign-up/email", { data: { email: syntheticEmail("next-handover"), password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+      await signUpAndIn(ctx, syntheticEmail("next-handover"));
     }
     const res = await ctx.post("/api/account/handover", { data: {}, maxRedirects: 0 });
     expect(res.status()).toBe(307);

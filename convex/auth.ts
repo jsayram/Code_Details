@@ -2,10 +2,15 @@
 // (user, session, account, verification, jwks); this file is the only place
 // that configures it.
 //
-// Login methods are not decided yet (D08e). Email and password is switched on
-// only where the deployment env says CODEDETAILS_AUTH_EMAIL_PASSWORD=1, which
-// tests/convex/push.mjs sets on the task-owned test backend for synthetic
-// users. Everywhere else no method is enabled.
+// Login methods (Jose, 2026-10-28, 1A): email/password with verification and
+// reset, plus GitHub. Each is switched on by the deployment env, so a
+// deployment without it offers nothing:
+// - email/password: CODEDETAILS_AUTH_EMAIL_PASSWORD=1 (the test backend sets it
+//   for synthetic users). Verification is required unless
+//   CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION is exactly "0". Emails go
+//   through convex/email.ts (loopback only for now).
+// - GitHub: only when GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are both set.
+// Accounts are never joined by email (P07 §3.2): implicit linking is off.
 //
 // Every value comes from the deployment env: BETTER_AUTH_SECRET (a throwaway
 // on the test backend), SITE_URL (where browsers reach /api/auth), optional
@@ -18,6 +23,7 @@ import { betterAuth } from "better-auth/minimal";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { createAccountRows } from "./accounts";
+import { sendAuthEmail } from "./email";
 import authConfig from "./auth.config";
 
 // Typed explicitly: internal.auth's type is derived from this module, which
@@ -54,7 +60,48 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: process.env.CODEDETAILS_AUTH_EMAIL_PASSWORD === "1",
-      requireEmailVerification: false,
+      requireEmailVerification: process.env.CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION !== "0",
+      sendResetPassword: async ({ user, url }) => sendAuthEmail("reset-password", user.email, url),
+      resetPasswordTokenExpiresIn: 60 * 60,
+      // A reset signs out every other session of that user.
+      revokeSessionsOnPasswordReset: true,
+    },
+    emailVerification: {
+      sendVerificationEmail: async ({ user, url }) => sendAuthEmail("verify-email", user.email, url),
+      sendOnSignUp: true,
+      sendOnSignIn: true,
+      autoSignInAfterVerification: false,
+      expiresIn: 60 * 60,
+    },
+    socialProviders:
+      process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
+        ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
+        : {},
+    // Never join accounts by email, implicitly or on request, until Jose
+    // decides how GitHub and an existing password account meet (D08e).
+    account: { accountLinking: { enabled: false } },
+    // Better Auth's limiter is off outside production by default, and its
+    // in-memory store wouldn't survive between Convex function runs, so it is
+    // switched on with the component's rateLimit table. Limits are per client
+    // IP from x-forwarded-for; CODEDETAILS_AUTH_TRUSTED_PROXIES lists the proxy
+    // hops (comma-separated IPs/CIDRs) to strip, e.g. the Next.js server.
+    rateLimit: {
+      enabled: true,
+      storage: "database",
+      window: 60,
+      max: 100,
+      customRules: {
+        "/sign-in/*": { window: 60, max: 10 },
+        "/sign-up/*": { window: 60, max: 10 },
+        "/request-password-reset": { window: 300, max: 3 },
+        "/send-verification-email": { window: 300, max: 3 },
+        "/reset-password": { window: 300, max: 5 },
+      },
+    },
+    advanced: {
+      ipAddress: {
+        trustedProxies: (process.env.CODEDETAILS_AUTH_TRUSTED_PROXIES ?? "").split(",").filter(Boolean),
+      },
     },
     telemetry: { enabled: false },
     plugins: [

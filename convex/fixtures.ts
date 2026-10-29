@@ -4,7 +4,8 @@
 // CODEDETAILS_FIXTURES_ALLOWED=1, which only tests/convex/up.sh sets. That
 // keeps `clear` from ever touching a real deployment this code is pushed to.
 import { v } from "convex/values";
-import { components } from "./_generated/api";
+import { createFunctionHandle } from "convex/server";
+import { components, internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 
@@ -15,7 +16,8 @@ function assertFixturesAllowed() {
 }
 
 const TABLES = ["projects", "profiles", "tags", "authLinks", "users"] as const;
-const AUTH_MODELS = ["session", "account", "verification", "user"] as const;
+// D08e: rateLimit too, so one test run's attempts never count against the next.
+const AUTH_MODELS = ["session", "account", "verification", "user", "rateLimit"] as const;
 
 export const clear = internalMutation({
   args: {},
@@ -271,5 +273,38 @@ export const accountRows = internalQuery({
     const profiles = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", user._id)).collect();
     const usernames = await ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", user._id)).collect();
     return { userId: user._id as string, profiles, usernames };
+  },
+});
+
+/** D08e: marks a synthetic user's email verified, as clicking the link would. */
+export const verifyEmail = internalMutation({
+  args: { email: v.string() },
+  handler: async (ctx, { email }) => {
+    assertFixturesAllowed();
+    await ctx.runMutation(components.betterAuth.adapter.updateOne, {
+      input: { model: "user", where: [{ field: "email", value: email }], update: { emailVerified: true } },
+    });
+  },
+});
+
+/**
+ * D08e: the rows a completed GitHub sign-up leaves, written the way the
+ * component writes them (auth user through the same onCreate trigger, then a
+ * github account row), without contacting GitHub.
+ */
+export const simulateGithubSignUp = internalMutation({
+  args: { email: v.string(), githubId: v.string() },
+  handler: async (ctx, { email, githubId }) => {
+    assertFixturesAllowed();
+    const now = Date.now();
+    const onCreateHandle = await createFunctionHandle(internal.auth.onCreate);
+    const authUser = (await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: { model: "user", data: { name: "Synthetic Octocat", email, emailVerified: true, createdAt: now, updatedAt: now } },
+      onCreateHandle,
+    })) as { _id: string };
+    await ctx.runMutation(components.betterAuth.adapter.create, {
+      input: { model: "account", data: { accountId: githubId, providerId: "github", userId: authUser._id, createdAt: now, updatedAt: now } },
+    });
+    return authUser._id;
   },
 });
