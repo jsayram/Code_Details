@@ -137,19 +137,13 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  describe("R05 POST /api/profiles/by-id/[userId] renames any user", () => {
-    it("[handler] B renames A and swaps A's avatar; no history row is written", async () => {
-      signInAs(B.subject);
-      const req = new Request("http://localhost:3100/api/profiles/by-id/x", {
-        method: "POST",
-        body: JSON.stringify({ username: "fixture-hijacked", profile_image_url: "https://evil.synthetic.invalid/x.png" }),
-      });
-      const res = await byIdRoute.POST(req, { params: Promise.resolve({ userId: A.subject! }) });
-      expect(res.status).toBe(200);
-      const [row] = await sql`select username, profile_image_url from profiles where user_id = ${A.subject}`;
-      expect(row).toEqual({ username: "fixture-hijacked", profile_image_url: "https://evil.synthetic.invalid/x.png" });
-      const history = await sql`select 1 from username_history where user_id = ${A.subject}`;
-      expect(history).toHaveLength(0);
+  // Was "B renames A and swaps A's avatar; no history row is written"; fixed
+  // in D04b by removing the handler (Next answers 405 for a missing method).
+  describe("R05 (fixed, D04b) POST /api/profiles/by-id/[userId] is gone", () => {
+    it("[handler] the route exports no POST, and A's profile is untouched", async () => {
+      expect((byIdRoute as Record<string, unknown>).POST).toBeUndefined();
+      const [row] = await sql`select username from profiles where user_id = ${A.subject}`;
+      expect(row.username).toBe(A.profile!.username);
     });
   });
 

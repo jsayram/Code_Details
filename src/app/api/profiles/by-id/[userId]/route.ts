@@ -1,6 +1,3 @@
-import { executeQuery } from "@/db/server";
-import { profiles } from "@/db/schema/profiles";
-import { eq } from "drizzle-orm";
 import { success, notFound, invalidInput, databaseError } from "@/lib/api-errors";
 import { readProfileByUserId, readProfileStats } from "@/db/profile-read";
 import { toPublicProfileRow } from "@/backend/profiles/public-profile";
@@ -37,30 +34,6 @@ export async function GET(
   }
 }
 
-export async function POST(
-  req: Request,
-  { params }: { params: Promise<{ userId: string }> }
-) {
-  const resolvedParams = await Promise.resolve(params);
-  const userId = resolvedParams.userId;
-  const { username, profile_image_url } = await req.json();
-  if (!userId || !username) {
-    return invalidInput("Missing userId or username");
-  }
-  try {
-    const updated = await executeQuery(async (db) => {
-      const [result] = await db
-        .update(profiles)
-        .set({ username, profile_image_url, updated_at: new Date() })
-        .where(eq(profiles.user_id, userId))
-        .returning();
-      return result;
-    });
-    if (!updated) {
-      return notFound("profile", { identifier: userId, identifierType: "userId" });
-    }
-    return success({ profile: updated });
-  } catch (error) {
-    return databaseError(error, "Failed to update profile");
-  }
-}
+// POST was removed (D04b, P08 R05): it let any caller rename any user and swap
+// their avatar, with no history row. Nothing in the app called it; profile
+// edits go through PUT /api/profiles/[username], which checks the session.
