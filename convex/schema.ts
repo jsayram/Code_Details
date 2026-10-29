@@ -224,6 +224,8 @@ export default defineSchema({
       v.literal("project.purged"),
       v.literal("image.purged"),
       v.literal("account.deletion_requested"),
+      // D04d: the user cancelled inside the 14-day grace period.
+      v.literal("account.deletion_cancelled"),
       v.literal("account.deleted"),
       v.literal("role.changed"),
       v.literal("username.changed"),

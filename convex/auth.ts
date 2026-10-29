@@ -48,8 +48,9 @@ export const authComponent = createClient<DataModel>(components.betterAuth, {
         await createAccountRows(ctx, authUser);
       },
       // Deleting an auth user leaves the app account in place; the account
-      // lifecycle (14-day grace, purge, removing links) is D04d. Without a
-      // link the account no longer resolves, so getViewer returns null.
+      // lifecycle (14-day grace, purge, removing links) is
+      // convex/accountDeletion.ts (D04d), which deletes the auth user last.
+      // Without a link the account no longer resolves, so getViewer returns null.
     },
   },
 });

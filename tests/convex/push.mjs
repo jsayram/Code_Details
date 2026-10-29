@@ -173,6 +173,9 @@ if (res.status === 0 && !dryRun && !fs.existsSync(jwksFile)) {
 // Only this task-owned deployment may run the fixture functions (convex/fixtures.ts),
 // or, on the import backend, the importer (convex/importer.ts).
 if (res.status === 0 && !dryRun && runtime.allow) res = convex(["env", "set", runtime.allow, "1"]);
+// D04d: the automatic account purge is opt-in, and only the test backends opt
+// in (convex/accountDeletion.ts). Never the import or manual backend.
+if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_ACCOUNT_PURGE_ALLOWED", "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");

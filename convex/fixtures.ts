@@ -486,12 +486,30 @@ export const addFavorites = internalMutation({
 });
 
 export const addTagSuggestion = internalMutation({
-  args: { projectId: v.id("projects") },
-  handler: async (ctx, { projectId }) => {
+  // D04d: optionally by a fixture persona (by username key) and already reviewed.
+  args: {
+    projectId: v.id("projects"),
+    submitterUsernameKey: v.optional(v.string()),
+    status: v.optional(v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected"))),
+  },
+  handler: async (ctx, { projectId, submitterUsernameKey, status }) => {
     assertFixturesAllowed();
     const project = await ctx.db.get(projectId);
     if (!project) throw new Error("no such project");
-    await ctx.db.insert("tagSuggestions", { projectId, proposedName: "fixture-d03 idea", nameKey: "fixture-d03 idea", status: "pending", createdAt: project.createdAt });
+    let submitterId: Id<"users"> | undefined;
+    if (submitterUsernameKey) {
+      const profile = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", submitterUsernameKey)).first();
+      if (!profile) throw new Error(`no fixture profile ${submitterUsernameKey}`);
+      submitterId = profile.userId;
+    }
+    await ctx.db.insert("tagSuggestions", {
+      projectId,
+      proposedName: "fixture-d03 idea",
+      nameKey: "fixture-d03 idea",
+      status: status ?? "pending",
+      ...(submitterId ? { submitterId } : {}),
+      createdAt: project.createdAt,
+    });
   },
 });
 
@@ -568,6 +586,40 @@ export const profileWriteState = internalQuery({
       usernames: usernames.map((u) => ({ usernameKey: u.usernameKey, state: u.state, reservedUntil: u.reservedUntil ?? null })),
       audit: audit.map((a) => ({ kind: a.kind, actorId: a.actorId ?? null, details: a.details ?? null })),
       outbox: outbox.map((o) => ({ change: o.change })),
+    };
+  },
+});
+
+// D04d: move a deleting account's date into the past so the purge can be run
+// now, or mark an account deleting with no date at all (never due).
+export const backdateDeletion = internalMutation({
+  args: { usernameKey: v.string(), deleteAfter: v.optional(v.number()), status: v.optional(v.literal("deleting")) },
+  handler: async (ctx, { usernameKey, deleteAfter, status }) => {
+    assertFixturesAllowed();
+    const profile = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).first();
+    if (!profile) throw new Error(`no fixture profile ${usernameKey}`);
+    await ctx.db.patch(profile.userId, { ...(status ? { status } : {}), deleteAfter });
+    return profile.userId as string;
+  },
+});
+
+// D04d: everything an account still has, by users ID (after a purge the profile is gone).
+export const accountResidue = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, { userId }) => {
+    assertFixturesAllowed();
+    const user = await ctx.db.get(userId);
+    const count = async (rows: Promise<unknown[]>) => (await rows).length;
+    return {
+      user: user ? { ...user, _id: undefined, _creationTime: undefined } : null,
+      projects: await count(ctx.db.query("projects").withIndex("by_owner_status_created", (q) => q.eq("ownerId", userId)).collect()),
+      listedProjects: await count(ctx.db.query("projects").withIndex("by_owner_listed_created", (q) => q.eq("ownerId", userId).eq("listed", true)).collect()),
+      favorites: await count(ctx.db.query("favorites").withIndex("by_user_project", (q) => q.eq("userId", userId)).collect()),
+      suggestions: (await ctx.db.query("tagSuggestions").withIndex("by_submitter_created", (q) => q.eq("submitterId", userId)).collect()).map((s) => s.status),
+      usernames: await count(ctx.db.query("usernames").withIndex("by_userId_state", (q) => q.eq("userId", userId)).collect()),
+      profiles: await count(ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", userId)).collect()),
+      authLinks: await count(ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", userId)).collect()),
+      audit: (await ctx.db.query("auditEvents").withIndex("by_subject", (q) => q.eq("subjectTable", "users").eq("subjectId", userId)).collect()).map((a) => a.kind),
     };
   },
 });
