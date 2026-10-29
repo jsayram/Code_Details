@@ -10,8 +10,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import JSZip from 'jszip';
-import { getProjectMeta } from '@/lib/output-utils';
-import { docsOutputRoot } from '@/lib/docs-output-root';
+import { routeViewer } from '@/lib/auth-server';
+import { unauthorized } from '@/lib/api-errors';
+import { readableDoc } from '@/lib/docs-access';
+import { docDir } from '@/lib/docs-output-root';
 
 interface RouteParams {
   params: Promise<{
@@ -19,37 +21,27 @@ interface RouteParams {
   }>;
 }
 
-// Output directory (relative to project root)
-const OUTPUT_DIR = docsOutputRoot();
-
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // D11s: identity from the session only; signed out is refused before anything is read
+    const viewer = await routeViewer();
+    if (!viewer) {
+      return unauthorized('Authentication required to download documentation');
+    }
+
     const { slug } = await params;
     
-    if (!slug) {
-      return NextResponse.json(
-        { error: 'Project slug is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Sanitize slug
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const projectDir = path.join(OUTPUT_DIR, safeSlug);
-    
-    // Check if project exists
-    try {
-      await fs.access(projectDir);
-    } catch {
+    // Owner only, even for a linked doc: the ZIP is the whole doc in one request.
+    // Anyone else gets the same 404 as a missing doc.
+    const doc = await readableDoc(slug, viewer);
+    if (!doc?.isOwner) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
-    
-    // Get project metadata
-    const meta = await getProjectMeta(safeSlug);
-    const projectName = meta?.repoName || safeSlug;
+    const projectDir = docDir(slug);
+    const projectName = doc.meta.repoName || slug;
     
     // Create ZIP archive
     const zip = new JSZip();

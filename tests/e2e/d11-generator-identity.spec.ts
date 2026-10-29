@@ -16,12 +16,15 @@ import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
-const { a: A, b: B } = generateFixtures().personas;
+const FIXTURES = generateFixtures();
+const { a: A, b: B } = FIXTURES.personas;
+// D11s: a live fixture project of persona A's, for a doc linked to it.
+const LISTED = FIXTURES.projects.find((p) => p.slug === "fixture-listed")!;
 const ROOT = path.resolve(__dirname, "../..");
 const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
 const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
 const CHAPTER = "01_intro.md";
-const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs" };
+const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked" };
 
 /** Names, sizes and modification times of everything under the real output root. */
 function realOutputListing(): string[] {
@@ -35,11 +38,11 @@ function realOutputListing(): string[] {
 }
 
 /** Writes a fixture doc; refuses if it already exists, so nothing is ever overwritten. */
-function writeDoc(slug: string, userId: string) {
+function writeDoc(slug: string, userId: string, extra: object = {}) {
   const dir = path.join(OUTPUT, slug);
   if (fs.existsSync(dir)) throw new Error(`refusing to overwrite ${dir}: remove the leftover test fixture and rerun`);
   fs.mkdirSync(dir, { recursive: true });
-  const meta = { projectSlug: slug, userId, repoUrl: `https://github.com/synthetic/${slug}`, repoOwner: "synthetic", repoName: slug, createdAt: "2026-10-29T00:00:00.000Z", chapters: [{ order: 1, title: "Intro", filename: CHAPTER }], llmProvider: "synthetic", llmModel: "synthetic" };
+  const meta = { projectSlug: slug, userId, repoUrl: `https://github.com/synthetic/${slug}`, repoOwner: "synthetic", repoName: slug, createdAt: "2026-10-29T00:00:00.000Z", chapters: [{ order: 1, title: "Intro", filename: CHAPTER }], llmProvider: "synthetic", llmModel: "synthetic", ...extra };
   fs.writeFileSync(path.join(OUTPUT, slug, "_meta.json"), JSON.stringify(meta));
   fs.writeFileSync(path.join(OUTPUT, slug, CHAPTER), "---\ntitle: Intro\norder: 1\n---\n\nSynthetic chapter.\n");
 }
@@ -57,11 +60,11 @@ test.afterAll(() => {
 async function client(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) {
   return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
 }
-async function signIn(ctx: APIRequestContext, label: string): Promise<string> {
+async function signIn(ctx: APIRequestContext, label: string, headers: Record<string, string> = {}): Promise<string> {
   const email = syntheticEmail(label);
-  expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+  expect((await ctx.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
   await verifyEmail(email);
-  expect((await ctx.post("/api/auth/sign-in/email", { data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+  expect((await ctx.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
   return email;
 }
 
@@ -72,6 +75,10 @@ const ROUTES: Array<{ name: string; call: (c: APIRequestContext) => Promise<impo
   { name: "PUT /api/docs/[slug]/[filename]", call: (c) => c.put(`/api/docs/${DOCS.theirs}/${CHAPTER}`, { data: {} }) },
   { name: "PATCH /api/docs/[slug]/link-project", call: (c) => c.patch(`/api/docs/${DOCS.theirs}/link-project`, { data: {} }) },
   { name: "DELETE /api/docs/[slug]/link-project", call: (c) => c.delete(`/api/docs/${DOCS.theirs}/link-project`) },
+  // D11s: the doc reads now check identity themselves too
+  { name: "GET /api/docs/[slug]/[filename]", call: (c) => c.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`) },
+  { name: "GET /api/docs/[slug]/meta", call: (c) => c.get(`/api/docs/${DOCS.theirs}/meta`) },
+  { name: "GET /api/docs/[slug]/download", call: (c) => c.get(`/api/docs/${DOCS.theirs}/download`) },
   { name: "POST /api/generate-docs", call: (c) => c.post("/api/generate-docs", { data: {} }) },
   { name: "POST /api/llm", call: (c) => c.post("/api/llm", { data: {} }) },
   { name: "POST /api/llm-test", call: (c) => c.post("/api/llm-test", { data: {} }) },
@@ -95,14 +102,6 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
       await ctx.dispose();
     });
   }
-
-  test("GET /api/docs/[slug]/[filename] (no check of its own): refused by the proxy as today", async ({ playwright }) => {
-    const ctx = await client(playwright);
-    const status = (await ctx.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`)).status();
-    if (betterAuth) expect(status).toBe(401);
-    else expect([307, 404]).toContain(status);
-    await ctx.dispose();
-  });
 });
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
@@ -137,8 +136,31 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     for (const r of ROUTES) expect((await r.call(unlinked)).status(), r.name).toBe(401);
   });
 
-  test("the chapter read has no identity check, so any signed-in user reads any doc (existing behaviour, untouched)", async () => {
-    expect((await unlinked.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`)).status()).toBe(200);
+  test("D11s: the owner reads its own chapter, metadata and ZIP", async () => {
+    const ch = await persona.get(`/api/docs/${DOCS.mine}/${CHAPTER}`);
+    expect(ch.status()).toBe(200);
+    expect(await ch.text()).toContain("Synthetic chapter.");
+    expect((await persona.get(`/api/docs/${DOCS.mine}/meta`)).status()).toBe(200);
+    expect((await persona.get(`/api/docs/${DOCS.mine}/download`)).status()).toBe(200);
+  });
+
+  test("D11s: someone else's unlinked doc reads exactly like a missing one (404)", async () => {
+    const missing = await persona.get(`/api/docs/d11-fixture-missing/${CHAPTER}`);
+    const theirs = await persona.get(`/api/docs/${DOCS.theirs}/${CHAPTER}`);
+    expect(theirs.status()).toBe(404);
+    expect(await theirs.text()).toBe(await missing.text());
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/meta`)).status()).toBe(404);
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/download`)).status()).toBe(404);
+    // A userId in the query string changes nothing: identity comes from the session.
+    expect((await persona.get(`/api/docs/${DOCS.theirs}/${CHAPTER}?userId=${B.subject}`)).status()).toBe(404);
+  });
+
+  test("D11s: encoded traversal never leaves the output root", async () => {
+    for (const url of [`/api/docs/%2E%2E/${CHAPTER}`, `/api/docs/${DOCS.mine}/..%2F${DOCS.theirs}%2F${CHAPTER}`, `/api/docs/${DOCS.mine}/..%2F_meta.json`, `/api/docs/%2E%2E/meta`, `/api/docs/%2E%2E/download`]) {
+      const res = await persona.get(url);
+      expect([400, 404], url).toContain(res.status());
+      expect(await res.text(), url).not.toContain("Synthetic chapter.");
+    }
   });
 
   test("the handed-over login lists only its own docs", async () => {
@@ -173,5 +195,51 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
       const r = ROUTES.find((x) => x.name === name)!;
       expect((await r.call(persona)).status(), name).toBe(400);
     }
+  });
+});
+
+// D11s (option B): a doc linked to the owner's live project is readable by
+// another signed-in user on the viewer page, with trimmed metadata, and the
+// "Download All" button shows only for the owner (the ZIP is owner-only).
+// Each test signs in fresh; personas are released before and after the block.
+test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
+  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  const CHAPTER_URL = `/github-scrapper/docs/${DOCS.linked}/${CHAPTER}`;
+
+  test.beforeAll(async () => {
+    writeDoc(DOCS.linked, A.subject!, { linkedProjectId: LISTED.id, linkedProjectSlug: LISTED.slug, linkedProjectTitle: LISTED.title });
+    await releasePersona(A.subject!);
+    await releasePersona(B.subject!);
+  });
+  test.afterAll(async () => {
+    fs.rmSync(path.join(OUTPUT, DOCS.linked), { recursive: true, force: true });
+    await releasePersona(A.subject!);
+    await releasePersona(B.subject!);
+  });
+
+  /** Signs this page's browser in as a fresh Better Auth login on Clerk-era persona `subject`. */
+  async function signInPageAs(page: import("@playwright/test").Page, label: string, subject: string) {
+    const email = await signIn(page.request, label, { origin: BASE_URL, "x-forwarded-for": freshClientIp() });
+    await linkPersona(subject, (await authState(email))!.authUserId);
+  }
+
+  test("the owner sees the chapter and the Download All button", async ({ page }) => {
+    await signInPageAs(page, "d11s-owner", A.subject!);
+    expect(await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json()).toMatchObject({ userId: A.subject, isOwner: true });
+    await page.goto(CHAPTER_URL);
+    await expect(page.getByText("Synthetic chapter.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download All" })).toBeVisible();
+  });
+
+  test("another user reads the linked chapter with trimmed metadata, sees no Download All, and the ZIP is refused", async ({ page }) => {
+    await signInPageAs(page, "d11s-other", B.subject!);
+    const meta = await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json();
+    expect(meta).toMatchObject({ userId: null, isOwner: false });
+    expect(JSON.stringify(meta)).not.toContain(A.subject!);
+    expect((await page.request.get(`/api/docs/${DOCS.linked}/${CHAPTER}`)).status()).toBe(200);
+    expect((await page.request.get(`/api/docs/${DOCS.linked}/download`)).status()).toBe(404);
+    await page.goto(CHAPTER_URL);
+    await expect(page.getByText("Synthetic chapter.")).toBeVisible();
+    await expect(page.getByRole("button", { name: "Download All" })).toHaveCount(0);
   });
 });

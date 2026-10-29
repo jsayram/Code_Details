@@ -11,10 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { routeUserId } from '@/lib/auth-server';
+import { routeUserId, routeViewer } from '@/lib/auth-server';
 import { getProjectMeta } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
-import { docsOutputRoot } from '@/lib/docs-output-root';
+import { docsOutputRoot, isSafeChapterFilename, isSafeDocSlug } from '@/lib/docs-output-root';
+import { readableDoc } from '@/lib/docs-access';
 
 interface RouteParams {
   params: Promise<{
@@ -26,62 +27,49 @@ interface RouteParams {
 // Output directory (relative to project root)
 const OUTPUT_DIR = docsOutputRoot();
 
+const chapterNotFound = () => NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
+
+/** The chapter's file, falling back to index.md for the overview; null if neither exists. */
+async function existingChapterPath(slug: string, filename: string): Promise<string | null> {
+  const candidates = [path.join(OUTPUT_DIR, slug, filename)];
+  if (filename === '-1_overview.md') candidates.push(path.join(OUTPUT_DIR, slug, 'index.md'));
+  for (const candidate of candidates) {
+    try {
+      await fs.access(candidate);
+      return candidate;
+    } catch {
+      // try the next one
+    }
+  }
+  return null;
+}
+
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // D11s: identity from the session only; signed out is refused before anything is read
+    const viewer = await routeViewer();
+    if (!viewer) {
+      return unauthorized('Authentication required to read documentation');
+    }
+
     const { slug, filename } = await params;
-    
-    if (!slug || !filename) {
-      return NextResponse.json(
-        { error: 'Project slug and filename are required' },
-        { status: 400 }
-      );
+
+    // A bad name, a doc this user can't read and a missing chapter all get the
+    // same 404, so the answer never says whether someone else's doc exists.
+    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename) || !(await readableDoc(slug, viewer))) {
+      return chapterNotFound();
     }
-    
-    // Sanitize inputs to prevent path traversal
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '');
-    
-    // Ensure it's a markdown file
-    if (!safeFilename.endsWith('.md')) {
-      return NextResponse.json(
-        { error: 'Only markdown files are supported' },
-        { status: 400 }
-      );
-    }
-    
-    let filePath = path.join(OUTPUT_DIR, safeSlug, safeFilename);
-    
-    // Check if file exists - fall back to index.md for overview
-    let fileExists = false;
-    try {
-      await fs.access(filePath);
-      fileExists = true;
-    } catch {
-      // If requesting overview and it doesn't exist, try index.md
-      if (safeFilename === '-1_overview.md') {
-        const indexPath = path.join(OUTPUT_DIR, safeSlug, 'index.md');
-        try {
-          await fs.access(indexPath);
-          filePath = indexPath;
-          fileExists = true;
-        } catch {
-          // index.md also doesn't exist
-        }
-      }
-    }
-    
-    if (!fileExists) {
-      return NextResponse.json(
-        { error: 'Chapter not found' },
-        { status: 404 }
-      );
+
+    const filePath = await existingChapterPath(slug, filename);
+    if (!filePath) {
+      return chapterNotFound();
     }
     
     // Read file content
     const fileContent = await fs.readFile(filePath, 'utf-8');
     
     // Parse frontmatter
-    const { content, data } = matter(fileContent);
+    const { content } = matter(fileContent);
     
     // Return just the content (without frontmatter) as plain text
     return new NextResponse(content, {
@@ -118,17 +106,12 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Sanitize inputs to prevent path traversal
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '');
-    
-    // Ensure it's a markdown file
-    if (!safeFilename.endsWith('.md')) {
-      return NextResponse.json(
-        { error: 'Only markdown files are supported' },
-        { status: 400 }
-      );
+    // D11s: refuse unsafe names instead of stripping them into some other doc's name
+    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename)) {
+      return notFound('chapter', { identifier: 'invalid' });
     }
+    const safeSlug = slug;
+    const safeFilename = filename;
     
     // Get the documentation metadata to verify ownership
     const docMeta = await getProjectMeta(safeSlug);
@@ -152,25 +135,10 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     
-    let filePath = path.join(OUTPUT_DIR, safeSlug, safeFilename);
-    
     // Check if file exists - fall back to index.md for overview
-    let targetPath = filePath;
-    try {
-      await fs.access(filePath);
-    } catch {
-      // If requesting overview and it doesn't exist, try index.md
-      if (safeFilename === '-1_overview.md') {
-        const indexPath = path.join(OUTPUT_DIR, safeSlug, 'index.md');
-        try {
-          await fs.access(indexPath);
-          targetPath = indexPath;
-        } catch {
-          return notFound('chapter', { identifier: safeFilename });
-        }
-      } else {
-        return notFound('chapter', { identifier: safeFilename });
-      }
+    const targetPath = await existingChapterPath(safeSlug, safeFilename);
+    if (!targetPath) {
+      return notFound('chapter', { identifier: safeFilename });
     }
     
     // Read existing file to get frontmatter
