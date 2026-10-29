@@ -32,6 +32,18 @@ export interface Viewer {
  * allowed" and must not say which of these it was.
  */
 export async function getViewer(ctx: QueryCtx): Promise<Viewer | null> {
+  const user = await resolveAccount(ctx);
+  if (!user || user.status !== "active") return null;
+  return { userId: user._id, role: user.role, tier: user.tier };
+}
+
+/**
+ * The caller's account whatever its status, or null when the token doesn't
+ * resolve to a linked account. Only the account-deletion functions use it
+ * (D04d: a deleting account may see its own deletion date and cancel it);
+ * everything else goes through getViewer, which refuses deleting accounts.
+ */
+export async function resolveAccount(ctx: QueryCtx): Promise<Doc<"users"> | null> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return null;
   let provider: Doc<"authLinks">["provider"];
@@ -49,7 +61,5 @@ export async function getViewer(ctx: QueryCtx): Promise<Viewer | null> {
     .withIndex("by_provider_subject", (q) => q.eq("provider", provider).eq("subject", identity.subject))
     .unique();
   if (!link) return null;
-  const user = await ctx.db.get(link.userId);
-  if (!user || user.status !== "active") return null;
-  return { userId: user._id, role: user.role, tier: user.tier };
+  return await ctx.db.get(link.userId);
 }

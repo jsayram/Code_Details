@@ -46,7 +46,7 @@ export type LifecycleResult = { ok: true; slug: string } | { ok: false; code: "n
 
 const linkValue = v.object({ url: v.string(), label: v.optional(v.string()), type: v.optional(v.string()) });
 
-async function outbox(ctx: MutationCtx, projectId: Id<"projects">, change: "upsert" | "remove", sourceVersion: number, now: number) {
+export async function outbox(ctx: MutationCtx, projectId: Id<"projects">, change: "upsert" | "remove", sourceVersion: number, now: number) {
   await ctx.db.insert("contentChanges", {
     entityType: "project",
     entityId: projectId,
@@ -58,14 +58,15 @@ async function outbox(ctx: MutationCtx, projectId: Id<"projects">, change: "upse
   });
 }
 
-async function audit(ctx: MutationCtx, kind: "project.deleted" | "project.restored" | "project.purged", actor: Viewer, project: Doc<"projects">, now: number) {
+/** `actor` null: the account-deletion purge (D04d), a system action with no person behind it. */
+async function audit(ctx: MutationCtx, kind: "project.deleted" | "project.restored" | "project.purged", actor: Viewer | null, project: Doc<"projects">, now: number) {
   await ctx.db.insert("auditEvents", {
     kind,
-    actorId: actor.userId,
+    ...(actor ? { actorId: actor.userId } : {}),
     subjectTable: "projects",
     subjectId: project._id,
     at: now,
-    details: { slug: project.slug, byOwner: project.ownerId === actor.userId },
+    details: actor ? { slug: project.slug, byOwner: project.ownerId === actor.userId } : { slug: project.slug, byOwner: false, accountDeletion: true },
   });
 }
 
@@ -188,16 +189,26 @@ export const purge = mutation({
     if (!viewer || !project || project.status !== "deleted" || (project.ownerId !== viewer.userId && viewer.role !== "admin")) {
       return { ok: false, code: "not_found" };
     }
-    const now = Date.now();
-    await audit(ctx, "project.purged", viewer, project, now);
-    await outbox(ctx, project._id, "remove", project.contentVersion + 1, now);
-    // A deleted project is unlisted, so its tag counters were already taken
-    // down at soft delete; nothing to adjust here.
-    await ctx.db.delete(project._id);
-    await purgeRelated(ctx, project._id);
+    await purgeProjectNow(ctx, project, viewer, Date.now());
     return { ok: true, slug: project.slug };
   },
 });
+
+/**
+ * The one purge path (P07 §5.11): audit, outbox remove, the project row, then
+ * its related rows in batches and its files through deleteStoredFile. Used by
+ * the owner's purge above and by the account-deletion purge (D04d), which
+ * also purges active projects. Callers have checked who may do this.
+ */
+export async function purgeProjectNow(ctx: MutationCtx, project: Doc<"projects">, actor: Viewer | null, now: number) {
+  await audit(ctx, "project.purged", actor, project, now);
+  await outbox(ctx, project._id, "remove", project.contentVersion + 1, now);
+  // A deleted project is unlisted, so its tag counters were already taken
+  // down at soft delete. A listed one (account purge) gives them back here.
+  if (project.listed) for (const tagId of project.tagIds) await bumpListedCount(ctx, tagId, -1);
+  await ctx.db.delete(project._id);
+  await purgeRelated(ctx, project._id);
+}
 
 // ---------------------------------------------------------------------------
 // Fan-out
@@ -210,7 +221,7 @@ type CopyTable = "projectTags" | "favorites";
  * so a delete and a restore racing each other end on the project's final
  * state.
  */
-async function syncListedCopies(ctx: MutationCtx, projectId: Id<"projects">, table: CopyTable, cursor: string | null) {
+export async function syncListedCopies(ctx: MutationCtx, projectId: Id<"projects">, table: CopyTable, cursor: string | null) {
   const project = await ctx.db.get(projectId);
   if (!project) return;
   const page =
