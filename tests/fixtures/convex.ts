@@ -101,7 +101,12 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
     createdAt: ms(p.createdAt),
     updatedAt: ms(p.updatedAt),
   }));
-  return { users, profiles, tags, projects };
+  // D02r: favorites on projects that exist in Convex (purged ones don't).
+  const slugOf = new Map(set.projects.filter((p) => !p.purged).map((p) => [p.id, p.slug]));
+  const favoriteRows = set.favorites
+    .filter((f) => slugOf.has(f.projectId))
+    .map((f) => ({ userKey: f.personaKey, projectSlug: slugOf.get(f.projectId)!, createdAt: ms(f.createdAt) }));
+  return { users, profiles, tags, projects, favorites: favoriteRows };
 }
 
 export async function clearConvexFixtures(client = adminClient()): Promise<Record<string, number>> {

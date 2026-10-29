@@ -15,7 +15,8 @@ function assertFixturesAllowed() {
   }
 }
 
-const TABLES = ["projects", "profiles", "tags", "authLinks", "users"] as const;
+// D02r: favorites too, for the personal reads.
+const TABLES = ["favorites", "projects", "profiles", "tags", "authLinks", "users"] as const;
 // D08e: rateLimit too, so one test run's attempts never count against the next.
 const AUTH_MODELS = ["session", "account", "verification", "user", "rateLimit"] as const;
 
@@ -99,6 +100,9 @@ export const load = internalMutation({
       createdAt: v.number(),
       updatedAt: v.number(),
     })),
+    // D02r: favorite rows by persona key and project slug. Optional so older
+    // callers keep working; listed is copied from the project (P07 §3.9).
+    favorites: v.optional(v.array(v.object({ userKey: v.string(), projectSlug: v.string(), createdAt: v.number() }))),
   },
   handler: async (ctx, args) => {
     assertFixturesAllowed();
@@ -147,6 +151,13 @@ export const load = internalMutation({
         listed: rest.status === "active" && rest.visibility === "public",
         contentVersion: 1,
       });
+    }
+    for (const f of args.favorites ?? []) {
+      const userId = users.get(f.userKey);
+      const projectId = projects[f.projectSlug];
+      if (!userId || !projectId) throw new Error(`favorite ${f.userKey} -> ${f.projectSlug} has an unknown side`);
+      const project = await ctx.db.get(projectId);
+      await ctx.db.insert("favorites", { userId, projectId, createdAt: f.createdAt, listed: project!.listed });
     }
     return projects;
   },

@@ -3,9 +3,9 @@
 // backends can't drift apart in shape. Anonymous by design: no identity
 // argument, and it never returns users, emails or provider subjects.
 import { v } from "convex/values";
-import { query } from "./_generated/server";
-import { getViewer } from "./viewer";
-import type { Doc } from "./_generated/dataModel";
+import { query, type QueryCtx } from "./_generated/server";
+import { getViewer, type Viewer } from "./viewer";
+import type { Doc, Id } from "./_generated/dataModel";
 import {
   type PublicProject,
   type PublicProjectOwner,
@@ -96,5 +96,158 @@ export const getOwnBySlug = query({
       status: project.status,
       listed: project.listed,
     };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// D02r: personal reads (my projects, my graveyard, my favorites, their
+// category counts). The caller comes from getViewer only; there is no
+// identity argument, so A can never ask for B's lists, and anyone who isn't an
+// active, linked user gets an empty answer. Rows carry no email, provider
+// subject, role or tier; whether a row is the caller's own is a flag, never
+// the owner's ID. Lists are bounded (personal sets are small); the route does
+// the sorting and paging (D02r-c).
+
+/** At most this many rows per personal list. */
+export const PERSONAL_LIST_LIMIT = 500;
+
+export interface PersonalProjectCard {
+  id: string;
+  slug: string;
+  title: string;
+  description: string | null;
+  category: string;
+  visibility: "public" | "private";
+  tags: string[];
+  favoriteCount: number;
+  createdAt: string;
+  updatedAt: string;
+  deletedAt: string | null;
+  owner: PublicProjectOwner | null;
+  isMine: boolean;
+  isFavorite: boolean;
+}
+
+async function activeTagNames(ctx: QueryCtx, project: Doc<"projects">): Promise<string[]> {
+  const names: string[] = [];
+  for (const id of project.tagIds) {
+    const tag = await ctx.db.get(id);
+    if (tag && tag.status === "active") names.push(tag.name);
+  }
+  return names;
+}
+
+/** The public owner fields (P07 §8), or null for a deleting/deleted account. */
+async function publicOwner(ctx: QueryCtx, ownerId: Id<"users">): Promise<PublicProjectOwner | null> {
+  const user = await ctx.db.get(ownerId);
+  if (!user || user.status !== "active") return null;
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_userId", (q) => q.eq("userId", user._id))
+    .first();
+  if (!profile) return null;
+  let avatarUrl: string | null = null;
+  if (profile.avatar?.kind === "external") avatarUrl = profile.avatar.url;
+  else if (profile.avatar?.kind === "stored") avatarUrl = await ctx.storage.getUrl(profile.avatar.storageId);
+  return { username: profile.username, fullName: profile.fullName ?? null, avatarUrl };
+}
+
+async function isFavoriteOf(ctx: QueryCtx, userId: Id<"users">, projectId: Id<"projects">): Promise<boolean> {
+  const row = await ctx.db
+    .query("favorites")
+    .withIndex("by_user_project", (q) => q.eq("userId", userId).eq("projectId", projectId))
+    .first();
+  return row !== null;
+}
+
+async function toCard(ctx: QueryCtx, viewer: Viewer, project: Doc<"projects">, isFavorite?: boolean): Promise<PersonalProjectCard> {
+  return {
+    id: project._id,
+    slug: project.slug,
+    title: project.title,
+    description: project.description ?? null,
+    category: project.category,
+    visibility: project.visibility,
+    tags: await activeTagNames(ctx, project),
+    favoriteCount: project.favoriteCount,
+    createdAt: iso(project.createdAt),
+    updatedAt: iso(project.updatedAt),
+    deletedAt: project.status === "deleted" && project.deletedAt !== undefined ? iso(project.deletedAt) : null,
+    owner: await publicOwner(ctx, project.ownerId),
+    isMine: project.ownerId === viewer.userId,
+    isFavorite: isFavorite ?? (await isFavoriteOf(ctx, viewer.userId, project._id)),
+  };
+}
+
+async function ownProjects(ctx: QueryCtx, viewer: Viewer, status: "active" | "deleted") {
+  return ctx.db
+    .query("projects")
+    .withIndex("by_owner_status_created", (q) => q.eq("ownerId", viewer.userId).eq("status", status))
+    .order("desc")
+    .take(PERSONAL_LIST_LIMIT);
+}
+
+/** Favorited projects that are listed (deleted and private ones are left out), newest favorite first. */
+async function favoriteProjects(ctx: QueryCtx, viewer: Viewer) {
+  const rows = await ctx.db
+    .query("favorites")
+    .withIndex("by_user_listed_created", (q) => q.eq("userId", viewer.userId).eq("listed", true))
+    .order("desc")
+    .take(PERSONAL_LIST_LIMIT);
+  const out: Doc<"projects">[] = [];
+  for (const row of rows) {
+    const project = await ctx.db.get(row.projectId);
+    // listed is a copy; check the project itself too, as getPublicBySlug does.
+    if (project && project.listed && project.status === "active" && project.visibility === "public") out.push(project);
+  }
+  return out;
+}
+
+/** My projects: the caller's own active projects, private ones included, newest first. */
+export const listMine = query({
+  args: {},
+  handler: async (ctx): Promise<PersonalProjectCard[]> => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return [];
+    const projects = await ownProjects(ctx, viewer, "active");
+    return Promise.all(projects.map((p) => toCard(ctx, viewer, p)));
+  },
+});
+
+/** My graveyard: the caller's own deleted projects, newest first. */
+export const listMyDeleted = query({
+  args: {},
+  handler: async (ctx): Promise<PersonalProjectCard[]> => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return [];
+    const projects = await ownProjects(ctx, viewer, "deleted");
+    return Promise.all(projects.map((p) => toCard(ctx, viewer, p)));
+  },
+});
+
+/** My favorites: private to the caller (P07 §8). */
+export const listMyFavorites = query({
+  args: {},
+  handler: async (ctx): Promise<PersonalProjectCard[]> => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return [];
+    const projects = await favoriteProjects(ctx, viewer);
+    return Promise.all(projects.map((p) => toCard(ctx, viewer, p, true)));
+  },
+});
+
+/** Category counts for one of the caller's personal views; {} for anyone not signed in. */
+export const myCategoryCounts = query({
+  args: { view: v.union(v.literal("mine"), v.literal("favorites"), v.literal("deleted")) },
+  handler: async (ctx, { view }): Promise<Record<string, number>> => {
+    const viewer = await getViewer(ctx);
+    if (!viewer) return {};
+    const projects =
+      view === "favorites"
+        ? await favoriteProjects(ctx, viewer)
+        : await ownProjects(ctx, viewer, view === "deleted" ? "deleted" : "active");
+    const counts: Record<string, number> = {};
+    for (const p of projects) counts[p.category] = (counts[p.category] ?? 0) + 1;
+    return counts;
   },
 });
