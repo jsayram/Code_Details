@@ -1,11 +1,7 @@
 "use client";
 
 import React, { useState } from "react";
-import {
-  SignInButton,
-  SignOutButton,
-  UserButton,
-} from "@clerk/nextjs";
+import { AccountButton } from "@/components/auth/AccountButton";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { Button } from "@/components/ui/button";
 import { DarkModeButton } from "@/components/DarkModeButtonComponent";
@@ -97,7 +93,7 @@ export function HeaderSection({
                         {/* <DebugJwt token={token} /> */}
                       </div>
                     )}
-                    <UserButton
+                    <AccountButton
                       appearance={{
                         elements: {
                           userButtonAvatarBox: "w-9 h-9",
@@ -148,7 +144,7 @@ export function HeaderSection({
                   <div className="w-full max-w-xs flex flex-col items-center space-y-3">
                     <SignedIn>
                       <div className="flex flex-col items-center gap-3 w-full">
-                        <UserButton
+                        <AccountButton
                           afterSignOutUrl="/"
                           appearance={{
                             elements: {

@@ -5,6 +5,8 @@ import { ToasterProvider } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SWRProvider } from "@/providers/swr-provider";
 import { DocChaptersProvider } from "@/providers/doc-chapters-provider";
+import { chooseAuthBackend } from "@/backend/auth";
+import { AuthBackendProvider } from "@/backend/auth/context";
 
 export const metadata = {
   title: "Code Details",
@@ -26,6 +28,7 @@ export default function RootLayout({
       </head>
       <body className="overflow-x-hidden">
         <ClerkProvider>
+          <AuthBackendProvider backend={chooseAuthBackend().backend}>
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <SWRProvider>
               <DocChaptersProvider>
@@ -37,6 +40,7 @@ export default function RootLayout({
               </DocChaptersProvider>
             </SWRProvider>
           </ThemeProvider>
+          </AuthBackendProvider>
         </ClerkProvider>
       </body>
     </html>
