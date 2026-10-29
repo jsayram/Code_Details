@@ -35,6 +35,8 @@ describe("isolation guard", () => {
     ["NEXT_PUBLIC_CONVEX_URL", "https://happy-otter-123.convex.cloud", /must be http:\/\/127\.0\.0\.1:3210|non-loopback/],
     ["CONVEX_URL", "http://127.0.0.1:3211", /must be http:\/\/127\.0\.0\.1:3210/],
     ["CONVEX_DEPLOYMENT", "dev:happy-otter-123", /CONVEX_DEPLOYMENT must not be set/],
+    ["CODEDETAILS_CONVEX_SITE_URL", "https://happy-otter-123.convex.site", /must be http:\/\/127\.0\.0\.1:3211/],
+    ["CODEDETAILS_CONVEX_SITE_URL", "http://127.0.0.1:3221", /must be http:\/\/127\.0\.0\.1:3211/],
   ])("rejects %s=%s", (name, value, problem) => {
     const problems = isolationProblems({ ...base(), [name]: value });
     expect(problems.join("\n")).toMatch(problem);

@@ -14,6 +14,8 @@ const env = JSON.parse(fs.readFileSync(envFile, "utf8"));
 const port = process.argv[2] || "3100";
 
 env.NODE_OPTIONS = `--import ${path.join(here, "server-net-guard.mjs")}`;
+// D08b: this server also may not reach the import backend (server-net-guard.mjs).
+env.CODEDETAILS_NET_GUARD_APP_SERVER = "1";
 
 // next dev also rewrites next-env.d.ts for .next-test; tests/e2e/global-teardown.ts
 // puts it back, since Playwright stops this process without running exit hooks.

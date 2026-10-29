@@ -5,6 +5,10 @@
 import net from "node:net";
 
 const FORBIDDEN_PORTS = new Set([54320, 54321, 54322, 54323, 54324, 54325, 54326, 54327, 54329]);
+// D08b: the browser-test app server (start-isolated-server.mjs sets the flag)
+// also may not reach the D00b import backend (3220 client, 3221 site). The
+// importer and `push.mjs --target import` load this guard too and need 3220.
+if (process.env.CODEDETAILS_NET_GUARD_APP_SERVER === "1") for (const p of [3220, 3221]) FORBIDDEN_PORTS.add(p);
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "::1", "[::1]"]);
 
 function target(args) {

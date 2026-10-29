@@ -114,6 +114,11 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
     const value = env[name];
     if (value && value !== TEST_CONVEX_URL) problems.push(`${name} must be ${TEST_CONVEX_URL}`);
   }
+  // D08b: the site URL (Better Auth's routes) must be the same backend's site port.
+  for (const name of ["CONVEX_SITE_URL", "NEXT_PUBLIC_CONVEX_SITE_URL", "CODEDETAILS_CONVEX_SITE_URL"]) {
+    const value = env[name];
+    if (value && value !== TEST_CONVEX_SITE_URL) problems.push(`${name} must be ${TEST_CONVEX_SITE_URL}`);
+  }
   if (env.CONVEX_DEPLOYMENT) problems.push("CONVEX_DEPLOYMENT must not be set (it selects a cloud or CLI-managed deployment)");
 
   const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
