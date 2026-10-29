@@ -34,7 +34,17 @@ const env = {
   CONVEX_SELF_HOSTED_ADMIN_KEY: vars.CONVEX_SELF_HOSTED_ADMIN_KEY,
   NODE_OPTIONS: `--import ${path.join(root, "tests/e2e/server-net-guard.mjs")}`,
 };
-const convex = (args) => spawnSync(path.join(root, "node_modules/.bin/convex"), args, { cwd: root, env, stdio: "inherit" });
+// D00a: `--dry-run` asks the backend to evaluate the schema against the
+// documents it already holds without committing anything, so it skips the env
+// writes too. `--project-dir <dir>` pushes a copy of the project from another
+// folder (the schema test's refused-schema check); only with --dry-run.
+const argv = process.argv.slice(2);
+const dryRun = argv.includes("--dry-run");
+const dirFlag = argv.indexOf("--project-dir");
+const projectDir = dirFlag === -1 ? root : path.resolve(argv[dirFlag + 1]);
+if (dirFlag !== -1) argv.splice(dirFlag, 2);
+if (projectDir !== root && !dryRun) throw new Error("--project-dir is only allowed with --dry-run");
+const convex = (args) => spawnSync(path.join(root, "node_modules/.bin/convex"), args, { cwd: projectDir, env, stdio: "inherit" });
 
 // D01: a throwaway ES256 issuer stands in for the auth provider on this
 // deployment only. Its key pair is made once per state folder, next to the
@@ -57,16 +67,16 @@ if (!fs.existsSync(issuerFile)) {
 const issuer = JSON.parse(fs.readFileSync(issuerFile, "utf8"));
 const jwks = { keys: [{ ...issuer.publicJwk, kid: issuer.kid, alg: "ES256", use: "sig" }] };
 let res = { status: 0 };
-for (const [name, value] of [
+for (const [name, value] of dryRun ? [] : [
   ["CODEDETAILS_AUTH_ISSUER", issuer.issuer],
   ["CODEDETAILS_AUTH_AUDIENCE", issuer.audience],
   ["CODEDETAILS_AUTH_JWKS", `data:text/plain;charset=utf-8;base64,${Buffer.from(JSON.stringify(jwks)).toString("base64")}`],
 ]) {
   if (res.status === 0) res = convex(["env", "set", name, value]);
 }
-if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...process.argv.slice(2)]);
+if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
 // Only this task-owned deployment may run the fixture functions (convex/fixtures.ts).
-if (res.status === 0) res = convex(["env", "set", "CODEDETAILS_FIXTURES_ALLOWED", "1"]);
+if (res.status === 0 && !dryRun) res = convex(["env", "set", "CODEDETAILS_FIXTURES_ALLOWED", "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");

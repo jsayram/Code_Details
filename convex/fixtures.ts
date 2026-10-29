@@ -61,7 +61,7 @@ export const load = internalMutation({
       avatarUrl: optionalString,
       createdAt: v.number(),
     })),
-    tags: v.array(v.object({ key: v.string(), name: v.string(), nameKey: v.string(), createdAt: v.number() })),
+    tags: v.array(v.object({ key: v.string(), name: v.string(), nameKey: v.string(), listedProjectCount: v.number(), createdAt: v.number() })),
     projects: v.array(v.object({
       ownerKey: v.string(),
       title: v.string(),
