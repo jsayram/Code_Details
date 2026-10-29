@@ -4,8 +4,8 @@
 // evaluate the schema against the synthetic fixtures (`push.mjs --dry-run`,
 // nothing committed): it must pass, and a schema the fixtures violate must
 // be refused, so a green push really means existing documents were checked.
-// A dry run can't show a *new* staged validator failing (it reports the
-// deployed one), so that case is left to D00b's promotion step.
+// D00b promoted D00a's one staged validator (tags.listedProjectCount), so
+// no staged validators remain.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
@@ -205,16 +205,10 @@ describe("D00a schema matches P07 §3 and §6", () => {
     }
   });
 
-  it("stages exactly one tightening: tags.listedProjectCount becomes required", () => {
-    const staged = exported.tables.filter((t) => t.stagedDocumentType).map((t) => t.tableName);
-    expect(staged).toEqual(["tags"]);
-    const tags = tables.get("tags")!;
-    expect(tags.documentType.value.listedProjectCount).toEqual({ fieldType: { type: "number" }, optional: true });
-    expect(tags.stagedDocumentType!.value.listedProjectCount).toEqual({ fieldType: { type: "number" }, optional: false });
-    // Everything else in the staged validator is the enforced one, unchanged.
-    const { listedProjectCount: _a, ...enforced } = tags.documentType.value;
-    const { listedProjectCount: _b, ...stagedRest } = tags.stagedDocumentType!.value;
-    expect(stagedRest).toEqual(enforced);
+  // D00b promoted the one staged tightening D00a had (tags.listedProjectCount).
+  it("has no staged validators left; tags.listedProjectCount is required", () => {
+    expect(exported.tables.filter((t) => t.stagedDocumentType).map((t) => t.tableName)).toEqual([]);
+    expect(tables.get("tags")!.documentType.value.listedProjectCount).toEqual({ fieldType: { type: "number" }, optional: false });
   });
 });
 
@@ -255,12 +249,10 @@ describe.skipIf(!convexAvailable())("D00a schema on the task-owned local backend
     for (const d of temp) fs.rmSync(d, { recursive: true, force: true });
   });
 
-  // The staged status a dry run prints is the deployed validator's.
-  it("pushes against the loaded fixtures: validation passes, deployed staged tags validator validated", () => {
+  it("pushes against the loaded fixtures: validation passes", () => {
     const r = dryRun();
     expect(r.status, r.output).toBe(0);
     expect(r.output).toContain("Schema validation complete.");
-    expect(r.output).toMatch(/tags: validated/);
   });
 
   it("refuses a schema the fixtures violate (searchText made required)", () => {

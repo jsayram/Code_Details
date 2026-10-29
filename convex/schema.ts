@@ -125,18 +125,18 @@ export default defineSchema({
     .index("by_slug", ["slug"])
     .index("by_project_state", ["projectId", "state"]),
 
-  // §3.7 Tags. listedProjectCount is new on a table that already holds
-  // documents, so it is enforced as optional and staged as required; the
-  // staged validator is promoted once D00b's import has written every counter.
+  // §3.7 Tags. listedProjectCount was staged in D00a and promoted in D00b:
+  // the fixtures and the importer write it on every insert, and Convex refuses
+  // a staged validator on a fresh deployment whose enforced change needs a
+  // document walk, which is exactly what the import target is.
   tags: defineTable({
     name: v.string(),
     nameKey: v.string(),
     description: v.optional(v.string()),
     status: v.union(v.literal("active"), v.literal("retired")),
-    listedProjectCount: v.optional(v.number()),
+    listedProjectCount: v.number(),
     createdAt: v.number(),
   })
-    .staged({ listedProjectCount: v.number() })
     .index("by_nameKey", ["nameKey"])
     .index("by_status_name", ["status", "nameKey"])
     .index("by_status_count", ["status", "listedProjectCount"]),
