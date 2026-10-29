@@ -20,7 +20,11 @@ for (const [path, known] of Object.entries(KNOWN)) {
   test(`axe WCAG 2.2 A/AA on ${path} matches the triaged findings`, async ({ page }) => {
     await page.goto(path);
     await page.waitForLoadState("networkidle");
-    const results = await new AxeBuilder({ page }).withTags(WCAG).analyze();
+    // The floating code particles are decorative (aria-hidden) and fade in and
+    // out, so axe sometimes caught one mid-fade at 1.01:1 and the test flaked
+    // (1–3 runs in 8, Phase C). They're excluded here; whether faint
+    // decorative text is acceptable is a design call for the UI work.
+    const results = await new AxeBuilder({ page }).withTags(WCAG).exclude('[data-decorative="code-particles"]').analyze();
 
     const found = Object.fromEntries(results.violations.map((v) => [v.id, v.nodes.length]));
     expect(found).toEqual(known);

@@ -415,6 +415,7 @@ export const CodeParticlesElement: React.FC<CodeParticlesProps> = ({
     <div
       className={`absolute inset-0 z-0 overflow-hidden ${containerClassName}`}
       aria-hidden="true"
+      data-decorative="code-particles"
     >
       <ClientOnly>
         {particles.map((particle) => {
