@@ -9,6 +9,7 @@ import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { ACTIVE as slot } from "../support/slot.cjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // D00b: `--target import` pushes to the import backend instead
@@ -27,7 +28,8 @@ if (!["test", "import", "manual"].includes(target)) throw new Error(`unknown --t
 const runtime = {
   import: { envFile: ".test-runtime/convex-import.env", state: ".test-runtime/convex-import", port: "3220", up: "scripts/d00b-import/backend-up.sh", allow: "CODEDETAILS_IMPORT_ALLOWED" },
   manual: { envFile: ".test-runtime/convex-manual.env", state: ".test-runtime/convex-manual", port: "3230", up: "scripts/dev-auth/backend-up.sh", allow: null },
-  test: { envFile: ".test-runtime/convex.env", state: ".test-runtime/convex", port: "3210", up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" },
+  // The active test slot's backend (tests/support/slot.cjs; slot 0: .test-runtime/convex on 3210).
+  test: { envFile: `${slot.runtimeDir}/convex.env`, state: `${slot.runtimeDir}/convex`, port: String(slot.convexPort), up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" },
 }[target];
 const envFile = path.join(root, runtime.envFile);
 if (!fs.existsSync(envFile)) {
@@ -50,6 +52,8 @@ const env = {
   PATH: process.env.PATH,
   HOME: process.env.HOME,
   TMPDIR: process.env.TMPDIR,
+  // So the socket guard below refuses every other test slot's ports.
+  ...(slot.slot === 0 ? {} : { CODEDETAILS_TEST_SLOT: String(slot.slot) }),
   CONVEX_SELF_HOSTED_URL: vars.CONVEX_SELF_HOSTED_URL,
   CONVEX_SELF_HOSTED_ADMIN_KEY: vars.CONVEX_SELF_HOSTED_ADMIN_KEY,
   NODE_OPTIONS: `--import ${path.join(root, "tests/e2e/server-net-guard.mjs")}`,
@@ -105,17 +109,18 @@ if (target === "test") {
     ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
     ["SITE_URL", "http://localhost:3000"],
     ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
-    // D08b: the browser-test server (playwright.config.ts, port 3100) next to SITE_URL.
-    ["CODEDETAILS_AUTH_TRUSTED_ORIGINS", "http://localhost:3100"],
+    // D08b: the browser-test server (playwright.config.ts; the slot's Next port, 3100 in slot 0) next to SITE_URL.
+    ["CODEDETAILS_AUTH_TRUSTED_ORIGINS", `http://localhost:${slot.nextPort}`],
     // D08d: the Next.js server <-> Convex handover secret, a throwaway like the
     // one above; playwright.config.ts gives the test server the same value.
     ["CODEDETAILS_HANDOVER_SECRET", handoverSecret()],
     // D08e: verification required, as in production; auth emails go to the
-    // fake receiver the D08e tests run on 127.0.0.1:3299 (nothing listens
-    // otherwise, and sending just logs). GitHub gets synthetic values so the
-    // provider is registered; they can never complete a real login.
+    // fake receiver the D08e tests run on 127.0.0.1:3299, or the slot's mail
+    // port (nothing listens otherwise, and sending just logs). GitHub gets
+    // synthetic values so the provider is registered; they can never complete
+    // a real login.
     ["CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION", "1"],
-    ["CODEDETAILS_EMAIL_HTTP_URL", "http://127.0.0.1:3299/api/v1/send"],
+    ["CODEDETAILS_EMAIL_HTTP_URL", `http://127.0.0.1:${slot.mailPort}/api/v1/send`],
     ["GITHUB_CLIENT_ID", "SYNTHETIC-github-client-id"],
     ["GITHUB_CLIENT_SECRET", "SYNTHETIC-github-client-secret"],
   );

@@ -1,19 +1,25 @@
 #!/usr/bin/env bash
 # Creates the task-owned test database (Phase B, B08): a labelled Postgres
-# container on 127.0.0.1:55432 holding the roles and schema (no rows) of a P02
-# capture. The capture is only read. Remove everything with tests/db/teardown.sh.
+# container on 127.0.0.1:55432 (55432+n in test slot n) holding the roles and
+# schema (no rows) of a P02 capture. The capture is only read. Remove
+# everything with tests/db/teardown.sh.
 #
-# Usage: tests/db/provision.sh [capture dir]
+# Usage: [CODEDETAILS_TEST_SLOT=n] tests/db/provision.sh [capture dir]
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 CAP="$(cd "${1:-$ROOT/Agent Planning/private-data-backups/p02-20261028T173830Z}" && pwd)"
 IMG=public.ecr.aws/supabase/postgres:15.8.1.085
-NAME=codedetails-phaseb-testdb
+# Container name, port and state folder come from the active test slot
+# (CODEDETAILS_TEST_SLOT, tests/support/slot.cjs). Slot 0:
+# codedetails-phaseb-testdb on 55432, state in .test-runtime/.
+SLOT_VARS="$(node "$ROOT/tests/support/slot.cjs" --shell)"
+eval "$SLOT_VARS"
+NAME=$SLOT_DB_CONTAINER
 VOL=$NAME-data
 LABEL=codedetails.test=phase-b
-PORT=55432
-RUNTIME="$ROOT/.test-runtime"
+PORT=$SLOT_DB_PORT
+RUNTIME="$ROOT/$SLOT_RUNTIME_DIR"
 MARKER=codedetails-phase-b-isolated
 
 umask 077
