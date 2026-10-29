@@ -5,11 +5,15 @@
 // against the same file, so any visible difference between the two read
 // backends fails here. Same controls as B06 (visual.spec.ts). The Timeline's
 // relative dates ("9mo ago") follow the real clock, so they are masked; C13
-// compares the exact timestamps instead.
+// compares the exact timestamps instead. A mask is as wide as its text, so
+// when the clock moved "9mo ago" to "10mo ago" every full-page comparison
+// failed (found in D01). The masked labels are set to the text the baselines
+// were captured with, so the mask box keeps its size whatever today's date is.
 import { generateFixtures } from "../fixtures/generate";
 import { expect, test } from "./support";
 
 const set = generateFixtures();
+const RELATIVE_DATE = /^\d+\s*\w+ ago$/;
 
 for (const c of ["listed", "noDescription", "unicode", "fifteenTags"] as const) {
   const p = set.projects.find((x) => x.case === c)!;
@@ -21,12 +25,15 @@ for (const c of ["listed", "noDescription", "unicode", "fifteenTags"] as const) 
     // The dev-mode indicator is fixed-position, so in a full-page capture it
     // covers content (and a mask lands in the wrong place). It isn't app UI.
     await page.evaluate(() => document.querySelectorAll("nextjs-portal").forEach((el) => el.remove()));
+    for (const label of await page.getByText(RELATIVE_DATE).all()) {
+      await label.evaluate((el) => (el.textContent = "9mo ago"));
+    }
     await expect(page).toHaveScreenshot(`project-page-full-${c}.png`, {
       fullPage: true,
       animations: "disabled",
       caret: "hide",
       maxDiffPixels: 0,
-      mask: [page.getByText(/^\d+\s*\w+ ago$/)],
+      mask: [page.getByText(RELATIVE_DATE)],
     });
   });
 }
