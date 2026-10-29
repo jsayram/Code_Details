@@ -5,14 +5,14 @@ import { HeroSection } from "@/components/layout/HeroSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { useUser } from "@clerk/nextjs";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { SignedIn } from "@/components/auth/AuthGate";
 import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 import { HeroLoadingState } from "@/components/LoadingState/HeroLoadingState";
 import { SidebarLoadingState } from "@/components/LoadingState/SidebarLoadingState";
 
 export default function Home() {
-  const { isLoaded } = useUser();
+  const { isLoaded } = useDisplayUser();
 
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground theme-gradient-bg">

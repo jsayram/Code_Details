@@ -1,6 +1,6 @@
 import React from "react";
 import Link from "next/link";
-import { SignInButton, useUser } from "@clerk/nextjs";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { ClientOnly, getClientSideValue } from "@/lib/ClientSideUtils";
@@ -67,13 +67,11 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
   userInfo,
 }) => {
   // Get the user info if not provided as prop
-  const { user: clerkUser } = useUser();
+  const { user: displayUser } = useDisplayUser();
 
-  // Handle Clerk user email address properly
-  const userEmail =
-    userInfo?.email || clerkUser?.primaryEmailAddress?.emailAddress || null;
+  const userEmail = userInfo?.email || displayUser?.email || null;
 
-  const userName = userInfo?.firstName || clerkUser?.firstName || "user";
+  const userName = userInfo?.firstName || displayUser?.firstName || "user";
 
   // Construct terminal title based on user information
   const displayTitle =

@@ -5,8 +5,8 @@ import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { capitalizeNames } from "@/utils/stringUtils";
 
-// Authentication (Clerk)
-import { useUser } from "@clerk/nextjs";
+// Who is signed in (Clerk, or Better Auth behind the development switch)
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { TerminalWindowSection } from "./TerminalWindowSection";
 import { HeroLoadingState } from "../LoadingState/HeroLoadingState";
@@ -14,7 +14,7 @@ import { HeroLoadingState } from "../LoadingState/HeroLoadingState";
 export const HeroSection = () => {
   // State for typing animation completion check
   const animationRef = useRef(null);
-  const { user, isLoaded } = useUser();
+  const { user, isLoaded } = useDisplayUser();
   const terminalClass = user
     ? "border-green-400 xl:w-[70%] xl:ml-40"
     : "border-red-500 xl:w-[70%] xl:ml-40";
@@ -175,7 +175,7 @@ export const HeroSection = () => {
             userInfo={
               user
           ? {
-              email: user.primaryEmailAddress?.emailAddress,
+              email: user.email,
               firstName: user.firstName,
               lastName: user.lastName,
             }
