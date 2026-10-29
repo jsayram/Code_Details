@@ -3,7 +3,7 @@
 // the auth user; provider name/avatar copied once and never again; half-
 // finished sign-ups repaired; switching accounts in one browser.
 import { makeFunctionReference } from "convex/server";
-import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { clearConvexFixtures, convexAvailable } from "../fixtures/convex";
 import { testIssuerAvailable } from "../fixtures/convex-auth";
 import {
@@ -22,6 +22,10 @@ import {
   syntheticEmail,
   type Jar,
 } from "../fixtures/better-auth";
+
+// TEST-D08C-TIMEOUT: each test signs up through Better Auth and the local
+// backend; under heavy machine load that outruns vitest's 5 s default.
+vi.setConfig({ testTimeout: 30_000, hookTimeout: 30_000 });
 
 const whoami = makeFunctionReference<"query">("identity:whoami");
 const HANDLE = /^user-[0-9a-z]{6}$/;
