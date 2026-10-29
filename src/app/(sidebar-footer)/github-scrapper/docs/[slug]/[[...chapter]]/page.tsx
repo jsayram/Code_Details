@@ -39,7 +39,9 @@ import { ProjectsProvider } from '@/providers/projects-provider';
 import { useDocChapters } from '@/providers/doc-chapters-provider';
 
 interface ProjectMeta {
-  userId: string;
+  userId: string | null;
+  // D11s: computed by the meta route from the session
+  isOwner?: boolean;
   repoUrl: string;
   projectName: string;
   createdAt: string;
@@ -524,7 +526,8 @@ export default function DocViewerPage() {
                         )}
                       </div>
                       
-                      {/* Download Button - Hidden on mobile, centered */}
+                      {/* Download Button - Hidden on mobile, centered; owner only (D11s: the ZIP route is owner-only) */}
+                      {meta?.isOwner === true ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -539,6 +542,9 @@ export default function DocViewerPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Download All
                       </Button>
+                      ) : (
+                        <div className="hidden sm:block order-3 sm:order-2" />
+                      )}
                       
                       {/* Next Button */}
                       <div className="w-full sm:w-auto order-1 sm:order-3">
