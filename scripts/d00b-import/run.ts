@@ -215,11 +215,11 @@ async function main() {
     batchCounts: counts, notes, rejectsByTableAndReason: tally(runRejects.map((r) => ({ reason: `${r.sourceTable}:${r.reason}` }))),
     rejectsHash: sha256(runRejects.map((r) => `${r.sourceTable}|${r.sourceId}|${r.reason}`).sort().join("\n")),
     sourceCounts: Object.fromEntries(Object.entries(src).map(([k, v]) => [k, v.length])),
-    targetCounts: rec.targetCounts, expectedCounts: rec.expectedCounts, privacy: rec.privacy, tableHashes: rec.hashes, checks: rec.checks, passed,
+    targetCounts: rec.targetCounts, expectedCounts: rec.expectedCounts, privacy: rec.privacy, privacyInfo: rec.info, tableHashes: rec.hashes, checks: rec.checks, passed,
   };
   const stamp = startedAt.replace(/[-:]/g, "").replace(/\.\d+Z$/, "Z");
   fs.writeFileSync(path.join(PRIVATE, `summary-${stamp}.json`), `${JSON.stringify(summary, null, 2)}\n`, { mode: 0o600 });
-  fs.writeFileSync(path.join(PRIVATE, `detail-${stamp}.json`), `${JSON.stringify({ rejects: runRejects, problems: rec.problems }, null, 2)}\n`, { mode: 0o600 });
+  fs.writeFileSync(path.join(PRIVATE, `detail-${stamp}.json`), `${JSON.stringify({ rejects: runRejects, problems: rec.problems, findings: rec.findings }, null, 2)}\n`, { mode: 0o600 });
   log(`counts ${JSON.stringify(counts)}`);
   log(`rejects ${JSON.stringify(summary.rejectsByTableAndReason)}`);
   log(`checks ${JSON.stringify(rec.checks)}`);
@@ -427,8 +427,12 @@ function reconcile(
     if (tag.listedProjectCount !== n) { derivedMismatches++; problems.push(`listedProjectCount wrong on tag ${src2("tags", tag._id)}`); }
   }
 
-  // Privacy (§10): no imported email anywhere in the target, no `@` in public
-  // tables, no Clerk subject outside authLinks, no localhost URL.
+  // Privacy (§10): no imported email anywhere in the target, nothing
+  // email-shaped in a public table, no Clerk subject outside authLinks, no
+  // localhost URL in a URL field (links, avatars; image URLs aren't stored).
+  // Plain `@`, the word "localhost" and localhost URLs inside user-written
+  // text are counted for the report but aren't failures: titles may hold
+  // punctuation like "!@#", and rewriting a description is Jose's call.
   const strings = (v: unknown, out: string[] = []): string[] => {
     if (typeof v === "string") out.push(v);
     else if (Array.isArray(v)) v.forEach((x) => strings(x, out));
@@ -436,15 +440,26 @@ function reconcile(
     return out;
   };
   const PUBLIC = ["profiles", "projects", "projectSlugs", "tags", "tagAliases", "projectTags", "projectImages", "usernames"];
-  const privacy = { emailAnywhere: 0, atInPublicTables: 0, subjectOutsideAuthLinks: 0, localhostUrls: 0 };
+  const EMAIL_SHAPED = /[^\s@"]+@[^\s@"]+\.[^\s@"]+/;
+  const LOCALHOST_URL = /(https?:)?\/\/(localhost|127\.0\.0\.1|\[::1\])\b/i;
+  const privacy = { emailAnywhere: 0, emailShapedInPublicTables: 0, subjectOutsideAuthLinks: 0, localhostUrlFields: 0 };
+  const info = { atSignInPublicTables: 0, localhostWord: 0, localhostUrlsInText: 0 };
+  const findings: string[] = [];
+  const urlFields = [
+    ...t("projects").flatMap((p) => (p.links as { url: string }[]).map((l) => l.url)),
+    ...t("profiles").flatMap((p) => ((p.avatar as { url?: string } | undefined)?.url ? [(p.avatar as { url: string }).url] : [])),
+  ];
+  for (const u of urlFields) if (LOCALHOST_URL.test(u) || /^https?:\/\/(localhost|127\.0\.0\.1)/i.test(u)) { privacy.localhostUrlFields++; problems.push("localhost URL in a URL field"); }
   for (const [table, list] of Object.entries(dump)) {
     for (const d of list as D[]) {
       for (const s of strings(d)) {
         const lower = s.toLowerCase();
         if (emails.some((e) => lower.includes(e))) { privacy.emailAnywhere++; problems.push(`email found in ${table}`); }
-        if (PUBLIC.includes(table) && s.includes("@")) { privacy.atInPublicTables++; problems.push(`'@' in ${table}`); }
+        if (PUBLIC.includes(table) && EMAIL_SHAPED.test(s)) { privacy.emailShapedInPublicTables++; problems.push(`email-shaped value in ${table}`); }
+        if (PUBLIC.includes(table) && s.includes("@")) info.atSignInPublicTables++;
         if (table !== "authLinks" && /\buser_[A-Za-z0-9]{6,}/.test(s)) { privacy.subjectOutsideAuthLinks++; problems.push(`provider subject in ${table}`); }
-        if (/\b(localhost|127\.0\.0\.1)\b/.test(lower)) { privacy.localhostUrls++; problems.push(`localhost value in ${table}`); }
+        if (LOCALHOST_URL.test(s) && !urlFields.includes(s)) { info.localhostUrlsInText++; findings.push(`${table} ${src2(table, d._id)}: localhost URL in user-written text`); }
+        if (/\blocalhost\b/i.test(s)) info.localhostWord++;
       }
     }
   }
@@ -468,7 +483,7 @@ function reconcile(
     })(),
     noOtherProblems: problems.length === 0,
   };
-  return { checks, hashes, problems, targetCounts, expectedCounts, privacy };
+  return { checks, hashes, problems, findings, targetCounts, expectedCounts, privacy, info };
 }
 
 main().catch((err) => {
