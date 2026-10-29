@@ -12,8 +12,9 @@ import { clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fix
 import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, clientWithToken, convexToken, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { TEST_CONVEX_SITE_URL, TEST_CONVEX_URL } from "../support/isolation";
+import { RUNTIME_DIR } from "../support/test-db";
 
-const SECRET_FILE = path.resolve(__dirname, "../../.test-runtime/convex/handover-secret");
+const SECRET_FILE = path.join(RUNTIME_DIR, "convex", "handover-secret");
 const secretAvailable = () => fs.existsSync(SECRET_FILE);
 const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
 const set = generateFixtures();

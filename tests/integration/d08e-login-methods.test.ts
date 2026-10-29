@@ -27,6 +27,7 @@ import {
   syntheticEmail,
   type Jar,
 } from "../fixtures/better-auth";
+import { TEST_CONVEX_SITE_URL } from "../support/isolation";
 
 const whoami = makeFunctionReference<"query">("identity:whoami");
 const simulateGithubSignUp = makeFunctionReference<"mutation", { email: string; githubId: string }>("fixtures:simulateGithubSignUp");
@@ -213,7 +214,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
     });
 
     it("a callback with a state it didn't issue is sent to the error page and creates nobody", async () => {
-      const res = await fetch(`http://127.0.0.1:3211/api/auth/callback/github?code=synthetic&state=forged`, {
+      const res = await fetch(`${TEST_CONVEX_SITE_URL}/api/auth/callback/github?code=synthetic&state=forged`, {
         redirect: "manual",
         headers: { "x-forwarded-for": "2001:db8:e5::1" },
       });

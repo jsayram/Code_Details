@@ -5,8 +5,10 @@ import fs from "node:fs";
 import path from "node:path";
 import postgres from "postgres";
 import { IsolationError, TEST_DB_NAME, TEST_DB_PORT } from "./isolation";
+import { ACTIVE } from "./slot.cjs";
 
-export const RUNTIME_DIR = path.resolve(__dirname, "../../.test-runtime");
+/** The active test slot's state folder: .test-runtime/ for slot 0, .test-runtime/slot-<n>/ otherwise. */
+export const RUNTIME_DIR = path.resolve(__dirname, "../..", ACTIVE.runtimeDir);
 export const TEST_DB_FILE = path.join(RUNTIME_DIR, "test-db.json");
 /** Value provision.sh writes into codedetails_test.marker. */
 export const MARKER = "codedetails-phase-b-isolated";

@@ -8,8 +8,9 @@ import fs from "node:fs";
 import path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
 import { CONVEX_URL } from "./convex";
+import { RUNTIME_DIR } from "../support/test-db";
 
-const ISSUER_FILE = path.resolve(__dirname, "../../.test-runtime/convex/test-issuer.json");
+const ISSUER_FILE = path.join(RUNTIME_DIR, "convex", "test-issuer.json");
 
 interface TestIssuer {
   issuer: string;

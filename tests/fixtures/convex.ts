@@ -10,10 +10,12 @@ import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import type { FixtureSet } from "./generate";
 import { convexImportUsername, generateFixtures } from "./generate";
+import { TEST_CONVEX_PORT } from "../support/isolation";
+import { RUNTIME_DIR } from "../support/test-db";
 
-export const CONVEX_PORT = 3210;
+export const CONVEX_PORT = TEST_CONVEX_PORT;
 export const CONVEX_URL = `http://127.0.0.1:${CONVEX_PORT}`;
-const DEPLOYMENT_FILE = path.resolve(__dirname, "../../.test-runtime/convex/deployment.json");
+const DEPLOYMENT_FILE = path.join(RUNTIME_DIR, "convex", "deployment.json");
 
 export function convexAvailable(): boolean {
   return fs.existsSync(DEPLOYMENT_FILE);
