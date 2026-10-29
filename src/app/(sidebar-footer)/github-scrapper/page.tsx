@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useAuth, SignedIn, SignedOut, SignInButton, useUser } from '@clerk/nextjs';
+import { useAuth, SignInButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut } from '@/components/auth/AuthGate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderGit2,

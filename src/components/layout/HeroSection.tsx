@@ -6,7 +6,8 @@ import Image from "next/image";
 import { capitalizeNames } from "@/utils/stringUtils";
 
 // Authentication (Clerk)
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { TerminalWindowSection } from "./TerminalWindowSection";
 import { HeroLoadingState } from "../LoadingState/HeroLoadingState";
 

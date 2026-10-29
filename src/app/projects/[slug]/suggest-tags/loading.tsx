@@ -3,7 +3,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { FooterSection } from "@/components/layout/FooterSection";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 export default function SuggestTagsLoading() {

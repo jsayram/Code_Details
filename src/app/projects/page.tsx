@@ -6,7 +6,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import React, { use, useMemo, useState } from "react";
 
 // Authentication (Clerk)
-import { SignedIn, SignedOut, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 // Custom Hooks
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";

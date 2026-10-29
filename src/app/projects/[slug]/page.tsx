@@ -10,7 +10,7 @@ import {
 } from "@/db/actions";
 import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectContent";
 import { notFound } from "next/navigation";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
 import { auth } from "@clerk/nextjs/server";
 import { LogIn } from "lucide-react";
 import {

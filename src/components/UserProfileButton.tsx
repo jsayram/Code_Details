@@ -3,9 +3,8 @@
 import {
   UserButton,
   useUser,
-  SignedIn,
-  SignedOut,
 } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { SignInButtonComponent } from "./auth/SignInButtonComponent";
 
 export function UserProfileButton() {

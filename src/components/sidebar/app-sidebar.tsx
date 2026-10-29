@@ -1,11 +1,10 @@
 "use client";
 import * as React from "react";
 import {
-  SignedIn,
-  SignedOut,
   SignInButton,
   SignOutButton,
 } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import {
   Code,
   Database,

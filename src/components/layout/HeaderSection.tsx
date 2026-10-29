@@ -2,12 +2,11 @@
 
 import React, { useState } from "react";
 import {
-  SignedIn,
-  SignedOut,
   SignInButton,
   SignOutButton,
   UserButton,
 } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { Button } from "@/components/ui/button";
 import { DarkModeButton } from "@/components/DarkModeButtonComponent";
 import { Logo } from "@/components/CodeDetailsLogoComponent";

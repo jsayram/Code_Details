@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Home, Sparkles, Code2, Terminal, Bug, Coffee } from "lucide-react";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { SignInButtonComponent } from "@/components/auth/SignInButtonComponent";
 import { useState, useEffect } from "react";
 

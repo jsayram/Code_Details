@@ -2,7 +2,8 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { SignedIn, SignedOut, SignIn, useUser } from "@clerk/nextjs";
+import { SignIn, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";

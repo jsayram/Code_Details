@@ -5,7 +5,8 @@ import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SignedIn, useUser } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import { SignedIn } from "@/components/auth/AuthGate";
 import {
   Card,
   CardContent,

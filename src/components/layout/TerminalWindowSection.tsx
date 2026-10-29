@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
+import { SignInButton, useUser } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { ClientOnly, getClientSideValue } from "@/lib/ClientSideUtils";
 import { capitalizeNames } from "@/utils/stringUtils";
