@@ -14,6 +14,7 @@ import matter from 'gray-matter';
 import { routeUserId } from '@/lib/auth-server';
 import { getProjectMeta } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
+import { docsOutputRoot } from '@/lib/docs-output-root';
 
 interface RouteParams {
   params: Promise<{
@@ -23,7 +24,7 @@ interface RouteParams {
 }
 
 // Output directory (relative to project root)
-const OUTPUT_DIR = path.join(process.cwd(), 'src', 'app', 'output');
+const OUTPUT_DIR = docsOutputRoot();
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {

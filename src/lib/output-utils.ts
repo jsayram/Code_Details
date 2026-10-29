@@ -5,6 +5,7 @@
 
 import fs from 'fs/promises';
 import path from 'path';
+import { docsOutputRoot } from './docs-output-root';
 
 // ============================================================================
 // Types
@@ -47,7 +48,7 @@ export interface ProjectMeta {
 // Constants
 // ============================================================================
 
-const OUTPUT_DIR = path.join(process.cwd(), 'src', 'app', 'output');
+const OUTPUT_DIR = docsOutputRoot();
 
 // ============================================================================
 // Slug Generation

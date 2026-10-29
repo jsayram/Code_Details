@@ -2,7 +2,10 @@
 // switch on, see a handed-over Better Auth login as its Clerk-era account, and
 // refuse everyone else as signed out. Every existing check stays as it was.
 // Synthetic data only: the D01 personas, real Better Auth sign-ups, and doc
-// fixtures in this checkout's git-ignored src/app/output/d11-fixture-*.
+// fixtures in the isolated server's own output root, .test-runtime/docs-output
+// (src/lib/docs-output-root.ts; only under CODEDETAILS_ENV_ISOLATED=1). The
+// real src/app/output is never written, and the file checks that its listing
+// is unchanged.
 // Signed-in calls send bodies the routes reject before doing any work, so
 // nothing reaches GitHub or an LLM (the server's network guard refuses anyway).
 import fs from "node:fs";
@@ -15,18 +18,43 @@ import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
 const { a: A, b: B } = generateFixtures().personas;
-const OUTPUT = path.resolve(__dirname, "../../src/app/output");
+const ROOT = path.resolve(__dirname, "../..");
+const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
+const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
 const SECRET_FILE = path.resolve(__dirname, "../../.test-runtime/convex/handover-secret");
 const CHAPTER = "01_intro.md";
 const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs" };
 
+/** Names, sizes and modification times of everything under the real output root. */
+function realOutputListing(): string[] {
+  if (!fs.existsSync(REAL_OUTPUT)) return [];
+  return (fs.readdirSync(REAL_OUTPUT, { recursive: true }) as string[])
+    .sort()
+    .map((rel) => {
+      const st = fs.statSync(path.join(REAL_OUTPUT, rel));
+      return `${rel} ${st.size} ${st.mtimeMs}`;
+    });
+}
+
+/** Writes a fixture doc; refuses if it already exists, so nothing is ever overwritten. */
 function writeDoc(slug: string, userId: string) {
-  fs.mkdirSync(path.join(OUTPUT, slug), { recursive: true });
+  const dir = path.join(OUTPUT, slug);
+  if (fs.existsSync(dir)) throw new Error(`refusing to overwrite ${dir}: remove the leftover test fixture and rerun`);
+  fs.mkdirSync(dir, { recursive: true });
   const meta = { projectSlug: slug, userId, repoUrl: `https://github.com/synthetic/${slug}`, repoOwner: "synthetic", repoName: slug, createdAt: "2026-10-29T00:00:00.000Z", chapters: [{ order: 1, title: "Intro", filename: CHAPTER }], llmProvider: "synthetic", llmModel: "synthetic" };
   fs.writeFileSync(path.join(OUTPUT, slug, "_meta.json"), JSON.stringify(meta));
   fs.writeFileSync(path.join(OUTPUT, slug, CHAPTER), "---\ntitle: Intro\norder: 1\n---\n\nSynthetic chapter.\n");
 }
 const removeDocs = () => Object.values(DOCS).forEach((slug) => fs.rmSync(path.join(OUTPUT, slug), { recursive: true, force: true }));
+
+// The real output root (Jose's generated docs in his checkout) must look exactly the same afterwards.
+let realBefore: string[] = [];
+test.beforeAll(() => {
+  realBefore = realOutputListing();
+});
+test.afterAll(() => {
+  expect(realOutputListing(), "src/app/output changed during the D11 tests").toEqual(realBefore);
+});
 
 async function client(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) {
   return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
