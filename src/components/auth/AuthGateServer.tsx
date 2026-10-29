@@ -8,11 +8,11 @@
 // request's cookies get a Convex token, which checks the Better Auth session.
 import { auth } from "@clerk/nextjs/server";
 import type { ReactNode } from "react";
-import { betterAuthServer } from "@/lib/auth-server";
+import { betterAuthSignedIn } from "@/lib/auth-server";
 
 async function signedIn(): Promise<boolean> {
-  const betterAuth = await betterAuthServer();
-  if (betterAuth) return betterAuth.isAuthenticated();
+  const betterAuth = await betterAuthSignedIn();
+  if (betterAuth !== null) return betterAuth;
   const { userId } = await auth();
   return !!userId;
 }

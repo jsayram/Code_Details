@@ -12,10 +12,13 @@
 // any claim, because the component's own session lookup doesn't.
 import { getAuthConfigProvider } from "@convex-dev/better-auth/auth-config";
 import type { AuthConfig } from "convex/server";
+import { staticJwks } from "./authRules";
 
 export default {
   providers: [
-    getAuthConfigProvider(),
+    // SEC-D08-RL: with JWKS set, the keys are inlined as a data: URI and Convex
+    // checks tokens without fetching /api/auth/convex/jwks.
+    getAuthConfigProvider({ jwks: staticJwks(process.env.JWKS) }),
     {
       type: "customJwt",
       issuer: process.env.CODEDETAILS_AUTH_ISSUER!,

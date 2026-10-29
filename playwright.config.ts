@@ -46,12 +46,16 @@ export const AUTH_BACKEND = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better
 if (AUTH_BACKEND === "better-auth" && !convexAvailable()) {
   throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
 }
+// SEC-D08-RL: the same throwaway internal secret tests/convex/push.mjs gave the
+// test backend, for the server's own token calls.
+const internalSecretFile = path.join(RUNTIME_DIR, "convex", "internal-auth-secret");
 const authBackendEnv: Record<string, string> =
   AUTH_BACKEND === "better-auth"
     ? {
         CODEDETAILS_AUTH_BACKEND: "better-auth",
         CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL,
         CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL,
+        ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
       }
     : {};
 
