@@ -7,25 +7,31 @@ import { profiles, type SelectProfile } from "@/db/schema/profiles";
 import { projects } from "@/db/schema/projects";
 import { project_tags } from "@/db/schema/project_tags";
 import { favorites } from "@/db/schema/favorites";
-import { eq, sql, desc, and, isNull, ne } from "drizzle-orm";
+import { eq, sql, desc, and, isNull } from "drizzle-orm";
 
+/**
+ * A profile's public statistics (D04c, P08 R26). Deleted projects never count
+ * (P07 §8: a deleted project isn't public). Every total comes from its own
+ * query on the maintained counters, never from a join that repeats a project
+ * row once per tag or favorite. The same fields on both backends; Convex
+ * adds `capped` when a per-user range hit its bound.
+ */
 export interface ProfileStats {
   totalProjects: number;
   activeProjects: number;
-  graveyardProjects: number;
   communityProjects: number;
   totalLikes: number;
   totalTags: number;
   projectsFavorited: number;
   projectsReceivedFavorites: number;
-  joinedDate: Date | null;
+  joinedDate: Date | string | null;
   mostLikedProject: { title: string; favorites: number } | null;
+  capped?: boolean;
 }
 
-export const emptyProfileStats = (joinedDate: Date | null): ProfileStats => ({
+export const emptyProfileStats = (joinedDate: Date | string | null): ProfileStats => ({
   totalProjects: 0,
   activeProjects: 0,
-  graveyardProjects: 0,
   communityProjects: 0,
   totalLikes: 0,
   totalTags: 0,
@@ -35,78 +41,54 @@ export const emptyProfileStats = (joinedDate: Date | null): ProfileStats => ({
   mostLikedProject: null,
 });
 
-/**
- * The profile page's statistics, unchanged from GET /api/profiles/by-id
- * (moved here so the username lookup can serve them). D04c replaces them with
- * maintained counters. Falls back to zeros if a stats query fails, as before.
- */
+/** The statistics on the Supabase path. Falls back to zeros if a query fails, as before. */
 export async function readProfileStats(profileData: SelectProfile): Promise<ProfileStats> {
   const userId = profileData.user_id;
+  const active = and(eq(projects.user_id, userId), isNull(projects.deleted_at));
   try {
     return await executeQuery(async (db) => {
-      const [statsResult] = await db
+      // One row per active project: count and sum the counter column directly.
+      const [own] = await db
         .select({
-          totalProjects: sql<number>`count(distinct ${projects.id})`,
-          activeProjects: sql<number>`count(distinct case when ${projects.deleted_at} is null then ${projects.id} end)`,
-          graveyardProjects: sql<number>`count(distinct case when ${projects.deleted_at} is not null then ${projects.id} end)`,
-          totalLikes: sql<number>`coalesce(sum(${projects.total_favorites}), 0)`,
-          totalTags: sql<number>`count(distinct ${project_tags.tag_id})`,
+          count: sql<number>`count(*)`,
+          likes: sql<number>`coalesce(sum(${projects.total_favorites}), 0)`,
         })
         .from(projects)
-        .leftJoin(project_tags, eq(project_tags.project_id, projects.id))
-        .where(eq(projects.user_id, userId));
+        .where(active);
 
-      // Favorites given by this user (using profile.id not user_id)
-      const [favoritesGiven] = await db
-        .select({
-          projectsFavorited: sql<number>`count(distinct ${favorites.project_id})`,
-        })
-        .from(favorites)
-        .where(eq(favorites.profile_id, profileData.id));
+      const [tagCount] = await db
+        .select({ count: sql<number>`count(distinct ${project_tags.tag_id})` })
+        .from(project_tags)
+        .innerJoin(projects, eq(projects.id, project_tags.project_id))
+        .where(active);
 
-      // Favorites received on the user's projects
-      const [favoritesReceived] = await db
+      // Projects this user favorited that are still there (profile.id, not user_id).
+      const [given] = await db
         .select({
-          projectsReceivedFavorites: sql<number>`count(*)`,
-        })
-        .from(favorites)
-        .innerJoin(projects, eq(projects.id, favorites.project_id))
-        .where(eq(projects.user_id, userId));
-
-      // Community projects (favorited projects from other users)
-      const [communityStats] = await db
-        .select({
-          communityProjects: sql<number>`count(distinct ${projects.id})`,
+          all: sql<number>`count(distinct ${favorites.project_id})`,
+          community: sql<number>`count(distinct case when ${projects.user_id} <> ${userId} then ${favorites.project_id} end)`,
         })
         .from(favorites)
         .innerJoin(projects, eq(projects.id, favorites.project_id))
-        .where(
-          and(
-            eq(favorites.profile_id, profileData.id),
-            ne(projects.user_id, userId),
-            isNull(projects.deleted_at)
-          )
-        );
+        .where(and(eq(favorites.profile_id, profileData.id), isNull(projects.deleted_at)));
 
       const [mostLikedProject] = await db
-        .select({
-          title: projects.title,
-          favorites: projects.total_favorites,
-        })
+        .select({ title: projects.title, favorites: projects.total_favorites })
         .from(projects)
-        .where(and(eq(projects.user_id, userId), isNull(projects.deleted_at)))
+        .where(active)
         .orderBy(desc(projects.total_favorites))
         .limit(1);
 
+      const activeProjects = Number(own?.count || 0);
+      const totalLikes = Number(own?.likes || 0);
       return {
-        totalProjects: Number(statsResult?.totalProjects || 0),
-        activeProjects: Number(statsResult?.activeProjects || 0),
-        graveyardProjects: Number(statsResult?.graveyardProjects || 0),
-        communityProjects: Number(communityStats?.communityProjects || 0),
-        totalLikes: Number(statsResult?.totalLikes || 0),
-        totalTags: Number(statsResult?.totalTags || 0),
-        projectsFavorited: Number(favoritesGiven?.projectsFavorited || 0),
-        projectsReceivedFavorites: Number(favoritesReceived?.projectsReceivedFavorites || 0),
+        totalProjects: activeProjects,
+        activeProjects,
+        communityProjects: Number(given?.community || 0),
+        totalLikes,
+        totalTags: Number(tagCount?.count || 0),
+        projectsFavorited: Number(given?.all || 0),
+        projectsReceivedFavorites: totalLikes,
         joinedDate: profileData.created_at,
         mostLikedProject: mostLikedProject
           ? { title: mostLikedProject.title, favorites: Number(mostLikedProject.favorites || 0) }

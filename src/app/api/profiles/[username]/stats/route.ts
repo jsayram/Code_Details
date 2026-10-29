@@ -2,11 +2,15 @@ import { NextRequest } from "next/server";
 import { executeQuery } from "@/db/server";
 import { profiles } from "@/db/schema/profiles";
 import { projects } from "@/db/schema/projects";
-import { project_tags } from "@/db/schema/project_tags";
-import { tags } from "@/db/schema/tags";
-import { eq, sql, desc, and } from "drizzle-orm";
+import { eq, sql, and, isNull } from "drizzle-orm";
 import { success, notFound, databaseError } from "@/lib/api-errors";
+import { toPublicProfileRow, usernameKey } from "@/backend/profiles/public-profile";
+import { readProfileStats } from "@/db/profile-read";
 
+// D04c (P08 R26): active projects only, totals from the counters without a
+// join that repeats a project per tag, and the owner as the public
+// projection (D04a, R07; a legacy email-shaped username shows its local part).
+// The response keeps its earlier shape. Nothing in the app calls this route.
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ username: string }> }
@@ -16,12 +20,12 @@ export async function GET(
     const resolvedParams = await Promise.resolve(params);
     const username = decodeURIComponent(resolvedParams.username);
 
-    // First lookup the profile by username
+    // First lookup the profile by username (case-insensitive)
     const profile = await executeQuery(async (db) => {
       return await db
         .select()
         .from(profiles)
-        .where(eq(profiles.username, username))
+        .where(eq(sql`lower(${profiles.username})`, usernameKey(username)))
         .limit(1);
     });
 
@@ -29,64 +33,30 @@ export async function GET(
       return notFound("profile", { identifier: username, identifierType: "username" });
     }
 
-    const userId = profile[0].user_id;
-
-    const stats = await executeQuery(async (db) => {
-      // Get total projects, likes, and tags in a single query
-      const [statsResult] = await db
-        .select({
-          totalProjects: sql<number>`count(distinct ${projects.id})`,
-          totalLikes: sql<number>`coalesce(sum(${projects.total_favorites}), 0)`,
-          totalTags: sql<number>`count(distinct ${project_tags.tag_id})`,
-        })
+    const shared = await readProfileStats(profile[0]);
+    // Own active projects with at least one favorite (this route's own meaning).
+    const [withFavorites] = await executeQuery(async (db) =>
+      db
+        .select({ count: sql<number>`count(*)` })
         .from(projects)
-        .leftJoin(project_tags, eq(project_tags.project_id, projects.id))
-        .where(eq(projects.user_id, userId));
+        .where(and(eq(projects.user_id, profile[0].user_id), isNull(projects.deleted_at), sql`${projects.total_favorites} > 0`))
+    );
+    const publicProfile = toPublicProfileRow(profile[0]);
 
-      // Get most liked project
-      const [mostLikedProject] = await db
-        .select({
-          title: projects.title,
-          favorites: projects.total_favorites,
-        })
-        .from(projects)
-        .where(eq(projects.user_id, userId))
-        .orderBy(desc(projects.total_favorites))
-        .limit(1);
-
-      // Get count of projects that have favorites
-      const [projectsFavorited] = await db
-        .select({
-          count: sql<number>`count(distinct ${projects.id})`,
-        })
-        .from(projects)
-        .where(
-          and(
-            eq(projects.user_id, userId),
-            sql`${projects.total_favorites} > 0`
-          )
-        );
-
-      return {
-        totalProjects: Number(statsResult?.totalProjects || 0),
-        totalLikes: Number(statsResult?.totalLikes || 0),
-        totalTags: Number(statsResult?.totalTags || 0),
-        projectsFavorited: Number(projectsFavorited?.count || 0),
-        mostLikedProject: mostLikedProject
-          ? {
-              title: mostLikedProject.title,
-              favorites: Number(mostLikedProject.favorites || 0),
-            }
-          : null,
+    return success({
+      stats: {
+        totalProjects: shared.activeProjects,
+        totalLikes: shared.totalLikes,
+        totalTags: shared.totalTags,
+        projectsFavorited: Number(withFavorites?.count || 0),
+        mostLikedProject: shared.mostLikedProject,
         profile: {
-          username: profile[0].username,
-          full_name: profile[0].full_name || null,
-          profile_image_url: profile[0].profile_image_url || null,
+          username: publicProfile.username,
+          full_name: publicProfile.full_name,
+          profile_image_url: publicProfile.profile_image_url,
         },
-      };
+      },
     });
-
-    return success({ stats });
   } catch (error) {
     return databaseError(error, "Failed to fetch profile stats");
   }

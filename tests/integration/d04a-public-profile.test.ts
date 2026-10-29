@@ -119,7 +119,7 @@ describe.skipIf(!testDbAvailable())("D04a public profile reads (Supabase)", () =
       const text = await res.text();
       const { stats } = JSON.parse(text).data;
       expect(Object.keys(stats).sort()).toEqual([
-        "activeProjects", "communityProjects", "graveyardProjects", "joinedDate", "mostLikedProject",
+        "activeProjects", "communityProjects", "joinedDate", "mostLikedProject",
         "projectsFavorited", "projectsReceivedFavorites", "totalLikes", "totalProjects", "totalTags",
       ]);
       expect(stats.activeProjects).toBeGreaterThan(0);
