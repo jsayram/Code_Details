@@ -4,8 +4,11 @@
 // origin, and server code (/api/dev/viewer) reads as the session's user the
 // way a server component will. With the switch off (the normal runs), none of
 // it exists. Synthetic users only; Clerk stays the app's login in both.
+import fs from "node:fs";
+import path from "node:path";
 import type { APIRequestContext, APIResponse } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, expireSession, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -153,6 +156,47 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
     // catch-all would have answered 404 for an unknown endpoint.
     const res = await request.post("/api/auth/sync-user", { headers: { origin: BASE_URL } });
     expect(res.status()).toBe(401);
+  });
+});
+
+test.describe("D08f1: emailed links never put the address in a logged URL (switch on)", () => {
+  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  const mailbox = fakeMailpit();
+  const LOG = path.resolve(__dirname, "../../.test-runtime/next-server.log");
+
+  test.beforeAll(async () => {
+    await mailbox.start();
+  });
+  test.afterAll(async () => {
+    await mailbox.stop();
+  });
+
+  test("verification and reset links followed through the app leave no trace of the address in the server log", async ({ playwright }) => {
+    const email = syntheticEmail("next-logged");
+    const ctx = await browserLike(playwright);
+    expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    const [verify] = await mailbox.waitFor(email, "verify-email");
+    const verifyLink = linkIn(verify);
+    const verified = await ctx.get(`${verifyLink.pathname}${verifyLink.search}`, { maxRedirects: 0 });
+    expect(verified.status()).toBe(302);
+    expect((await ctx.post("/api/auth/sign-in/email", { data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+
+    expect((await ctx.post("/api/auth/request-password-reset", { data: { email, redirectTo: "/reset-password" } })).status()).toBe(200);
+    const [reset] = await mailbox.waitFor(email, "reset-password");
+    const resetLink = linkIn(reset);
+    const toForm = await ctx.get(`${resetLink.pathname}${resetLink.search}`, { maxRedirects: 0 });
+    expect(toForm.status()).toBe(302);
+    const token = new URL(toForm.headers().location, BASE_URL).searchParams.get("token")!;
+    expect((await ctx.post("/api/auth/reset-password", { data: { token, newPassword: "synthetic-New-Password-456" } })).status()).toBe(200);
+    await ctx.dispose();
+
+    // Next.js writes its request log lines asynchronously.
+    await new Promise((r) => setTimeout(r, 500));
+    const log = fs.readFileSync(LOG, "utf8");
+    expect(log).toContain("/api/auth/reset-password/"); // the log is really being captured
+    expect(revealsAddress(log, email), "the server log reveals the address").toBe(false);
+    expect(log).toContain("/api/auth/email-link?code=");
+    for (const mail of [verify, reset]) expect(revealsAddress(linkIn(mail).href, email)).toBe(false);
   });
 });
 

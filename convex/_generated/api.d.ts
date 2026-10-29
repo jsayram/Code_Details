@@ -11,8 +11,10 @@
 import type * as accountRules from "../accountRules.js";
 import type * as accounts from "../accounts.js";
 import type * as auth from "../auth.js";
+import type * as authRules from "../authRules.js";
 import type * as crons from "../crons.js";
 import type * as email from "../email.js";
+import type * as emailLinks from "../emailLinks.js";
 import type * as fixtures from "../fixtures.js";
 import type * as handover from "../handover.js";
 import type * as http from "../http.js";
@@ -32,8 +34,10 @@ declare const fullApi: ApiFromModules<{
   accountRules: typeof accountRules;
   accounts: typeof accounts;
   auth: typeof auth;
+  authRules: typeof authRules;
   crons: typeof crons;
   email: typeof email;
+  emailLinks: typeof emailLinks;
   fixtures: typeof fixtures;
   handover: typeof handover;
   http: typeof http;

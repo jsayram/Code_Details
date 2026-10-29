@@ -6,12 +6,12 @@
 // before contacting GitHub is checked here; the real round trip is a manual
 // check with Jose (D08_PLAN e9). Rate limits, and the coordinator's condition:
 // a completed sign-up of every enabled method survives the half-finished repair.
-import http from "node:http";
 import type { AddressInfo } from "node:net";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adminClient, clearConvexFixtures, convexAvailable } from "../fixtures/convex";
 import { testIssuerAvailable } from "../fixtures/convex-auth";
+import { FAKE_MAILPIT_PORT, fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import {
   SITE_ORIGIN,
   SYNTHETIC_PASSWORD,
@@ -30,49 +30,13 @@ import {
 
 const whoami = makeFunctionReference<"query">("identity:whoami");
 const simulateGithubSignUp = makeFunctionReference<"mutation", { email: string; githubId: string }>("fixtures:simulateGithubSignUp");
-const RECEIVER_PORT = 3299;
-
-interface Mail {
-  to: string;
-  subject: string;
-  text: string;
-  tags: string[];
-  from: string;
-}
-
-/** A stand-in for Mailpit's POST /api/v1/send. */
-function fakeMailpit() {
-  const inbox: Mail[] = [];
-  const server = http.createServer((req, res) => {
-    let raw = "";
-    req.on("data", (c) => (raw += c));
-    req.on("end", () => {
-      if (req.method !== "POST" || req.url !== "/api/v1/send") {
-        res.writeHead(404).end();
-        return;
-      }
-      const m = JSON.parse(raw) as { From: { Email: string }; To: { Email: string }[]; Subject: string; Text: string; Tags?: string[] };
-      inbox.push({ from: m.From.Email, to: m.To[0].Email, subject: m.Subject, text: m.Text, tags: m.Tags ?? [] });
-      res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ ID: `synthetic-${inbox.length}` }));
-    });
-  });
-  return { inbox, server };
-}
 
 const mailbox = fakeMailpit();
-const mailFor = (to: string, tag: string) => mailbox.inbox.filter((m) => m.to === to && m.tags.includes(tag));
-const linkIn = (mail: Mail) => new URL(/(http:\/\/\S+)/.exec(mail.text)![1]);
+const mailFor = mailbox.mailFor;
 /** The emailed link points at the app origin; the test calls the backend's site port with the same path. */
 const onBackend = (link: URL) => `${link.pathname.replace(/^\/api\/auth/, "")}${link.search}`;
 
-async function waitForMail(to: string, tag: string, count = 1): Promise<Mail[]> {
-  for (let i = 0; i < 50; i++) {
-    const found = mailFor(to, tag);
-    if (found.length >= count) return found;
-    await new Promise((r) => setTimeout(r, 100));
-  }
-  return mailFor(to, tag);
-}
+const waitForMail = (to: string, tag: string, count = 1) => mailbox.waitFor(to, tag, count);
 
 async function me(jar: Jar) {
   const token = await convexToken(jar);
@@ -89,17 +53,14 @@ async function verifiedUser(label: string) {
 
 describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login methods", () => {
   beforeAll(async () => {
-    await new Promise<void>((resolve, reject) => {
-      mailbox.server.once("error", reject);
-      mailbox.server.listen(RECEIVER_PORT, "127.0.0.1", () => resolve());
-    });
-    expect((mailbox.server.address() as AddressInfo).port).toBe(RECEIVER_PORT);
+    await mailbox.start();
+    expect((mailbox.server.address() as AddressInfo).port).toBe(FAKE_MAILPIT_PORT);
     await clearConvexFixtures();
   });
 
   afterAll(async () => {
     await clearConvexFixtures();
-    await new Promise((r) => mailbox.server.close(r));
+    await mailbox.stop();
   });
 
   beforeEach(() => {
@@ -116,8 +77,12 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
       expect(mails).toHaveLength(1);
       const link = linkIn(mails[0]);
       expect(link.origin).toBe(SITE_ORIGIN);
-      expect(link.pathname).toBe("/api/auth/verify-email");
-      expect(link.searchParams.get("token")).toBeTruthy();
+      // D08f1 (f5): an opaque single-use code, not Better Auth's JWT.
+      expect(link.pathname).toBe("/api/auth/email-link");
+      expect([...link.searchParams.keys()]).toEqual(["code"]);
+      expect(link.searchParams.get("code")).toMatch(/^[A-Za-z0-9_-]{43}$/);
+      expect(link.href).not.toContain("eyJ");
+      expect(revealsAddress(link.href, email)).toBe(false);
       // The body is the link and fixed text: no name, no other address.
       expect(mails[0].text).not.toContain("Ada");
       expect(mails[0].text.match(/@/g) ?? []).toHaveLength(0);
@@ -143,17 +108,37 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
       expect(await me(res.jar)).toMatchObject({ role: "user", tier: "free" });
     });
 
-    it("a tampered verification token is refused", async () => {
+    it("a tampered, malformed or reused link is refused (D08f1)", async () => {
       const email = syntheticEmail("verify-tamper");
       await signUpRaw(email, SYNTHETIC_PASSWORD);
       const [mail] = await waitForMail(email, "verify-email");
       const link = linkIn(mail);
-      const token = link.searchParams.get("token")!;
-      link.searchParams.set("token", `${token.slice(0, -4)}AAAA`);
-      const res = await authFetch(onBackend(link), { method: "GET" });
-      // Refused either outright or by a redirect that carries an error.
-      expect(res.status === 401 || res.status === 400 || (res.status === 302 && /error=/.test(res.location ?? ""))).toBe(true);
+      const code = link.searchParams.get("code")!;
+      for (const bad of [`${code.slice(0, -4)}AAAA`, "short", `${code}x`, ""]) {
+        const wrong = new URL(link);
+        wrong.searchParams.set("code", bad);
+        const res = await authFetch(onBackend(wrong), { method: "GET" });
+        expect(res.status).toBe(302);
+        expect(res.location).toBe("/api/auth/error?error=invalid_link");
+      }
       expect((await signIn(email, SYNTHETIC_PASSWORD)).status).toBe(403);
+      // The real code still works once, then never again.
+      expect((await authFetch(onBackend(link), { method: "GET" })).location).toBe("/");
+      expect((await authFetch(onBackend(link), { method: "GET" })).location).toBe("/api/auth/error?error=invalid_link");
+      expect((await signIn(email, SYNTHETIC_PASSWORD)).status).toBe(200);
+    });
+
+    it("a link keeps the sign-up's own callback path, never another origin", async () => {
+      for (const [callbackURL, expected] of [["/welcome", "/welcome"], ["https://evil.synthetic.invalid/", null]] as const) {
+        const email = syntheticEmail("verify-callback");
+        const res = await authFetch("/sign-up/email", { body: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person", callbackURL } });
+        if (expected === null) {
+          expect(res.status).toBe(403);
+          continue;
+        }
+        const [mail] = await waitForMail(email, "verify-email");
+        expect((await authFetch(onBackend(linkIn(mail)), { method: "GET" })).location).toBe(expected);
+      }
     });
   });
 

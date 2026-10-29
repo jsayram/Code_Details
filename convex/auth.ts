@@ -25,6 +25,7 @@ import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { createAccountRows } from "./accounts";
 import { emailVerificationRequired } from "./authRules";
+import { opaqueVerificationLink } from "./emailLinks";
 import { sendAuthEmail } from "./email";
 import authConfig from "./auth.config";
 
@@ -69,7 +70,10 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       revokeSessionsOnPasswordReset: true,
     },
     emailVerification: {
-      sendVerificationEmail: async ({ user, url }) => sendAuthEmail("verify-email", user.email, url),
+      // f5: email an opaque single-use link instead of Better Auth's, whose
+      // JWT carries the address in the URL (convex/emailLinks.ts).
+      sendVerificationEmail: async ({ user, url, token }) =>
+        sendAuthEmail("verify-email", user.email, await opaqueVerificationLink(ctx, token, url, 60 * 60)),
       sendOnSignUp: true,
       sendOnSignIn: true,
       autoSignInAfterVerification: false,

@@ -20,10 +20,19 @@ env.CODEDETAILS_NET_GUARD_APP_SERVER = "1";
 // next dev also rewrites next-env.d.ts for .next-test; tests/e2e/global-teardown.ts
 // puts it back, since Playwright stops this process without running exit hooks.
 
+// D08f1: everything the server prints also goes to .test-runtime/next-server.log
+// (truncated at each start), so a browser test can check what got logged.
+const logFile = fs.openSync(path.join(root, ".test-runtime/next-server.log"), "w", 0o600);
 const child = spawn(path.join(root, "node_modules/.bin/next"), ["dev", "--hostname", "localhost", "--port", port], {
   cwd: root,
   env,
-  stdio: "inherit",
+  stdio: ["inherit", "pipe", "pipe"],
 });
+for (const [from, to] of [[child.stdout, process.stdout], [child.stderr, process.stderr]]) {
+  from.on("data", (chunk) => {
+    to.write(chunk);
+    fs.writeSync(logFile, chunk);
+  });
+}
 for (const signal of ["SIGINT", "SIGTERM"]) process.on(signal, () => child.kill(signal));
 child.on("exit", (code, signal) => process.exit(code ?? (signal ? 1 : 0)));
