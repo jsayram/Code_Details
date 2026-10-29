@@ -13,6 +13,7 @@ import {
 } from "@/db/project-write";
 import { checkCategoryData } from "@/backend/projects/project-update-rules";
 import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
+import { changeLifecycleOnConvex, createProjectOnConvex } from "@/backend/projects/project-lifecycle";
 import { chooseAuthBackend } from "@/backend/auth";
 import { auth } from "@clerk/nextjs/server";
 import { InsertProject } from "@/db/schema/projects";
@@ -94,8 +95,10 @@ export async function getProjectBySlugServer(slug: string) {
 }
 
 // D03 (P08 R02): the Supabase writes below (create, delete, restore, purge)
-// take the caller from the Clerk session. Under the Better Auth switch they
-// write nothing to Supabase: there are no mixed-provider writes.
+// take the caller from the Clerk session. Under both development switches
+// they go to the Convex lifecycle mutations instead, which take the caller
+// from getViewer; under the Better Auth switch alone they write nothing:
+// there are no mixed-provider writes.
 async function clerkWriter(): Promise<string | null> {
   if (chooseAuthBackend().backend !== "clerk") return null;
   const { userId } = await auth();
@@ -115,6 +118,11 @@ export async function createProject(
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await createProjectOnConvex(project);
+      if (result.success) revalidateAfterLifecycleChange();
+      return result.success ? actionSuccess(result.data) : result;
+    }
     const userId = await clerkWriter();
     if (!userId) {
       return unauthorizedError("You must be signed in to create a project");
@@ -188,6 +196,12 @@ export async function removeProject(
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("softDelete", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
+    }
     const userId = await clerkWriter();
     if (!userId) {
       return unauthorizedError("You must be signed in to delete a project");
@@ -211,8 +225,9 @@ export async function removeProject(
   }
 }
 
-function revalidateAfterLifecycleChange() {
+function revalidateAfterLifecycleChange(slug?: string) {
   revalidatePath(pathToRevalidate);
+  if (slug) revalidatePath(`/projects/${slug}`);
   revalidateTag(CACHE_TAGS.PROJECTS, {});
   revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
   revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
@@ -410,6 +425,12 @@ export async function permanentlyDeleteProject(
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("purge", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
+    }
     const userId = await clerkWriter();
     if (!userId) {
       return unauthorizedError("You must be signed in to delete a project");
@@ -442,6 +463,12 @@ export async function restoreProject(
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("restore", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
+    }
     const userId = await clerkWriter();
     if (!userId) {
       return unauthorizedError("You must be signed in to restore a project");

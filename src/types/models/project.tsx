@@ -10,6 +10,7 @@ export interface Project extends DrizzleProject {
   // Application-specific fields
   formattedDate?: string; // Human-readable date
   isFavorite?: boolean; // UI state for user favorites
+  is_mine?: boolean; // D03: set on the Convex personal rows, which carry no owner ID
   displayBadge?: boolean; // UI presentation flag
   readableSlug?: string; // User-friendly version of the slug
 

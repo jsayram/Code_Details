@@ -128,6 +128,8 @@ export function personalListResponse(cards: PersonalProjectCard[], options: List
       full_name: c.owner?.fullName ?? null,
     },
     isFavorite: c.isFavorite,
+    // D03: the rows carry no owner ID, so the cards' owner controls use this.
+    is_mine: c.isMine,
   }));
   return {
     success: true,

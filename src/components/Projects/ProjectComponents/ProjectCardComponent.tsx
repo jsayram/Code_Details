@@ -19,7 +19,8 @@ import {
   Video,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useUser } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 import {
   permanentlyDeleteProject,
@@ -64,7 +65,8 @@ export const ProjectCard = React.memo(
     hideActions = false,
   }: ProjectCardProps) {
     const { user } = useUser();
-    const { userId } = useAuth();
+    // D03: the session's user (Clerk's userId by default); Convex rows say is_mine.
+    const userId = useViewerId();
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
     const [isRestoring, setIsRestoring] = useState(false);
@@ -83,7 +85,7 @@ export const ProjectCard = React.memo(
     
 
     // Check if current user is the owner
-    const isOwner = project.user_id === userId;
+    const isOwner = project.is_mine ?? project.user_id === userId;
 
     // Fetch cover image for the project
     useEffect(() => {

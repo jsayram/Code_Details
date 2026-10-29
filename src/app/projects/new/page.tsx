@@ -14,18 +14,26 @@ import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
 import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
 import { SelectUserWithProject } from "@/db/schema/projects";
+import { useAuthBackend } from "@/backend/auth/context";
+import { useViewerId } from "@/components/auth/AuthGate";
 
 export default function CreateProjectPage() {
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
+  // D03: under the development Better Auth switch the page follows that
+  // session; ProtectedPage below sends a signed-out visitor to sign in, and
+  // the save goes to Convex, which takes the creator from the session.
+  const clerkMode = useAuthBackend() === "clerk";
+  const viewerId = useViewerId();
+  const ownerId = clerkMode ? user?.id || "" : viewerId ?? "";
 
   // If user is not logged in, redirect to sign in
-  if (userLoaded && !user) {
+  if (clerkMode && userLoaded && !user) {
     redirect("/sign-in");
   }
 
   // If still loading, show loading state
-  if (!userLoaded || tokenLoading) {
+  if (clerkMode && (!userLoaded || tokenLoading)) {
     return (
       <div className="container mx-auto px-4 py-8">
         <ProjectListLoadingState />
@@ -53,7 +61,7 @@ export default function CreateProjectPage() {
     deleted_at: null,
 
     // User fields
-    user_id: user?.id || "",
+    user_id: ownerId,
     username: user?.username || user?.emailAddresses?.[0]?.emailAddress || "",
     full_name: user?.fullName || "",
     profile_image_url: user?.imageUrl || "",
@@ -62,7 +70,7 @@ export default function CreateProjectPage() {
   };
 
   return (
-    <ProjectsProvider token={token} userId={user?.id || null} isLoading={false}>
+    <ProjectsProvider token={token} userId={ownerId || null} isLoading={false}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

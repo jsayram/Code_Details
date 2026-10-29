@@ -236,7 +236,7 @@ export function ProjectTableView({
             </thead>
             <tbody>
               {sortedProjects.map((project) => {
-                const isOwner = project.user_id === userId;
+                const isOwner = project.is_mine ?? project.user_id === userId;
                 const isNavigating = navigatingProjectId === project.id;
                 const cellOpacity = isNavigating ? DIM_OPACITY : 1;
 

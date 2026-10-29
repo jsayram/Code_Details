@@ -91,6 +91,8 @@ describe("personalListResponse", () => {
       tags: [],
       profile: { username: "fixture-alice", email_address: null, profile_image_url: null, full_name: "Alice Fixture" },
       isFavorite: true,
+      // D03: whether the row is the caller's own, never who owns it.
+      is_mine: cards[2].isMine,
     });
   });
 });

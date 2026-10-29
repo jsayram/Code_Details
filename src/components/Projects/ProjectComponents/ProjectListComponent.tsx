@@ -82,9 +82,11 @@ export const ProjectList = React.memo(function ProjectList({
 
   const { userId } = useAuth();
   // D02r-c: the category-count filters follow the session (Clerk's userId by
-  // default, the Better Auth session's under the switch). The write controls
-  // below keep Clerk's userId: those Supabase actions still trust the ID they
-  // are given (P08 R02), so a Better Auth ID must never reach them.
+  // default, the Better Auth session's under the switch). D03: so does the
+  // delete control, whose action now takes the user from the session. The
+  // favorite controls keep Clerk's userId: those Supabase actions still trust
+  // the ID they are given (P08 R02, D05), so a Better Auth ID must never
+  // reach them.
   const viewerId = useViewerId();
   const router = useRouter();
 
@@ -330,13 +332,14 @@ export const ProjectList = React.memo(function ProjectList({
   );
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!projectToDelete || !userId) return;
+    if (!projectToDelete || !viewerId) return;
 
     try {
       setDeletingProjectId(projectToDelete.id);
       setShowDeleteDialog(false);
 
-      const result = await removeProject(projectToDelete.id, userId);
+      // D03: the server takes the user from the session; the ID is ignored.
+      const result = await removeProject(projectToDelete.id, viewerId);
 
       if (!result.success) {
         toast.error(result.error || "Failed to delete project");
@@ -359,7 +362,7 @@ export const ProjectList = React.memo(function ProjectList({
       setDeletingProjectId(null);
       setProjectToDelete(null);
     }
-  }, [projectToDelete, handleProjectDeleted, userId, setProjects]);
+  }, [projectToDelete, handleProjectDeleted, viewerId, setProjects]);
 
   // Category change handler with proper typing
   const handleCategoryChange = useCallback(
