@@ -1,6 +1,5 @@
 "use server";
 
-import { unstable_cache } from "next/cache";
 import { executeQuery } from "./server";
 import { projects } from "./schema/projects";
 import { profiles } from "./schema/profiles";
@@ -33,51 +32,10 @@ export async function getProjectTagNames(projectId: string): Promise<string[]> {
 // getProjectBySlugServer moved to src/db/project-read.ts (D02r, P08 R09): as
 // an export of this "use server" file it was a callable server action that
 // trusted its viewer arguments.
-/**
- * Server-side function to get a user by ID
- */
-export async function getUserById(userId: string) {
-  return await executeQuery(async (db) => {
-    // Get the user profile
-    const [user] = await db
-      .select({
-        id: profiles.id,
-        user_id: profiles.user_id,
-        username: profiles.username,
-        full_name: profiles.full_name,
-        profile_image_url: profiles.profile_image_url,
-        tier: profiles.tier,
-        email_address: profiles.email_address,
-        created_at: profiles.created_at,
-        updated_at: profiles.updated_at,
-      })
-      .from(profiles)
-      .where(eq(profiles.user_id, userId))
-      .limit(1);
-
-    // Return null instead of throwing to allow graceful handling
-    if (!user) {
-      console.warn(`User with ID ${userId} not found in database`);
-      return null;
-    }
-
-    return user;
-  });
-}
-
-/**
- * Cached version of getUserById
- * Cache: 5 minutes - User profiles change infrequently
- * Tags: ['user-profile'] - Invalidate on user profile updates
- */
-export const getCachedUserById = unstable_cache(
-  async (userId: string) => getUserById(userId),
-  ['user-by-id'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['user-profile']
-  }
-);
+// getUserById and getCachedUserById were removed (D03, SEC-D03-EMAIL): as
+// exports of this "use server" file they returned any user's full profile,
+// email included, to any caller who knew a user ID. The share button reads
+// the session's own username instead (src/app/actions/share.ts).
 
 // deleteProjectServer moved to src/db/project-write.ts as softDeleteProjectRow
 // (D03, P08 R03): it soft-deleted any project for any caller.
@@ -120,7 +78,6 @@ export async function getAccessibleProjectsServer(
           full_name: profiles.full_name,
           profile_image_url: profiles.profile_image_url,
           tier: profiles.tier,
-          email_address: profiles.email_address,
           created_at: profiles.created_at,
           updated_at: profiles.updated_at,
         },
@@ -139,7 +96,6 @@ export async function getAccessibleProjectsServer(
         profiles.full_name,
         profiles.profile_image_url,
         profiles.tier,
-        profiles.email_address,
         profiles.created_at,
         profiles.updated_at
       )
@@ -155,7 +111,8 @@ export async function getAccessibleProjectsServer(
       owner_full_name: profile?.full_name || null,
       owner_profile_image_url: profile?.profile_image_url || null,
       owner_tier: profile?.tier || null,
-      owner_email_address: profile?.email_address || null,
+      // SEC-D03-EMAIL: this is a callable action's answer; never an email.
+      owner_email_address: null,
       owner_created_at: profile?.created_at || null,
       owner_updated_at: profile?.updated_at || null,
     }));

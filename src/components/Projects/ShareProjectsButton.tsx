@@ -4,7 +4,7 @@ import React, { useEffect, useState, useMemo, useCallback } from "react";
 import { ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { getCachedUserById } from "@/db/actions";
+import { getMyShareUsername } from "@/app/actions/share";
 import Image from "next/image";
 
 interface ShareProjectButtonProps {
@@ -30,15 +30,16 @@ export const ShareProjectsButton = ({ userId }: ShareProjectButtonProps) => {
 
     try {
       setLoading(true);
-      const user = await getCachedUserById(userId);
-      if (!user) {
+      // D03: the server answers for the session's own user (userId only keys the cache).
+      const ownUsername = await getMyShareUsername();
+      if (!ownUsername) {
         console.warn("User not found in database, may need sync from Clerk");
         userCache.set(userId, null);
         setUsername(null);
         return;
       }
-      userCache.set(userId, user.username);
-      setUsername(user.username);
+      userCache.set(userId, ownUsername);
+      setUsername(ownUsername);
     } catch (error) {
       console.error("Error fetching username:", error);
       userCache.set(userId, null);
