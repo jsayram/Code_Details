@@ -210,9 +210,12 @@ export async function GET(request: NextRequest) {
         }
       }
 
-      // Favorites and the graveyard are the viewer's own; signed out, they're
-      // empty (it used to ignore the flag, or drop the deletion filter).
-      if ((showFavorites || showDeleted) && !userId) {
+      // My projects, favorites and the graveyard are the viewer's own; with no
+      // viewer they're empty (it used to list everyone's projects, ignore the
+      // flag, or drop the deletion filter). D02r-c added "my projects": a
+      // signed-in Better Auth account with no Clerk-era link has no viewer
+      // here and must not get everyone's projects as its own.
+      if ((showFavorites || showDeleted || (!showAll && !username)) && !userId) {
         return {
           success: true,
           data: [],

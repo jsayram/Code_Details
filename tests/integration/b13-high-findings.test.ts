@@ -246,9 +246,9 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect(await slugs(res)).toEqual(["fixture-bob-project"]);
     });
 
-    it("[handler] showDeleted signed out gives nothing, with or without a userId", async () => {
+    it("[handler] my projects, favorites and graveyard signed out give nothing, with or without a userId", async () => {
       signInAs(null);
-      for (const q of ["showDeleted=true&showAll=true&limit=50", `showDeleted=true&userId=${A.subject}`, `showFavorites=true&userId=${A.subject}`]) {
+      for (const q of ["showDeleted=true&showAll=true&limit=50", `showDeleted=true&userId=${A.subject}`, `showFavorites=true&userId=${A.subject}`, `userId=${A.subject}`, "limit=50"]) {
         const res = await projectsRoute.GET(url(`/api/projects?${q}`));
         expect(res.status).toBe(200);
         expect(await slugs(res)).toEqual([]);
@@ -362,7 +362,7 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
 
     it("[handler] showDeleted=false returns no deleted projects; a bad flag is a 400", async () => {
-      const res = await projectsRoute.GET(url("/api/projects?showDeleted=false&limit=50"));
+      const res = await projectsRoute.GET(url("/api/projects?showAll=true&showDeleted=false&limit=50"));
       const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug);
       expect(slugs).not.toContain("fixture-deleted-recent");
       expect(slugs).toContain("fixture-listed");
