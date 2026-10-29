@@ -3,8 +3,10 @@
 // With the switch off these are skipped and Clerk's screens are untouched
 // (the visual specs keep their baselines).
 //
-// CODEDETAILS_E2E_SCREENS_DIR=<dir> also saves a desktop dark screenshot of
-// each screen there, for Jose to compare with the Phase A a08 references.
+// CODEDETAILS_E2E_SCREENS_DIR=<dir> also saves a screenshot of each screen
+// there, for Jose to compare with the Phase A a08 references.
+// CODEDETAILS_E2E_SCREENS_VARIANT picks desktop|mobile and dark|light
+// (default desktop-dark); files are d08f3b-<screen>-<variant>.png.
 import path from "node:path";
 import type { Page } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail } from "../fixtures/better-auth";
@@ -13,6 +15,9 @@ import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
 const SCREENS = process.env.CODEDETAILS_E2E_SCREENS_DIR;
+const VARIANT = process.env.CODEDETAILS_E2E_SCREENS_VARIANT ?? "desktop-dark";
+const SCHEME = VARIANT.endsWith("light") ? "light" : "dark";
+const MOBILE = VARIANT.startsWith("mobile");
 const SAME_ORIGIN = { origin: BASE_URL };
 
 /** The emailed link, followed on the app under test (the test backend's SITE_URL is the dev origin). */
@@ -23,9 +28,9 @@ const onApp = (mail: Parameters<typeof linkIn>[0]) => {
 
 async function shot(page: Page, name: string) {
   if (!SCREENS) return;
-  await page.emulateMedia({ colorScheme: "dark", reducedMotion: "reduce" });
+  await page.emulateMedia({ colorScheme: SCHEME, reducedMotion: "reduce" });
   await page.waitForTimeout(700); // the title's fade-in
-  await page.screenshot({ path: path.join(SCREENS, `d08f3b-${name}-desktop-dark.png`) });
+  await page.screenshot({ path: path.join(SCREENS, `d08f3b-${name}-${VARIANT}.png`), fullPage: MOBILE });
 }
 
 test.describe("D08f3b auth screens (switch on)", () => {
@@ -41,8 +46,9 @@ test.describe("D08f3b auth screens (switch on)", () => {
   test.beforeEach(async ({ context, page }) => {
     await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
     if (SCREENS) {
-      await page.emulateMedia({ colorScheme: "dark" });
-      await context.addInitScript(() => localStorage.setItem("theme", "dark"));
+      await page.emulateMedia({ colorScheme: SCHEME });
+      await context.addInitScript((theme) => localStorage.setItem("theme", theme), SCHEME);
+      if (MOBILE) await page.setViewportSize({ width: 375, height: 812 });
     }
   });
 
@@ -53,7 +59,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
     await page.getByLabel("Name").fill("Synthetic Person");
     await page.getByLabel("Email address").fill(email);
     await page.getByLabel("Password").fill(SYNTHETIC_PASSWORD);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.getByRole("heading", { name: "Check your inbox" })).toBeVisible();
     await expect(page.getByText(email)).toBeVisible();
     await shot(page, "check-inbox");
@@ -66,7 +72,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
 
     await page.getByLabel("Email address").fill(email);
     await page.getByLabel("Password").fill(SYNTHETIC_PASSWORD);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page).toHaveURL(/\/$/);
     await expect(page.getByRole("button", { name: "Open account menu" }).filter({ visible: true })).toHaveCount(1);
 
@@ -82,7 +88,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
     await page.goto("/sign-in");
     await page.getByLabel("Email address").fill(syntheticEmail("f3b-nobody"));
     await page.getByLabel("Password").fill("not-the-Password-1");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.locator("main").getByRole("alert")).toHaveText("Email or password is incorrect.");
     await expect(page).toHaveURL(/\/sign-in$/);
   });
@@ -94,7 +100,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
     await page.goto("/sign-in");
     await page.getByLabel("Email address").first().fill(email);
     await page.getByLabel("Password").fill(SYNTHETIC_PASSWORD);
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.locator("main").getByRole("alert")).toContainText("Confirm your email first");
     // Better Auth also mails a link on the refused sign-in; count from here.
     await expect.poll(() => mailbox.mailFor(email, "verify-email").length).toBeGreaterThanOrEqual(2);
@@ -135,7 +141,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
     await page.getByRole("link", { name: "Sign in" }).click();
     await page.getByLabel("Email address").fill(email);
     await page.getByLabel("Password").fill("synthetic-New-Password-456");
-    await page.getByRole("button", { name: "Continue" }).click();
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
     await expect(page.getByRole("button", { name: "Open account menu" }).filter({ visible: true })).toHaveCount(1);
 
     // The reset link again: Better Auth refuses it, and the f6 screen offers a new reset link.

@@ -5,7 +5,7 @@ import { Card, CardContent } from "../ui/card";
 import { UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
 import { useAuthBackend } from "@/backend/auth/context";
-import { SignUpScreen } from "./better-auth/AuthScreens";
+import { BetterAuthSignUp } from "./better-auth/AuthScreens";
 
 interface SignUpComponentProps {
   withIcon?: boolean;
@@ -47,7 +47,7 @@ export function SignUpComponent({
       )}
       {/* D08f3b: the app's own screens while the development Better Auth switch is on. */}
       {backend === "better-auth" ? (
-        <SignUpScreen />
+        <BetterAuthSignUp />
       ) : (
       <Card className="w-full bg-background shadow-none rounded-lg border-0 backdrop-blur-sm">
         <CardContent className="p-0">

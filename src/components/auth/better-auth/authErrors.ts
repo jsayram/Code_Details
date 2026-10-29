@@ -3,9 +3,11 @@
 // code picks the wording; error_description and the code itself are never
 // shown, so nothing in the URL reaches the page as text.
 
-export type AuthErrorKind = "account_not_linked" | "link" | "restart" | "generic";
+export type AuthErrorKind = "account_not_linked" | "link" | "connect" | "restart" | "generic";
 
 const LINK = new Set(["invalid_link", "invalid_token", "token_expired"]);
+// D08f3c: "Connect GitHub" (link-social) refused.
+const CONNECT = new Set(["account_already_linked_to_different_user", "email_doesn't_match", "unable_to_link_account"]);
 const RESTART = new Set([
   "state_mismatch",
   "state_not_found",
@@ -21,6 +23,7 @@ export function authErrorKind(code: string | null | undefined): AuthErrorKind {
   const c = (code ?? "").toLowerCase();
   if (c === "account_not_linked") return "account_not_linked";
   if (LINK.has(c)) return "link";
+  if (CONNECT.has(c)) return "connect";
   if (RESTART.has(c)) return "restart";
   return "generic";
 }
@@ -35,6 +38,10 @@ export const AUTH_ERROR_TEXT: Record<AuthErrorKind, { title: string; body: strin
   link: {
     title: "This link has expired or was already used",
     body: "Links work once and expire after an hour. Some mail apps open links ahead of you to check them, which can use them up. Enter your email and we'll send a new one.",
+  },
+  connect: {
+    title: "That GitHub account couldn't be connected",
+    body: "It may already belong to another Code Details account, or use a different email from this one. Nothing was changed.",
   },
   restart: {
     title: "Let's start that again",

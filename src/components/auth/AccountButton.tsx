@@ -7,10 +7,12 @@
 // and avatar: the user's name and email, and "Sign out".
 import { SignOutButton, UserButton, useUser } from "@clerk/nextjs";
 import { Slot } from "@radix-ui/react-slot";
-import { useRouter } from "next/navigation";
-import type { ComponentProps, ReactElement } from "react";
+import { Github } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { useState, type ComponentProps, type ReactElement } from "react";
 import { useAuthBackend } from "@/backend/auth/context";
 import { signOut, useBetterAuthSession } from "@/lib/auth-session";
+import { startGitHub } from "@/components/auth/better-auth/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -78,8 +80,20 @@ function AppAccountMenu({ avatarClassName, afterSignOutUrl }: { avatarClassName?
   const { name, email } = useAccountSummary();
   const signOutThen = useSignOutThen(afterSignOutUrl);
   const user = session.status === "ready" ? session.user : null;
+  const pathname = usePathname();
+  // D08f3c: whether GitHub is connected, checked each time the menu opens.
+  const [github, setGitHub] = useState<"unknown" | "connected" | "not" | { error: string }>("unknown");
+  const checkGitHub = async () => {
+    try {
+      const res = await fetch("/api/auth/list-accounts", { credentials: "same-origin", cache: "no-store" });
+      const accounts = res.ok ? ((await res.json()) as { providerId: string }[]) : null;
+      setGitHub(accounts ? (accounts.some((a) => a.providerId === "github") ? "connected" : "not") : "unknown");
+    } catch {
+      setGitHub("unknown");
+    }
+  };
   return (
-    <DropdownMenu>
+    <DropdownMenu onOpenChange={(open) => void (open && checkGitHub())}>
       <DropdownMenuTrigger className="rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Open account menu">
         <Avatar className={avatarClassName ?? "h-8 w-8"}>
           {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
@@ -92,6 +106,28 @@ function AppAccountMenu({ avatarClassName, afterSignOutUrl }: { avatarClassName?
           {email ? <span className="truncate text-xs font-normal text-muted-foreground">{email}</span> : null}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
+        {github === "connected" ? (
+          <DropdownMenuItem disabled>
+            <Github aria-hidden="true" />
+            GitHub connected
+          </DropdownMenuItem>
+        ) : github === "not" ? (
+          <DropdownMenuItem
+            className="cursor-pointer"
+            onSelect={async (e) => {
+              e.preventDefault();
+              const error = await startGitHub({ link: true, callbackURL: pathname ?? "/" });
+              if (error) setGitHub({ error });
+            }}
+          >
+            <Github aria-hidden="true" />
+            Connect GitHub
+          </DropdownMenuItem>
+        ) : typeof github === "object" ? (
+          <DropdownMenuItem disabled role="alert">
+            {github.error}
+          </DropdownMenuItem>
+        ) : null}
         <DropdownMenuItem className="cursor-pointer" onSelect={() => void signOutThen()}>
           Sign out
         </DropdownMenuItem>

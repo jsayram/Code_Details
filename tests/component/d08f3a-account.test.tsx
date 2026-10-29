@@ -26,7 +26,7 @@ vi.mock("@clerk/nextjs", () => ({
   },
 }));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
-vi.mock("next/navigation", () => ({ useRouter: () => router }));
+vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/" }));
 
 import { AuthBackendProvider, type AuthBackend } from "@/backend/auth/context";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
