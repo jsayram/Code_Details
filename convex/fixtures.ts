@@ -6,7 +6,7 @@
 import { v } from "convex/values";
 import { createFunctionHandle } from "convex/server";
 import { components, internal } from "./_generated/api";
-import { internalMutation, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { holdsOnlySignUpRows, removeSignUpAccount } from "./accounts";
 
@@ -34,6 +34,12 @@ export const clear = internalMutation({
     // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
     // stays out of TABLES (and of counts/snapshot) and is just emptied here.
     for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
+    // D03: image rows (and their files) and tag suggestions added by the lifecycle tests.
+    for (const doc of await ctx.db.query("projectImages").collect()) {
+      if (await ctx.db.system.get(doc.storageId)) await ctx.storage.delete(doc.storageId);
+      await ctx.db.delete(doc._id);
+    }
+    for (const doc of await ctx.db.query("tagSuggestions").collect()) await ctx.db.delete(doc._id);
     // D02: the project update's own tables (slug history, tag join, search outbox).
     for (const table of ["projectSlugs", "projectTags", "contentChanges"] as const) {
       for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
@@ -420,6 +426,92 @@ export const projectWriteState = internalQuery({
       audit: audit.map((a) => ({ kind: a.kind, actorId: a.actorId, details: a.details })),
       outbox: outbox.map((o) => ({ change: o.change, sourceVersion: o.sourceVersion })),
       tags: tags.map((t) => ({ id: t._id, name: t.name, nameKey: t.nameKey, listedProjectCount: t.listedProjectCount, status: t.status })),
+    };
+  },
+});
+
+// ---------------------------------------------------------------------------
+// D03: extra rows around one project for the lifecycle tests (fan-out, purge
+// cleanup, file deletion). Synthetic only: placeholder bytes, fixture users.
+
+/** Stores `count` placeholder files and registers them as image rows of the project. */
+export const addProjectImages = internalAction({
+  args: { projectId: v.id("projects"), count: v.number() },
+  handler: async (ctx, { projectId, count }): Promise<Id<"_storage">[]> => {
+    assertFixturesAllowed();
+    const storageIds: Id<"_storage">[] = [];
+    for (let i = 0; i < count; i++) {
+      storageIds.push(await ctx.storage.store(new Blob([`d03 synthetic image ${i}`], { type: "image/png" })));
+    }
+    await ctx.runMutation(internal.fixtures.insertImageRows, { projectId, storageIds });
+    return storageIds;
+  },
+});
+
+export const insertImageRows = internalMutation({
+  args: { projectId: v.id("projects"), storageIds: v.array(v.id("_storage")) },
+  handler: async (ctx, { projectId, storageIds }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    if (!project) throw new Error("no such project");
+    for (const [i, storageId] of storageIds.entries()) {
+      await ctx.db.insert("projectImages", {
+        projectId,
+        storageId,
+        kind: i === 0 ? "cover" : "screenshot",
+        displayOrder: i,
+        fileName: `d03-${i}.png`,
+        mimeType: "image/png",
+        size: 22,
+        uploadedBy: project.ownerId,
+        status: i === storageIds.length - 1 && i > 0 ? "deleted" : "active",
+        createdAt: project.createdAt,
+      });
+    }
+  },
+});
+
+/** `count` favorite rows on the project from fixture users (repeats allowed: only the fan-out is under test). */
+export const addFavorites = internalMutation({
+  args: { projectId: v.id("projects"), count: v.number() },
+  handler: async (ctx, { projectId, count }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    if (!project) throw new Error("no such project");
+    const users = await ctx.db.query("users").take(10);
+    for (let i = 0; i < count; i++) {
+      await ctx.db.insert("favorites", { userId: users[i % users.length]._id, projectId, createdAt: project.createdAt + i, listed: project.listed });
+    }
+  },
+});
+
+export const addTagSuggestion = internalMutation({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    if (!project) throw new Error("no such project");
+    await ctx.db.insert("tagSuggestions", { projectId, proposedName: "fixture-d03 idea", nameKey: "fixture-d03 idea", status: "pending", createdAt: project.createdAt });
+  },
+});
+
+/** What is left of a project: its row, related rows per table, listed copies, and which of the files still exist. */
+export const projectResidue = internalQuery({
+  args: { projectId: v.id("projects"), storageIds: v.optional(v.array(v.id("_storage"))) },
+  handler: async (ctx, { projectId, storageIds }) => {
+    assertFixturesAllowed();
+    const tags = await ctx.db.query("projectTags").withIndex("by_project_position", (q) => q.eq("projectId", projectId)).collect();
+    const favorites = await ctx.db.query("favorites").withIndex("by_project_created", (q) => q.eq("projectId", projectId)).collect();
+    const slugs = await ctx.db.query("projectSlugs").withIndex("by_project_state", (q) => q.eq("projectId", projectId)).collect();
+    const suggestions = await ctx.db.query("tagSuggestions").withIndex("by_project_status", (q) => q.eq("projectId", projectId)).collect();
+    const images = await ctx.db.query("projectImages").withIndex("by_project_status_order", (q) => q.eq("projectId", projectId)).collect();
+    const files: string[] = [];
+    for (const id of storageIds ?? []) if (await ctx.db.system.get(id)) files.push(id);
+    return {
+      project: await ctx.db.get(projectId),
+      counts: { projectTags: tags.length, favorites: favorites.length, projectSlugs: slugs.length, tagSuggestions: suggestions.length, projectImages: images.length },
+      listedCopies: { projectTags: tags.filter((r) => r.listed).length, favorites: favorites.filter((r) => r.listed).length },
+      files,
     };
   },
 });

@@ -293,7 +293,7 @@ export type UpdateResult =
   | { ok: false; code: "stale"; contentVersion: number }
   | { ok: false; code: "invalid"; issues: Issue[] };
 
-async function toEditable(ctx: QueryCtx, project: Doc<"projects">): Promise<EditableProject> {
+export async function toEditable(ctx: QueryCtx, project: Doc<"projects">): Promise<EditableProject> {
   return {
     id: project._id,
     slug: project.slug,
@@ -360,7 +360,7 @@ export const currentSlug = query({
   },
 });
 
-const categoryValue = v.union(v.string(), v.number(), v.boolean(), v.array(v.string()));
+export const categoryValue = v.union(v.string(), v.number(), v.boolean(), v.array(v.string()));
 
 export const update = mutation({
   args: {
@@ -397,28 +397,10 @@ export const update = mutation({
       issues.push(...checkCategoryData(value.category, project.categoryData, project.fieldOrder, { strictKeys: true }));
     }
     const slugChanges = value.slug !== undefined && value.slug !== project.slug;
-    if (slugChanges) {
-      const held = await ctx.db
-        .query("projectSlugs")
-        .withIndex("by_slug", (q) => q.eq("slug", value.slug!))
-        .collect();
-      const live = await ctx.db
-        .query("projects")
-        .withIndex("by_slug", (q) => q.eq("slug", value.slug!))
-        .first();
-      if (held.some((r) => r.projectId !== project._id) || (live && live._id !== project._id)) {
-        issues.push({ field: "slug", message: "This slug is already taken" });
-      }
+    if (slugChanges && (await slugTaken(ctx, value.slug!, project._id))) {
+      issues.push({ field: "slug", message: "This slug is already taken" });
     }
-    const resolved: { nameKey: string; name: string; tag: Doc<"tags"> | null }[] = [];
-    for (const t of value.tags ?? []) {
-      const tag = await ctx.db
-        .query("tags")
-        .withIndex("by_nameKey", (q) => q.eq("nameKey", t.nameKey))
-        .first();
-      if (tag?.status === "retired") issues.push({ field: "tags", message: `The tag "${tag.name}" is retired` });
-      resolved.push({ ...t, tag });
-    }
+    const resolved = await resolveTags(ctx, value.tags ?? [], issues);
     if (issues.length) return { ok: false, code: "invalid", issues };
 
     // ---- Writes ----
@@ -439,13 +421,7 @@ export const update = mutation({
     if (value.fieldOrder !== undefined) doc.fieldOrder = value.fieldOrder ?? undefined;
 
     if (value.tags !== undefined) {
-      const tagIds: Id<"tags">[] = [];
-      for (const r of resolved) {
-        tagIds.push(
-          r.tag?._id ??
-            (await ctx.db.insert("tags", { name: r.name, nameKey: r.nameKey, status: "active", listedProjectCount: 0, createdAt: now })),
-        );
-      }
+      const tagIds = await createMissingTags(ctx, resolved, now);
       const old = await ctx.db
         .query("projectTags")
         .withIndex("by_project_position", (q) => q.eq("projectId", project._id))
@@ -504,7 +480,52 @@ export const update = mutation({
   },
 });
 
-async function bumpListedCount(ctx: MutationCtx, tagId: Id<"tags">, by: 1 | -1) {
+/**
+ * True when another project holds this slug: as its current slug, or in its
+ * history (a slug stays reserved until its project is purged, P07 §3.6).
+ * `ownProjectId` is the project asking (null for a new one).
+ */
+export async function slugTaken(ctx: QueryCtx, slug: string, ownProjectId: Id<"projects"> | null): Promise<boolean> {
+  const held = await ctx.db
+    .query("projectSlugs")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .collect();
+  const live = await ctx.db
+    .query("projects")
+    .withIndex("by_slug", (q) => q.eq("slug", slug))
+    .first();
+  return held.some((r) => r.projectId !== ownProjectId) || (live !== null && live._id !== ownProjectId);
+}
+
+export type ResolvedTag = { nameKey: string; name: string; tag: Doc<"tags"> | null };
+
+/** Finds each (deduplicated) tag by nameKey; a retired one is an issue. No writes. */
+export async function resolveTags(ctx: QueryCtx, tags: { nameKey: string; name: string }[], issues: Issue[]): Promise<ResolvedTag[]> {
+  const resolved: ResolvedTag[] = [];
+  for (const t of tags) {
+    const tag = await ctx.db
+      .query("tags")
+      .withIndex("by_nameKey", (q) => q.eq("nameKey", t.nameKey))
+      .first();
+    if (tag?.status === "retired") issues.push({ field: "tags", message: `The tag "${tag.name}" is retired` });
+    resolved.push({ ...t, tag });
+  }
+  return resolved;
+}
+
+/** The tag IDs in order, creating the tags that don't exist yet (active, count 0). */
+export async function createMissingTags(ctx: MutationCtx, resolved: ResolvedTag[], now: number): Promise<Id<"tags">[]> {
+  const tagIds: Id<"tags">[] = [];
+  for (const r of resolved) {
+    tagIds.push(
+      r.tag?._id ??
+        (await ctx.db.insert("tags", { name: r.name, nameKey: r.nameKey, status: "active", listedProjectCount: 0, createdAt: now })),
+    );
+  }
+  return tagIds;
+}
+
+export async function bumpListedCount(ctx: MutationCtx, tagId: Id<"tags">, by: 1 | -1) {
   const tag = await ctx.db.get(tagId);
   if (tag) await ctx.db.patch(tagId, { listedProjectCount: Math.max(0, tag.listedProjectCount + by) });
 }
