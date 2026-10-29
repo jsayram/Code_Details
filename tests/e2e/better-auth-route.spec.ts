@@ -143,3 +143,19 @@ test.describe("D08b with the switch off", () => {
     }
   });
 });
+
+test.describe("D08d handover route, signed out (either switch state)", () => {
+  test("Clerk's protect sends a signed-out call to /sign-in; nothing is linked", async ({ playwright }) => {
+    const ctx = await browserLike(playwright);
+    // A Better Auth session alone is not enough: the Clerk side is missing.
+    if (betterAuth) {
+      expect((await ctx.post("/api/auth/sign-up/email", { data: { email: syntheticEmail("next-handover"), password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    }
+    const res = await ctx.post("/api/account/handover", { data: {}, maxRedirects: 0 });
+    expect(res.status()).toBe(307);
+    expect(new URL(res.headers().location, BASE_URL).pathname).toBe("/sign-in");
+    if (betterAuth) expect(await viewer(ctx)).toEqual(NEW_ACCOUNT);
+    await ctx.dispose();
+  });
+});
+
