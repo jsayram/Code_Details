@@ -3,7 +3,7 @@
 // from it, and the server gates on the project page agree. Synthetic users
 // only. With the switch off (the normal runs) these are skipped, and the
 // visual specs keep the Clerk header pixel-identical.
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
@@ -15,7 +15,7 @@ test.describe("D08f3a account menu (switch on)", () => {
 
   test.beforeEach(async ({ context, page }) => {
     // Its own client IP, as a proxy would set it, so Better Auth's per-IP limits don't collide.
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
     const email = syntheticEmail("f3a-menu");
     const headers = { origin: BASE_URL };
     const up = await page.request.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } });

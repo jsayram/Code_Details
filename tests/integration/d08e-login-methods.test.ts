@@ -12,21 +12,7 @@ import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adminClient, clearConvexFixtures, convexAvailable } from "../fixtures/convex";
 import { testIssuerAvailable } from "../fixtures/convex-auth";
 import { FAKE_MAILPIT_PORT, fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
-import {
-  SITE_ORIGIN,
-  SYNTHETIC_PASSWORD,
-  accountRows,
-  authFetch,
-  authState,
-  clientWithToken,
-  freshClientIp,
-  convexToken,
-  repairHalfFinishedSignUps,
-  signIn,
-  signUpRaw,
-  syntheticEmail,
-  type Jar,
-} from "../fixtures/better-auth";
+import { accountRows, authFetch, authState, clientWithToken, convexToken, freshClientIp, repairHalfFinishedSignUps, signIn, signUpRaw, SITE_ORIGIN, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, type Jar } from "../fixtures/better-auth";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
 
 const whoami = makeFunctionReference<"query">("identity:whoami");
@@ -216,7 +202,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
     it("a callback with a state it didn't issue is sent to the error page and creates nobody", async () => {
       const res = await fetch(`${TEST_CONVEX_SITE_URL}/api/auth/callback/github?code=synthetic&state=forged`, {
         redirect: "manual",
-        headers: { "x-forwarded-for": "2001:db8:e5::1" },
+        headers: { [TEST_CLIENT_IP_HEADER]: "2001:db8:e5::1" },
       });
       expect(res.status).toBe(302);
       // D08f3b: the app's own error screen, as a relative redirect on the origin the browser came through.

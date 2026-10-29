@@ -3,7 +3,7 @@
 // Clerk. Synthetic users; the paths below that don't exist answer 404 once
 // past the proxy, which tells "passed the proxy" apart from its own refusal.
 import type { APIRequestContext } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, expireSession, freshClientIp, setRole, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { expireSession, freshClientIp, setRole, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -11,7 +11,7 @@ const PAGE = "/d08g1-no-such-page";
 const API = "/api/d08g1-no-such-endpoint";
 
 async function client(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) {
-  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
+  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, [TEST_CLIENT_IP_HEADER]: freshClientIp() }, maxRedirects: 0 });
 }
 
 async function signIn(ctx: APIRequestContext) {

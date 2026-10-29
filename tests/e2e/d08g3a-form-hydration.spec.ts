@@ -1,7 +1,7 @@
 // f7 (D08g3a): text typed into the auth forms while the page's JavaScript is
 // still loading survives hydration. The app's script chunks are held back
 // until the fields are filled, so the typing really happens before hydration.
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER } from "../fixtures/better-auth";
 import { expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -10,7 +10,7 @@ test.describe("f7 auth forms before hydration (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
 
   test("sign-up fields typed before hydration are still there after it, and the form then works", async ({ context, page }) => {
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
     // Warm the dev server's compile so the held-back run below measures hydration, not compilation.
     await page.goto("/sign-up");
     await expect(page.getByRole("button", { name: "Continue", exact: true })).toBeEnabled();

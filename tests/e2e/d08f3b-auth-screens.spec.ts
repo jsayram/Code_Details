@@ -9,7 +9,7 @@
 // (default desktop-dark); files are d08f3b-<screen>-<variant>.png.
 import path from "node:path";
 import type { Page } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER } from "../fixtures/better-auth";
 import { fakeMailpit, linkIn } from "../fixtures/fake-mailpit";
 import { BASE_URL, expect, test } from "./support";
 
@@ -44,7 +44,7 @@ test.describe("D08f3b auth screens (switch on)", () => {
     await mailbox.stop();
   });
   test.beforeEach(async ({ context, page }) => {
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
     if (SCREENS) {
       await page.emulateMedia({ colorScheme: SCHEME });
       await context.addInitScript((theme) => localStorage.setItem("theme", theme), SCHEME);

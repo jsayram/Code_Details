@@ -130,6 +130,10 @@ if (target === "test") {
     // (convex/authRules.ts), a throwaway like the one above; playwright.config.ts
     // gives the browser-test server the same value.
     ["CODEDETAILS_INTERNAL_AUTH_SECRET", throwawaySecret("internal-auth-secret")],
+    // SEC-D08-XFF: tests name each synthetic client with a test-only header
+    // (convex/authRules.ts), honored only on a loopback site; X-Forwarded-For
+    // is ignored, as on every deployment without a trusted-proxy list.
+    ["CODEDETAILS_AUTH_TEST_CLIENT_IP", "1"],
   );
 }
 if (target === "manual") {
