@@ -36,6 +36,7 @@ import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement
 import { SignInButtonComponent } from "@/components/auth/SignInButtonComponent";
 import ShareProjectsButton from "../ShareProjectsButton";
 import { useSession } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 
 interface ProjectListProps {
@@ -80,22 +81,27 @@ export const ProjectList = React.memo(function ProjectList({
   } = useProjects();
 
   const { userId } = useAuth();
+  // D02r-c: the category-count filters follow the session (Clerk's userId by
+  // default, the Better Auth session's under the switch). The write controls
+  // below keep Clerk's userId: those Supabase actions still trust the ID they
+  // are given (P08 R02), so a Better Auth ID must never reach them.
+  const viewerId = useViewerId();
   const router = useRouter();
 
   // Determine category counts filter based on current view
   const categoryCountsFilters = React.useMemo(() => {
-    if (showDeletedOnly && userId) {
-      return { userId, deleted: true };
+    if (showDeletedOnly && viewerId) {
+      return { userId: viewerId, deleted: true };
     }
-    if (showFavoritesOnly && userId) {
-      return { userId, favorites: true };
+    if (showFavoritesOnly && viewerId) {
+      return { userId: viewerId, favorites: true };
     }
-    if (showUserProjectsOnly && userId) {
-      return { userId };
+    if (showUserProjectsOnly && viewerId) {
+      return { userId: viewerId };
     }
     // Community view - global counts
     return undefined;
-  }, [showUserProjectsOnly, showFavoritesOnly, showDeletedOnly, userId]);
+  }, [showUserProjectsOnly, showFavoritesOnly, showDeletedOnly, viewerId]);
 
   const { hasCategoryProjects } = useCategoryCounts(categoryCountsFilters);
   const [viewMode, setViewMode] = useState("card");

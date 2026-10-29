@@ -4,6 +4,8 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -23,8 +25,12 @@ export default function MyProjectsShowcase() {
   const { userTier } = useUserTier(user?.id ?? null);
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
+  // D02r-c: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const { user: displayUser } = useDisplayUser();
+
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading;
+  const isLoading = viewer.isLoading;
 
   return (
     <>
@@ -38,8 +44,8 @@ export default function MyProjectsShowcase() {
         </div>
       ) : (
         <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
+          token={viewer.token}
+          userId={viewer.userId}
           isLoading={isLoading}
         >
           <SidebarProvider>
@@ -56,7 +62,7 @@ export default function MyProjectsShowcase() {
                             icon={
                               <GemIcon className="h-8 w-8 text-indigo-500" />
                             }
-                            userName={user?.fullName || "User"}
+                            userName={displayUser?.fullName || "User"}
                             bannerTitle="Projects Portfolio"
                             description="Showcase of your projects by sharing them individually or your entire portfolio to anyone."
                             userTier={userTier}

@@ -10,6 +10,7 @@ import React, {
 import useSWR, { mutate } from "swr";
 import { Project } from "@/types/models/project";
 import { useAuthState } from "@/hooks/use-auth-state";
+import { useAuthBackend } from "@/backend/auth/context";
 import { API_ROUTES } from "@/constants/api-routes";
 import { ProjectCategory } from "@/constants/project-categories";
 import { revalidateProjectCache } from "@/lib/swr-fetchers";
@@ -116,10 +117,13 @@ export function ProjectsProvider({
     ...initialFilters,
   });
 
-  const {
-    isAuthenticated,
-    isReady: authReady,
-  } = useAuthState(userId, token);
+  const authState = useAuthState(userId, token);
+  // D02r-c: under the development Better Auth switch there is no Supabase
+  // token; a session user ID is enough, because the server reads the user
+  // from the session cookie.
+  const backend = useAuthBackend();
+  const isAuthenticated = backend === "better-auth" ? !!userId : authState.isAuthenticated;
+  const authReady = backend === "better-auth" ? true : authState.isReady;
 
   // Determine if we should fetch
   const shouldFetch = authReady && !isLoading && (isAuthenticated || !!filters.username);

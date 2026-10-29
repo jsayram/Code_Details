@@ -52,6 +52,22 @@ export async function viewerQuery<Q extends FunctionReference<"query", "public",
 }
 
 /**
+ * viewerQuery for a query that takes arguments (D02r-c). The arguments are
+ * never an identity: the no-identity-args test refuses any such query.
+ */
+export async function viewerQueryWithArgs<Args extends Record<string, unknown>, R>(
+  query: FunctionReference<"query", "public", Args, R>,
+  args: Args,
+): Promise<{ result: R } | null> {
+  const choice = chooseAuthBackend();
+  const helpers = await betterAuthServer();
+  if (choice.backend !== "better-auth" || !helpers) return null;
+  const token = await helpers.getToken();
+  const ref = query as unknown as FunctionReference<"query", "public", Record<string, unknown>, R>;
+  return { result: (await fetchQuery(ref, args, { token, url: choice.convexUrl })) as R };
+}
+
+/**
  * D08g1: the viewer for a request's cookies, for the proxy, where Next's
  * cookies() isn't available. Asks the backend for a Convex token with those
  * cookies (Better Auth checks the session), then resolves it with

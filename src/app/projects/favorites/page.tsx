@@ -4,6 +4,8 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { Alert, AlertDescription } from "@/components/ui/alert";
@@ -26,8 +28,12 @@ export default function FavoriteProjects() {
   const { userTier } = useUserTier(user?.id ?? null);
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
+  // D02r-c: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const { user: displayUser } = useDisplayUser();
+
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading;
+  const isLoading = viewer.isLoading;
 
   return (
     <>
@@ -41,8 +47,8 @@ export default function FavoriteProjects() {
         </div>
       ) : (
         <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
+          token={viewer.token}
+          userId={viewer.userId}
           isLoading={isLoading}
         >
           <SidebarProvider>
@@ -57,7 +63,7 @@ export default function FavoriteProjects() {
                         <div className="flex flex-col space-y-4">
                           <PageBanner
                             icon={<Heart className="h-8 w-8 text-red-500 fill-current animate-heartbeat" fill="currentColor" />}
-                            userName={user?.fullName || "User"}
+                            userName={displayUser?.fullName || "User"}
                             bannerTitle="Favorite Projects"
                             description="A curated list of projects you've marked as favorites. Easily access and manage the projects you love the most ❤️"
                             userTier={userTier}

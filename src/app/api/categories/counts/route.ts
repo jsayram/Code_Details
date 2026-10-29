@@ -6,6 +6,7 @@ import { favorites } from "@/db/schema/favorites";
 import { sql, isNull, isNotNull, eq, and, SQL } from "drizzle-orm";
 import { success, databaseError } from "@/lib/api-errors";
 import { routeViewer } from "@/lib/auth-server";
+import { convexPersonalCounts, personalReadsFromConvex } from "@/backend/projects/personal";
 
 /**
  * GET /api/categories/counts
@@ -28,6 +29,13 @@ export async function GET(request: NextRequest) {
   const personal = searchParams.has("userId") || showFavorites || showDeleted;
 
   try {
+    // D02r-c: behind the development switches, personal counts come from Convex.
+    if (personal && personalReadsFromConvex()) {
+      const response = success(await convexPersonalCounts(showDeleted ? "deleted" : showFavorites ? "favorites" : "mine"));
+      response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+
     const viewer = personal ? await routeViewer() : null;
     const userId = viewer?.userId ?? null;
     const categoryCounts = personal && !userId ? [] : await executeQuery(async (db) => {

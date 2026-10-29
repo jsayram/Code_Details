@@ -4,6 +4,8 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -24,8 +26,12 @@ export default function DeletedProjects() {
   const { userTier } = useUserTier(user?.id ?? null);
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
+  // D02r-c: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const { user: displayUser } = useDisplayUser();
+
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading;
+  const isLoading = viewer.isLoading;
 
   // Graveyard-themed emojis for the particles
   const graveyardEmojis = [
@@ -51,8 +57,8 @@ export default function DeletedProjects() {
         </div>
       ) : (
         <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
+          token={viewer.token}
+          userId={viewer.userId}
           isLoading={isLoading}
         >
           <SidebarProvider>
@@ -83,7 +89,7 @@ export default function DeletedProjects() {
                         <div className="flex flex-col space-y-4">
                           <PageBanner
                             icon={<Skull className="h-8 w-8 text-red-500" />}
-                            userName={user?.fullName || "User"}
+                            userName={displayUser?.fullName || "User"}
                             bannerTitle="Digital Graveyard"
                             description="A resting place for your deleted projects. They are no longer active in the community, but you can review and restore them if needed or kill them off permanently from here 🔪"
                             userTier={userTier}

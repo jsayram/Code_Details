@@ -2,6 +2,8 @@
 
 import React, { useEffect, useState, useMemo } from "react";
 import { useUser } from "@clerk/nextjs";
+import { useAuthBackend } from "@/backend/auth/context";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 import { isValidTier, getAccessibleTiers } from "@/services/tierServiceServer";
 import { useUserTier } from "@/hooks/use-user-tier";
@@ -50,7 +52,15 @@ export default function ProtectedPage({
   allowedTiers,
   children,
 }: ProtectedPageProps) {
-  const { isLoaded, isSignedIn, user } = useUser();
+  const clerk = useUser();
+  const { user } = clerk;
+  // D02r-c: under the development Better Auth switch, "signed in" follows the
+  // Better Auth session. The tier lookup is still keyed on Clerk's ID (D04e),
+  // so it falls back to "free" there, which every current page allows.
+  const backend = useAuthBackend();
+  const viewerId = useViewerId();
+  const isLoaded = backend === "clerk" ? clerk.isLoaded : viewerId !== undefined;
+  const isSignedIn = backend === "clerk" ? clerk.isSignedIn : !!viewerId;
   const router = useRouter();
   const [hasAccess, setHasAccess] = useState(true);
   const [requiredTier, setRequiredTier] = useState<string | null>(null);

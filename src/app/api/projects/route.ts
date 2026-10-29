@@ -12,6 +12,7 @@ import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
 import { routeViewer } from "@/lib/auth-server";
+import { convexPersonalList, personalListResponse, personalReadsFromConvex } from "@/backend/projects/personal";
 
 // Helper function to build base project selection
 const buildProjectSelection = () => ({
@@ -175,6 +176,15 @@ export async function GET(request: NextRequest) {
         ),
         { status: result.success ? 200 : 404, headers }
       );
+    }
+
+    // D02r-c: behind the development switches, the personal views come from
+    // Convex, which learns the caller from the Better Auth session.
+    const personalView = showFavorites ? "favorites" : showDeleted ? "deleted" : !showAll ? "mine" : null;
+    if (personalView && !username && personalReadsFromConvex()) {
+      const cards = await convexPersonalList(personalView);
+      const response = personalListResponse(cards, { category, tags, sortBy, page, limit });
+      return new NextResponse(JSON.stringify(response), { status: 200, headers });
     }
 
     const result = await executeQuery(async (db) => {
