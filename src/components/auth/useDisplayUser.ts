@@ -5,9 +5,17 @@
 // useUser() gives; with the development Better Auth switch on they come from
 // the Better Auth session (whose single name is split into first/last).
 // Only for showing who is signed in, never as an identity for data.
+//
+// FLAKE-HYD-HOME: until hydration has finished it reports "still loading, no
+// user", as the server render does. The home page and HeroSection choose
+// between the hero and its loading skeleton on isLoaded, and when clerk-js had
+// loaded before React hydrated, the first client render picked the hero while
+// the server HTML had the skeleton ("Hydration failed", 2 in 3 full Convex
+// runs). The same race D08f2 fixed for SignedIn/SignedOut (AuthGate).
 import { useUser } from "@clerk/nextjs";
 import { useAuthBackend } from "@/backend/auth/context";
 import { useBetterAuthSession } from "@/lib/auth-session";
+import { useHydrated } from "./AuthGate";
 
 export interface DisplayUser {
   fullName: string | null;
@@ -21,6 +29,8 @@ export function useDisplayUser(): { isLoaded: boolean; user: DisplayUser | null 
   const backend = useAuthBackend();
   const { user, isLoaded } = useUser();
   const session = useBetterAuthSession(backend === "better-auth");
+  const hydrated = useHydrated();
+  if (!hydrated) return { isLoaded: false, user: null };
   if (backend === "clerk") {
     return {
       isLoaded,
