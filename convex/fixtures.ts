@@ -8,6 +8,7 @@ import { createFunctionHandle } from "convex/server";
 import { components, internal } from "./_generated/api";
 import { internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
+import { holdsOnlySignUpRows, removeSignUpAccount } from "./accounts";
 
 function assertFixturesAllowed() {
   if (process.env.CODEDETAILS_FIXTURES_ALLOWED !== "1") {
@@ -33,7 +34,7 @@ export const clear = internalMutation({
     // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
     // stays out of TABLES (and of counts/snapshot) and is just emptied here.
     for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
-    // D08d: the handover writes account.linked audit rows.
+    // D08d wrote account.linked audit rows; emptied in case an old run left some.
     for (const doc of await ctx.db.query("auditEvents").collect()) await ctx.db.delete(doc._id);
     // D08a: Better Auth's own tables, so no auth user outlives its app account.
     // The signing keys (jwks) stay; they belong to the deployment.
@@ -272,8 +273,8 @@ export const setRole = internalMutation({
   },
 });
 
-// D11: undo a D08d handover for a Clerk-era persona, so a test that links it
-// doesn't depend on test order or earlier runs. Removes the persona's
+// D11: undo linkPersona (below) for a Clerk-era persona, so a test that links
+// it doesn't depend on test order or earlier runs. Removes the persona's
 // "better-auth" links only; its Clerk-era link and data stay.
 export const releasePersona = internalMutation({
   args: { clerkSubject: v.string() },
@@ -296,6 +297,35 @@ export const releasePersona = internalMutation({
       }
     }
     return removed;
+  },
+});
+
+// D08g4b: the D08d handover is gone, so tests that need a Better Auth login
+// on a Clerk-era persona (D11's legacySubject) link it here instead. Same end
+// state the handover left: the persona takes the login, and the account the
+// sign-up made goes away, only if it still holds nothing but sign-up rows.
+export const linkPersona = internalMutation({
+  args: { clerkSubject: v.string(), authUserId: v.string() },
+  handler: async (ctx, { clerkSubject, authUserId }) => {
+    assertFixturesAllowed();
+    const clerk = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "clerk").eq("subject", clerkSubject))
+      .unique();
+    if (!clerk) throw new Error("no Clerk-era persona with that subject");
+    for (const link of await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", clerk.userId)).collect()) {
+      if (link.provider === "better-auth") await ctx.db.delete(link._id);
+    }
+    const current = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "better-auth").eq("subject", authUserId))
+      .unique();
+    if (current) {
+      if (!(await holdsOnlySignUpRows(ctx, current.userId))) throw new Error("that login's account holds more than sign-up rows");
+      await removeSignUpAccount(ctx, current.userId);
+    }
+    await ctx.db.insert("authLinks", { userId: clerk.userId, provider: "better-auth", subject: authUserId, linkedAt: Date.now() });
+    await ctx.db.patch(clerk.userId, { authUserId });
   },
 });
 

@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// D08f3c: "Continue with GitHub", "Connect GitHub" in the account menu, and
-// the handover screen, with the development switch on. Nothing reaches
+// D08f3c: "Continue with GitHub" and "Connect GitHub" in the account menu,
+// with the development switch on (the handover screen went in D08g4b). Nothing reaches
 // GitHub: fetch is mocked and navigation is a spy.
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -138,54 +138,18 @@ describe("Connect GitHub in the account menu", () => {
   });
 });
 
-describe("handover screen /sign-in/handover", () => {
-  beforeEach(() => {
+// D08g4b: the handover screen is gone; its old path falls through to sign-in.
+describe("/sign-in/handover after D08g4b", () => {
+  it("shows the plain sign-in screen, with no old-login button and no link call", async () => {
     nav.path = "/sign-in/handover";
-  });
-
-  it("with neither login, shows both steps undone, the old sign-in, and no link button", async () => {
-    on(<SignInComponent />);
-    expect(await screen.findByRole("heading", { name: "Set up your new login" })).toBeTruthy();
-    expect(screen.getByText("Your existing account").parentElement!.textContent).toMatch(/not done yet/);
-    expect(screen.getByTestId("clerk-sign-in-button").textContent).toBe("Sign in with the old login");
-    expect(clerk.signInButtons[0]).toMatchObject({ mode: "modal", forceRedirectUrl: "/sign-in/handover" });
-    expect(screen.getByRole("link", { name: "Create it" }).getAttribute("href")).toBe("/sign-up?redirect_url=%2Fsign-in%2Fhandover");
-    expect(screen.getByRole("link", { name: "sign in" }).getAttribute("href")).toBe("/sign-in?redirect_url=%2Fsign-in%2Fhandover");
-    expect(screen.queryByRole("button", { name: "Link my account" })).toBeNull();
-  });
-
-  it("with only one login, still no link button", async () => {
-    clerk.userId = "user_clerk_fixture";
-    on(<SignInComponent />);
-    await screen.findByText("Signed in with the old login.");
-    expect(screen.queryByRole("button", { name: "Link my account" })).toBeNull();
-  });
-
-  it("with both, links the account", async () => {
     clerk.userId = "user_clerk_fixture";
     sessionUser = USER;
-    replies["/api/account/handover"] = { status: 200, body: { linked: true } };
     on(<SignInComponent />);
-    expect(await screen.findByText(`Signed in as ${USER.email}.`)).toBeTruthy();
-    await userEvent.click(screen.getByRole("button", { name: "Link my account" }));
-    expect(calls.at(-1)).toEqual({ url: "/api/account/handover", body: {} });
-    expect(await screen.findByRole("heading", { name: "Your account is linked" })).toBeTruthy();
-  });
-
-  it.each([
-    [401, /One of the logins is no longer signed in/],
-    [409, /We couldn't link these\. The new login may already belong to an account/],
-    [404, /Linking isn't available here/],
-    [503, /Linking isn't available here/],
-    [500, /We couldn't link these\. Please try again/],
-  ])("%i shows its message", async (status, text) => {
-    clerk.userId = "user_clerk_fixture";
-    sessionUser = USER;
-    replies["/api/account/handover"] = { status, body: { linked: false } };
-    on(<SignInComponent />);
-    await userEvent.click(await screen.findByRole("button", { name: "Link my account" }));
-    expect((await screen.findByRole("alert")).textContent).toMatch(text);
-    expect(screen.queryByRole("heading", { name: "Your account is linked" })).toBeNull();
+    expect(await screen.findByRole("heading", { name: "Sign in to Code Details" })).toBeTruthy();
+    expect(screen.queryByText("Set up your new login")).toBeNull();
+    expect(screen.queryByTestId("clerk-sign-in-button")).toBeNull();
+    expect(clerk.signInButtons).toEqual([]);
+    expect(calls.some((c) => c.url === "/api/account/handover")).toBe(false);
   });
 });
 

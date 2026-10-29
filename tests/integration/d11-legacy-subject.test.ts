@@ -1,41 +1,28 @@
 // D11 (decision A): identity:legacySubject gives the caller its own
 // Clerk-era subject and nothing else, on the task-owned test backend. Clerk-era
 // personas are the D01 fixtures; Better Auth logins are real sign-ups, linked
-// through the D08d handover HTTP action the way the Next.js route calls it.
-import fs from "node:fs";
-import path from "node:path";
+// to a persona with fixtures:linkPersona (the D08d handover is gone, D08g4b).
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
-import { SYNTHETIC_PASSWORD, clientWithToken, convexToken, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
-import { TEST_CONVEX_SITE_URL, TEST_CONVEX_URL } from "../support/isolation";
-import { RUNTIME_DIR } from "../support/test-db";
+import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
+import { TEST_CONVEX_URL } from "../support/isolation";
 
-const SECRET_FILE = path.join(RUNTIME_DIR, "convex", "handover-secret");
-const secretAvailable = () => fs.existsSync(SECRET_FILE);
 const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
 const set = generateFixtures();
 const { a: A, b: B } = set.personas;
 
 async function login(label: string) {
-  const res = await signUp(syntheticEmail(label), SYNTHETIC_PASSWORD);
+  const email = syntheticEmail(label);
+  const res = await signUp(email, SYNTHETIC_PASSWORD);
   expect(res.status).toBe(200);
-  return { jar: res.jar, token: (await convexToken(res.jar))! };
+  return { jar: res.jar, token: (await convexToken(res.jar))!, authUserId: (await authState(email))!.authUserId };
 }
 
-async function handover(token: string, clerkSubject: string) {
-  const res = await fetch(`${TEST_CONVEX_SITE_URL}/account/handover`, {
-    method: "POST",
-    headers: { "content-type": "application/json", authorization: `Bearer ${token}`, "x-codedetails-handover-secret": fs.readFileSync(SECRET_FILE, "utf8").trim() },
-    body: JSON.stringify({ clerkSubject }),
-  });
-  expect(res.status).toBe(200);
-}
-
-describe.skipIf(!convexAvailable() || !testIssuerAvailable() || !secretAvailable())("D11 identity:legacySubject", () => {
+describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D11 identity:legacySubject", () => {
   beforeEach(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);
@@ -44,11 +31,11 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable() || !secretAvailable
     await clearConvexFixtures();
   });
 
-  it("a handed-over Better Auth login gets exactly its own Clerk-era subject; A's token never gets B's", async () => {
+  it("a linked Better Auth login gets exactly its own Clerk-era subject; A's token never gets B's", async () => {
     const a = await login("d11-a");
     const b = await login("d11-b");
-    await handover(a.token, A.subject!);
-    await handover(b.token, B.subject!);
+    await linkPersona(A.subject!, a.authUserId);
+    await linkPersona(B.subject!, b.authUserId);
     expect(await clientWithToken(a.token).query(legacySubject, {})).toBe(A.subject);
     expect(await clientWithToken(b.token).query(legacySubject, {})).toBe(B.subject);
     expect(A.subject).not.toBe(B.subject);
@@ -65,7 +52,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable() || !secretAvailable
 
   it("a signed-out session's token gets null (getViewer refuses it)", async () => {
     const a = await login("d11-signed-out");
-    await handover(a.token, A.subject!);
+    await linkPersona(A.subject!, a.authUserId);
     expect(await clientWithToken(a.token).query(legacySubject, {})).toBe(A.subject);
     await signOut(a.jar);
     expect(await clientWithToken(a.token).query(legacySubject, {})).toBeNull();

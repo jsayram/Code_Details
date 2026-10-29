@@ -5,7 +5,6 @@
 // They talk to Better Auth on the app origin (/api/auth/*). Messages never
 // say whether an email has an account: sign-up, "send a new link" and the
 // reset request answer the same way either way.
-import { useAuth as useClerkAuth, SignInButton as ClerkSignInButton } from "@clerk/nextjs";
 import { Github } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -14,9 +13,9 @@ import { useHydrated } from "@/components/auth/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { refreshSession, useBetterAuthSession } from "@/lib/auth-session";
+import { refreshSession } from "@/lib/auth-session";
 import { AuthCard, FormMessage, LINK, PRIMARY_BUTTON } from "./AuthCard";
-import { RESET_PATH, VERIFIED_CALLBACK, authPost, postJson, sendVerificationLink, startGitHub } from "./api";
+import { RESET_PATH, VERIFIED_CALLBACK, authPost, sendVerificationLink, startGitHub } from "./api";
 import { AUTH_ERROR_TEXT, authErrorKind, safeRedirect } from "./authErrors";
 
 type Message = { tone: "error" | "info" | "success"; text: string } | null;
@@ -324,104 +323,6 @@ function ResetScreen() {
   );
 }
 
-export const HANDOVER_PATH = "/sign-in/handover";
-
-function Step({ n, done, title, children }: { n: number; done: boolean; title: string; children: ReactNode }) {
-  return (
-    <li className="grid gap-2 rounded-lg border border-border/60 p-4">
-      <div className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <span className={`grid size-6 place-items-center rounded-full text-xs ${done ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground"}`} aria-hidden="true">
-          {done ? "✓" : n}
-        </span>
-        {title}
-        <span className="sr-only">{done ? "(done)" : "(not done yet)"}</span>
-      </div>
-      <div className="text-sm text-muted-foreground">{children}</div>
-    </li>
-  );
-}
-
-/**
- * D08f3c: an account from before the new sign-in takes over a new login
- * (D08d, decision 4A). Both logins must be signed in, in this browser; the
- * server route checks both and never says why it refused.
- */
-export function HandoverScreen() {
-  const { userId: clerkUserId } = useClerkAuth();
-  const session = useBetterAuthSession(true);
-  const [message, setMessage] = useState<Message>(null);
-  const [linked, setLinked] = useState(false);
-  const oldDone = !!clerkUserId;
-  const newUser = session.status === "ready" ? session.user : null;
-  const back = `?redirect_url=${encodeURIComponent(HANDOVER_PATH)}`;
-
-  if (linked) {
-    return (
-      <AuthCard title="Your account is linked" subtitle="From now on, sign in with your new login. Your projects and profile are where you left them.">
-        <Button asChild className={PRIMARY_BUTTON}>
-          <Link href="/">Go to Code Details</Link>
-        </Button>
-      </AuthCard>
-    );
-  }
-
-  return (
-    <AuthCard title="Set up your new login" subtitle="Code Details is moving to a new sign-in. Link a new login to the account you already have, once, and keep using your projects and profile." footer={<BackToSignIn />}>
-      <ol className="grid gap-3">
-        <Step n={1} done={oldDone} title="Your existing account">
-          {oldDone ? (
-            "Signed in with the old login."
-          ) : (
-            <>
-              Sign in with the old login first.{" "}
-              <ClerkSignInButton mode="modal" forceRedirectUrl={HANDOVER_PATH}>
-                <button type="button" className={`${LINK} cursor-pointer`}>
-                  Sign in with the old login
-                </button>
-              </ClerkSignInButton>
-            </>
-          )}
-        </Step>
-        <Step n={2} done={!!newUser} title="Your new login">
-          {newUser ? (
-            <>Signed in as {newUser.email ?? newUser.name}.</>
-          ) : (
-            <>
-              <Link href={`/sign-up${back}`} className={LINK}>
-                Create it
-              </Link>{" "}
-              with your email or GitHub, or{" "}
-              <Link href={`/sign-in${back}`} className={LINK}>
-                sign in
-              </Link>{" "}
-              if you made one already.
-            </>
-          )}
-        </Step>
-      </ol>
-      {oldDone && newUser ? (
-        <div className="mt-6">
-          <Form
-            onSubmit={async () => {
-              const res = await postJson("/api/account/handover", {});
-              if (res.status === 200) return setLinked(true);
-              if (res.status === 401) return setMessage({ tone: "error", text: "One of the logins is no longer signed in. Sign in to both again, then retry." });
-              if (res.status === 409) return setMessage({ tone: "error", text: "We couldn't link these. The new login may already belong to an account, or the existing account can't take a new login." });
-              if (res.status === 404 || res.status === 503) return setMessage({ tone: "error", text: "Linking isn't available here." });
-              setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't link these. Please try again." });
-            }}
-          >
-            <SubmitButton>
-              Link my account
-            </SubmitButton>
-          </Form>
-        </div>
-      ) : null}
-      {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
-    </AuthCard>
-  );
-}
-
 function ErrorRoute() {
   return <AuthErrorScreen code={useSearchParams().get("error")} />;
 }
@@ -433,8 +334,6 @@ export function BetterAuthSignIn() {
     <ResetScreen />
   ) : path.startsWith("/sign-in/error") ? (
     <ErrorRoute />
-  ) : path.startsWith(HANDOVER_PATH) ? (
-    <HandoverScreen />
   ) : (
     <SignInScreen />
   );

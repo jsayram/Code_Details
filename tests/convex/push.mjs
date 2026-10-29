@@ -95,13 +95,6 @@ const jwks = { keys: [{ ...issuer.publicJwk, kid: issuer.kid, alg: "ES256", use:
 // password is enabled here for synthetic users and nowhere else. The import
 // backend gets none of this.
 const betterAuth = [];
-function handoverSecret() {
-  const file = path.join(root, runtime.state, "handover-secret");
-  // Carries the SYNTHETIC marker so the browser-test server's isolation check
-  // (tests/support/isolation.ts) accepts it as a test value.
-  if (!fs.existsSync(file)) fs.writeFileSync(file, `SYNTHETIC-${randomBytes(32).toString("base64url")}`, { mode: 0o600 });
-  return fs.readFileSync(file, "utf8").trim();
-}
 if (target === "test") {
   const secretFile = path.join(root, runtime.state, "better-auth-secret");
   if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
@@ -111,9 +104,6 @@ if (target === "test") {
     ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
     // D08b: the browser-test server (playwright.config.ts; the slot's Next port, 3100 in slot 0) next to SITE_URL.
     ["CODEDETAILS_AUTH_TRUSTED_ORIGINS", `http://localhost:${slot.nextPort}`],
-    // D08d: the Next.js server <-> Convex handover secret, a throwaway like the
-    // one above; playwright.config.ts gives the test server the same value.
-    ["CODEDETAILS_HANDOVER_SECRET", handoverSecret()],
     // D08e: verification required, as in production; auth emails go to the
     // fake receiver the D08e tests run on 127.0.0.1:3299, or the slot's mail
     // port (nothing listens otherwise, and sending just logs). GitHub gets

@@ -11,10 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, freshClientIp, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { SYNTHETIC_PASSWORD, authState, freshClientIp, linkPersona, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
-import { TEST_CONVEX_SITE_URL } from "../support/isolation";
-import { RUNTIME_DIR } from "../support/test-db";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -22,7 +20,6 @@ const { a: A, b: B } = generateFixtures().personas;
 const ROOT = path.resolve(__dirname, "../..");
 const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
 const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
-const SECRET_FILE = path.join(RUNTIME_DIR, "convex", "handover-secret");
 const CHAPTER = "01_intro.md";
 const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs" };
 
@@ -60,11 +57,12 @@ test.afterAll(() => {
 async function client(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) {
   return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
 }
-async function signIn(ctx: APIRequestContext, label: string) {
+async function signIn(ctx: APIRequestContext, label: string): Promise<string> {
   const email = syntheticEmail(label);
   expect((await ctx.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
   await verifyEmail(email);
   expect((await ctx.post("/api/auth/sign-in/email", { data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+  return email;
 }
 
 /** Each route, with a body it rejects as invalid once past the identity check. */
@@ -120,16 +118,10 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     writeDoc(DOCS.theirs, B.subject!);
     // Independent of test order and earlier runs: persona A starts with no Better Auth link.
     await releasePersona(A.subject!);
-    // A Better Auth login handed over to Clerk-era persona A (D08d), as the Next.js route would do it.
+    // A Better Auth login on Clerk-era persona A (the end state the removed D08d handover left).
     persona = await client(playwright);
-    await signIn(persona, "d11-persona");
-    const { token } = (await (await persona.get("/api/auth/convex/token")).json()) as { token: string };
-    const linked = await fetch(`${TEST_CONVEX_SITE_URL}/account/handover`, {
-      method: "POST",
-      headers: { "content-type": "application/json", authorization: `Bearer ${token}`, "x-codedetails-handover-secret": fs.readFileSync(SECRET_FILE, "utf8").trim() },
-      body: JSON.stringify({ clerkSubject: A.subject }),
-    });
-    expect(linked.status).toBe(200);
+    const email = await signIn(persona, "d11-persona");
+    await linkPersona(A.subject!, (await authState(email))!.authUserId);
     unlinked = await client(playwright);
     await signIn(unlinked, "d11-unlinked");
   });

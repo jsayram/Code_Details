@@ -4,8 +4,6 @@
 // synthetic issuer, and one Better Auth login is handed over to persona A the
 // way D11 does it. The last block compares the answers with the Supabase
 // handlers (D02r-a) on the same fixture set.
-import fs from "node:fs";
-import path from "node:path";
 import { NextRequest } from "next/server";
 import type postgres from "postgres";
 import { makeFunctionReference } from "convex/server";
@@ -13,8 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
-import { SYNTHETIC_PASSWORD, clientWithToken, convexToken, signUp, syntheticEmail } from "../fixtures/better-auth";
-import { TEST_CONVEX_SITE_URL } from "../support/isolation";
+import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
@@ -43,7 +40,6 @@ const myCategoryCounts = makeFunctionReference<"query", { view: View }, Record<s
 
 const set = generateFixtures();
 const { a: A, b: B, admin, deleting } = set.personas;
-const SECRET_FILE = path.resolve(__dirname, "../../.test-runtime/convex/handover-secret");
 
 const CARD_KEYS = [
   "category", "createdAt", "deletedAt", "description", "favoriteCount", "id", "isFavorite", "isMine",
@@ -136,27 +132,20 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02r-b Convex per
     }
   });
 
-  it.skipIf(!fs.existsSync(SECRET_FILE))("a Better Auth login handed over to A gets A's lists; a fresh one gets none", async () => {
+  // D08g4b: the handover is gone; fixtures:linkPersona leaves the same end state.
+  it("a Better Auth login linked to A gets A's lists; a fresh one gets none", async () => {
     const login = async (label: string) => {
-      const res = await signUp(syntheticEmail(label), SYNTHETIC_PASSWORD);
+      const email = syntheticEmail(label);
+      const res = await signUp(email, SYNTHETIC_PASSWORD);
       expect(res.status).toBe(200);
-      return (await convexToken(res.jar))!;
+      return { token: (await convexToken(res.jar))!, authUserId: (await authState(email))!.authUserId };
     };
     const fresh = await login("d02r-fresh");
-    expect(await lists(clientWithToken(fresh))).toEqual({ mine: [], deleted: [], favorites: [] });
+    expect(await lists(clientWithToken(fresh.token))).toEqual({ mine: [], deleted: [], favorites: [] });
 
-    const token = await login("d02r-a");
-    const res = await fetch(`${TEST_CONVEX_SITE_URL}/account/handover`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        authorization: `Bearer ${token}`,
-        "x-codedetails-handover-secret": fs.readFileSync(SECRET_FILE, "utf8").trim(),
-      },
-      body: JSON.stringify({ clerkSubject: A.subject }),
-    });
-    expect(res.status).toBe(200);
-    const viaBetterAuth = await lists(clientWithToken(token));
+    const a = await login("d02r-a");
+    await linkPersona(A.subject!, a.authUserId);
+    const viaBetterAuth = await lists(clientWithToken(a.token));
     expect(viaBetterAuth).toEqual(await lists(clientAs(A.subject!)));
   });
 

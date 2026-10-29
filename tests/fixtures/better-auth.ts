@@ -128,6 +128,7 @@ const ref = {
   setAccountStatus: makeFunctionReference<"mutation", { authUserId: string; status: "active" | "deleting" }>("fixtures:setAccountStatus"),
   setRole: makeFunctionReference<"mutation", { authUserId: string; role: "user" | "admin" }>("fixtures:setRole"),
   releasePersona: makeFunctionReference<"mutation", { clerkSubject: string }, number>("fixtures:releasePersona"),
+  linkPersona: makeFunctionReference<"mutation", { clerkSubject: string; authUserId: string }, null>("fixtures:linkPersona"),
   stripCredentials: makeFunctionReference<"mutation", { authUserId: string }>("fixtures:stripCredentials"),
   accountRows: makeFunctionReference<"query", { authUserId: string }>("fixtures:accountRows"),
   repair: makeFunctionReference<"mutation", { createdBefore?: number; createdAfter?: number }>("accounts:repairHalfFinishedSignUps"),
@@ -154,8 +155,10 @@ export interface AccountRows {
   usernames: { usernameKey: string; state: string }[];
 }
 
-/** D11: remove a Clerk-era persona's Better Auth links (undo a handover). */
+/** D11: remove a Clerk-era persona's Better Auth links (undo linkPersona). */
 export const releasePersona = (clerkSubject: string) => adminClient().mutation(ref.releasePersona, { clerkSubject });
+/** D08g4b: give a Clerk-era persona a Better Auth login (what the removed D08d handover did). */
+export const linkPersona = (clerkSubject: string, authUserId: string) => adminClient().mutation(ref.linkPersona, { clerkSubject, authUserId });
 export const setRole = (authUserId: string, role: "user" | "admin") => adminClient().mutation(ref.setRole, { authUserId, role });
 export const stripCredentials = (authUserId: string) => adminClient().mutation(ref.stripCredentials, { authUserId });
 export const accountRows = (authUserId: string): Promise<AccountRows | null> => adminClient().query(ref.accountRows, { authUserId });
