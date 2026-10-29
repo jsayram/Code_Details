@@ -5,8 +5,10 @@
 import fs from "node:fs";
 import path from "node:path";
 import { test as base, expect } from "@playwright/test";
+import { ACTIVE } from "../support/slot.cjs";
 
-export const BASE_URL = "http://localhost:3100";
+/** The active test slot's Next server (slot 0: 3100). */
+export const BASE_URL = `http://localhost:${ACTIVE.nextPort}`;
 const CLERK_STUB = fs.readFileSync(path.join(__dirname, "clerk-signed-out-stub.js"), "utf8");
 
 export interface Blocked {

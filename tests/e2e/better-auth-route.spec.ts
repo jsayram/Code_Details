@@ -9,6 +9,7 @@ import path from "node:path";
 import type { APIRequestContext, APIResponse } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, expireSession, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
+import { RUNTIME_DIR } from "../support/test-db";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -162,7 +163,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
 test.describe("D08f1: emailed links never put the address in a logged URL (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
   const mailbox = fakeMailpit();
-  const LOG = path.resolve(__dirname, "../../.test-runtime/next-server.log");
+  const LOG = path.join(RUNTIME_DIR, "next-server.log");
 
   test.beforeAll(async () => {
     await mailbox.start();

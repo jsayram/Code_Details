@@ -2,14 +2,30 @@
 // with a fully synthetic environment (tests/support/isolation.ts) on top of the
 // task-owned test database with synthetic fixtures loaded. Pages may only reach
 // the test server; see tests/e2e/support.ts.
+//
+// Test slots: set CODEDETAILS_TEST_SLOT=n (1-9) on every test command
+// (test:convex:up/push/down, test:db:up/down, npm test, playwright test) to
+// run a worktree's suites on their own ports, without the shared lock: Convex
+// on 3300+10n/3301+10n, test DB on 55432+n, Next on 3100+n, fake mail on
+// 3302+10n, container codedetails-phaseb-testdb-slot<n>, state under
+// .test-runtime/slot-<n>/. Unset or 0 is the original layout (3210/3211,
+// 55432, 3100, 3299). Every guard refuses the other slots' ports and 3000,
+// 3220/3221, 3230/3231 and 54320-54329. The mapping is tests/support/slot.cjs.
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
 import { SYNTHETIC, TEST_CONVEX_SITE_URL, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
 import { convexAvailable } from "./tests/fixtures/convex";
 import { RUNTIME_DIR, readTestDbPassword } from "./tests/support/test-db";
+import { ACTIVE } from "./tests/support/slot.cjs";
+import { installSlotNetGuard } from "./tests/support/slot-net-guard.cjs";
 
-const PORT = 3100;
+// This config loads in the runner and in every worker: from here on, none of
+// them can open a socket to another test slot's ports or a real-data port.
+installSlotNetGuard();
+
+// The active test slot's Next port (tests/support/slot.cjs; slot 0: 3100).
+const PORT = ACTIVE.nextPort;
 const password = readTestDbPassword();
 if (!password) throw new Error("Browser tests need the isolated test database: run tests/db/provision.sh");
 

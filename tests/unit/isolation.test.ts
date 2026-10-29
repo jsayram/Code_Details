@@ -6,6 +6,8 @@ import { afterEach, describe, expect, it } from "vitest";
 import {
   IsolationError,
   SYNTHETIC,
+  TEST_CONVEX_PORT,
+  TEST_CONVEX_SITE_PORT,
   TEST_DB_PORT,
   isolatedEnv,
   isolationProblems,
@@ -13,6 +15,8 @@ import {
 import { setEnv } from "../../scripts/setEnv";
 
 const base = () => isolatedEnv();
+// The active test slot's ports (slot 0: 55432, 3210, 3211).
+const [DB, CVX, SITE] = [TEST_DB_PORT, TEST_CONVEX_PORT, TEST_CONVEX_SITE_PORT];
 const syntheticPk = (host: string) => `pk_test_${Buffer.from(`${host}$`).toString("base64")}`;
 
 describe("isolation guard", () => {
@@ -24,19 +28,19 @@ describe("isolation guard", () => {
   it.each([
     ["DATABASE_URL", "postgresql://postgres:pw@127.0.0.1:54322/postgres", /development port 54322/],
     ["NEXT_PUBLIC_SUPABASE_URL", "http://127.0.0.1:54321", /development port 54321/],
-    ["DATABASE_URL", "postgresql://postgres:pw@db.example.com:55432/postgres", /non-loopback/],
-    ["DATABASE_URL", "postgresql://postgres:pw@127.0.0.1:5432/postgres", /port 55432/],
+    ["DATABASE_URL", `postgresql://postgres:pw@db.example.com:${DB}/postgres`, /non-loopback/],
+    ["DATABASE_URL", "postgresql://postgres:pw@127.0.0.1:5432/postgres", new RegExp(`port ${DB}`)],
     ["SITE_URL", "https://codedetails.example.com", /non-loopback/],
     ["STRIPE_SECRET_KEY", "sk_live_abc", /live key|non-synthetic/],
     ["OPENAI_API_KEY", "sk-proj-abc", /non-synthetic/],
     ["GITHUB_TOKEN", "ghp_abc", /non-synthetic/],
     ["DISCORD_WEBHOOK_API_KEY", "https://discord.invalid/x", /non-synthetic/],
     ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", syntheticPk("pet-liger-00.clerk.accounts.dev"), /\.invalid host/],
-    ["NEXT_PUBLIC_CONVEX_URL", "https://happy-otter-123.convex.cloud", /must be http:\/\/127\.0\.0\.1:3210|non-loopback/],
-    ["CONVEX_URL", "http://127.0.0.1:3211", /must be http:\/\/127\.0\.0\.1:3210/],
+    ["NEXT_PUBLIC_CONVEX_URL", "https://happy-otter-123.convex.cloud", new RegExp(`must be http://127\\.0\\.0\\.1:${CVX}|non-loopback`)],
+    ["CONVEX_URL", `http://127.0.0.1:${SITE}`, new RegExp(`must be http://127\\.0\\.0\\.1:${CVX}`)],
     ["CONVEX_DEPLOYMENT", "dev:happy-otter-123", /CONVEX_DEPLOYMENT must not be set/],
-    ["CODEDETAILS_CONVEX_SITE_URL", "https://happy-otter-123.convex.site", /must be http:\/\/127\.0\.0\.1:3211/],
-    ["CODEDETAILS_CONVEX_SITE_URL", "http://127.0.0.1:3221", /must be http:\/\/127\.0\.0\.1:3211/],
+    ["CODEDETAILS_CONVEX_SITE_URL", "https://happy-otter-123.convex.site", new RegExp(`must be http://127\\.0\\.0\\.1:${SITE}`)],
+    ["CODEDETAILS_CONVEX_SITE_URL", "http://127.0.0.1:3221", new RegExp(`must be http://127\\.0\\.0\\.1:${SITE}`)],
   ])("rejects %s=%s", (name, value, problem) => {
     const problems = isolationProblems({ ...base(), [name]: value });
     expect(problems.join("\n")).toMatch(problem);

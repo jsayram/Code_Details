@@ -14,6 +14,7 @@ import type { APIRequestContext } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, freshClientIp, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
+import { RUNTIME_DIR } from "../support/test-db";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -21,7 +22,7 @@ const { a: A, b: B } = generateFixtures().personas;
 const ROOT = path.resolve(__dirname, "../..");
 const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
 const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
-const SECRET_FILE = path.resolve(__dirname, "../../.test-runtime/convex/handover-secret");
+const SECRET_FILE = path.join(RUNTIME_DIR, "convex", "handover-secret");
 const CHAPTER = "01_intro.md";
 const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs" };
 

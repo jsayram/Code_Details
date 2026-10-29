@@ -7,14 +7,19 @@
 // development Supabase (127.0.0.1:54321 API, 54322 DB) and the hosted Clerk dev
 // instance, and .env.local also holds operator LLM/GitHub tokens (Phase A, A02).
 
-/** Port of the task-owned test Postgres (tests/db/provision.sh), bound to 127.0.0.1 only. */
-export const TEST_DB_PORT = 55432;
+import { ACTIVE } from "./slot.cjs";
+
+// Every port below belongs to the active test slot (tests/support/slot.cjs,
+// CODEDETAILS_TEST_SLOT, default 0). Slot 0 keeps the original numbers in the comments.
+
+/** Port of the task-owned test Postgres (tests/db/provision.sh), bound to 127.0.0.1 only. Slot 0: 55432. */
+export const TEST_DB_PORT: number = ACTIVE.dbPort;
 export const TEST_DB_NAME = "postgres";
-/** Task-owned local Convex backend (tests/convex/up.sh), client port, 127.0.0.1 only (Phase C). */
-export const TEST_CONVEX_PORT = 3210;
+/** Task-owned local Convex backend (tests/convex/up.sh), client port, 127.0.0.1 only (Phase C). Slot 0: 3210. */
+export const TEST_CONVEX_PORT: number = ACTIVE.convexPort;
 export const TEST_CONVEX_URL = `http://127.0.0.1:${TEST_CONVEX_PORT}`;
-/** Same backend's site port (HTTP actions): Better Auth's /api/auth routes (D08a). */
-export const TEST_CONVEX_SITE_PORT = 3211;
+/** Same backend's site port (HTTP actions): Better Auth's /api/auth routes (D08a). Slot 0: 3211. */
+export const TEST_CONVEX_SITE_PORT: number = ACTIVE.convexSitePort;
 export const TEST_CONVEX_SITE_URL = `http://127.0.0.1:${TEST_CONVEX_SITE_PORT}`;
 /** Nothing listens here; supabase-js calls fail fast instead of reaching a real API. */
 export const TEST_SUPABASE_URL = "http://127.0.0.1:9";
@@ -119,6 +124,10 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
     const value = env[name];
     if (value && value !== TEST_CONVEX_SITE_URL) problems.push(`${name} must be ${TEST_CONVEX_SITE_URL}`);
   }
+  // A child process must stay on the slot this harness computed its ports for.
+  if ((env.CODEDETAILS_TEST_SLOT || "0") !== String(ACTIVE.slot)) {
+    problems.push(`CODEDETAILS_TEST_SLOT must match the active test slot ${ACTIVE.slot}`);
+  }
   if (env.CONVEX_DEPLOYMENT) problems.push("CONVEX_DEPLOYMENT must not be set (it selects a cloud or CLI-managed deployment)");
 
   const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
@@ -163,6 +172,9 @@ export function isolatedEnv(
     SUPABASE_SERVICE_ROLE_KEY: `${SYNTHETIC}_service_role_key`,
     ADMIN_DASHBOARD_MODERATOR: "admin@synthetic.invalid",
   });
+  // Carried so child processes (and Vitest files loaded after the worker's env
+  // is replaced) compute the same slot. Slot 0 adds nothing, as before slots.
+  if (ACTIVE.slot !== 0) env.CODEDETAILS_TEST_SLOT = String(ACTIVE.slot);
   if (dbPassword !== undefined) {
     env.DATABASE_URL = `postgresql://postgres:${encodeURIComponent(dbPassword)}@127.0.0.1:${TEST_DB_PORT}/${TEST_DB_NAME}`;
   }

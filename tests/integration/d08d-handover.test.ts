@@ -23,8 +23,9 @@ import {
   syntheticEmail,
 } from "../fixtures/better-auth";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
+import { RUNTIME_DIR } from "../support/test-db";
 
-const SECRET_FILE = path.resolve(__dirname, "../../.test-runtime/convex/handover-secret");
+const SECRET_FILE = path.join(RUNTIME_DIR, "convex", "handover-secret");
 const secretAvailable = () => fs.existsSync(SECRET_FILE);
 const whoami = makeFunctionReference<"query">("identity:whoami");
 const set = generateFixtures();

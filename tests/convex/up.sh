@@ -1,22 +1,29 @@
 #!/usr/bin/env bash
 # Starts the task-owned local Convex backend (Phase C, C07): one process bound
-# to 127.0.0.1 only (3210 client, 3211 site), beacon off, all state under
-# .test-runtime/convex/. No Convex account, no cloud deployment, no .env file
-# written. It only ever holds synthetic fixtures. Stop it with
-# tests/convex/down.sh; delete .test-runtime/convex/ to drop its data.
+# to 127.0.0.1 only (3210 client, 3211 site in test slot 0), beacon off, all
+# state under .test-runtime/convex/ (.test-runtime/slot-<n>/convex/ in slot n).
+# No Convex account, no cloud deployment, no .env file written. It only ever
+# holds synthetic fixtures. Stop it with tests/convex/down.sh (--wipe drops
+# its data).
 #
-# Usage: tests/convex/up.sh
+# Usage: [CODEDETAILS_TEST_SLOT=n] tests/convex/up.sh
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 VERSION=precompiled-2026-10-22-1447815
 BIN="$HOME/.cache/convex/binaries/$VERSION/convex-local-backend"
-NAME=codedetails-phase-c
-PORT=3210
-SITE_PORT=3211
-STATE="$ROOT/.test-runtime/convex"
+# Ports, instance name and state folder come from the active test slot
+# (CODEDETAILS_TEST_SLOT, tests/support/slot.cjs). Slot 0: codedetails-phase-c
+# on 3210/3211, state in .test-runtime/.
+SLOT_VARS="$(node "$ROOT/tests/support/slot.cjs" --shell)"
+eval "$SLOT_VARS"
+NAME=$SLOT_CONVEX_INSTANCE
+PORT=$SLOT_CONVEX_PORT
+SITE_PORT=$SLOT_CONVEX_SITE_PORT
+RUNTIME="$ROOT/$SLOT_RUNTIME_DIR"
+STATE="$RUNTIME/convex"
 CONFIG="$STATE/deployment.json"
-ENV_FILE="$ROOT/.test-runtime/convex.env"
+ENV_FILE="$RUNTIME/convex.env"
 
 umask 077
 mkdir -p "$STATE/storage"

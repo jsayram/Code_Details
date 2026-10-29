@@ -2,8 +2,10 @@
 // tests/convex/push.mjs points the test backend's auth emails
 // (127.0.0.1:3299). Shared by the Vitest and Playwright suites (D08f1).
 import http from "node:http";
+import { ACTIVE } from "../support/slot.cjs";
 
-export const FAKE_MAILPIT_PORT = 3299;
+/** Slot 0: 3299 (tests/support/slot.cjs). */
+export const FAKE_MAILPIT_PORT: number = ACTIVE.mailPort;
 
 export interface Mail {
   to: string;
