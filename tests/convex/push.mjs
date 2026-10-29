@@ -11,15 +11,29 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const envFile = path.join(root, ".test-runtime/convex.env");
+// D00b: `--target import` pushes to the import backend instead
+// (scripts/d00b-import/backend-up.sh, 127.0.0.1:3220). It gets its own
+// throwaway issuer and CODEDETAILS_IMPORT_ALLOWED, never the fixtures flag,
+// so fixtures:clear can't run there and the importer can't run on 3210.
+const argv = process.argv.slice(2);
+const targetFlag = argv.indexOf("--target");
+const target = targetFlag === -1 ? "test" : argv[targetFlag + 1];
+if (targetFlag !== -1) argv.splice(targetFlag, 2);
+if (!["test", "import"].includes(target)) throw new Error(`unknown --target ${target}`);
+const runtime = target === "import"
+  ? { envFile: ".test-runtime/convex-import.env", state: ".test-runtime/convex-import", port: "3220", up: "scripts/d00b-import/backend-up.sh", allow: "CODEDETAILS_IMPORT_ALLOWED" }
+  : { envFile: ".test-runtime/convex.env", state: ".test-runtime/convex", port: "3210", up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" };
+const envFile = path.join(root, runtime.envFile);
 if (!fs.existsSync(envFile)) {
-  console.error("no local Convex backend: run tests/convex/up.sh first");
+  console.error(`no local Convex backend: run ${runtime.up} first`);
   process.exit(1);
 }
 const vars = Object.fromEntries(
   fs.readFileSync(envFile, "utf8").trim().split("\n").map((l) => [l.slice(0, l.indexOf("=")), l.slice(l.indexOf("=") + 1)]),
 );
-if (new URL(vars.CONVEX_SELF_HOSTED_URL).hostname !== "127.0.0.1") throw new Error("Convex target must be 127.0.0.1");
+const targetUrl = new URL(vars.CONVEX_SELF_HOSTED_URL);
+if (targetUrl.hostname !== "127.0.0.1") throw new Error("Convex target must be 127.0.0.1");
+if (targetUrl.port !== runtime.port) throw new Error(`the ${target} backend must be on port ${runtime.port}`);
 
 const envDigest = () =>
   fs.readdirSync(root).filter((f) => f.startsWith(".env")).sort()
@@ -38,7 +52,6 @@ const env = {
 // documents it already holds without committing anything, so it skips the env
 // writes too. `--project-dir <dir>` pushes a copy of the project from another
 // folder (the schema test's refused-schema check); only with --dry-run.
-const argv = process.argv.slice(2);
 const dryRun = argv.includes("--dry-run");
 const dirFlag = argv.indexOf("--project-dir");
 const projectDir = dirFlag === -1 ? root : path.resolve(argv[dirFlag + 1]);
@@ -52,7 +65,7 @@ const convex = (args) => spawnSync(path.join(root, "node_modules/.bin/convex"), 
 // audience and JWKS (as a data: URI) from the deployment env, so no real
 // issuer is named in code. Tests sign tokens with the private key
 // (tests/fixtures/convex-auth.ts).
-const issuerFile = path.join(root, ".test-runtime/convex/test-issuer.json");
+const issuerFile = path.join(root, runtime.state, "test-issuer.json");
 if (!fs.existsSync(issuerFile)) {
   const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
   const issuer = {
@@ -75,8 +88,9 @@ for (const [name, value] of dryRun ? [] : [
   if (res.status === 0) res = convex(["env", "set", name, value]);
 }
 if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
-// Only this task-owned deployment may run the fixture functions (convex/fixtures.ts).
-if (res.status === 0 && !dryRun) res = convex(["env", "set", "CODEDETAILS_FIXTURES_ALLOWED", "1"]);
+// Only this task-owned deployment may run the fixture functions (convex/fixtures.ts),
+// or, on the import backend, the importer (convex/importer.ts).
+if (res.status === 0 && !dryRun) res = convex(["env", "set", runtime.allow, "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");
