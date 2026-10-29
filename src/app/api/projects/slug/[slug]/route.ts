@@ -1,6 +1,5 @@
 import { NextRequest } from "next/server";
-import { getProjectBySlugServer } from "@/db/actions";
-import { auth } from "@clerk/nextjs/server";
+import { getProjectForViewer } from "@/backend/projects/viewer-read";
 import { success, notFound, databaseError } from "@/lib/api-errors";
 
 export async function GET(
@@ -10,21 +9,15 @@ export async function GET(
   try {
     const resolvedParams = await params;
     
-    // Get auth data to check permissions
-    const { userId, sessionClaims } = await auth();
-    const userEmail = sessionClaims?.email as string | undefined;
-    
-    const project = await getProjectBySlugServer(
-      resolvedParams.slug,
-      userId,
-      userEmail
-    );
+    // D02r: the viewer comes from the session inside getProjectForViewer, and
+    // the project comes back without the owner's email, tier or profile ID.
+    const read = await getProjectForViewer(resolvedParams.slug);
 
-    if (!project) {
+    if (!read) {
       return notFound("project", { identifier: resolvedParams.slug, identifierType: "slug" });
     }
 
-    return success(project);
+    return success(read.project);
   } catch (error) {
     return databaseError(error, "Failed to fetch project");
   }

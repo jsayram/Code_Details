@@ -4,10 +4,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
-import {
-  getProjectBySlugServer,
-  getProjectUsersProfileBySlugServer,
-} from "@/db/actions";
 import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectContent";
 import { notFound } from "next/navigation";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
@@ -23,6 +19,7 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { cookies } from "next/headers";
 import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
+import { getProjectForViewer } from "@/backend/projects/viewer-read";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -38,12 +35,12 @@ export default async function ProjectPage({
   const resolvedParams = await Promise.resolve(params);
   
   // Get auth data first
-  const { userId, sessionClaims } = await auth();
-  const userEmail = sessionClaims?.email as string | undefined;
+  const { userId } = await auth();
   
   // Anonymous visitors get the C02 public projection only (no owner email,
-  // subject or tier in the page). Signed-in viewers keep the existing read
-  // until the session-scoped reads move (D02r).
+  // subject or tier in the page). Signed-in viewers get the session-checked
+  // read, scrubbed the same way, except that the owner keeps their own user
+  // ID for the edit controls (D02r).
   let project: SelectProjectWithOwner | null;
   let user: SelectUserWithProject | null;
   if (!userId) {
@@ -52,14 +49,9 @@ export default async function ProjectPage({
       ? toProjectContentProps(publicProject)
       : { project: null, userProfile: null });
   } else {
-    project = (await getProjectBySlugServer(
-      resolvedParams.slug,
-      userId,
-      userEmail
-    )) as SelectProjectWithOwner;
-    user = (await getProjectUsersProfileBySlugServer(
-      resolvedParams.slug
-    )) as SelectUserWithProject;
+    const read = await getProjectForViewer(resolvedParams.slug);
+    project = read?.project ?? null;
+    user = read?.userProfile ?? null;
   }
   const cookieStore = await cookies();
   const token = cookieStore.get("__supabase_auth_token")?.value || null;

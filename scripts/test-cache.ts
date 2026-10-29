@@ -113,12 +113,8 @@ async function runCacheTests() {
   
   // Import all cached functions
   const { 
-    getCachedProjectById,
-    getCachedProjectBySlug,
-    getCachedProject,
     getCachedUserProjects,
     getCachedAllProjects,
-    getCachedUserOwnProjects
   } = await import('../src/app/actions/projects.js');
   
   const { 
@@ -133,9 +129,6 @@ async function runCacheTests() {
   
   const { getCachedUserTier } = await import('../src/app/actions/user-tier.js');
   
-  const { 
-    getCachedUserDashboardStats 
-  } = await import('../src/app/actions/user-dashboard.js');
   
   const { 
     getCachedTopContributors,

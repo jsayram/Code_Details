@@ -53,12 +53,14 @@ const viaContract = (p: PublicProject | null) => {
 
 describe.skipIf(!ready)("C13 old/new comparison", () => {
   let sql: postgres.Sql;
-  let dbActions: typeof import("../../src/db/actions.js");
+  // D02r moved both reads out of the "use server" src/db/actions.ts, unchanged
+  // apart from taking the viewer as one session-derived value.
+  let dbActions: typeof import("../../src/db/project-read.js");
   let supabase: typeof import("../../src/backend/projects/supabase-reader.js").supabaseProjectReader;
 
   beforeAll(async () => {
     sql = await connectTestDb();
-    dbActions = await import("../../src/db/actions.js");
+    dbActions = await import("../../src/db/project-read.js");
     supabase = (await import("../../src/backend/projects/supabase-reader.js")).supabaseProjectReader;
     await cleanupFixtures(sql);
     await loadFixtures(sql, set);
@@ -93,8 +95,8 @@ describe.skipIf(!ready)("C13 old/new comparison", () => {
   });
 
   it.each(sameEverywhere.map((p) => [p.case, p.slug]))("%s: the page renders the same from the legacy read and from Convex", async (_c, slug) => {
-    const legacyProject = await dbActions.getProjectBySlugServer(slug, null, null);
-    const legacyProfile = legacyProject ? await dbActions.getProjectUsersProfileBySlugServer(slug) : null;
+    const legacyProject = await dbActions.readProjectBySlug(slug, null);
+    const legacyProfile = legacyProject ? await dbActions.readProjectOwnerProfileBySlug(slug) : null;
     const before = rendered(legacyProject as unknown as Record<string, unknown> | null, legacyProfile as unknown as Record<string, unknown> | null);
     const after = viaContract(await anon.query(getPublicBySlug, { slug }));
     expect(after).toEqual(before);
@@ -103,8 +105,8 @@ describe.skipIf(!ready)("C13 old/new comparison", () => {
   it("email-shaped owner: the legacy read published the address; Supabase shows its local part and Convex the imported handle", async () => {
     const slug = emailOwned.slug;
     const address = emailOwner.profile!.username;
-    const legacyProject = await dbActions.getProjectBySlugServer(slug, null, null);
-    const legacyProfile = await dbActions.getProjectUsersProfileBySlugServer(slug);
+    const legacyProject = await dbActions.readProjectBySlug(slug, null);
+    const legacyProfile = await dbActions.readProjectOwnerProfileBySlug(slug);
     const before = rendered(legacyProject as unknown as Record<string, unknown>, legacyProfile as unknown as Record<string, unknown>)!;
     const viaSupabase = viaContract(await supabase.getPublicProjectBySlug(slug))!;
     const viaConvex = viaContract(await anon.query(getPublicBySlug, { slug }))!;
@@ -122,7 +124,7 @@ describe.skipIf(!ready)("C13 old/new comparison", () => {
   });
 
   it("what the anonymous payload loses compared with the legacy read: identity and private fields only", async () => {
-    const legacy = (await dbActions.getProjectBySlugServer("fixture-listed", null, null)) as unknown as Record<string, unknown>;
+    const legacy = (await dbActions.readProjectBySlug("fixture-listed", null)) as unknown as Record<string, unknown>;
     const { project } = toProjectContentProps((await anon.query(getPublicBySlug, { slug: "fixture-listed" }))!);
     const dropped = Object.keys(legacy).filter((k) => !(k in (project as object))).sort();
     expect(dropped).toEqual([

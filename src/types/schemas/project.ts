@@ -252,17 +252,24 @@ export const updateProjectSchema = z.object({
 export type UpdateProjectInput = z.infer<typeof updateProjectSchema>;
 
 /**
+ * A query-string flag (D02r, P08 R17). Only "true" and "false" are accepted;
+ * z.coerce.boolean() turned every non-empty string, "false" included, into
+ * true. Anything else fails validation, so the route answers 400.
+ */
+const queryFlag = z.enum(["true", "false"]).default("false").transform((v) => v === "true");
+
+/**
  * Schema for project query parameters
  */
 export const projectQuerySchema = z.object({
-  showAll: z.coerce.boolean().default(false),
+  showAll: queryFlag,
   userId: z.string().optional(),
   slug: z.string().optional(),
   category: projectCategoryEnum.or(z.literal("all")).optional(),
   username: z.string().optional(),
   tags: z.array(z.string()).optional(),
-  showFavorites: z.coerce.boolean().default(false),
-  showDeleted: z.coerce.boolean().default(false),
+  showFavorites: queryFlag,
+  showDeleted: queryFlag,
   sortBy: z.enum([
     "newest",
     "oldest",

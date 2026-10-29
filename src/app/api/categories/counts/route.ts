@@ -5,26 +5,32 @@ import { profiles } from "@/db/schema/profiles";
 import { favorites } from "@/db/schema/favorites";
 import { sql, isNull, isNotNull, eq, and, SQL } from "drizzle-orm";
 import { success, databaseError } from "@/lib/api-errors";
+import { routeViewer } from "@/lib/auth-server";
 
 /**
  * GET /api/categories/counts
  * Returns the count of projects per category with optional filters
  * 
  * Query params:
- * - userId: Filter by user ID (for "My Projects" view)
- * - favorites: If "true" and userId provided, count only favorited projects
- * - deleted: If "true" and userId provided, count only deleted projects
- * 
- * No params = global community counts (non-deleted projects)
+ * - userId: present = a personal view (My Projects). Its value is ignored:
+ *   the user is always the session's (D02r, P08 R08).
+ * - favorites: If "true", count only the viewer's favorited projects
+ * - deleted: If "true", count only the viewer's deleted projects
+ *
+ * No params = global community counts (non-deleted projects). Personal
+ * counts need a signed-in viewer (empty otherwise) and are never cached
+ * publicly.
  */
 export async function GET(request: NextRequest) {
   const searchParams = request.nextUrl.searchParams;
-  const userId = searchParams.get("userId");
   const showFavorites = searchParams.get("favorites") === "true";
   const showDeleted = searchParams.get("deleted") === "true";
+  const personal = searchParams.has("userId") || showFavorites || showDeleted;
 
   try {
-    const categoryCounts = await executeQuery(async (db) => {
+    const viewer = personal ? await routeViewer() : null;
+    const userId = viewer?.userId ?? null;
+    const categoryCounts = personal && !userId ? [] : await executeQuery(async (db) => {
       // Build where conditions based on filters
       const conditions: SQL<unknown>[] = [];
 
@@ -96,7 +102,10 @@ export async function GET(request: NextRequest) {
     );
 
     const response = success(countsMap);
-    response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+    response.headers.set(
+      "Cache-Control",
+      personal ? "private, no-store" : "public, s-maxage=300, stale-while-revalidate=600"
+    );
     
     return response;
   } catch (error) {

@@ -5,10 +5,15 @@
 import { vi } from "vitest";
 
 let currentSubject: string | null = null;
+let currentEmail: string | undefined;
 
-/** Who the mocked Clerk `auth()` says is signed in; null means signed out. */
-export function signInAs(subject: string | null) {
+/**
+ * Who the mocked Clerk `auth()` says is signed in; null means signed out.
+ * `email` becomes the session's email claim (the admin check reads it).
+ */
+export function signInAs(subject: string | null, opts: { email?: string } = {}) {
   currentSubject = subject;
+  currentEmail = subject ? opts.email : undefined;
 }
 
 export interface SyntheticClerkUser {
@@ -38,7 +43,7 @@ export function syntheticClerkUser(subject: string): SyntheticClerkUser {
 export const clerkGetUser = vi.fn(async (subject: string) => syntheticClerkUser(subject));
 
 export const clerkServerDouble = {
-  auth: vi.fn(async () => ({ userId: currentSubject })),
+  auth: vi.fn(async () => ({ userId: currentSubject, sessionClaims: currentEmail ? { email: currentEmail } : null })),
   currentUser: vi.fn(async () => (currentSubject ? syntheticClerkUser(currentSubject) : null)),
   clerkClient: vi.fn(async () => ({ users: { getUser: clerkGetUser } })),
 };

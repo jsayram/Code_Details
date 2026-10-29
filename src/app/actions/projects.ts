@@ -6,7 +6,6 @@ import {
   getAccessibleProjectsServer,
   deleteProjectServer,
   updateProjectServer,
-  getUserProjectsServer,
   isProjectOwner,
   getProjectTagNames,
 } from "@/db/actions";
@@ -30,11 +29,21 @@ import {
   type ActionResult
 } from "@/lib/action-errors";
 import { ErrorCode } from "@/constants/error-codes";
+import { routeViewer } from "@/lib/auth-server";
+import { getUserProjectsServer } from "@/db/project-read";
 
 const pathToRevalidate = "/projects";
 
+// D02r (P08 R09): these reads are callable server actions, so a soft-deleted
+// project comes back only to its owner or the admin, judged by the session.
+async function visibleToViewer<T extends { user_id: string | null; deleted_at: Date | null }>(row: T | null): Promise<T | null> {
+  if (!row || row.deleted_at === null) return row;
+  const viewer = await routeViewer();
+  return viewer && (viewer.userId === row.user_id || viewer.isAdmin) ? row : null;
+}
+
 export async function getProjectById(projectId: string) {
-  return executeQuery(async (db) => {
+  return visibleToViewer(await executeQuery(async (db) => {
     // Use more explicit query building pattern
     const results = await db
       .select({
@@ -57,21 +66,16 @@ export async function getProjectById(projectId: string) {
       .limit(1);
 
     return results[0] || null;
-  });
+  }));
 }
 
-export const getCachedProjectById = unstable_cache(
-  async (projectId: string) => getProjectById(projectId),
-  ['project-by-id'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
+// The unused cached wrappers (getCachedProjectById, getCachedProjectBySlug,
+// getCachedProject) were removed in D02r: they were callable actions too, and
+// the session check can't run inside unstable_cache.
 
 // Get a single project by slug
 export async function getProjectBySlugServer(slug: string) {
-  return executeQuery(async (db) => {
+  return visibleToViewer(await executeQuery(async (db) => {
     const results = await db
       .select()
       .from(projects)
@@ -79,17 +83,8 @@ export async function getProjectBySlugServer(slug: string) {
       .limit(1);
 
     return results[0] || null;
-  });
+  }));
 }
-
-export const getCachedProjectBySlug = unstable_cache(
-  async (slug: string) => getProjectBySlugServer(slug),
-  ['project-by-slug'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
 
 // Server action to create a new project
 export async function createProject(project: InsertProject, userId: string) {
@@ -160,14 +155,6 @@ export async function getProject(slug: string) {
   }
 }
 
-export const getCachedProject = unstable_cache(
-  async (slug: string) => getProject(slug),
-  ['project'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
 
 // Server action to delete a project
 export async function removeProject(id: string, userId: string) {
@@ -344,14 +331,16 @@ export const getCachedAllProjects = unstable_cache(
   }
 );
 
-// Server action to get projects created by the current user
-export async function getUserOwnProjects(userId: string) {
+// Server action to get projects created by the current user. D02r: the
+// user is the session's; it used to be an argument, so anyone could list
+// anyone's projects, deleted ones included. The cached wrapper went with it.
+export async function getUserOwnProjects() {
   try {
+    const userId = (await routeViewer())?.userId;
     if (!userId) {
       return unauthorizedError("User ID is required");
     }
 
-    console.log(`Fetching projects owned by user ${userId}`);
     const projects = await getUserProjectsServer(userId);
 
     // Map the data to our Project type
@@ -364,15 +353,6 @@ export async function getUserOwnProjects(userId: string) {
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
-
-export const getCachedUserOwnProjects = unstable_cache(
-  async (userId: string) => getUserOwnProjects(userId),
-  ['user-own-projects'],
-  {
-    revalidate: 180, // 3 minutes
-    tags: ['projects', 'user-own-projects']
-  }
-);
 
 // Server action to permanently delete a project
 export async function permanentlyDeleteProject(id: string, userId: string) {

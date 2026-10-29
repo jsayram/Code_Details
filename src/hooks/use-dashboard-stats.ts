@@ -7,7 +7,6 @@ import { UserDashboardStats } from "@/db/operations/userDashboardOperations";
 
 interface DashboardData {
   stats: UserDashboardStats;
-  userId: string;
 }
 
 /**

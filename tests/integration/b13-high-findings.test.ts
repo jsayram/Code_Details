@@ -202,55 +202,139 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect((await body(res)).data.profile.email_address).toBe(A.profile!.email);
     });
 
-    it("[handler] every project list row carries the owner's email", async () => {
-      const res = await projectsRoute.GET(url("/api/projects?showAll=true&limit=50"));
-      const rows = (await body(res)).data as { profile: { email_address: string | null } }[];
-      expect(rows.length).toBeGreaterThan(0);
-      expect(rows.every((r) => r.profile.email_address?.endsWith("@synthetic.invalid"))).toBe(true);
+    // Was "every project list row carries the owner's email"; fixed in D02r.
+    it("[handler] (fixed, D02r) no project list row carries an email, signed in or not", async () => {
+      for (const who of [null, B.subject]) {
+        signInAs(who);
+        const res = await projectsRoute.GET(url("/api/projects?showAll=true&limit=50"));
+        const text = await res.text();
+        const rows = JSON.parse(text).data as { profile: { username: string | null; email_address: string | null } }[];
+        expect(rows.length).toBeGreaterThan(0);
+        expect(rows.some((r) => r.profile.username)).toBe(true);
+        expect(rows.every((r) => r.profile.email_address === null)).toBe(true);
+        for (const email of [A.profile!.email, B.profile!.email]) expect(text).not.toContain(email);
+      }
     });
   });
 
-  describe("R08 /api/projects and /api/categories/counts take userId from the query", () => {
-    it("[handler] B lists A's graveyard", async () => {
+  // Was the B13 reproduction (B read A's graveyard, favorites and counts by
+  // naming A in the query string). Fixed in D02r: identity comes only from
+  // the session; the query's userId is ignored.
+  describe("R08 (fixed, D02r) /api/projects and /api/categories/counts take identity from the session", () => {
+    const slugs = async (res: Response) => ((await body(res)).data as { slug: string }[]).map((p) => p.slug).sort();
+
+    it("[handler] B naming A gets B's own graveyard, not A's", async () => {
       signInAs(B.subject);
       const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&showDeleted=true`));
-      const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug).sort();
-      expect(slugs).toEqual(["fixture-deleted-long-ago", "fixture-deleted-recent"]);
+      expect(await slugs(res)).toEqual([]);
+      signInAs(A.subject);
+      const own = await projectsRoute.GET(url(`/api/projects?userId=${B.subject}&showDeleted=true`));
+      expect(await slugs(own)).toEqual(["fixture-deleted-long-ago", "fixture-deleted-recent"]);
     });
 
-    it("[handler] B lists A's favorites", async () => {
+    it("[handler] B naming A gets B's own favorites, without A's deleted project", async () => {
       signInAs(B.subject);
       const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&showFavorites=true`));
-      const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug).sort();
-      expect(slugs).toEqual(expect.arrayContaining(["fixture-bob-project", "fixture-listed"]));
+      // B's own favorites are fixture-listed and A's deleted fixture-deleted-recent;
+      // A's favorites (fixture-bob-project) never appear.
+      expect(await slugs(res)).toEqual(["fixture-listed"]);
     });
 
-    it("[handler] showDeleted without userId drops the deletion filter for everyone's projects", async () => {
-      const res = await projectsRoute.GET(url("/api/projects?showDeleted=true&showAll=true&limit=50"));
-      const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug);
-      expect(slugs).toEqual(expect.arrayContaining(["fixture-deleted-recent", "fixture-deleted-long-ago"]));
+    it("[handler] B naming A in my projects gets B's own projects", async () => {
+      signInAs(B.subject);
+      const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&limit=50`));
+      expect(await slugs(res)).toEqual(["fixture-bob-project"]);
     });
 
-    it("[handler] B reads A's graveyard count from /api/categories/counts", async () => {
+    it("[handler] showDeleted signed out gives nothing, with or without a userId", async () => {
+      signInAs(null);
+      for (const q of ["showDeleted=true&showAll=true&limit=50", `showDeleted=true&userId=${A.subject}`, `showFavorites=true&userId=${A.subject}`]) {
+        const res = await projectsRoute.GET(url(`/api/projects?${q}`));
+        expect(res.status).toBe(200);
+        expect(await slugs(res)).toEqual([]);
+      }
+    });
+
+    it("[handler] isFavorite follows the session, not the query", async () => {
+      signInAs(B.subject);
+      const res = await projectsRoute.GET(url(`/api/projects?showAll=true&userId=${A.subject}&limit=50`));
+      const rows = (await body(res)).data as { slug: string; isFavorite: boolean }[];
+      expect(rows.find((r) => r.slug === "fixture-listed")?.isFavorite).toBe(true);
+      expect(rows.find((r) => r.slug === "fixture-bob-project")?.isFavorite).toBe(false);
+    });
+
+    it("[handler] B naming A in /api/categories/counts gets B's own counts, privately cached", async () => {
       signInAs(B.subject);
       const res = await countsRoute.GET(url(`/api/categories/counts?userId=${A.subject}&deleted=true`));
       expect(res.status).toBe(200);
-      expect(JSON.stringify(await body(res))).toMatch(/"web"\s*:\s*2/);
+      expect((await body(res)).data).toEqual({});
+      expect(res.headers.get("cache-control")).toBe("private, no-store");
+      signInAs(A.subject);
+      const own = await countsRoute.GET(url(`/api/categories/counts?userId=${B.subject}&deleted=true`));
+      expect(JSON.stringify(await body(own))).toMatch(/"web"\s*:\s*2/);
+    });
+
+    it("[handler] personal counts signed out are empty; community counts stay public", async () => {
+      signInAs(null);
+      const mine = await countsRoute.GET(url(`/api/categories/counts?userId=${A.subject}`));
+      expect((await body(mine)).data).toEqual({});
+      expect(mine.headers.get("cache-control")).toBe("private, no-store");
+      const community = await countsRoute.GET(url("/api/categories/counts"));
+      expect(Object.keys((await body(community)).data).length).toBeGreaterThan(0);
+      expect(community.headers.get("cache-control")).toMatch(/^public/);
     });
   });
 
-  describe("R09 project lookups trust viewer arguments and return deleted projects", () => {
-    it("[function] getProjectBySlugServer shows a deleted project to whoever claims to be the owner", async () => {
-      expect(await dbActions.getProjectBySlugServer(deletedRecent.slug, B.subject)).toBeNull();
-      const asClaimedOwner = await dbActions.getProjectBySlugServer(deletedRecent.slug, A.subject);
-      expect(asClaimedOwner?.id).toBe(deletedRecent.id);
-      const asClaimedAdmin = await dbActions.getProjectBySlugServer(deletedRecent.slug, null, set.personas.admin.profile!.email);
-      expect(asClaimedAdmin?.id).toBe(deletedRecent.id);
+  // Was the B13 reproduction (viewer arguments were trusted, and the actions
+  // returned deleted projects to anyone). Fixed in D02r.
+  describe("R09 (fixed, D02r) project lookups take the viewer from the session", () => {
+    it("[function] the viewer-argument lookup is no longer a \"use server\" export", async () => {
+      expect("getProjectBySlugServer" in dbActions).toBe(false);
+      expect("getProjectUsersProfileBySlugServer" in dbActions).toBe(false);
+      expect("getUserProjectsServer" in dbActions).toBe(false);
     });
 
-    it("[action] getProjectById returns a soft-deleted project to a signed-out caller", async () => {
-      const row = await actions.getProjectById(deletedRecent.id);
-      expect(row?.deleted_at).not.toBeNull();
+    it("[function] getProjectForViewer shows a deleted project only to the session's owner or admin", async () => {
+      const { getProjectForViewer } = await import("../../src/backend/projects/viewer-read.js");
+      signInAs(null);
+      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
+      signInAs(B.subject);
+      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
+      // The admin is recognized by the session's email claim (Clerk's rule
+      // until D07), never by an argument: without the claim, no access.
+      const admin = set.personas.admin;
+      signInAs(admin.subject);
+      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
+      signInAs(admin.subject, { email: admin.profile!.email });
+      expect((await getProjectForViewer(deletedRecent.slug))?.project.id).toBe(deletedRecent.id);
+      signInAs(A.subject);
+      expect((await getProjectForViewer(deletedRecent.slug))?.project.id).toBe(deletedRecent.id);
+    });
+
+    it("[action] getProjectById and getProject hide a soft-deleted project from anyone but its owner", async () => {
+      signInAs(null);
+      expect(await actions.getProjectById(deletedRecent.id)).toBeNull();
+      expect((await actions.getProject(deletedRecent.slug)).success).toBe(false);
+      signInAs(B.subject);
+      expect(await actions.getProjectById(deletedRecent.id)).toBeNull();
+      signInAs(A.subject);
+      expect((await actions.getProjectById(deletedRecent.id))?.deleted_at).not.toBeNull();
+      expect((await actions.getProject(deletedRecent.slug)).success).toBe(true);
+    });
+
+    it("[handler] /api/projects?slug= hides a deleted project from a signed-out caller", async () => {
+      signInAs(null);
+      const res = await projectsRoute.GET(url(`/api/projects?slug=${deletedRecent.slug}`));
+      expect(res.status).toBe(404);
+    });
+
+    it("[action] getUserOwnProjects lists only the session's own projects", async () => {
+      signInAs(null);
+      expect((await actions.getUserOwnProjects()).success).toBe(false);
+      signInAs(B.subject);
+      const result = await actions.getUserOwnProjects();
+      expect(result.success).toBe(true);
+      expect((result as { data: { slug: string }[] }).data.map((p) => p.slug)).toEqual(["fixture-bob-project"]);
     });
   });
 
@@ -265,16 +349,25 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  describe("R17 boolean query params", () => {
-    it("[function] the schema coerces \"false\" to true", () => {
+  // Was the B13 reproduction ("false" coerced to true). Fixed in D02r.
+  describe("R17 (fixed, D02r) boolean query params", () => {
+    it("[function] the schema reads \"false\" as false and refuses anything but true/false", () => {
       const parsed = schemas.projectQuerySchema.parse({ showAll: "false", showFavorites: "false", showDeleted: "false" });
-      expect(parsed).toMatchObject({ showAll: true, showFavorites: true, showDeleted: true });
+      expect(parsed).toMatchObject({ showAll: false, showFavorites: false, showDeleted: false });
+      expect(schemas.projectQuerySchema.parse({ showAll: "true" }).showAll).toBe(true);
+      expect(schemas.projectQuerySchema.parse({}).showAll).toBe(false);
+      for (const bad of ["0", "1", "yes", "", "TRUE"]) {
+        expect(schemas.projectQuerySchema.safeParse({ showDeleted: bad }).success).toBe(false);
+      }
     });
 
-    it("[handler] showDeleted=false returns deleted projects", async () => {
+    it("[handler] showDeleted=false returns no deleted projects; a bad flag is a 400", async () => {
       const res = await projectsRoute.GET(url("/api/projects?showDeleted=false&limit=50"));
       const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug);
-      expect(slugs).toContain("fixture-deleted-recent");
+      expect(slugs).not.toContain("fixture-deleted-recent");
+      expect(slugs).toContain("fixture-listed");
+      const bad = await projectsRoute.GET(url("/api/projects?showDeleted=yes"));
+      expect(bad.status).toBe(400);
     });
   });
 });

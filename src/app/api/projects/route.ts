@@ -11,6 +11,7 @@ import { favorites } from "@/db/schema/favorites";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
+import { routeViewer } from "@/lib/auth-server";
 
 // Helper function to build base project selection
 const buildProjectSelection = () => ({
@@ -26,9 +27,9 @@ const buildProjectSelection = () => ({
     deleted_at: projects.deleted_at,
     total_favorites: projects.total_favorites,
   },
+  // No email_address (D02r, P08 R07): rows go to every viewer.
   profile: {
     username: profiles.username,
-    email_address: profiles.email_address,
     profile_image_url: profiles.profile_image_url,
     full_name: profiles.full_name,
   },
@@ -128,9 +129,14 @@ export async function GET(request: NextRequest) {
     
     const validatedParams: ProjectQueryInput = projectQuerySchema.parse(rawParams);
     
+    // D02r (P08 R08): who "my projects", "my favorites" and "my graveyard"
+    // belong to comes from the session only. A userId in the query string is
+    // still accepted (the client puts it in its cache key) but never used.
+    const viewer = await routeViewer();
+    const userId = viewer?.userId ?? null;
+
     const {
       showAll,
-      userId,
       slug,
       category,
       username,
@@ -146,7 +152,7 @@ export async function GET(request: NextRequest) {
     console.log(
       `🔍 API Request - Projects:
        - Category: ${category || "any"}
-       - User: ${userId || "anonymous"}
+       - Viewer: ${userId ? "signed in" : "anonymous"}
        - Username: ${username || "any"}
        - Tags: ${tags.length > 0 ? tags.join(", ") : "any"}
        - Show All: ${showAll}
@@ -159,6 +165,7 @@ export async function GET(request: NextRequest) {
 
     // Handle single project request by slug
     if (slug) {
+      // getProject hides a deleted project unless the session is its owner.
       const result = await getProject(slug);
       return new NextResponse(
         JSON.stringify(
@@ -191,6 +198,16 @@ export async function GET(request: NextRequest) {
             pagination: { total: 0, page, limit, totalPages: 0 },
           };
         }
+      }
+
+      // Favorites and the graveyard are the viewer's own; signed out, they're
+      // empty (it used to ignore the flag, or drop the deletion filter).
+      if ((showFavorites || showDeleted) && !userId) {
+        return {
+          success: true,
+          data: [],
+          pagination: { total: 0, page, limit, totalPages: 0 },
+        };
       }
 
       // Handle favorites query (requires authentication)
@@ -240,13 +257,16 @@ export async function GET(request: NextRequest) {
           }
         }
 
-        // Get total count for favorites
+        // Get total count for favorites. Someone else's deleted project
+        // stays out of the list (D02r, P08 R09), as in the category counts.
         const [{ count }] = await db
           .select({ count: sql<number>`count(*)` })
           .from(favorites)
+          .innerJoin(projects, eq(favorites.project_id, projects.id))
           .where(
             and(
               eq(favorites.profile_id, profileId),
+              sql`${projects.deleted_at} IS NULL`,
               ...(tagCondition ? [tagCondition] : [])
             )
           );
@@ -260,6 +280,7 @@ export async function GET(request: NextRequest) {
           .where(
             and(
               eq(favorites.profile_id, profileId),
+              sql`${projects.deleted_at} IS NULL`,
               ...(category && category !== "all"
                 ? [eq(projects.category, category)]
                 : []),
@@ -282,7 +303,7 @@ export async function GET(request: NextRequest) {
           tags: tagsByProject[project.id] || [],
           profile: {
             username: profile?.username || null,
-            email_address: profile?.email_address || null,
+            email_address: null,
             profile_image_url: profile?.profile_image_url || null,
             full_name: profile?.full_name || null,
           },
@@ -347,7 +368,7 @@ export async function GET(request: NextRequest) {
             projects.deleted_at
           } IS NOT NULL`
         );
-      } else if (!showDeleted) {
+      } else {
         conditions.push(sql`${projects.deleted_at} IS NULL`);
       }
 
@@ -386,7 +407,7 @@ export async function GET(request: NextRequest) {
         tags: tagsByProject[project.id] || [],
         profile: {
           username: profile?.username || null,
-          email_address: profile?.email_address || null,
+          email_address: null,
           profile_image_url: profile?.profile_image_url || null,
           full_name: profile?.full_name || null,
         },

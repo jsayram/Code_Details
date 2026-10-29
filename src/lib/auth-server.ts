@@ -14,6 +14,7 @@ import { auth } from "@clerk/nextjs/server";
 import { fetchQuery } from "convex/nextjs";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
+import { isAdmin } from "@/lib/admin-utils";
 
 // The package is ESM-only and the root tsconfig resolves app files as
 // CommonJS (NodeNext, no "type": "module"; the ts-node scripts depend on that),
@@ -94,4 +95,31 @@ export async function routeUserId(): Promise<string | null> {
   } catch {
     return null;
   }
+}
+
+/**
+ * D02r: the viewer for the personal reads that still query Supabase (my
+ * projects, favorites, graveyard, category counts, the dashboard, deleted
+ * projects by slug or ID). Identity comes only from the session, never from a
+ * query string or an argument. `userId` is routeUserId()'s answer; `isAdmin`
+ * is Clerk's email check today (the session's email, as the project page
+ * already did) and users.role under the Better Auth switch, as the proxy
+ * does since D08g1. Null when nobody is signed in. Server-side only.
+ */
+export async function routeViewer(): Promise<{ userId: string; isAdmin: boolean } | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth") {
+    const { userId, sessionClaims } = await auth();
+    if (!userId) return null;
+    return { userId, isAdmin: isAdmin(sessionClaims?.email as string | undefined) };
+  }
+  const userId = await routeUserId();
+  if (!userId) return null;
+  let admin = false;
+  try {
+    admin = (await viewerQuery(whoami))?.result?.role === "admin";
+  } catch {
+    admin = false;
+  }
+  return { userId, isAdmin: admin };
 }
