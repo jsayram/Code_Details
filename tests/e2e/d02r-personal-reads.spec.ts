@@ -5,7 +5,7 @@
 // =convex too, the lists come from the Convex personal queries; otherwise from
 // Supabase through routeViewer (D02r-a). The expectations are the same.
 import type { Page } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, authState, freshClientIp, linkPersona, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
@@ -50,7 +50,7 @@ test.describe.serial(`D02r personal reads (switch on, ${convexRead ? "Convex" : 
   });
 
   test.beforeEach(async ({ context }) => {
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
   });
 
   test("an unlinked login gets empty personal lists and counts", async ({ page }) => {

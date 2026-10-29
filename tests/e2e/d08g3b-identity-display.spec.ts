@@ -2,7 +2,7 @@
 // hero's greeting and the terminal's user line follow the Better Auth session.
 // Clerk's script is blocked here, as it is in a real browser with the synthetic
 // keys, to show the page no longer waits on Clerk.
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -11,7 +11,7 @@ test.describe("D08g3b identity display (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
 
   test.beforeEach(async ({ context, page }) => {
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
     await page.route(/clerk\.browser\.js$/, (route) => route.abort("blockedbyclient"));
   });
 

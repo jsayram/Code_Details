@@ -11,7 +11,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, authState, freshClientIp, linkPersona, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
@@ -55,7 +55,7 @@ test.afterAll(() => {
 });
 
 async function client(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }) {
-  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
+  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, [TEST_CLIENT_IP_HEADER]: freshClientIp() }, maxRedirects: 0 });
 }
 async function signIn(ctx: APIRequestContext, label: string): Promise<string> {
   const email = syntheticEmail(label);

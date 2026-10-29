@@ -60,3 +60,28 @@ export function isInternalAuthCall(given: string | null | undefined, secret: str
 export function staticJwks(value: string | undefined): string | undefined {
   return value && value.trim().startsWith("[") ? value : undefined;
 }
+
+/**
+ * SEC-D08-XFF (interim containment, fail closed): which request headers Better
+ * Auth may take the client IP from. Better Auth trusts a single
+ * X-Forwarded-For exactly as sent when no proxies are listed, so a client could
+ * rotate it to get a fresh rate-limit bucket on every request. Now:
+ * - X-Forwarded-For counts only when CODEDETAILS_AUTH_TRUSTED_PROXIES lists the
+ *   proxies in front (comma-separated IPs/CIDRs; empty by default). The
+ *   production design is decided at E01.
+ * - Test backends may name each synthetic client with TEST_CLIENT_IP_HEADER
+ *   (CODEDETAILS_AUTH_TEST_CLIENT_IP=1), honored only on a loopback site, so a
+ *   real deployment can never be told to trust it.
+ * - Otherwise no header counts and every client shares the fallback bucket.
+ *   The server's own token calls skip the limiter (SEC-D08-RL), so that only
+ *   tightens the public limits.
+ */
+export const TEST_CLIENT_IP_HEADER = "x-codedetails-test-client-ip";
+
+export function ipAddressOptions(env: Record<string, string | undefined>): { ipAddressHeaders: string[]; trustedProxies: string[] } {
+  const trustedProxies = (env.CODEDETAILS_AUTH_TRUSTED_PROXIES ?? "").split(",").map((p) => p.trim()).filter(Boolean);
+  const ipAddressHeaders: string[] = [];
+  if (env.CODEDETAILS_AUTH_TEST_CLIENT_IP === "1" && isLoopbackSite(env.CONVEX_SITE_URL)) ipAddressHeaders.push(TEST_CLIENT_IP_HEADER);
+  if (trustedProxies.length > 0) ipAddressHeaders.push("x-forwarded-for");
+  return { ipAddressHeaders, trustedProxies };
+}

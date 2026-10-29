@@ -6,6 +6,11 @@
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
+import { TEST_CLIENT_IP_HEADER } from "../../convex/authRules";
+
+// SEC-D08-XFF: synthetic clients are told apart by a test-only header (the test
+// backend honors it; X-Forwarded-For is ignored without a trusted-proxy list).
+export { TEST_CLIENT_IP_HEADER };
 import { CONVEX_URL, adminClient } from "./convex";
 
 export const SITE_ORIGIN = "http://localhost:3000";
@@ -56,7 +61,7 @@ export async function authFetch(
     ip = freshClientIp(),
   }: { method?: string; body?: unknown; jar?: Jar; origin?: string | null; ip?: string } = {},
 ): Promise<AuthCall> {
-  const headers: Record<string, string> = { "x-forwarded-for": ip };
+  const headers: Record<string, string> = { [TEST_CLIENT_IP_HEADER]: ip };
   if (origin) headers.origin = origin;
   if (jar.size) headers.cookie = cookieHeader(jar);
   if (body !== undefined) headers["content-type"] = "application/json";

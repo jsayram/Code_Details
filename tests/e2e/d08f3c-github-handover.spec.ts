@@ -3,7 +3,7 @@
 // The test backend has synthetic GitHub values, so the buttons only get as far
 // as GitHub's authorize URL: the network guard records it and aborts it.
 // The real GitHub press is manual (Jose).
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
@@ -14,7 +14,7 @@ test.describe("D08f3c GitHub (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
 
   test.beforeEach(async ({ context }) => {
-    await context.setExtraHTTPHeaders({ "x-forwarded-for": freshClientIp() });
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
   });
 
   async function signedIn(page: import("@playwright/test").Page) {

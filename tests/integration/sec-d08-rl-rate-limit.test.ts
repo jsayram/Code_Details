@@ -10,7 +10,7 @@ import path from "node:path";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { clearConvexFixtures, convexAvailable } from "../fixtures/convex";
-import { SYNTHETIC_PASSWORD, clientWithToken, convexToken, signUp, syntheticEmail, type Jar } from "../fixtures/better-auth";
+import { clientWithToken, convexToken, signUp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, type Jar } from "../fixtures/better-auth";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
 import { RUNTIME_DIR } from "../support/test-db";
 
@@ -65,7 +65,7 @@ describe.skipIf(!convexAvailable() || !fs.existsSync(SECRET_FILE))("SEC-D08-RL s
   it("token calls without the secret (or with a wrong one) keep the default limit", async () => {
     const ip = "2001:db8:5ec:1::1";
     const statuses: number[] = [];
-    for (let i = 0; i < 105; i++) statuses.push((await serverTokenCall(jar, { "x-forwarded-for": ip, [HEADER]: i % 2 ? "wrong-secret-wrong-secret-wrong-secret" : "" })).status);
+    for (let i = 0; i < 105; i++) statuses.push((await serverTokenCall(jar, { [TEST_CLIENT_IP_HEADER]: ip, [HEADER]: i % 2 ? "wrong-secret-wrong-secret-wrong-secret" : "" })).status);
     expect(statuses.slice(0, 100).every((s) => s === 200)).toBe(true);
     expect(statuses.slice(100)).toContain(429);
   }, 120_000);
@@ -76,7 +76,7 @@ describe.skipIf(!convexAvailable() || !fs.existsSync(SECRET_FILE))("SEC-D08-RL s
     for (let i = 0; i < 12; i++) {
       const res = await fetch(`${TEST_CONVEX_SITE_URL}/api/auth/sign-in/email`, {
         method: "POST",
-        headers: { "content-type": "application/json", origin: "http://localhost:3000", "x-forwarded-for": ip, [HEADER]: secret() },
+        headers: { "content-type": "application/json", origin: "http://localhost:3000", [TEST_CLIENT_IP_HEADER]: ip, [HEADER]: secret() },
         body: JSON.stringify({ email: syntheticEmail("rl-flood"), password: "not-the-password" }),
       });
       statuses.push(res.status);

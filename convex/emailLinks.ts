@@ -18,6 +18,7 @@ import { components, internal } from "./_generated/api";
 import { v } from "convex/values";
 import type { GenericCtx } from "@convex-dev/better-auth";
 import type { DataModel } from "./_generated/dataModel";
+import { TEST_CLIENT_IP_HEADER } from "./authRules";
 
 const IDENTIFIER_PREFIX = "codedetails-email-link:";
 const CODE = /^[A-Za-z0-9_-]{43}$/;
@@ -99,6 +100,12 @@ export const emailLinkHttp = httpAction(async (ctx, request) => {
   const inner = new URL(`${process.env.CONVEX_SITE_URL}/api/auth/verify-email`);
   inner.searchParams.set("token", link.token);
   inner.searchParams.set("callbackURL", link.callbackURL);
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  return createAuth(ctx).handler(new Request(inner, { headers: forwardedFor ? { "x-forwarded-for": forwardedFor } : {} }));
+  // The client-IP headers go along so the limiter keys this the same way as
+  // the request itself (convex/authRules.ts ipAddressOptions decides which count).
+  const headers: Record<string, string> = {};
+  for (const name of ["x-forwarded-for", TEST_CLIENT_IP_HEADER]) {
+    const value = request.headers.get(name);
+    if (value) headers[name] = value;
+  }
+  return createAuth(ctx).handler(new Request(inner, { headers }));
 });

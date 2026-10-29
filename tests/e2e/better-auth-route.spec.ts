@@ -7,7 +7,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext, APIResponse } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, expireSession, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { expireSession, freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import { RUNTIME_DIR } from "../support/test-db";
 import { BASE_URL, expect, test } from "./support";
@@ -18,12 +18,12 @@ const NEW_ACCOUNT = { username: expect.stringMatching(/^user-[0-9a-z]{6}$/), rol
 
 /**
  * One browser's worth of cookies, sending the app origin like a same-site
- * fetch. D08e: each gets its own client IP, as a proxy in front of the app
- * would set it; Next.js keeps a supplied x-forwarded-for unchanged, so Better
- * Auth's limiter sees one client per context instead of one shared loopback.
+ * fetch. D08e: each gets its own client IP, so Better Auth's limiter sees one
+ * client per context. SEC-D08-XFF: that is the test backend's test-only
+ * client-IP header; a browser-supplied X-Forwarded-For is dropped.
  */
 async function browserLike(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, origin = BASE_URL, ip = freshClientIp()) {
-  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin, "x-forwarded-for": ip } });
+  return playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin, [TEST_CLIENT_IP_HEADER]: ip } });
 }
 
 // The Convex adapter returns dates as epoch milliseconds; Better Auth's own

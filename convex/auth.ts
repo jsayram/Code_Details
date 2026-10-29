@@ -25,7 +25,7 @@ import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { internalAction } from "./_generated/server";
 import { createAccountRows } from "./accounts";
-import { INTERNAL_AUTH_HEADER, emailVerificationRequired, isInternalAuthCall, staticJwks } from "./authRules";
+import { INTERNAL_AUTH_HEADER, emailVerificationRequired, ipAddressOptions, isInternalAuthCall, staticJwks } from "./authRules";
 import { opaqueVerificationLink } from "./emailLinks";
 import { sendAuthEmail } from "./email";
 import authConfig from "./auth.config";
@@ -93,8 +93,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     // Better Auth's limiter is off outside production by default, and its
     // in-memory store wouldn't survive between Convex function runs, so it is
     // switched on with the component's rateLimit table. Limits are per client
-    // IP from x-forwarded-for; CODEDETAILS_AUTH_TRUSTED_PROXIES lists the proxy
-    // hops (comma-separated IPs/CIDRs) to strip, e.g. the Next.js server.
+    // IP; which header may name it is ipAddressOptions() (SEC-D08-XFF: none
+    // unless CODEDETAILS_AUTH_TRUSTED_PROXIES lists the proxies in front).
     rateLimit: {
       enabled: true,
       storage: "database",
@@ -118,9 +118,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       },
     },
     advanced: {
-      ipAddress: {
-        trustedProxies: (process.env.CODEDETAILS_AUTH_TRUSTED_PROXIES ?? "").split(",").filter(Boolean),
-      },
+      ipAddress: ipAddressOptions(process.env),
     },
     telemetry: { enabled: false },
     // D08f3b: errors that end in a redirect (a refused GitHub sign-in, a bad
