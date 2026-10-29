@@ -232,7 +232,6 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
   });
 
   test("another user reads the linked chapter with trimmed metadata, sees no Download All, and the ZIP is refused", async ({ page }) => {
-    await releasePersona(A.subject!);
     await signInPageAs(page, "d11s-other", B.subject!);
     const meta = await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json();
     expect(meta).toMatchObject({ userId: null, isOwner: false });
