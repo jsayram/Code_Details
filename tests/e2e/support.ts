@@ -14,7 +14,34 @@ export interface Blocked {
   resourceType: string;
 }
 
-export const test = base.extend<{ blocked: Blocked[] }>({
+/**
+ * D08f2: what counts as a hydration error. React 19 reports a mismatch as
+ * "Hydration failed because the server rendered HTML didn't match the client"
+ * (console error, or an uncaught page error), and older wording mentions a
+ * "hydration mismatch" or text that "did not match".
+ */
+export const HYDRATION_ERROR = /hydration failed|hydration mismatch|did not match|server rendered (html|text) didn'?t match/i;
+
+export const test = base.extend<{ blocked: Blocked[]; hydrationErrors: string[] }>({
+  // D08f2: fails any test whose pages log a hydration error, once the known
+  // source (Clerk's SignedOut in the header) is gone. Listens on the context,
+  // so request-only tests don't open a page for it.
+  hydrationErrors: [
+    async ({ context }, use, testInfo) => {
+      const errors: string[] = [];
+      context.on("console", (m) => {
+        if (m.type() === "error" && HYDRATION_ERROR.test(m.text())) errors.push(m.text().split("\n")[0]);
+      });
+      context.on("weberror", (e) => {
+        const message = e.error().message;
+        if (HYDRATION_ERROR.test(message)) errors.push(message.split("\n")[0]);
+      });
+      await use(errors);
+      if (errors.length) testInfo.annotations.push({ type: "hydration-errors", description: errors.join(" | ") });
+      expect(errors, "the page logged a hydration error").toEqual([]);
+    },
+    { auto: true },
+  ],
   blocked: [
     async ({ context }, use) => {
       const blocked: Blocked[] = [];
