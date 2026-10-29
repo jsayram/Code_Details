@@ -5,10 +5,13 @@ import {
   createProjectServer,
   getAccessibleProjectsServer,
   deleteProjectServer,
-  updateProjectServer,
-  isProjectOwner,
   getProjectTagNames,
 } from "@/db/actions";
+import { isProjectOwner, updateProjectRow, type ProjectUpdate } from "@/db/project-write";
+import { checkCategoryData } from "@/backend/projects/project-update-rules";
+import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
+import { chooseAuthBackend } from "@/backend/auth";
+import { auth } from "@clerk/nextjs/server";
 import { InsertProject } from "@/db/schema/projects";
 import { projects } from "@/db/schema/projects";
 import { project_tags } from "@/db/schema/project_tags";
@@ -24,6 +27,7 @@ import {
   notOwnerError, 
   notFoundError, 
   zodValidationError, 
+  validationError,
   serverError,
   actionSuccess,
   type ActionResult
@@ -183,16 +187,33 @@ export async function removeProject(id: string, userId: string) {
   }
 }
 
-// Server action to update a project
+// Server action to update a project.
+//
+// D02 (P08 R02): the caller comes from the session. The third argument is the
+// client's own idea of its user ID; it is ignored and kept only so the
+// callers don't change. Under both development switches (Convex read and
+// Better Auth) the save goes to the Convex mutation, which learns the caller
+// from getViewer. Under the Better Auth switch alone nothing is written to
+// Supabase: there are no mixed-provider writes.
 export async function updateProject(
   id: string,
-  project: Partial<InsertProject>,
-  userId: string
+  project: Partial<InsertProject> & { content_version?: number },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    // Ensure there is a user ID
+    if (projectWritesToConvex()) {
+      const result = await updateProjectOnConvex(id, project);
+      if (result.success) revalidateAfterUpdate(result.data.slug, result.previousSlug);
+      if (result.success) return actionSuccess(result.data);
+      return result;
+    }
+    if (chooseAuthBackend().backend !== "clerk") {
+      return unauthorizedError("You must be signed in to update a project");
+    }
+    const { userId } = await auth();
     if (!userId) {
-      return unauthorizedError("User ID is required to update a project");
+      return unauthorizedError("You must be signed in to update a project");
     }
 
     // First check if the user is the owner of this project
@@ -220,56 +241,50 @@ export async function updateProject(
     // Use validated and transformed data
     const validatedData = validationResult.data;
 
-    // Create a new project object with validated values
-    const trimmedProject: Partial<InsertProject> = {};
-
-    // Only include fields that were provided and validated
-    if (validatedData.title !== undefined) {
-      trimmedProject.title = validatedData.title;
-    }
-    if (validatedData.slug !== undefined) {
-      trimmedProject.slug = validatedData.slug;
-    }
-    if (validatedData.description !== undefined) {
-      trimmedProject.description = validatedData.description;
-    }
-    if (validatedData.category !== undefined) {
-      trimmedProject.category = validatedData.category;
-    }
-    if (validatedData.url_links !== undefined) {
-      trimmedProject.url_links = validatedData.url_links;
-    }
-    if (validatedData.tags !== undefined) {
-      trimmedProject.tags = validatedData.tags;
-    }
-    if (validatedData.category_data !== undefined) {
-      trimmedProject.category_data = validatedData.category_data ?? undefined;
-    }
-    if (validatedData.field_order !== undefined) {
-      trimmedProject.field_order = validatedData.field_order ?? undefined;
+    // R29: url fields in the project details are http(s) only, checked against
+    // the category the project will be saved under. Unknown keys stay accepted
+    // here (see project-update-rules.ts).
+    if (validatedData.category_data || validatedData.field_order) {
+      const category = validatedData.category ?? (await getProjectCategory(id));
+      const issues = checkCategoryData(category, validatedData.category_data, validatedData.field_order, { strictKeys: false });
+      if (issues.length) return validationError(issues[0].message, issues);
     }
 
-    console.log('Updating project with data:', JSON.stringify(trimmedProject, null, 2));
-    const updatedProject = await updateProjectServer(id, trimmedProject);
-    
-    // Revalidate the projects list page
-    revalidatePath(pathToRevalidate);
-    
-    // Revalidate the specific project page (using the new slug if changed, otherwise the original)
-    const projectSlug = updatedProject.slug || validatedData.slug;
-    if (projectSlug) {
-      revalidatePath(`/projects/${projectSlug}`);
-    }
-    
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+    // Only the whitelisted columns reach the row (updateProjectRow).
+    const update: ProjectUpdate = {};
+    if (validatedData.title !== undefined) update.title = validatedData.title;
+    if (validatedData.slug !== undefined) update.slug = validatedData.slug;
+    if (validatedData.description !== undefined) update.description = validatedData.description;
+    if (validatedData.category !== undefined) update.category = validatedData.category;
+    if (validatedData.url_links !== undefined) update.url_links = validatedData.url_links;
+    if (validatedData.tags !== undefined) update.tags = validatedData.tags;
+    if (validatedData.category_data !== undefined) update.category_data = validatedData.category_data ?? null;
+    if (validatedData.field_order !== undefined) update.field_order = validatedData.field_order ?? null;
+
+    const updatedProject = await updateProjectRow(id, update);
+    revalidateAfterUpdate(updatedProject.slug || validatedData.slug);
     return actionSuccess(mapDrizzleProjectToProject(updatedProject));
   } catch (error) {
     console.error("Failed to update project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
+}
+
+async function getProjectCategory(id: string): Promise<string> {
+  const [row] = await executeQuery((db) => db.select({ category: projects.category }).from(projects).where(eq(projects.id, id)));
+  return row?.category ?? "other";
+}
+
+function revalidateAfterUpdate(slug?: string | null, previousSlug?: string | null) {
+  // Revalidate the projects list page
+  revalidatePath(pathToRevalidate);
+  // Revalidate the specific project page (using the new slug if changed)
+  if (slug) revalidatePath(`/projects/${slug}`);
+  if (previousSlug && previousSlug !== slug) revalidatePath(`/projects/${previousSlug}`);
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
 }
 
 // Server action to get all projects accessible to a user

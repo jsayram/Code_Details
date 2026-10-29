@@ -14,19 +14,7 @@ import {
   MAX_PROJECTS_PER_PAGE,
   DEFAULT_PROJECTS_PER_PAGE
 } from "@/constants/project-limits";
-import { PROFANITY_LIST } from "@/constants/profanity-list";
-
-/**
- * Helper function to check if text contains profanity
- */
-function containsProfanity(text: string): boolean {
-  if (!text || typeof text !== "string") return false;
-  const normalized = text.toLowerCase().trim();
-  return PROFANITY_LIST.some((word) => {
-    const wordRegex = new RegExp(`\\b${word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "i");
-    return wordRegex.test(normalized);
-  });
-}
+import { categoryDataTooLarge, containsProfanity, isHttpUrl } from "@/backend/projects/project-update-rules";
 
 /**
  * Helper function to check category data for profanity
@@ -95,7 +83,9 @@ const linkTypeEnum = z.enum([
  */
 export const projectLinkSchema = z.object({
   type: linkTypeEnum,
-  url: z.string().url("Invalid URL format"),
+  // D02 (P08 R29): http and https only. z.string().url() alone accepts
+  // javascript: and data: URLs, and links render as <a href>.
+  url: z.string().url("Invalid URL format").refine(isHttpUrl, "Links must be http or https URLs"),
   label: z.string().max(PROJECT_TEXT_LIMITS.MAX_LINK_LABEL_LENGTH, `Label must be at most ${PROJECT_TEXT_LIMITS.MAX_LINK_LABEL_LENGTH} characters`).optional(),
 });
 
@@ -111,13 +101,16 @@ export const categoryDataSchema = z
   .refine(
     (data) => !checkCategoryDataForProfanity(data),
     "Project details contain inappropriate content"
-  );
+  )
+  // D02 (P08 R29): a total size cap.
+  .refine((data) => !categoryDataTooLarge(data), "Project details are too large");
 
 /**
  * Schema for field ordering
  * Array of field IDs in display order
  */
-export const fieldOrderSchema = z.array(z.string()).optional().nullable();
+// D02 (P08 R29): bounded, like the details themselves.
+export const fieldOrderSchema = z.array(z.string().max(100)).max(100).optional().nullable();
 
 /**
  * Schema for creating a new project

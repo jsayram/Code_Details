@@ -11,7 +11,7 @@ import {
   InsertProject,
   SelectProject,
 } from "./schema/projects";
-import { eq, and, isNull, or, desc } from "drizzle-orm";
+import { eq, isNull, or, desc } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 
 /**
@@ -158,66 +158,9 @@ export async function deleteProjectServer(id: string): Promise<SelectProject> {
   });
 }
 
-/**
- * Server-side function to update a project
- */
-export async function updateProjectServer(
-  id: string,
-  project: Partial<InsertProject>
-): Promise<SelectProject> {
-  return await executeQuery(async (db) => {
-    console.log('updateProjectServer received project:', JSON.stringify(project, null, 2));
-    
-    // Update the project
-    const [updatedProject] = await db
-      .update(projects)
-      .set({
-        ...project,
-        updated_at: new Date(), // Set updated_at to current time
-      })
-      .where(eq(projects.id, id))
-      .returning();
-
-    // If tags are provided, update the project_tags
-    if (project.tags !== undefined) {
-      // Remove all existing project_tags
-      await db.delete(project_tags).where(eq(project_tags.project_id, id));
-
-      // Add new project_tags
-      for (const tagName of project.tags) {
-        // Check if tag exists
-        let tagId = null;
-        const existingTags = await db
-          .select({ id: tags.id })
-          .from(tags)
-          .where(eq(tags.name, tagName.trim()));
-
-        if (existingTags.length > 0) {
-          tagId = existingTags[0].id;
-        } else {
-          // Create the tag
-          const [createdTag] = await db
-            .insert(tags)
-            .values({ name: tagName.trim() })
-            .returning({ id: tags.id });
-          tagId = createdTag.id;
-        }
-
-        // Create a relation between project and tag
-        await db.insert(project_tags).values({
-          project_id: updatedProject.id,
-          tag_id: tagId,
-        });
-      }
-    }
-
-    // Get the current tags for the project
-    const currentTags = await getProjectTagNames(id);
-
-    // Return the updated project with tags
-    return { ...updatedProject, tags: currentTags };
-  });
-}
+// updateProjectServer moved to src/db/project-write.ts as updateProjectRow (D02,
+// P08 R03): as an export of this "use server" file it wrote any column of any
+// project for any caller.
 
 /**
  * Server-side function to get all projects accessible to a user
@@ -297,22 +240,7 @@ export async function getAccessibleProjectsServer(
 
 // getUserProjectsServer moved to src/db/project-read.ts (D02r): as an export
 // of this "use server" file it listed anyone's projects, deleted included.
-/**
- * Server-side function to check if a user owns a project
- */
-export async function isProjectOwner(
-  projectId: string,
-  userId: string
-): Promise<boolean> {
-  return await executeQuery(async (db) => {
-    const result = await db
-      .select({ count: sql<number>`count(*)` })
-      .from(projects)
-      .where(and(eq(projects.id, projectId), eq(projects.user_id, userId)));
-
-    return result[0]?.count > 0;
-  });
-}
+// isProjectOwner moved to src/db/project-write.ts (D02, P08 R03).
 
 // getProjectUsersProfileBySlugServer moved to src/db/project-read.ts (D02r):
 // it returned any owner's full profile row, email included, to any caller.

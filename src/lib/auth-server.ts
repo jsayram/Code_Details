@@ -11,7 +11,7 @@
 // The JWT cache stays off: every server render asks Convex for a fresh token,
 // so each one re-checks that the session is still live (D08A_REPORT, limits).
 import { auth } from "@clerk/nextjs/server";
-import { fetchQuery } from "convex/nextjs";
+import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { headers } from "next/headers";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
@@ -73,6 +73,25 @@ export async function viewerQuery<Q extends FunctionReference<"query", "public",
   if (choice.backend !== "better-auth") return null;
   const token = await serverToken(choice.convexSiteUrl, await requestCookie());
   return { result: await fetchQuery(query, {}, { token: token ?? undefined, url: choice.convexUrl }) };
+}
+
+/**
+ * D02: runs a Convex mutation as the request's signed-in user, with a token
+ * fetched by this server (serverToken, as viewerQuery does). Its arguments
+ * are never an identity (the no-identity-args test). Null when Better Auth is
+ * switched off or the request has no live session, so nothing runs
+ * anonymously.
+ */
+export async function viewerMutation<Args extends Record<string, unknown>, R>(
+  mutation: FunctionReference<"mutation", "public", Args, R>,
+  args: Args,
+): Promise<{ result: R } | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth") return null;
+  const token = await serverToken(choice.convexSiteUrl, await requestCookie());
+  if (!token) return null;
+  const ref = mutation as unknown as FunctionReference<"mutation", "public", Record<string, unknown>, R>;
+  return { result: (await fetchMutation(ref, args, { token, url: choice.convexUrl })) as R };
 }
 
 /** Whether the request has a live Better Auth session (a token comes back); null when the switch is off. */
