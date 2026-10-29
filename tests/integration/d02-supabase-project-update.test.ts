@@ -131,6 +131,16 @@ describe.skipIf(!testDbAvailable())("D02-a Supabase project update", () => {
     expect(r).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
   });
 
+  it("R29/XSS: createProject refuses a javascript: URL in a url-type details field and a javascript: link", async () => {
+    signInAs(A.subject);
+    const base = { title: "Fixture D02 Create", slug: "fixture-d02-create", category: "mobile" };
+    const field = await actions.createProject({ ...base, category_data: { appStoreUrl: "javascript:alert(1)" } } as never, A.subject!);
+    expect(field).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+    const link = await actions.createProject({ ...base, url_links: [{ type: "demo", url: "javascript:alert(1)" }] } as never, A.subject!);
+    expect(link).toMatchObject({ success: false, code: "VALIDATION_ERROR" });
+    expect(await sql`select 1 from projects where slug = 'fixture-d02-create'`).toHaveLength(0);
+  });
+
   it("R29: oversize details are refused; unknown detail keys are still accepted on Supabase", async () => {
     signInAs(A.subject);
     const big = await actions.updateProject(listed.id, { category_data: { notes: "x".repeat(17 * 1024) } } as never, A.subject);

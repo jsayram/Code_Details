@@ -117,6 +117,10 @@ export async function createProject(project: InsertProject, userId: string) {
     // Use validated and transformed data
     const validatedData = validationResult.data;
 
+    // D02 (R29): url fields in the project details are http(s) only.
+    const detailIssues = checkCategoryData(validatedData.category, validatedData.category_data, validatedData.field_order, { strictKeys: false });
+    if (detailIssues.length) return validationError(detailIssues[0].message, detailIssues);
+
     const trimmedProject = {
       ...project,
       title: validatedData.title,
