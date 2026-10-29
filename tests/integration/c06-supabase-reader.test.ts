@@ -58,6 +58,20 @@ describe.skipIf(!testDbAvailable())("C06 Supabase public project reader", () => 
     expect(text).not.toContain('"pro"');
   });
 
+  it("email-shaped username: the contract carries only the local part, never the address", async () => {
+    const p = set.projects.find((x) => x.case === "ownedByEmailUsername")!;
+    const address = set.personas[p.ownerKey].profile!.username;
+    const got = await reader.getPublicProjectBySlug(p.slug);
+    expect(got!.owner).toEqual({ username: address.split("@")[0], fullName: null, avatarUrl: null });
+    expect(JSON.stringify(got)).not.toContain("@");
+  });
+
+  it("the contract check still refuses a full address as the username", async () => {
+    const got = await reader.getPublicProjectBySlug("fixture-legacy-owner");
+    expect(() => assertPublicProject({ ...got, owner: { ...got!.owner!, username: "fixture.legacy@synthetic.invalid" } }))
+      .toThrow(/owner\.username contains an email address/);
+  });
+
   it("category fields outside fieldOrder are not public", async () => {
     await sql`update projects set category_data = ${sql.json({ shown: "yes", hidden: "no" })}, field_order = ${sql.json(["shown"])} where slug = 'fixture-listed'`;
     const got = await reader.getPublicProjectBySlug("fixture-listed");

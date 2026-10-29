@@ -9,7 +9,7 @@ import path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import type { FixtureSet } from "./generate";
-import { generateFixtures } from "./generate";
+import { convexImportUsername, generateFixtures } from "./generate";
 
 export const CONVEX_PORT = 3210;
 export const CONVEX_URL = `http://127.0.0.1:${CONVEX_PORT}`;
@@ -58,16 +58,19 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
     status: p.accountState,
     createdAt: ms(p.profile?.createdAt ?? "2026-01-01T00:00:00.000Z"),
   }));
-  const profiles = personas.filter((p) => p.profile).map((p) => ({
+  const profiles = personas.filter((p) => p.profile).map((p) => {
+    const username = convexImportUsername(p.subject!, p.profile!.username);
+    return {
     userKey: p.key,
-    username: p.profile!.username,
-    usernameKey: p.profile!.username.toLowerCase(),
+    username,
+    usernameKey: username.toLowerCase(),
     firstName: opt(p.profile!.firstName),
     lastName: opt(p.profile!.lastName),
     fullName: opt(p.profile!.fullName),
     avatarUrl: opt(p.profile!.imageUrl),
     createdAt: ms(p.profile!.createdAt),
-  }));
+    };
+  });
   // D00a: tags.listedProjectCount (P07 §3.7) counts the listed projects carrying the tag.
   const isListed = (p: FixtureSet["projects"][number]) => !p.purged && !p.deletedAt && p.visibility === "public";
   const tags = set.tags.map((t) => ({

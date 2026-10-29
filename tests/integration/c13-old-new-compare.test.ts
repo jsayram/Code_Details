@@ -11,7 +11,7 @@ import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import type { PublicProject } from "@/backend/projects/public-project";
 import { clerkServerDouble, nextCacheDouble } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
-import { generateFixtures } from "../fixtures/generate";
+import { convexImportUsername, generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 import { anonymousClient, clearConvexFixtures, convexAvailable, getPublicBySlug, loadConvexFixtures } from "../fixtures/convex";
 
@@ -76,19 +76,44 @@ describe.skipIf(!ready)("C13 old/new comparison", () => {
   // current schema has no visibility column (C03 gap), so Supabase serves it.
   const comparable = set.projects.filter((p) => p.case !== "private");
 
+  // The email-shaped owner is the second intended difference: Supabase
+  // publishes the address's local part, Convex the handle its import generated
+  // (P07 §5.2), and the legacy read carried the full address.
+  const emailOwned = set.projects.find((p) => p.case === "ownedByEmailUsername")!;
+  const emailOwner = set.personas[emailOwned.ownerKey];
+  const sameEverywhere = comparable.filter((p) => p !== emailOwned);
+
   it.each(comparable.map((p) => [p.case, p.slug]))("%s: Supabase contract and Convex contract are identical apart from the ID", async (_c, slug) => {
     const s = await supabase.getPublicProjectBySlug(slug);
     const c = await anon.query(getPublicBySlug, { slug });
     expect(c === null).toBe(s === null);
-    if (s && c) expect({ ...c, id: "<id>" }).toEqual({ ...s, id: "<id>" });
+    const owner = (p: PublicProject) =>
+      p.owner && slug === emailOwned.slug ? { ...p.owner, username: "<username>" } : p.owner;
+    if (s && c) expect({ ...c, id: "<id>", owner: owner(c) }).toEqual({ ...s, id: "<id>", owner: owner(s) });
   });
 
-  it.each(comparable.map((p) => [p.case, p.slug]))("%s: the page renders the same from the legacy read and from Convex", async (_c, slug) => {
+  it.each(sameEverywhere.map((p) => [p.case, p.slug]))("%s: the page renders the same from the legacy read and from Convex", async (_c, slug) => {
     const legacyProject = await dbActions.getProjectBySlugServer(slug, null, null);
     const legacyProfile = legacyProject ? await dbActions.getProjectUsersProfileBySlugServer(slug) : null;
     const before = rendered(legacyProject as unknown as Record<string, unknown> | null, legacyProfile as unknown as Record<string, unknown> | null);
     const after = viaContract(await anon.query(getPublicBySlug, { slug }));
     expect(after).toEqual(before);
+  });
+
+  it("email-shaped owner: the legacy read published the address; Supabase shows its local part and Convex the imported handle", async () => {
+    const slug = emailOwned.slug;
+    const address = emailOwner.profile!.username;
+    const legacyProject = await dbActions.getProjectBySlugServer(slug, null, null);
+    const legacyProfile = await dbActions.getProjectUsersProfileBySlugServer(slug);
+    const before = rendered(legacyProject as unknown as Record<string, unknown>, legacyProfile as unknown as Record<string, unknown>)!;
+    const viaSupabase = viaContract(await supabase.getPublicProjectBySlug(slug))!;
+    const viaConvex = viaContract(await anon.query(getPublicBySlug, { slug }))!;
+    const handle = convexImportUsername(emailOwner.subject!, address);
+
+    expect(before.displayName).toBe(address.split("@")[0]);
+    expect(before.profileLinkUsername).toBe(address);
+    expect(viaSupabase).toEqual({ ...before, profileLinkUsername: address.split("@")[0] });
+    expect(viaConvex).toEqual({ ...before, displayName: handle, profileLinkUsername: handle });
   });
 
   it("private project: Supabase still serves it (no visibility column); Convex returns not-found", async () => {

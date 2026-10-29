@@ -22,11 +22,11 @@ describe.skipIf(!testDbAvailable())("fixtures in the current schema (B09)", () =
       sql.begin(async (tx) => {
         await loadFixtures(tx, set);
         expect(await countFixtureRows(tx)).toEqual({
-          profiles: 6, // every persona except anonymous and noProfile
+          profiles: 7, // every persona except anonymous and noProfile
           username_history: 1,
-          projects: 12, // the purged case is never inserted
+          projects: 13, // the purged case is never inserted
           tags: 16,
-          project_tags: 26,
+          project_tags: 27,
           favorites: 4,
           project_images: 5,
           tag_submissions: 1,
