@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import { getProjectMeta } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
 
@@ -103,7 +103,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     if (!userId) {
       return unauthorized('Authentication required to edit documentation');
     }

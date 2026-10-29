@@ -8,14 +8,14 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import { listProjects } from '@/lib/output-utils';
 import { unauthorized, serverError, success } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     console.log('[docs-list] userId:', userId);
     
     if (!userId) {

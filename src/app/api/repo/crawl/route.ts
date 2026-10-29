@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import { serverGithubCrawler } from '@/repoScrapper/server-crawler';
 import type { CrawlerOptions, CrawlerResult } from '@/repoScrapper';
 import { RepoError } from '@/repoScrapper/errors';
@@ -15,7 +15,7 @@ const RATE_LIMIT_MS = 10000; // 10 seconds between crawls
 
 export async function POST(request: NextRequest) {
   // 1. Authentication check
-  const { userId } = await auth();
+  const userId = await routeUserId();
   if (!userId) {
     return NextResponse.json(
       { 

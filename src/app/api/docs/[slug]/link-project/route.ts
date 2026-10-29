@@ -9,7 +9,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import { 
   getProjectMeta, 
   updateProjectMeta, 
@@ -42,7 +42,7 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     if (!userId) {
       return unauthorized('Authentication required to link documentation');
     }
@@ -145,7 +145,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     if (!userId) {
       return unauthorized('Authentication required to unlink documentation');
     }

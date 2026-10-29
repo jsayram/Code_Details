@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import {
   runDocumentationFlowWithProgress,
   isValidGitHubUrl,
@@ -65,7 +65,7 @@ function problemResponse(
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     if (!userId) {
       return problemResponse(401, 'Unauthorized', 'Authentication required to generate documentation.');
     }

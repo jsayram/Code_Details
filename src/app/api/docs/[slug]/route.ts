@@ -8,7 +8,7 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
+import { routeUserId } from '@/lib/auth-server';
 import { getProjectMeta, deleteProject } from '@/lib/output-utils';
 import { 
   unauthorized, 
@@ -29,7 +29,7 @@ interface RouteParams {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
+    const userId = await routeUserId();
     if (!userId) {
       return unauthorized('Authentication required to delete documentation');
     }
