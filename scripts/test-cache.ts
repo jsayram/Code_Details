@@ -112,10 +112,7 @@ async function runCacheTests() {
   const results: CacheTestResult[] = [];
   
   // Import all cached functions
-  const { 
-    getCachedUserProjects,
-    getCachedAllProjects,
-  } = await import('../src/app/actions/projects.js');
+  const { readAllActiveProjects } = await import('../src/db/project-read.js');
   
   const { 
     getCachedDashboardStats,
@@ -142,7 +139,7 @@ async function runCacheTests() {
   } = await import('../src/app/actions/admin-dashboard.js');
   
   console.log('📦 Testing Projects Cache...');
-  results.push(await testCachePerformance('getCachedAllProjects', () => getCachedAllProjects()));
+  results.push(await testCachePerformance('getCachedAllProjects', () => readAllActiveProjects()));
   
   console.log('\n📊 Testing Dashboard Cache...');
   results.push(await testCachePerformance('getCachedDashboardStats', () => getCachedDashboardStats()));

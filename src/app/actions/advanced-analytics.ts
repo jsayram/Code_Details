@@ -10,6 +10,7 @@ import { auth, clerkClient } from "@clerk/nextjs/server";
 import { isAdmin } from "@/lib/admin-utils";
 import { chooseAuthBackend } from "@/backend/auth";
 import { routeViewer } from "@/lib/auth-server";
+import { toPublicProfileRow } from "@/backend/profiles/public-profile";
 import { redirect } from "next/navigation";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
@@ -27,6 +28,12 @@ export interface TopContributor {
   approved_tags_count: number;
   contribution_score: number;
 }
+
+/**
+ * What the public user directory gets (D04a, P08 R07): no provider subject
+ * and no tier, and a legacy email-shaped username cut to its local part.
+ */
+export type PublicTopContributor = Omit<TopContributor, "user_id" | "tier">;
 
 export interface TagPipelineMetrics {
   totalSubmissions: number;
@@ -317,16 +324,14 @@ export async function fetchTopContributors(limit: number = DEFAULT_TOP_CONTRIBUT
 }
 
 // Public version for user list - excludes tag metrics to prevent spam
-export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CONTRIBUTORS): Promise<TopContributor[]> {
+export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CONTRIBUTORS): Promise<PublicTopContributor[]> {
   return executeQuery(async (db) => {
     // Get contributor stats without tag submissions (public view)
     const contributors = await db
       .select({
-        user_id: profiles.user_id,
         username: profiles.username,
         full_name: profiles.full_name,
         profile_image_url: profiles.profile_image_url,
-        tier: profiles.tier,
         projects_count: sql<number>`count(distinct ${projects.id})`,
         favorites_received: sql<number>`coalesce(sum(${projects.total_favorites}), 0)`,
       })
@@ -335,11 +340,9 @@ export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CON
       .where(isNull(projects.deleted_at))
       .groupBy(
         profiles.id,
-        profiles.user_id,
         profiles.username,
         profiles.full_name,
-        profiles.profile_image_url,
-        profiles.tier
+        profiles.profile_image_url
       )
       .orderBy(desc(sql<number>`count(distinct ${projects.id})`));
 
@@ -354,12 +357,11 @@ export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CON
         (projectsCount * 10) + 
         (favoritesReceived * 5);
 
+      const profile = toPublicProfileRow({ ...contributor, created_at: null, updated_at: null });
       return {
-        user_id: contributor.user_id,
-        username: contributor.username,
-        full_name: contributor.full_name,
-        profile_image_url: contributor.profile_image_url,
-        tier: contributor.tier,
+        username: profile.username,
+        full_name: profile.full_name,
+        profile_image_url: profile.profile_image_url,
         projects_count: projectsCount,
         favorites_received: favoritesReceived,
         tag_submissions_count: 0, // Not included in public view

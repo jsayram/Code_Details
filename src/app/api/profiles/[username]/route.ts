@@ -15,13 +15,31 @@ import {
   success 
 } from "@/lib/api-errors";
 import { updateProfileSchema, formatZodErrors } from "@/types/schemas/profile";
+import { toPublicProfileRow } from "@/backend/profiles/public-profile";
+import { convexPublicProfile } from "@/backend/profiles/read";
 
+// D04a (P08 R07): the public projection only (no email, tier, provider
+// subject or profile UUID), from Convex under the read switch.
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ username: string }> }
 ) {
   try {
     const { username } = await context.params;
+
+    const fromConvex = await convexPublicProfile(username);
+    if (fromConvex !== undefined) {
+      if (fromConvex?.kind === "profile") return success({ profile: fromConvex.profile });
+      if (fromConvex?.kind === "redirect") {
+        return success({
+          redirect: true,
+          oldUsername: username,
+          currentUsername: fromConvex.currentUsername,
+          profile: fromConvex.profile,
+        });
+      }
+      return notFound("profile", { identifier: username, identifierType: "username" });
+    }
     
     const profile = await executeQuery(async (db) => {
       const result = await db
@@ -54,12 +72,13 @@ export async function GET(
         });
 
         if (currentProfile.length) {
+          const current = toPublicProfileRow(currentProfile[0]);
           // Return redirect info with current profile
           return success({
             redirect: true,
             oldUsername: username,
-            currentUsername: currentProfile[0].username,
-            profile: currentProfile[0],
+            currentUsername: current.username,
+            profile: current,
           });
         }
       }
@@ -71,7 +90,7 @@ export async function GET(
       });
     }
 
-    return success({ profile });
+    return success({ profile: toPublicProfileRow(profile) });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return serverError(error, "Failed to fetch profile");

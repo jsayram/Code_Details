@@ -3,6 +3,7 @@ import { profiles } from "@/db/schema/profiles";
 import { projects } from "@/db/schema/projects";
 import { desc, sql, eq, isNull } from "drizzle-orm";
 import { success, databaseError } from "@/lib/api-errors";
+import { toPublicProfileRow } from "@/backend/profiles/public-profile";
 
 // Next.js Route Segment Config - Cache for 5 minutes, revalidate in background
 export const revalidate = 300; // 5 minutes in seconds
@@ -11,14 +12,13 @@ export async function GET() {
   try {
     const allProfiles = await executeQuery(async (db) =>
       db
+        // D04a (P08 R07): public columns only. The list goes to every
+        // visitor with a public cache header, so no email, tier, provider
+        // subject or profile UUID.
         .select({
-          id: profiles.id,
-          user_id: profiles.user_id,
           username: profiles.username,
           full_name: profiles.full_name,
           profile_image_url: profiles.profile_image_url,
-          tier: profiles.tier,
-          email_address: profiles.email_address,
           created_at: profiles.created_at,
           updated_at: profiles.updated_at,
           project_count: sql<number>`COUNT(CASE WHEN ${projects.deleted_at} IS NULL THEN ${projects.id} END)`,
@@ -32,7 +32,14 @@ export async function GET() {
     );
 
     // Return with explicit cache headers for browser/CDN caching
-    const response = success(allProfiles);
+    const response = success(
+      allProfiles.map(({ project_count, total_favorites, last_activity_date, ...profile }) => ({
+        ...toPublicProfileRow(profile),
+        project_count,
+        total_favorites,
+        last_activity_date,
+      }))
+    );
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     return response;
   } catch (error) {

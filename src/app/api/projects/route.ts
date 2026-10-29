@@ -7,6 +7,7 @@ import { serverError, notFound, success, invalidInput } from "@/lib/api-errors";
 import { tags as tagsTable } from "@/db/schema/tags";
 import { project_tags } from "@/db/schema/project_tags";
 import { profiles } from "@/db/schema/profiles";
+import { publicUsername } from "@/backend/profiles/public-profile";
 import { favorites } from "@/db/schema/favorites";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
@@ -315,7 +316,8 @@ export async function GET(request: NextRequest) {
           ...project,
           tags: tagsByProject[project.id] || [],
           profile: {
-            username: profile?.username || null,
+            // D04a: a legacy email-shaped username publishes its local part only.
+          username: profile?.username ? publicUsername(profile.username) : null,
             email_address: null,
             profile_image_url: profile?.profile_image_url || null,
             full_name: profile?.full_name || null,
@@ -419,7 +421,8 @@ export async function GET(request: NextRequest) {
         ...project,
         tags: tagsByProject[project.id] || [],
         profile: {
-          username: profile?.username || null,
+          // D04a: a legacy email-shaped username publishes its local part only.
+          username: profile?.username ? publicUsername(profile.username) : null,
           email_address: null,
           profile_image_url: profile?.profile_image_url || null,
           full_name: profile?.full_name || null,

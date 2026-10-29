@@ -1,7 +1,6 @@
 "use server";
 
 import { eq, sql, and, inArray } from "drizzle-orm";
-import { getAccessibleProjectsServer } from "@/db/actions";
 import {
   insertProjectRow,
   isProjectOwner,
@@ -334,64 +333,11 @@ function revalidateAfterUpdate(slug?: string | null, previousSlug?: string | nul
   revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
 }
 
-// Server action to get all projects accessible to a user
-export async function getUserProjects(userId: string) {
-  try {
-    console.log(`Fetching all projects for user ${userId}`);
-
-    try {
-      // Pass userId to get all available projects (no tier filtering)
-      const projects = await getAccessibleProjectsServer(userId);
-
-      // Map the data to our Project type
-      const mappedProjects = projects.map(mapDrizzleProjectToProject);
-      console.log(
-        `Successfully fetched ${mappedProjects.length} projects for user ${userId}`
-      );
-      return mappedProjects;
-    } catch (dbError) {
-      console.error("Database error when getting projects:", dbError);
-      // Return empty array instead of letting the error propagate
-      return [];
-    }
-  } catch (error) {
-    console.error("Failed to get user projects:", error);
-    // Return empty array instead of propagating the error to client
-    return [];
-  }
-}
-
-export const getCachedUserProjects = unstable_cache(
-  async (userId: string) => getUserProjects(userId),
-  ['user-projects'],
-  {
-    revalidate: 180, // 3 minutes
-    tags: ['projects', 'user-projects']
-  }
-);
-
-// Server action to get all projects (previously free tier only)
-export async function getAllProjects() {
-  try {
-    // Get all projects without tier filtering
-    const projects = await getAccessibleProjectsServer("anonymous");
-
-    // Return the projects directly as an array, not wrapped in an object
-    return projects.map(mapDrizzleProjectToProject);
-  } catch (error) {
-    console.error("Failed to get projects:", error);
-    return [];
-  }
-}
-
-export const getCachedAllProjects = unstable_cache(
-  async () => getAllProjects(),
-  ['all-projects'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects']
-  }
-);
+// getUserProjects(userId), getAllProjects and their cached wrappers were
+// removed (D04a, P08 R07): callable actions that handed any caller every
+// owner's provider subject, profile UUID and tier, and any user's project
+// list. Nothing in the app called them; the cache test page reads
+// readAllActiveProjects on the server.
 
 // Server action to get projects created by the current user. D02r: the
 // user is the session's; it used to be an argument, so anyone could list

@@ -38,6 +38,8 @@ describe("project read backend switch", () => {
   it("is used only by the anonymous page read: no Convex import in any write path", async () => {
     const { execSync } = await import("node:child_process");
     const hits = execSync("git grep -l --untracked -e convex-reader -e 'convex/browser' -- src", { encoding: "utf8" }).trim().split("\n").sort();
-    expect(hits).toEqual(["src/backend/projects/convex-reader.ts", "src/backend/projects/index.ts"]);
+    // D04a: the anonymous public profile read is the only addition; it calls
+    // one public query and writes nothing.
+    expect(hits).toEqual(["src/backend/profiles/read.ts", "src/backend/projects/convex-reader.ts", "src/backend/projects/index.ts"]);
   });
 });

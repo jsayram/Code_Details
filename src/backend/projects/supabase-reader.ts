@@ -9,16 +9,11 @@ import { project_tags } from "@/db/schema/project_tags";
 import { tags } from "@/db/schema/tags";
 import type { ProjectReadBackend } from "./read";
 import { type PublicProject, assertPublicProject, publicCategoryData, publicLinks } from "./public-project";
+// Legacy email-shaped usernames publish only their local part (fix-email-username).
+import { publicUsername } from "@/backend/profiles/public-profile";
 
 const iso = (d: Date | null) => (d ? d.toISOString() : null);
 
-/**
- * Some legacy profiles use their email address as the username. Publish only
- * the part before the "@", which is what the page showed before Phase C; the
- * contract check still refuses a full address. Convex has no such usernames:
- * its import gives them generated handles (P07 §5.2).
- */
-const publicUsername = (username: string) => (username.includes("@") ? username.split("@")[0] : username);
 
 /** Code-point order on the lowercased name; the same rule the Convex seeder uses. */
 const byName = (a: string, b: string) => {

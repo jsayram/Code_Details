@@ -1,14 +1,9 @@
 "use server";
 
 import { executeQuery } from "./server";
-import { projects } from "./schema/projects";
-import { profiles } from "./schema/profiles";
 import { project_tags } from "./schema/project_tags";
 import { tags } from "./schema/tags";
-import { favorites } from "./schema/favorites";
-import { SelectProject } from "./schema/projects";
-import { eq, isNull, or, desc } from "drizzle-orm";
-import { sql } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 // createProjectServer moved to src/db/project-write.ts as insertProjectRow
 // (D03, P08 R03): as an export of this "use server" file it inserted any row,
@@ -44,80 +39,9 @@ export async function getProjectTagNames(projectId: string): Promise<string[]> {
 // P08 R03): as an export of this "use server" file it wrote any column of any
 // project for any caller.
 
-/**
- * Server-side function to get all projects accessible to a user
- * Updated to include deleted projects
- */
-export async function getAccessibleProjectsServer(
-  userId: string,
-  userTier?: string
-): Promise<SelectProject[]> {
-  return await executeQuery(async (db) => {
-    // Get all projects with profile data and tags in a single query
-    const projectsData = await db
-      .select({
-        project: {
-          id: projects.id,
-          title: projects.title,
-          slug: projects.slug,
-          description: projects.description,
-          category: projects.category,
-          user_id: projects.user_id,
-          total_favorites: projects.total_favorites,
-          url_links: projects.url_links,
-          category_data: projects.category_data,
-          field_order: projects.field_order,
-          created_at: projects.created_at,
-          updated_at: projects.updated_at,
-          deleted_at: projects.deleted_at,
-        },
-        profile: {
-          id: profiles.id,
-          user_id: profiles.user_id,
-          username: profiles.username,
-          full_name: profiles.full_name,
-          profile_image_url: profiles.profile_image_url,
-          tier: profiles.tier,
-          created_at: profiles.created_at,
-          updated_at: profiles.updated_at,
-        },
-        tags: sql<string[]>`array_agg(distinct ${tags.name})`,
-      })
-      .from(projects)
-      .leftJoin(profiles, eq(profiles.user_id, projects.user_id))
-      .leftJoin(project_tags, eq(project_tags.project_id, projects.id))
-      .leftJoin(tags, eq(tags.id, project_tags.tag_id))
-      .where(isNull(projects.deleted_at))
-      .groupBy(
-        projects.id,
-        profiles.id,
-        profiles.user_id,
-        profiles.username,
-        profiles.full_name,
-        profiles.profile_image_url,
-        profiles.tier,
-        profiles.created_at,
-        profiles.updated_at
-      )
-      .orderBy(desc(projects.created_at));
-
-    // Map the results to the expected format with proper typing
-    return projectsData.map(({ project, profile, tags }) => ({
-      ...project,
-      tags: tags?.filter(Boolean) || [], // Filter out null values and provide empty array fallback
-      owner_id: profile?.id || null,
-      owner_user_id: profile?.user_id || null,
-      owner_username: profile?.username || null,
-      owner_full_name: profile?.full_name || null,
-      owner_profile_image_url: profile?.profile_image_url || null,
-      owner_tier: profile?.tier || null,
-      // SEC-D03-EMAIL: this is a callable action's answer; never an email.
-      owner_email_address: null,
-      owner_created_at: profile?.created_at || null,
-      owner_updated_at: profile?.updated_at || null,
-    }));
-  });
-}
+// getAccessibleProjectsServer moved to src/db/project-read.ts as
+// readAllActiveProjects (D04a, P08 R07): as an export of this "use server"
+// file it gave any caller every owner's provider subject, profile UUID and tier.
 
 // getUserProjectsServer moved to src/db/project-read.ts (D02r): as an export
 // of this "use server" file it listed anyone's projects, deleted included.

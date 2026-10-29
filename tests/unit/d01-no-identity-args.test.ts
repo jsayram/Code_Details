@@ -69,7 +69,7 @@ async function publicFunctions(): Promise<{ name: string; argsJson: string }[]> 
 describe("D01 no public Convex function takes an identity argument", () => {
   it("finds the public functions (guards against an empty scan)", async () => {
     const names = (await publicFunctions()).map((f) => f.name).sort();
-    expect(names).toEqual(expect.arrayContaining(["identity:whoami", "projects:getOwnBySlug", "projects:getPublicBySlug", "projects:update"]));
+    expect(names).toEqual(expect.arrayContaining(["identity:whoami", "profiles:getPublicByUsername", "projects:getOwnBySlug", "projects:getPublicBySlug", "projects:update"]));
   });
 
   it("every public function's arguments are free of identity", async () => {

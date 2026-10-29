@@ -1,4 +1,5 @@
-import { getCachedAllProjects } from "@/app/actions/projects";
+import { unstable_cache } from "next/cache";
+import { readAllActiveProjects } from "@/db/project-read";
 import { getCachedDashboardStats } from "@/app/actions/dashboard";
 import { getCachedAllTags } from "@/app/actions/tags";
 import type { Metadata } from "next";
@@ -11,6 +12,12 @@ export const metadata: Metadata = {
 // Force dynamic rendering to test server action caching (not page caching)
 // This intentionally disables page cache to isolate action cache testing
 export const dynamic = 'force-dynamic';
+
+// Server-only now (D04a): it used to be a callable "use server" export.
+const getCachedAllProjects = unstable_cache(async () => readAllActiveProjects(), ["all-projects"], {
+  revalidate: 300, // 5 minutes
+  tags: ["projects"],
+});
 
 export default async function CacheTestPage() {
   // Fetch data without timing on server (timing happens client-side)

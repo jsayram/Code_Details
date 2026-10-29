@@ -7,7 +7,6 @@ import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLo
 import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectContent";
 import { notFound, redirect } from "next/navigation";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
-import { auth } from "@clerk/nextjs/server";
 import { LogIn } from "lucide-react";
 import {
   SelectProjectWithOwner,
@@ -21,6 +20,8 @@ import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import { getProjectForViewer } from "@/backend/projects/viewer-read";
 import { currentSlugFor, ownProjectForEdit } from "@/backend/projects/owner-edit";
+import { routeViewer } from "@/lib/auth-server";
+import { chooseAuthBackend } from "@/backend/auth";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -35,8 +36,12 @@ export default async function ProjectPage({
   // Ensure params is handled as a Promise
   const resolvedParams = await Promise.resolve(params);
   
-  // Get auth data first
-  const { userId } = await auth();
+  // Get auth data first. D04a: through the provider-neutral session helper
+  // instead of Clerk's auth(). Under the Better Auth switch this stays null,
+  // as Clerk's answer was: the owner gets their own read from
+  // ownProjectForEdit and everyone else the public projection.
+  const userId =
+    chooseAuthBackend().backend === "better-auth" ? null : (await routeViewer())?.userId ?? null;
   
   // Anonymous visitors get the C02 public projection only (no owner email,
   // subject or tier in the page). Signed-in viewers get the session-checked

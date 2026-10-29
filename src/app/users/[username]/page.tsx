@@ -11,7 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { SelectProfile } from "@/db/schema/profiles";
+import type { PublicProfileRow } from "@/backend/profiles/public-profile";
 import { useRouter } from "next/navigation";
 
 interface PageProps {
@@ -21,7 +21,7 @@ interface PageProps {
 export default function UserProfilePage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const username = decodeURIComponent(resolvedParams.username);
-  const [profileData, setProfileData] = useState<SelectProfile | null>(null);
+  const [profileData, setProfileData] = useState<PublicProfileRow | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [stats, setStats] = useState({
@@ -50,9 +50,10 @@ export default function UserProfilePage({ params }: PageProps) {
   useEffect(() => {
     if (username) {
       setIsLoading(true);
-      // Fetch profile data
+      // Fetch profile data with stats in a single request. D04a: by username;
+      // the page no longer gets the owner's provider subject to call by-id.
       const profilePromise = fetch(
-        `/api/profiles/lookup/${encodeURIComponent(username)}`
+        `/api/profiles/lookup/${encodeURIComponent(username)}?includeStats=true`
       )
         .then(async (response) => {
           if (!response.ok) {
@@ -79,20 +80,8 @@ export default function UserProfilePage({ params }: PageProps) {
           if (!data.profile) {
             throw new Error("Profile data not found in response");
           }
-          
-          // Fetch profile with stats in a single request
-          return fetch(
-            `/api/profiles/by-id/${data.profile.user_id}?includeStats=true`
-          );
-        })
-        .then(async (res) => {
-          if (!res) return null; // Redirect happened
-          if (!res.ok) {
-            const errorData = await res.json().catch(() => ({ error: 'Unknown error' }));
-            console.error("API Error:", errorData);
-            throw new Error(errorData.error || "Failed to fetch profile stats");
-          }
-          return res.json();
+
+          return responseData;
         });
 
       profilePromise
@@ -257,9 +246,6 @@ export default function UserProfilePage({ params }: PageProps) {
                           {profileData?.username || "Loading..."}
                         </h2>
                       </div>
-                      <p className="text-muted-foreground text-sm truncate px-2">
-                        {profileData?.email_address}
-                      </p>
                     </div>
                   </div>
                 </CardContent>

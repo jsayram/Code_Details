@@ -189,16 +189,26 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   });
 
   describe("R07 email exposure", () => {
-    it("[handler] GET /api/profiles returns every email with a public cache header", async () => {
+    // Was "GET /api/profiles returns every email with a public cache header";
+    // fixed in D04a. The header stays: nothing private is left to cache.
+    it("[handler] (fixed, D04a) GET /api/profiles returns no email, tier or subject", async () => {
       const res = await profilesRoute.GET();
-      const emails = (await body(res)).data.map((p: { email_address: string }) => p.email_address);
-      expect(emails).toEqual(expect.arrayContaining([A.profile!.email, B.profile!.email, set.personas.admin.profile!.email]));
-      expect(res.headers.get("cache-control")).toMatch(/public/);
+      const text = await res.text();
+      const rows = JSON.parse(text).data as Record<string, unknown>[];
+      expect(rows.length).toBeGreaterThan(0);
+      expect(rows.some((p) => "email_address" in p || "tier" in p || "user_id" in p)).toBe(false);
+      for (const email of [A.profile!.email, B.profile!.email, set.personas.admin.profile!.email]) expect(text).not.toContain(email);
+      expect(text).not.toContain(A.subject!);
     });
 
-    it("[handler] GET /api/profiles/by-id/[userId] returns the full row including email", async () => {
+    // Was "GET /api/profiles/by-id/[userId] returns the full row including email"; fixed in D04a.
+    it("[handler] (fixed, D04a) GET /api/profiles/by-id/[userId] returns no email, tier or subject", async () => {
       const res = await byIdRoute.GET(url(`/api/profiles/by-id/${A.subject}`), { params: Promise.resolve({ userId: A.subject! }) });
-      expect((await body(res)).data.profile.email_address).toBe(A.profile!.email);
+      const { profile } = (await body(res)).data;
+      expect(profile.username).toBe(A.profile!.username);
+      expect(profile).not.toHaveProperty("email_address");
+      expect(profile).not.toHaveProperty("tier");
+      expect(profile).not.toHaveProperty("user_id");
     });
 
     // Was "every project list row carries the owner's email"; fixed in D02r.

@@ -3,7 +3,7 @@
 // module: Next exposes every export of one as a callable server action, and
 // these take the viewer as an argument. Only server code calls them, with a
 // viewer from the session (src/backend/projects/viewer-read.ts).
-import { desc, eq, sql } from "drizzle-orm";
+import { desc, eq, isNull, sql } from "drizzle-orm";
 import { executeQuery } from "./server";
 import { projects } from "./schema/projects";
 import { profiles } from "./schema/profiles";
@@ -11,6 +11,7 @@ import { project_tags } from "./schema/project_tags";
 import { tags } from "./schema/tags";
 import type { SelectProject, SelectUserWithProject } from "./schema/projects";
 import { getProjectTagNames } from "./actions";
+import { publicUsername } from "@/backend/profiles/public-profile";
 
 /** Who is reading, from the session. Null means signed out. */
 export type ProjectViewer = { userId: string; isAdmin: boolean } | null;
@@ -170,6 +171,73 @@ export async function getUserProjectsServer(
       owner_profile_image_url: profile?.profile_image_url || null,
       owner_tier: profile?.tier || null,
       owner_email_address: profile?.email_address || null,
+      owner_created_at: profile?.created_at || null,
+      owner_updated_at: profile?.updated_at || null,
+    }));
+  });
+}
+
+/**
+ * Every active project with its owner's public fields (moved from
+ * src/db/actions.ts in D04a). Only the server calls it; no owner provider
+ * subject, profile UUID, tier or email in the answer (P08 R07).
+ */
+export async function readAllActiveProjects(): Promise<SelectProject[]> {
+  return await executeQuery(async (db) => {
+    // Get all projects with profile data and tags in a single query
+    const projectsData = await db
+      .select({
+        project: {
+          id: projects.id,
+          title: projects.title,
+          slug: projects.slug,
+          description: projects.description,
+          category: projects.category,
+          user_id: projects.user_id,
+          total_favorites: projects.total_favorites,
+          url_links: projects.url_links,
+          category_data: projects.category_data,
+          field_order: projects.field_order,
+          created_at: projects.created_at,
+          updated_at: projects.updated_at,
+          deleted_at: projects.deleted_at,
+        },
+        profile: {
+          username: profiles.username,
+          full_name: profiles.full_name,
+          profile_image_url: profiles.profile_image_url,
+          created_at: profiles.created_at,
+          updated_at: profiles.updated_at,
+        },
+        tags: sql<string[]>`array_agg(distinct ${tags.name})`,
+      })
+      .from(projects)
+      .leftJoin(profiles, eq(profiles.user_id, projects.user_id))
+      .leftJoin(project_tags, eq(project_tags.project_id, projects.id))
+      .leftJoin(tags, eq(tags.id, project_tags.tag_id))
+      .where(isNull(projects.deleted_at))
+      .groupBy(
+        projects.id,
+        profiles.id,
+        profiles.username,
+        profiles.full_name,
+        profiles.profile_image_url,
+        profiles.created_at,
+        profiles.updated_at
+      )
+      .orderBy(desc(projects.created_at));
+
+    // Map the results to the expected format with proper typing
+    return projectsData.map(({ project, profile, tags }) => ({
+      ...project,
+      tags: tags?.filter(Boolean) || [], // Filter out null values and provide empty array fallback
+      owner_id: null,
+      owner_user_id: null,
+      owner_username: profile?.username ? publicUsername(profile.username) : null,
+      owner_full_name: profile?.full_name || null,
+      owner_profile_image_url: profile?.profile_image_url || null,
+      owner_tier: null,
+      owner_email_address: null,
       owner_created_at: profile?.created_at || null,
       owner_updated_at: profile?.updated_at || null,
     }));

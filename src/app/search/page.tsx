@@ -132,7 +132,6 @@ function SearchContent() {
 
       return {
         username: profile.username!,
-        email: profile.email_address || null,
         profileImage: profile.profile_image_url || null,
         fullName: profile.full_name || null,
         projectCount: profile.project_count,
@@ -162,11 +161,10 @@ function SearchContent() {
     const matchesSearch = (user: typeof allUsers[0]) => {
       if (!searchLower) return true;
       
-      // Check username, fullName, email
+      // Username and full name (D04a: profiles carry no email any more)
       return (
         user.username.toLowerCase().includes(searchLower) ||
-        (user.fullName?.toLowerCase().includes(searchLower)) ||
-        (user.email?.toLowerCase().includes(searchLower))
+        (user.fullName?.toLowerCase().includes(searchLower))
       );
     };
 

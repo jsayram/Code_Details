@@ -515,3 +515,30 @@ export const projectResidue = internalQuery({
     };
   },
 });
+
+// D04a: username claims for the public profile tests (a previous name, its
+// reservation). The loaded fixtures write none; `clear` empties the table.
+export const addUsernameClaim = internalMutation({
+  args: {
+    holderUsernameKey: v.string(),
+    usernameKey: v.string(),
+    state: v.union(v.literal("current"), v.literal("previous")),
+    reservedUntil: v.optional(v.number()),
+  },
+  handler: async (ctx, { holderUsernameKey, usernameKey, state, reservedUntil }) => {
+    assertFixturesAllowed();
+    const holder = await ctx.db
+      .query("profiles")
+      .withIndex("by_usernameKey", (q) => q.eq("usernameKey", holderUsernameKey))
+      .first();
+    if (!holder) throw new Error(`no fixture profile ${holderUsernameKey}`);
+    const now = Date.now();
+    await ctx.db.insert("usernames", {
+      usernameKey,
+      userId: holder.userId,
+      state,
+      claimedAt: now - 1000,
+      ...(state === "previous" ? { releasedAt: now - 500, reservedUntil } : {}),
+    });
+  },
+});

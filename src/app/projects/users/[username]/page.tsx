@@ -13,7 +13,7 @@ import { useState, use } from "react";
 import { CURRENT_PAGE } from "@/components/navigation/Pagination/paginationConstants";
 import { PageBanner } from "@/components/ui/page-banner";
 import { User } from "lucide-react";
-import { SelectProfile } from "@/db/schema/profiles";
+import type { PublicProfileRow } from "@/backend/profiles/public-profile";
 import { useEffect } from "react";
 import { UserProfileLoadingState } from "@/components/LoadingState/UserProfileLoadingState";
 import { capitalizeNames } from "@/utils/stringUtils";
@@ -33,7 +33,7 @@ export default function UserProjectsPage({ params }: PageProps) {
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
-  const [profileData, setProfileData] = useState<SelectProfile | null>(null);
+  const [profileData, setProfileData] = useState<PublicProfileRow | null>(null);
   const router = useRouter();
 
   // derive the decoded username from route params immediately

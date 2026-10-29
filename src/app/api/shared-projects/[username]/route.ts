@@ -9,6 +9,7 @@ import { usernameHistory } from "@/db/schema/username-history";
 import { serverError, success, invalidInput } from "@/lib/api-errors";
 import { sharedProjectsQuerySchema, parseSearchParams, type SharedProjectsQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
+import { publicUsername } from "@/backend/profiles/public-profile";
 
 export async function GET(
   request: NextRequest,
@@ -62,7 +63,7 @@ export async function GET(
             return {
               redirect: true,
               oldUsername: username,
-              currentUsername: currentProfile[0].username,
+              currentUsername: publicUsername(currentProfile[0].username),
             };
           }
         }
@@ -181,7 +182,11 @@ export async function GET(
         .offset(offset);
 
       return {
-        data: sharedProjects,
+        // D04a: a legacy email-shaped username publishes its local part only.
+        data: sharedProjects.map((row) => ({
+          ...row,
+          profile: row.profile?.username ? { ...row.profile, username: publicUsername(row.profile.username) } : row.profile,
+        })),
         pagination: {
           total: Number(count),
           page,

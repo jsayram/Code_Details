@@ -41,16 +41,19 @@ describe.skipIf(!testDbAvailable())("SEC-D03-EMAIL", () => {
     expect(dbActions.getCachedUserById).toBeUndefined();
   });
 
-  it("getAccessibleProjectsServer (callable) returns no owner email", async () => {
-    const dbActions = await import("../../src/db/actions.js");
-    const rows = await dbActions.getAccessibleProjectsServer("anonymous");
-    expect(rows.length).toBeGreaterThan(0);
-    expect(emails(rows)).toEqual([]);
+  // D04a removed both callable exports (they also carried owner subjects and
+  // tiers); d04a-public-profile.test.ts checks they're gone and that the
+  // server-only replacement stays clean.
+  it("the all-projects reads are no longer callable exports", async () => {
+    const dbActions = (await import("../../src/db/actions.js")) as Record<string, unknown>;
+    const actions = (await import("../../src/app/actions/projects.js")) as Record<string, unknown>;
+    expect(dbActions.getAccessibleProjectsServer).toBeUndefined();
+    expect(actions.getAllProjects).toBeUndefined();
   });
 
-  it("getAllProjects (callable) returns no owner email", async () => {
-    const actions = await import("../../src/app/actions/projects.js");
-    const rows = await actions.getAllProjects();
+  it("readAllActiveProjects (server-only) returns no owner email", async () => {
+    const { readAllActiveProjects } = await import("../../src/db/project-read.js");
+    const rows = await readAllActiveProjects();
     expect(rows.length).toBeGreaterThan(0);
     expect(emails(rows)).toEqual([]);
   });

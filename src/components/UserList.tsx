@@ -1,27 +1,24 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
-import { SelectProfile } from "@/db/schema/profiles";
+import type { Profile } from "@/hooks/use-profiles";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { GenericLoadingState } from "@/components/LoadingState/GenericLoadingState";
 import { fetchTopContributorsPublic } from "@/app/actions/advanced-analytics";
-import type { TopContributor } from "@/app/actions/advanced-analytics";
+import type { PublicTopContributor } from "@/app/actions/advanced-analytics";
 import { Trophy, Star, FileCode, Tag, Heart, Search } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { HighlightText } from "@/components/HighlightText";
 import { SEARCH_DEBOUNCE_MS } from "@/constants/project-limits";
 
-type UserWithProjectCount = SelectProfile & {
-  project_count: number;
-  total_favorites: number;
-  last_activity_date: Date | null;
-};
+// D04a: /api/profiles carries public fields only, and usernames are unique,
+// so rows and contributors are matched and keyed by username.
+type UserWithProjectCount = Profile & { username: string };
 
 export function UserList() {
   const [users, setUsers] = useState<UserWithProjectCount[]>([]);
-  const [topContributors, setTopContributors] = useState<TopContributor[]>([]);
+  const [topContributors, setTopContributors] = useState<PublicTopContributor[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
@@ -80,37 +77,29 @@ export function UserList() {
   const activeUsers = users.filter((user) => user.project_count > 0);
   const inactiveUsers = users.filter((user) => user.project_count === 0);
 
-  // Filter top contributors based on search (username, email, tier)
+  // Filter top contributors based on search (username, full name)
   const filteredTopContributors = topContributors.filter((contributor) => {
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
     if (!searchLower) return true;
 
-    // Get the user's email from the users array if available
-    const userProfile = users.find(u => u.user_id === contributor.user_id);
-    const email = userProfile?.email_address || "";
-
     return (
       (contributor.username || "").toLowerCase().includes(searchLower) ||
-      (contributor.full_name || "").toLowerCase().includes(searchLower) ||
-      email.toLowerCase().includes(searchLower) ||
-      (contributor.tier || "").toLowerCase().includes(searchLower)
+      (contributor.full_name || "").toLowerCase().includes(searchLower)
     );
   });
 
   // Get top 3 for leaderboard display
   const leaderboardTop3 = filteredTopContributors.slice(0, 3);
-  const topContributorUserIds = new Set(topContributors.map((c) => c.user_id));
+  const topContributorUsernames = new Set(topContributors.map((c) => c.username));
 
-  // Then filter users based on search (username, full name, email, tier)
+  // Then filter users based on search (username, full name)
   const filteredActiveUsers = activeUsers.filter((user) => {
     const searchLower = searchQuery.toLowerCase().trim();
     if (!searchLower) return true;
 
     return (
       (user.username || "").toLowerCase().includes(searchLower) ||
-      (user.full_name || "").toLowerCase().includes(searchLower) ||
-      (user.email_address || "").toLowerCase().includes(searchLower) ||
-      (user.tier || "").toLowerCase().includes(searchLower)
+      (user.full_name || "").toLowerCase().includes(searchLower)
     );
   });
 
@@ -161,16 +150,6 @@ export function UserList() {
     }
   };
 
-  const getTierBadgeVariant = (tier: string | null) => {
-    switch (tier?.toLowerCase()) {
-      case 'diamond':
-        return 'default';
-      case 'pro':
-        return 'secondary';
-      default:
-        return 'outline';
-    }
-  };
 
   const handleUserClick = (username: string, userId: string) => {
     setLoadingUserId(userId);
@@ -205,7 +184,7 @@ export function UserList() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
         <Input
           type="search"
-          placeholder="Search by username, email, or tier (free/pro/diamond)..."
+          placeholder="Search by username or name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="pl-12 h-12 text-base rounded-xl border-2 border-primary/20 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-md transition-all duration-200"
@@ -227,17 +206,17 @@ export function UserList() {
           <div className="flex flex-wrap gap-4 justify-center">
             {leaderboardTop3.map((contributor, index) => (
               <Card
-                key={contributor.user_id}
+                key={contributor.username}
                 className={`w-full md:w-[calc(50%-0.5rem)] xl:flex-1 xl:max-w-[calc(33.333%-0.667rem)] max-w-md p-10 cursor-pointer hover:bg-accent/50 transition-all transform hover:scale-105 ${
-                  loadingUserId === contributor.user_id ? "opacity-50" : ""
+                  loadingUserId === contributor.username ? "opacity-50" : ""
                 } ${getLeaderboardCardStyle(index)}`}
-                onClick={() => handleUserClick(contributor.username, contributor.user_id)}
+                onClick={() => handleUserClick(contributor.username, contributor.username)}
               >
                 {getLeaderboardBadge(index)}
                 <div className="flex flex-col gap-4">
                   <div className="flex items-start gap-4">
                     <div className="relative">
-                      {loadingUserId === contributor.user_id && (
+                      {loadingUserId === contributor.username && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full z-10">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                         </div>
@@ -263,29 +242,10 @@ export function UserList() {
                         <h3 className="font-bold text-lg truncate">
                           <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
                         </h3>
-                        {/* Only show tier when searching and it's Pro/Diamond and matches */}
-                        {debouncedSearchQuery && contributor.tier && contributor.tier !== 'free' && contributor.tier.toLowerCase().includes(debouncedSearchQuery.toLowerCase()) && (
-                          <Badge variant={getTierBadgeVariant(contributor.tier)} className="text-xs">
-                            <HighlightText text={contributor.tier} highlight={debouncedSearchQuery} />
-                          </Badge>
-                        )}
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
                         @<HighlightText text={contributor.username} highlight={debouncedSearchQuery} />
                       </p>
-                      {/* Show email if searching and it matches */}
-                      {debouncedSearchQuery && (() => {
-                        const userProfile = users.find(u => u.user_id === contributor.user_id);
-                        const email = userProfile?.email_address || "";
-                        if (email && email.toLowerCase().includes(debouncedSearchQuery.toLowerCase())) {
-                          return (
-                            <p className="text-xs text-muted-foreground truncate mt-1">
-                              <HighlightText text={email} highlight={debouncedSearchQuery} />
-                            </p>
-                          );
-                        }
-                        return null;
-                      })()}
                     </div>
                   </div>
 
@@ -339,14 +299,14 @@ export function UserList() {
             <div className="flex flex-wrap gap-4 justify-center">
               {filteredTopContributors.slice(3).filter(c => c.contribution_score > 0).map((contributor, index) => (
                 <Card
-                  key={contributor.user_id}
+                  key={contributor.username}
                   className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
-                    loadingUserId === contributor.user_id ? "opacity-50" : ""
+                    loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.user_id)}
+                  onClick={() => handleUserClick(contributor.username, contributor.username)}
                 >
                 <div className="flex items-center gap-4">
-                  {loadingUserId === contributor.user_id && (
+                  {loadingUserId === contributor.username && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>
@@ -372,29 +332,10 @@ export function UserList() {
                       <h3 className="font-medium truncate">
                         <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
                       </h3>
-                      {/* Only show tier when searching and it's Pro/Diamond and matches */}
-                      {searchQuery && contributor.tier && contributor.tier !== 'free' && contributor.tier.toLowerCase().includes(searchQuery.toLowerCase()) && (
-                        <Badge variant={getTierBadgeVariant(contributor.tier)} className="text-xs">
-                          <HighlightText text={contributor.tier} highlight={debouncedSearchQuery} />
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
                       @<HighlightText text={contributor.username} highlight={debouncedSearchQuery} />
                     </p>
-                    {/* Show email if searching and it matches */}
-                    {searchQuery && (() => {
-                      const userProfile = users.find(u => u.user_id === contributor.user_id);
-                      const email = userProfile?.email_address || "";
-                      if (email && email.toLowerCase().includes(searchQuery.toLowerCase())) {
-                        return (
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            <HighlightText text={email} highlight={debouncedSearchQuery} />
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
                     <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
                       <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded-md">
                         <FileCode className="h-3 w-3 text-primary" />
@@ -435,14 +376,14 @@ export function UserList() {
             <div className="flex flex-wrap gap-4 justify-center">
               {filteredTopContributors.filter(c => c.contribution_score === 0).map((contributor) => (
                 <Card
-                  key={contributor.user_id}
+                  key={contributor.username}
                   className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
-                    loadingUserId === contributor.user_id ? "opacity-50" : ""
+                    loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.user_id)}
+                  onClick={() => handleUserClick(contributor.username, contributor.username)}
                 >
                 <div className="flex items-center gap-4">
-                  {loadingUserId === contributor.user_id && (
+                  {loadingUserId === contributor.username && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
                       <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                     </div>
@@ -465,29 +406,10 @@ export function UserList() {
                       <h3 className="font-medium truncate">
                         <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
                       </h3>
-                      {/* Only show tier when searching and it's Pro/Diamond and matches */}
-                      {searchQuery && contributor.tier && contributor.tier !== 'free' && contributor.tier.toLowerCase().includes(searchQuery.toLowerCase()) && (
-                        <Badge variant={getTierBadgeVariant(contributor.tier)} className="text-xs">
-                          <HighlightText text={contributor.tier} highlight={debouncedSearchQuery} />
-                        </Badge>
-                      )}
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
                       @<HighlightText text={contributor.username} highlight={debouncedSearchQuery} />
                     </p>
-                    {/* Show email if searching and it matches */}
-                    {searchQuery && (() => {
-                      const userProfile = users.find(u => u.user_id === contributor.user_id);
-                      const email = userProfile?.email_address || "";
-                      if (email && email.toLowerCase().includes(searchQuery.toLowerCase())) {
-                        return (
-                          <p className="text-xs text-muted-foreground truncate mt-1">
-                            <HighlightText text={email} highlight={debouncedSearchQuery} />
-                          </p>
-                        );
-                      }
-                      return null;
-                    })()}
                     <div className="flex items-center gap-2 mt-2 text-xs flex-wrap">
                       <span className="flex items-center gap-1 px-2 py-0.5 bg-primary/10 rounded-md">
                         <FileCode className="h-3 w-3 text-primary" />
@@ -512,7 +434,7 @@ export function UserList() {
 
       {/* All Other Users - only show if not matching top contributors */}
       {filteredActiveUsers.filter((user) => 
-        !topContributorUserIds.has(user.user_id)
+        !topContributorUsernames.has(user.username)
       ).length > 0 && (
         <>
           <div className="relative mt-8">
@@ -528,7 +450,7 @@ export function UserList() {
 
           <div className="flex flex-wrap gap-4 justify-center md:justify-start">
             {filteredActiveUsers
-              .filter((user) => !topContributorUserIds.has(user.user_id))
+              .filter((user) => !topContributorUsernames.has(user.username))
               .map((user) => {
                 const sevenDaysAgo = new Date();
                 sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
@@ -538,14 +460,14 @@ export function UserList() {
 
                 return (
                   <Card
-                    key={user.id}
+                    key={user.username}
                     className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
-                      loadingUserId === user.id ? "opacity-50" : ""
+                      loadingUserId === user.username ? "opacity-50" : ""
                     }`}
-                    onClick={() => handleUserClick(user.username, user.id)}
+                    onClick={() => handleUserClick(user.username, user.username)}
                   >
                     <div className="flex items-center gap-4">
-                      {loadingUserId === user.id && (
+                      {loadingUserId === user.username && (
                         <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
                           <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
                         </div>
@@ -595,7 +517,7 @@ export function UserList() {
             {!searchQuery &&
               inactiveUsers.map((user) => (
                 <Card
-                  key={user.id}
+                  key={user.username}
                   className="p-4 cursor-not-allowed opacity-40 relative"
                 >
                   <div className="flex items-center gap-4">
