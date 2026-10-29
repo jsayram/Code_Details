@@ -247,6 +247,20 @@ export const setAccountStatus = internalMutation({
  * D08c: turns a normal sign-up into a half-finished one, as if the
  * credential and session writes after the auth user's insert had failed.
  */
+// D08g1: make a synthetic account an admin (or back) for the proxy's admin-route tests.
+export const setRole = internalMutation({
+  args: { authUserId: v.string(), role: v.union(v.literal("user"), v.literal("admin")) },
+  handler: async (ctx, { authUserId, role }) => {
+    assertFixturesAllowed();
+    const user = await ctx.db
+      .query("users")
+      .withIndex("by_authUserId", (q) => q.eq("authUserId", authUserId))
+      .unique();
+    if (!user) throw new Error("no account for that auth user");
+    await ctx.db.patch(user._id, { role });
+  },
+});
+
 export const stripCredentials = internalMutation({
   args: { authUserId: v.string() },
   handler: async (ctx, { authUserId }) => {

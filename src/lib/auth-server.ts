@@ -11,7 +11,7 @@
 // The JWT cache stays off: every server render asks Convex for a fresh token,
 // so each one re-checks that the session is still live (D08A_REPORT, limits).
 import { fetchQuery } from "convex/nextjs";
-import type { FunctionReference } from "convex/server";
+import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
 
 // The package is ESM-only and the root tsconfig resolves app files as
@@ -48,3 +48,26 @@ export async function viewerQuery<Q extends FunctionReference<"query", "public",
   const token = await helpers.getToken();
   return { result: await fetchQuery(query, {}, { token, url: choice.convexUrl }) };
 }
+
+/**
+ * D08g1: the viewer for a request's cookies, for the proxy, where Next's
+ * cookies() isn't available. Asks the backend for a Convex token with those
+ * cookies (Better Auth checks the session), then resolves it with
+ * identity:whoami, so an expired, revoked or deleting session gives null.
+ * Null when Better Auth is switched off.
+ */
+export async function viewerForCookies(cookie: string | null): Promise<{ role: "user" | "admin" } | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth" || !cookie) return null;
+  try {
+    const res = await fetch(`${choice.convexSiteUrl}/api/auth/convex/token`, { headers: { cookie }, cache: "no-store" });
+    const token = res.ok ? ((await res.json()) as { token?: string } | null)?.token : undefined;
+    if (!token) return null;
+    const viewer = await fetchQuery(whoami, {}, { token, url: choice.convexUrl });
+    return viewer ? { role: viewer.role === "admin" ? "admin" : "user" } : null;
+  } catch {
+    return null;
+  }
+}
+
+const whoami = makeFunctionReference<"query", Record<string, never>, { username: string | null; role: string; tier: string } | null>("identity:whoami");

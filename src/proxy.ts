@@ -1,7 +1,9 @@
 import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import { clerkClient } from "@clerk/nextjs/server";
 import { betterAuthEnabled } from "@/backend/auth";
+import { betterAuthDecision, hasSessionCookie } from "@/backend/auth/proxy-rules";
+import { viewerForCookies } from "@/lib/auth-server";
 
 const isPublicRoute = createRouteMatcher([
         "/",  // Allow access to the root page
@@ -64,7 +66,29 @@ function shouldSyncUser(userId: string): boolean {
   return true;
 }
 
+// D08g1: with the development Better Auth switch on, protected routes need a
+// live Better Auth session instead of a Clerk one, and admin routes need
+// users.role "admin". Still inside clerkMiddleware so Clerk's own server
+// helpers keep working until D08g4. Clerk's user sync doesn't run here.
+async function betterAuthProxy(req: NextRequest) {
+  const isPublic = isPublicRoute(req) || isBetterAuthRoute(req);
+  const cookie = req.headers.get("cookie");
+  const viewer = isPublic || !hasSessionCookie(cookie) ? null : await viewerForCookies(cookie);
+  const decision = betterAuthDecision({
+    pathname: req.nextUrl.pathname,
+    search: req.nextUrl.search,
+    isPublic,
+    isAdmin: isAdminRoute(req),
+    viewer,
+  });
+  if (decision.kind === "redirect") return NextResponse.redirect(new URL(decision.location, req.url));
+  if (decision.kind === "unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "cache-control": "no-store" } });
+  return NextResponse.next();
+}
+
 export default clerkMiddleware(async (auth, req) => {
+  if (betterAuthEnabled()) return betterAuthProxy(req);
+
   const { userId } = await auth();
 
   // Check admin routes first

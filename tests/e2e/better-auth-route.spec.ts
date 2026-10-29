@@ -222,15 +222,22 @@ test.describe("D08b with the switch off", () => {
 });
 
 test.describe("D08d handover route, signed out (either switch state)", () => {
-  test("Clerk's protect sends a signed-out call to /sign-in; nothing is linked", async ({ playwright }) => {
+  test("without a Clerk session the call is refused; nothing is linked", async ({ playwright }) => {
     const ctx = await browserLike(playwright);
     // A Better Auth session alone is not enough: the Clerk side is missing.
     if (betterAuth) {
       await signUpAndIn(ctx, syntheticEmail("next-handover"));
     }
     const res = await ctx.post("/api/account/handover", { data: {}, maxRedirects: 0 });
-    expect(res.status()).toBe(307);
-    expect(new URL(res.headers().location, BASE_URL).pathname).toBe("/sign-in");
+    if (betterAuth) {
+      // D08g1: the proxy lets the Better Auth session through; the route's own Clerk check refuses.
+      expect(res.status()).toBe(401);
+      expect(await res.json()).toEqual({ linked: false });
+    } else {
+      // Clerk's protect sends it to /sign-in.
+      expect(res.status()).toBe(307);
+      expect(new URL(res.headers().location, BASE_URL).pathname).toBe("/sign-in");
+    }
     if (betterAuth) expect(await viewer(ctx)).toEqual(NEW_ACCOUNT);
     await ctx.dispose();
   });
