@@ -6,9 +6,10 @@
 // reset, plus GitHub. Each is switched on by the deployment env, so a
 // deployment without it offers nothing:
 // - email/password: CODEDETAILS_AUTH_EMAIL_PASSWORD=1 (the test backend sets it
-//   for synthetic users). Verification is required unless
-//   CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION is exactly "0". Emails go
-//   through convex/email.ts (loopback only for now).
+//   for synthetic users). Verification is required; the opt-out
+//   CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION="0" works only on a loopback
+//   backend (convex/authRules.ts). Emails go through convex/email.ts
+//   (loopback only for now).
 // - GitHub: only when GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are both set.
 // Accounts are never joined by email (P07 §3.2): linking is explicit only.
 //
@@ -23,6 +24,7 @@ import { betterAuth } from "better-auth/minimal";
 import { components, internal } from "./_generated/api";
 import type { DataModel } from "./_generated/dataModel";
 import { createAccountRows } from "./accounts";
+import { emailVerificationRequired } from "./authRules";
 import { sendAuthEmail } from "./email";
 import authConfig from "./auth.config";
 
@@ -60,7 +62,7 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
     database: authComponent.adapter(ctx),
     emailAndPassword: {
       enabled: process.env.CODEDETAILS_AUTH_EMAIL_PASSWORD === "1",
-      requireEmailVerification: process.env.CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION !== "0",
+      requireEmailVerification: emailVerificationRequired(process.env),
       sendResetPassword: async ({ user, url }) => sendAuthEmail("reset-password", user.email, url),
       resetPasswordTokenExpiresIn: 60 * 60,
       // A reset signs out every other session of that user.
