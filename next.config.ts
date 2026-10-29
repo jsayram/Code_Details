@@ -46,6 +46,13 @@ const nextConfig: NextConfig = {
         pathname: '/storage/v1/object/public/**',
         search: '',
       },
+      // D02r-c: the isolated test server's stand-in Supabase URL
+      // (tests/support/isolation.ts), so signed-in lists of fixture projects
+      // with images render under test instead of hitting the error boundary.
+      // Only under the isolated test harness; the browser blocks the request.
+      ...(process.env.CODEDETAILS_ENV_ISOLATED === "1"
+        ? [{ protocol: 'http' as const, hostname: '127.0.0.1', port: '9', pathname: '/storage/v1/object/public/**', search: '' }]
+        : []),
     ],
   },
 };
