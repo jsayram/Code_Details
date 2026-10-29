@@ -12,4 +12,9 @@ export interface ProjectReadBackend {
    * apart. Takes no viewer identity: this is the anonymous read only.
    */
   getPublicProjectBySlug(slug: string): Promise<PublicProject | null>;
+  /**
+   * D02 (P08 R28): the current slug of a listed project that used to have
+   * this slug, or null. Anonymous too. Supabase keeps no slug history.
+   */
+  getCurrentSlug(slug: string): Promise<string | null>;
 }

@@ -30,6 +30,10 @@ const byName = (a: string, b: string) => {
 export const supabaseProjectReader: ProjectReadBackend = {
   name: "supabase",
 
+  // D02: no slug history on Supabase; old slugs keep giving 404 there.
+  async getCurrentSlug(): Promise<string | null> {
+    return null;
+  },
   async getPublicProjectBySlug(slug: string): Promise<PublicProject | null> {
     return executeQuery(async (db) => {
       const rows = await db

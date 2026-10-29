@@ -9,13 +9,12 @@
 //   controls; nobody else ever gets this view.
 // - currentSlugFor: under the Convex read switch, an old slug's current slug
 //   (projects:currentSlug), so old links redirect instead of 404 (P08 R28).
-import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
 import { viewerQueryWithArgs } from "@/lib/auth-server";
 import type { SelectProjectWithOwner, SelectUserWithProject } from "@/db/schema/projects";
 import type { ProjectLink } from "@/types/project-links";
-import { chooseProjectReadBackend } from "./index";
+import { chooseProjectReadBackend, getProjectReadBackend } from "./index";
 import { projectWritesToConvex, type EditableProject } from "./project-update";
 
 type Mine = EditableProject & { viewerAuthSubject: string };
@@ -76,8 +75,7 @@ export async function currentSlugFor(slug: string): Promise<string | null> {
     if (chooseAuthBackend().backend === "better-auth") {
       return (await viewerQueryWithArgs(currentSlug, { slug }))?.result ?? null;
     }
-    const client = new ConvexHttpClient(read.url, { skipConvexDeploymentUrlCheck: true });
-    return await client.query(currentSlug, { slug });
+    return await getProjectReadBackend().getCurrentSlug(slug);
   } catch {
     return null;
   }

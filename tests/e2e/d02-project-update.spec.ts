@@ -12,10 +12,11 @@ const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
-const SLUG = "fixture-no-description";
-const TITLE = "Fixture No Description";
-const NEW_SLUG = "fixture-no-description-edited";
-const NEW_TITLE = "Fixture No Description Edited";
+// Not one of the visually compared projects (visual*.spec.ts): the edit changes its updated date.
+const SLUG = "fixture-one-tag";
+const TITLE = "Fixture One Tag";
+const NEW_SLUG = "fixture-one-tag-edited";
+const NEW_TITLE = "Fixture One Tag Edited";
 
 async function signIn(page: Page, label: string): Promise<string> {
   const email = syntheticEmail(label);

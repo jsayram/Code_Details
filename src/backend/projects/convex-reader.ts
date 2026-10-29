@@ -8,6 +8,7 @@ import type { ProjectReadBackend } from "./read";
 import { type PublicProject, assertPublicProject } from "./public-project";
 
 const getPublicBySlug = makeFunctionReference<"query", { slug: string }, PublicProject | null>("projects:getPublicBySlug");
+const currentSlug = makeFunctionReference<"query", { slug: string }, string | null>("projects:currentSlug");
 
 export function convexProjectReader(url: string): ProjectReadBackend {
   const client = new ConvexHttpClient(url, { skipConvexDeploymentUrlCheck: true });
@@ -17,6 +18,9 @@ export function convexProjectReader(url: string): ProjectReadBackend {
       const result = await client.query(getPublicBySlug, { slug });
       if (result !== null) assertPublicProject(result);
       return result;
+    },
+    async getCurrentSlug(slug: string): Promise<string | null> {
+      return await client.query(currentSlug, { slug });
     },
   };
 }
