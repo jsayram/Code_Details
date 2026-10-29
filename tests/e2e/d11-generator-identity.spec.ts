@@ -8,7 +8,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
-import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
+import { SYNTHETIC_PASSWORD, freshClientIp, releasePersona, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
 import { BASE_URL, expect, test } from "./support";
@@ -80,6 +80,8 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  // The Clerk-era personas are on the test backend only when global setup loads the Convex fixtures.
+  test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs CODEDETAILS_E2E_READ_BACKEND=convex (the D01 personas)");
   let persona: APIRequestContext;
   let unlinked: APIRequestContext;
 
@@ -87,6 +89,8 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     writeDoc(DOCS.mine, A.subject!);
     writeDoc(DOCS.mine2, A.subject!);
     writeDoc(DOCS.theirs, B.subject!);
+    // Independent of test order and earlier runs: persona A starts with no Better Auth link.
+    await releasePersona(A.subject!);
     // A Better Auth login handed over to Clerk-era persona A (D08d), as the Next.js route would do it.
     persona = await client(playwright);
     await signIn(persona, "d11-persona");
@@ -102,6 +106,8 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
   test.afterAll(async () => {
     removeDocs();
+    // Leave persona A as the fixtures loaded it, for any later spec.
+    await releasePersona(A.subject!);
     await persona?.dispose();
     await unlinked?.dispose();
   });

@@ -261,6 +261,33 @@ export const setRole = internalMutation({
   },
 });
 
+// D11: undo a D08d handover for a Clerk-era persona, so a test that links it
+// doesn't depend on test order or earlier runs. Removes the persona's
+// "better-auth" links only; its Clerk-era link and data stay.
+export const releasePersona = internalMutation({
+  args: { clerkSubject: v.string() },
+  handler: async (ctx, { clerkSubject }) => {
+    assertFixturesAllowed();
+    const clerk = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "clerk").eq("subject", clerkSubject))
+      .unique();
+    if (!clerk) throw new Error("no Clerk-era persona with that subject");
+    const links = await ctx.db
+      .query("authLinks")
+      .withIndex("by_user", (q) => q.eq("userId", clerk.userId))
+      .collect();
+    let removed = 0;
+    for (const link of links) {
+      if (link.provider === "better-auth") {
+        await ctx.db.delete(link._id);
+        removed++;
+      }
+    }
+    return removed;
+  },
+});
+
 export const stripCredentials = internalMutation({
   args: { authUserId: v.string() },
   handler: async (ctx, { authUserId }) => {
