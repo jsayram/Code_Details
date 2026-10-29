@@ -10,7 +10,7 @@
 //   CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION is exactly "0". Emails go
 //   through convex/email.ts (loopback only for now).
 // - GitHub: only when GITHUB_CLIENT_ID and GITHUB_CLIENT_SECRET are both set.
-// Accounts are never joined by email (P07 §3.2): implicit linking is off.
+// Accounts are never joined by email (P07 §3.2): linking is explicit only.
 //
 // Every value comes from the deployment env: BETTER_AUTH_SECRET (a throwaway
 // on the test backend), SITE_URL (where browsers reach /api/auth), optional
@@ -77,9 +77,12 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       process.env.GITHUB_CLIENT_ID && process.env.GITHUB_CLIENT_SECRET
         ? { github: { clientId: process.env.GITHUB_CLIENT_ID, clientSecret: process.env.GITHUB_CLIENT_SECRET } }
         : {},
-    // Never join accounts by email, implicitly or on request, until Jose
-    // decides how GitHub and an existing password account meet (D08e).
-    account: { accountLinking: { enabled: false } },
+    // Never join accounts by email (Jose, 2026-10-29, 4A). A GitHub sign-in
+    // whose email already has an account is refused (the browser lands on the
+    // error URL with error=account_not_linked; D08f shows "sign in with your
+    // password, then connect GitHub from settings"). Connecting GitHub is only
+    // explicit: link-social while signed in, and only for the same address.
+    account: { accountLinking: { enabled: true, disableImplicitLinking: true, allowDifferentEmails: false } },
     // Better Auth's limiter is off outside production by default, and its
     // in-memory store wouldn't survive between Convex function runs, so it is
     // switched on with the component's rateLimit table. Limits are per client

@@ -209,6 +209,19 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login method
       expect(res.setCookies.some((c) => c.startsWith("better-auth.state="))).toBe(true);
     });
 
+    it("connecting GitHub is explicit: only while signed in (4A)", async () => {
+      // A GitHub sign-in whose email already has an account is refused at the
+      // callback (disableImplicitLinking; error=account_not_linked). That needs
+      // a real GitHub callback, so it is part of Jose's manual check. What is
+      // testable here: connecting from settings needs a session.
+      const email = await verifiedUser("connect");
+      const signedIn = await signIn(email, SYNTHETIC_PASSWORD);
+      const connect = await authFetch("/link-social", { body: { provider: "github", callbackURL: "/" }, jar: signedIn.jar });
+      expect(connect.status).toBe(200);
+      expect(new URL((connect.body as { url: string }).url).hostname).toBe("github.com");
+      expect((await authFetch("/link-social", { body: { provider: "github", callbackURL: "/" } })).status).toBe(401);
+    });
+
     it("refuses a callback URL on another origin", async () => {
       const res = await authFetch("/sign-in/social", { body: { provider: "github", callbackURL: "https://evil.synthetic.invalid/" } });
       expect(res.status).toBe(403);
