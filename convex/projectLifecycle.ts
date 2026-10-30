@@ -23,6 +23,7 @@ import { internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery, mutation, type MutationCtx } from "./_generated/server";
 import type { Doc, Id, TableNames } from "./_generated/dataModel";
 import { getViewer, type Viewer } from "./viewer";
+import { setProjectTags } from "./tagWriter";
 import {
   type EditableProject,
   bumpListedCount,
@@ -119,8 +120,9 @@ export const create = mutation({
       visibility: "public",
       status: "active",
       listed,
-      tagIds,
-      tagCount: tagIds.length,
+      // Filled by the membership writer below (D07).
+      tagIds: [],
+      tagCount: 0,
       favoriteCount: 0,
       rankingFavoriteCount: 0,
       contentVersion: 1,
@@ -128,10 +130,7 @@ export const create = mutation({
       createdAt: now,
       updatedAt: now,
     });
-    for (const [position, tagId] of tagIds.entries()) {
-      await ctx.db.insert("projectTags", { projectId, tagId, position, listed });
-      await bumpListedCount(ctx, tagId, 1);
-    }
+    await setProjectTags(ctx, (await ctx.db.get(projectId))!, tagIds);
     await ctx.db.insert("projectSlugs", { slug: value.slug!, projectId, state: "current", createdAt: now });
     await outbox(ctx, projectId, "upsert", 1, now);
     return { ok: true, project: await toEditable(ctx, (await ctx.db.get(projectId))!) };

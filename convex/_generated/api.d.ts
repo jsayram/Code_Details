@@ -26,6 +26,9 @@ import type * as profiles from "../profiles.js";
 import type * as projectImages from "../projectImages.js";
 import type * as projectLifecycle from "../projectLifecycle.js";
 import type * as projects from "../projects.js";
+import type * as roles from "../roles.js";
+import type * as tagWriter from "../tagWriter.js";
+import type * as tags from "../tags.js";
 import type * as viewer from "../viewer.js";
 
 import type {
@@ -53,6 +56,9 @@ declare const fullApi: ApiFromModules<{
   projectImages: typeof projectImages;
   projectLifecycle: typeof projectLifecycle;
   projects: typeof projects;
+  roles: typeof roles;
+  tagWriter: typeof tagWriter;
+  tags: typeof tags;
   viewer: typeof viewer;
 }>;
 

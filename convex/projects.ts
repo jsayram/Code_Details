@@ -5,6 +5,7 @@
 import { v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getViewer, type Viewer } from "./viewer";
+import { setProjectTags } from "./tagWriter";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   CATEGORY_FIELDS_VERSION,
@@ -421,23 +422,8 @@ export const update = mutation({
     if (value.fieldOrder !== undefined) doc.fieldOrder = value.fieldOrder ?? undefined;
 
     if (value.tags !== undefined) {
-      const tagIds = await createMissingTags(ctx, resolved, now);
-      const old = await ctx.db
-        .query("projectTags")
-        .withIndex("by_project_position", (q) => q.eq("projectId", project._id))
-        .collect();
-      for (const row of old) await ctx.db.delete(row._id);
-      for (const [position, tagId] of tagIds.entries()) {
-        await ctx.db.insert("projectTags", { projectId: project._id, tagId, position, listed: project.listed });
-      }
-      if (project.listed) {
-        const before = new Set(project.tagIds);
-        const after = new Set(tagIds);
-        for (const tagId of before) if (!after.has(tagId)) await bumpListedCount(ctx, tagId, -1);
-        for (const tagId of after) if (!before.has(tagId)) await bumpListedCount(ctx, tagId, 1);
-      }
-      doc.tagIds = tagIds;
-      doc.tagCount = tagIds.length;
+      // D07: the one membership writer (convex/tagWriter.ts); it patches tagIds/tagCount itself.
+      await setProjectTags(ctx, project, await createMissingTags(ctx, resolved, now));
     }
 
     if (slugChanges) {
@@ -525,7 +511,5 @@ export async function createMissingTags(ctx: MutationCtx, resolved: ResolvedTag[
   return tagIds;
 }
 
-export async function bumpListedCount(ctx: MutationCtx, tagId: Id<"tags">, by: 1 | -1) {
-  const tag = await ctx.db.get(tagId);
-  if (tag) await ctx.db.patch(tagId, { listedProjectCount: Math.max(0, tag.listedProjectCount + by) });
-}
+// D07: moved to convex/tagWriter.ts with the membership writer; re-exported for the lifecycle code.
+export { bumpListedCount } from "./tagWriter";

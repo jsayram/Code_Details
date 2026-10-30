@@ -40,8 +40,8 @@ export const clear = internalMutation({
       await ctx.db.delete(doc._id);
     }
     for (const doc of await ctx.db.query("tagSuggestions").collect()) await ctx.db.delete(doc._id);
-    // D02: the project update's own tables (slug history, tag join, search outbox).
-    for (const table of ["projectSlugs", "projectTags", "contentChanges"] as const) {
+    // D02: the project update's own tables (slug history, tag join, search outbox); D07: tag aliases.
+    for (const table of ["projectSlugs", "projectTags", "contentChanges", "tagAliases"] as const) {
       for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
     }
     // D08d wrote account.linked audit rows; emptied in case an old run left some.
@@ -711,5 +711,70 @@ export const setStoredAvatar = internalMutation({
     const profile = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).unique();
     if (!profile) throw new Error("no such profile");
     await ctx.db.patch(profile._id, { avatar: { kind: "stored", storageId } });
+  },
+});
+
+// D07: one project's tags as the join, the copy and the counters see them, its
+// suggestions, and its outbox; plus every tag's listed counter.
+export const tagState = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    const joins = await ctx.db.query("projectTags").withIndex("by_project_position", (q) => q.eq("projectId", projectId)).collect();
+    const nameOf = async (id: Id<"tags">) => (await ctx.db.get(id))?.nameKey ?? null;
+    const suggestions = await ctx.db.query("tagSuggestions").withIndex("by_project_status", (q) => q.eq("projectId", projectId)).collect();
+    const outbox = await ctx.db.query("contentChanges").withIndex("by_entity", (q) => q.eq("entityType", "project").eq("entityId", projectId)).collect();
+    const counts: Record<string, number> = {};
+    for (const t of await ctx.db.query("tags").collect()) counts[t.nameKey] = t.listedProjectCount;
+    const submitter = async (id: Id<"users"> | undefined) =>
+      id ? ((await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", id)).first())?.usernameKey ?? null) : null;
+    return {
+      project: project && { tagCount: project.tagCount, contentVersion: project.contentVersion, updatedAt: project.updatedAt, tags: await Promise.all(project.tagIds.map(nameOf)) },
+      joins: await Promise.all(joins.sort((a, b) => a.position - b.position).map(async (j) => ({ tag: await nameOf(j.tagId), position: j.position, listed: j.listed }))),
+      suggestions: await Promise.all(
+        suggestions.map(async (s) => ({ nameKey: s.nameKey, status: s.status, submitter: await submitter(s.submitterId), reviewer: await submitter(s.reviewerId), adminNotes: s.adminNotes ?? null })),
+      ),
+      outbox: outbox.map((o) => ({ change: o.change, sourceVersion: o.sourceVersion })),
+      counts,
+    };
+  },
+});
+
+// D07: set a fixture persona's role directly (no audit), to stage the role tests.
+export const setRoleByUsername = internalMutation({
+  args: { usernameKey: v.string(), role: v.union(v.literal("user"), v.literal("admin")) },
+  handler: async (ctx, { usernameKey, role }) => {
+    assertFixturesAllowed();
+    const profile = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).first();
+    if (!profile) throw new Error(`no fixture profile ${usernameKey}`);
+    await ctx.db.patch(profile.userId, { role });
+  },
+});
+
+// D07: role.changed audit rows with the target's username.
+export const roleAudit = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    assertFixturesAllowed();
+    const rows = (await ctx.db.query("auditEvents").withIndex("by_at").collect()).filter((a) => a.kind === "role.changed");
+    const out = [];
+    for (const a of rows) {
+      const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", a.subjectId as Id<"users">)).first();
+      out.push({ username: profile?.usernameKey ?? null, actorId: a.actorId ?? null, details: a.details });
+    }
+    return out;
+  },
+});
+
+// D07: a reviewed alias (aliasKey -> the tag with tagNameKey), reviewed by a fixture persona.
+export const addTagAlias = internalMutation({
+  args: { aliasKey: v.string(), tagNameKey: v.string(), reviewerUsernameKey: v.string() },
+  handler: async (ctx, { aliasKey, tagNameKey, reviewerUsernameKey }) => {
+    assertFixturesAllowed();
+    const tag = await ctx.db.query("tags").withIndex("by_nameKey", (q) => q.eq("nameKey", tagNameKey)).first();
+    const reviewer = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", reviewerUsernameKey)).first();
+    if (!tag || !reviewer) throw new Error("no such tag or reviewer");
+    await ctx.db.insert("tagAliases", { aliasKey, tagId: tag._id, reviewedBy: reviewer.userId, reviewedAt: Date.now() });
   },
 });
