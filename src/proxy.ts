@@ -24,6 +24,7 @@ const isBetterAuthRoute = createRouteMatcher(["/api/auth/(.*)", "/api/dev/viewer
 
 const isAdminRoute = createRouteMatcher([
   "/dashboard/admin(.*)",
+  "/dashboard/tag-submissions(.*)", // D07 (P08 R04): its read was admin-checked; now the route is too
   "/api/projects/test(.*)",
   "/api/darkmodetest(.*)",
   "/api/toasttest(.*)",

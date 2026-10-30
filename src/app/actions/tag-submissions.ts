@@ -12,26 +12,58 @@ import { z } from "zod";
 import { tagNameSchema, tagDescriptionSchema } from "@/types/schemas";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { requireAdminForAction } from "@/lib/admin-action";
+import { chooseAuthBackend } from "@/backend/auth";
+import { routeViewer } from "@/lib/auth-server";
+import { profiles } from "@/db/schema/profiles";
+import { getProjectById } from "@/app/actions/projects";
+import { listPendingTagSubmissions } from "@/db/operations/tag-submission-operations";
+
+// D07 (P08 R04). Every export here is callable by anyone, so each one checks
+// the caller itself. Suggestions come from the signed-in viewer (Clerk backend
+// only: under the Better Auth switch alone these Supabase writes refuse, as the
+// project, favorite and image writes do), with the viewer's own profile email;
+// the email argument callers still pass is ignored. Only the project's owner
+// attaches an existing tag directly, within MAX_PROJECT_TAGS; anyone else's
+// suggestion stays pending for an admin. Approve and reject are admin-only.
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** The signed-in viewer and their profile email, or null. */
+async function suggestionViewer(): Promise<{ userId: string; email: string | null } | null> {
+  if (chooseAuthBackend().backend !== "clerk") return null;
+  const viewer = await routeViewer();
+  if (!viewer) return null;
+  const [row] = await executeQuery((db) =>
+    db.select({ email: profiles.email_address }).from(profiles).where(eq(profiles.user_id, viewer.userId)).limit(1)
+  );
+  return { userId: viewer.userId, email: row?.email ?? null };
+}
+
+/** The project when it exists, isn't deleted and the viewer may see it. */
+async function liveProject(projectId: string) {
+  if (typeof projectId !== "string" || !UUID_RE.test(projectId)) return null;
+  const project = await getProjectById(projectId);
+  return project && !project.deleted_at ? project : null;
+}
 
 // Schema for submitNewTag input validation
 const submitNewTagSchema = z.object({
   tagName: tagNameSchema,
   projectId: z.string().uuid("Invalid project ID format"),
-  submitterEmail: z.string().email("Invalid email format"),
   description: tagDescriptionSchema,
 });
 
 export async function submitNewTag(
   tagName: string,
   projectId: string,
-  submitterEmail: string,
+  // Ignored (D07): the submitter is the session's viewer.
+  _submitterEmail?: string,
   description?: string
 ) {
   // Validate input with Zod schema
   const validationResult = submitNewTagSchema.safeParse({
     tagName,
     projectId,
-    submitterEmail,
     description,
   });
 
@@ -39,6 +71,21 @@ export async function submitNewTag(
     const firstError = validationResult.error.issues[0];
     return { success: false, error: firstError.message };
   }
+
+  const viewer = await suggestionViewer();
+  if (!viewer) {
+    return { success: false, error: "You must be signed in to suggest tags" };
+  }
+  if (!viewer.email) {
+    return { success: false, error: "Your profile has no email address" };
+  }
+  const submitterEmail = viewer.email;
+
+  const project = await liveProject(validationResult.data.projectId);
+  if (!project) {
+    return { success: false, error: "Project not found" };
+  }
+  const isOwner = project.user_id === viewer.userId;
 
   return executeQuery(async (db) => {
     const normalizedTagName = validationResult.data.tagName;
@@ -72,22 +119,36 @@ export async function submitNewTag(
         };
       }
 
-      // If tag exists but project doesn't have it, add it to the project
-      await db.insert(project_tags).values({
-        project_id: projectId,
-        tag_id: existingTag[0].id,
-      });
+      // The owner adds an existing tag to their own project directly, within
+      // the limit. Anyone else's suggestion goes to review below.
+      if (isOwner) {
+        const [{ count }] = await db
+          .select({ count: sql<number>`count(*)` })
+          .from(project_tags)
+          .where(eq(project_tags.project_id, projectId));
+        if (Number(count) >= MAX_PROJECT_TAGS) {
+          return { success: false, error: `This project already has the maximum of ${MAX_PROJECT_TAGS} tags` };
+        }
 
-      // Invalidate caches after auto-approving tag addition
-      revalidateTag(CACHE_TAGS.TAGS, {});
-      revalidateTag(CACHE_TAGS.PROJECTS, {});
-      revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+        await db
+          .insert(project_tags)
+          .values({
+            project_id: projectId,
+            tag_id: existingTag[0].id,
+          })
+          .onConflictDoNothing();
 
-      return {
-        status: "auto_approved",
-        tag_name: normalizedTagName,
-        message: "Tag already exists and has been added to your project"
-      };
+        // Invalidate caches after auto-approving tag addition
+        revalidateTag(CACHE_TAGS.TAGS, {});
+        revalidateTag(CACHE_TAGS.PROJECTS, {});
+        revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+
+        return {
+          status: "auto_approved",
+          tag_name: normalizedTagName,
+          message: "Tag already exists and has been added to your project"
+        };
+      }
     }
 
     // Check for any existing submission from the same user for the same project and tag
@@ -123,7 +184,7 @@ export async function submitNewTag(
         tag_name: normalizedTagName,
         project_id: projectId,
         submitter_email: submitterEmail,
-        description: description?.trim(),
+        description: validationResult.data.description?.trim(),
       })
       .returning();
 
@@ -135,44 +196,10 @@ export async function submitNewTag(
 }
 
 // SEC-D04-DASH: an export of this "use server" file is callable by anyone, and
-// this returned every submitter's email. Admins only now (the rest of R04 is D07).
+// this returned every submitter's email. Admins only.
 export async function getPendingTagSubmissions() {
   await requireAdminForAction();
-  return executeQuery(async (db) => {
-    const submissions = await db
-      .select({
-        id: tag_submissions.id,
-        tag_name: tag_submissions.tag_name,
-        project_id: tag_submissions.project_id,
-        submitter_email: tag_submissions.submitter_email,
-        description: tag_submissions.description,
-        status: tag_submissions.status,
-        created_at: tag_submissions.created_at,
-        updated_at: tag_submissions.updated_at,
-        admin_notes: tag_submissions.admin_notes,
-        reviewed_at: tag_submissions.reviewed_at
-      })
-      .from(tag_submissions)
-      .where(eq(tag_submissions.status, "pending"))
-      .orderBy(tag_submissions.created_at);
-
-    // Group submissions by tag_name
-    const groupedSubmissions = submissions.reduce((acc, submission) => {
-      const normalizedTagName = submission.tag_name.trim().toLowerCase();
-      if (!acc[normalizedTagName]) {
-        acc[normalizedTagName] = {
-          tag_name: normalizedTagName,
-          count: 0,
-          submissions: [],
-        };
-      }
-      acc[normalizedTagName].count++;
-      acc[normalizedTagName].submissions.push(submission);
-      return acc;
-    }, {} as Record<string, { tag_name: string; count: number; submissions: typeof submissions }>);
-
-    return Object.values(groupedSubmissions);
-  });
+  return listPendingTagSubmissions();
 }
 
 // Schema for approveTagSubmission input validation
@@ -187,6 +214,8 @@ export async function approveTagSubmission(
   adminNotes?: string,
   approvalType: "system" | "project" = "project"
 ) {
+  await requireAdminForAction();
+
   // Validate input with Zod schema
   const validationResult = approveTagSubmissionSchema.safeParse({
     submissionId,
@@ -298,7 +327,7 @@ export async function approveTagSubmission(
         and(
           eq(tag_submissions.tag_name, submission.tag_name.trim()),
           eq(tag_submissions.status, "pending"),
-          not(eq(tag_submissions.id, submissionId))
+          not(eq(tag_submissions.id, validated.submissionId))
         )
       );
 
@@ -398,16 +427,29 @@ export async function approveTagSubmission(
   });
 }
 
+const rejectTagSubmissionSchema = z.object({
+  submissionId: z.string().uuid("Invalid submission ID format"),
+  adminNotes: z.string().max(MAX_ADMIN_NOTES_LENGTH, `Admin notes must be at most ${MAX_ADMIN_NOTES_LENGTH} characters`).optional(),
+});
+
 export async function rejectTagSubmission(submissionId: string, adminNotes: string) {
+  await requireAdminForAction();
+
+  const validationResult = rejectTagSubmissionSchema.safeParse({ submissionId, adminNotes });
+  if (!validationResult.success) {
+    return { success: false, error: validationResult.error.issues[0].message };
+  }
+  const validated = validationResult.data;
+
   return executeQuery(async (db) => {
     await db
       .update(tag_submissions)
       .set({
         status: "rejected",
-        admin_notes: adminNotes,
+        admin_notes: validated.adminNotes,
         reviewed_at: new Date(),
       })
-      .where(eq(tag_submissions.id, submissionId));
+      .where(eq(tag_submissions.id, validated.submissionId));
 
     revalidateTag(CACHE_TAGS.ADMIN_DASHBOARD, {});
     revalidateTag(CACHE_TAGS.TAG_SUBMISSIONS, {});
@@ -415,11 +457,22 @@ export async function rejectTagSubmission(submissionId: string, adminNotes: stri
   });
 }
 
+// After the owner saves a tag that came from a rejected suggestion's link,
+// mark their own rejected suggestion approved. Owner only, own email (D07).
 export async function approveRejectedTagSubmission(
   projectId: string,
   tagName: string,
-  submitterEmail: string
+  // Ignored (D07): the submitter is the session's viewer.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _submitterEmail?: string
 ) {
+  if (typeof tagName !== "string" || !tagName.trim() || tagName.length > 100) return;
+  const viewer = await suggestionViewer();
+  if (!viewer?.email) return;
+  const project = await liveProject(projectId);
+  if (!project || project.user_id !== viewer.userId) return;
+  const submitterEmail = viewer.email;
+
   return executeQuery(async (db) => {
     const normalizedTagName = tagName.trim().toLowerCase();
 

@@ -1,10 +1,8 @@
 'use server';
 
 import { getDashboardStats } from "@/db/operations/dashboardOperations";
-import { getPendingTagSubmissions } from "./tag-submissions";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { isAdmin } from "@/lib/admin-utils";
-import { redirect } from "next/navigation";
+import { listPendingTagSubmissions } from "@/db/operations/tag-submission-operations";
+import { requireAdminForAction } from "@/lib/admin-action";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 
@@ -21,8 +19,10 @@ const getCachedDashboardStats = unstable_cache(
   }
 );
 
+// Unchecked inside the cache (unstable_cache can't read the session); the
+// admin check runs first in fetchAdminDashboardData.
 const getCachedTagSubmissions = unstable_cache(
-  async () => getPendingTagSubmissions(),
+  async () => listPendingTagSubmissions(),
   ['admin-tag-submissions'],
   {
     revalidate: 60, // 1 minute for more frequently changing data
@@ -31,21 +31,8 @@ const getCachedTagSubmissions = unstable_cache(
 );
 
 export async function fetchAdminDashboardData(forceRefresh = false) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
-  }
-
-  // Get user email from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const userEmail = user.emailAddresses[0]?.emailAddress;
-
-  // Check if user is admin
-  if (!isAdmin(userEmail)) {
-    redirect("/dashboard");
-  }
+  // D07: the shared admin check (src/lib/admin-action.ts), no Clerk reads here.
+  await requireAdminForAction();
 
   // If force refresh is requested, revalidate the cache first
   if (forceRefresh) {

@@ -1,10 +1,33 @@
 'use server';
 
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { requireAdmin } from "@/lib/admin-utils";
+import { z } from "zod";
+import { requireAdminForAction, viewerIsAdmin } from "@/lib/admin-action";
 import { getAllUsers, updateUserProfile, type UpdateProfileData, type SortOption, type TierFilter } from "@/db/operations/userManagementOperations";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
+
+// D07: the admin check is src/lib/admin-action.ts (no Clerk reads here), and
+// the arguments are checked: a "use server" export takes whatever the caller
+// sends.
+const fetchUsersSchema = z.object({
+  search: z.string().max(200).optional(),
+  page: z.number().int().min(1).max(100000),
+  sortBy: z.enum(['recent-edit', 'alphabetical', 'most-active']),
+  tierFilter: z.enum(['all', 'free', 'pro', 'diamond']),
+});
+
+// Only these columns: updates used to go straight into .set(), so any profile
+// column (user_id, id, ...) was writable.
+const updateUserSchema = z.object({
+  profileId: z.string().uuid("Invalid profile ID"),
+  updates: z.object({
+    username: z.string().optional(),
+    full_name: z.string().max(200).optional(),
+    // The edit form sends "" for a profile without an address.
+    email_address: z.union([z.literal(""), z.string().email().max(320)]).optional(),
+    tier: z.enum(['free', 'pro', 'diamond'], { message: "Invalid tier value" }).optional(),
+  }),
+});
 
 /**
  * Fetch paginated users with optional search (Super Admin only)
@@ -15,23 +38,17 @@ export async function fetchAllUsersAction(
   sortBy: SortOption = 'recent-edit',
   tierFilter: TierFilter = 'all'
 ) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
+  await requireAdminForAction();
+
+  const parsed = fetchUsersSchema.safeParse({ search, page, sortBy, tierFilter });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0].message);
   }
-
-  // Get user email from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const userEmail = user.emailAddresses[0]?.emailAddress;
-
-  // Require super admin access
-  requireAdmin(userEmail);
+  const args = parsed.data;
 
   // Fetch users with sort option and tier filter
-  const result = await getAllUsers(search, page, 100, sortBy, tierFilter);
-  
+  const result = await getAllUsers(args.search, args.page, 100, args.sortBy, args.tierFilter);
+
   return result;
 }
 
@@ -42,39 +59,28 @@ export async function updateUserAction(
   profileId: string,
   updates: UpdateProfileData
 ) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
+  await requireAdminForAction();
+
+  const parsed = updateUserSchema.safeParse({ profileId, updates });
+  if (!parsed.success) {
+    throw new Error(parsed.error.issues[0].message);
   }
-
-  // Get user email from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const userEmail = user.emailAddresses[0]?.emailAddress;
-
-  // Require super admin access
-  requireAdmin(userEmail);
 
   // Usernames: the shared rules run inside updateUserProfile (D04b), and only
   // when the name actually changes.
 
-  if (updates.tier && !['free', 'pro', 'diamond'].includes(updates.tier)) {
-    throw new Error("Invalid tier value");
-  }
-
   // Update the profile
-  const updatedProfile = await updateUserProfile(profileId, updates);
+  const updatedProfile = await updateUserProfile(parsed.data.profileId, parsed.data.updates);
 
   // Revalidate caches
   revalidateTag(CACHE_TAGS.ADMIN_DASHBOARD, {});
   revalidateTag(CACHE_TAGS.USER_PROFILE, {});
-  
+
   // If tier was updated, also invalidate tier cache
-  if (updates.tier) {
+  if (parsed.data.updates.tier) {
     revalidateTag(CACHE_TAGS.USER_TIER, {});
   }
-  
+
   // Revalidate the admin dashboard path
   revalidatePath('/dashboard/admin');
 
@@ -85,24 +91,5 @@ export async function updateUserAction(
  * Check if current user is super admin
  */
 export async function checkIsSuperAdmin(): Promise<boolean> {
-  try {
-    const { userId } = await auth();
-    
-    if (!userId) {
-      return false;
-    }
-
-    const client = await clerkClient();
-    const user = await client.users.getUser(userId);
-    const userEmail = user.emailAddresses[0]?.emailAddress;
-
-    const adminEmail = process.env.ADMIN_DASHBOARD_MODERATOR;
-    if (!adminEmail || !userEmail) {
-      return false;
-    }
-
-    return userEmail.toLowerCase().trim() === adminEmail.toLowerCase().trim();
-  } catch {
-    return false;
-  }
+  return viewerIsAdmin();
 }

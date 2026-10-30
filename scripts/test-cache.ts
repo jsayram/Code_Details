@@ -117,10 +117,8 @@ async function runCacheTests() {
   // D04e (SEC-D04-DASH): the dashboard reads are server-only now.
   const { getDashboardStats: getCachedDashboardStats } = await import('../src/db/operations/dashboardOperations.js');
   
-  const { 
-    getCachedProjectTags,
-    getCachedAllTags 
-  } = await import('../src/app/actions/tags.js');
+  // D07: getCachedProjectTags went with the unused tag actions.
+  const { getCachedAllTags } = await import('../src/app/actions/tags.js');
   
   // D04e: getCachedUserTier(userId) is gone (P08 R21); the tier now comes from the session.
   

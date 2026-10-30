@@ -108,32 +108,34 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  describe("R04 tag actions have no auth or admin check", () => {
-    it("[action] a signed-out caller attaches an existing tag to A's project via submitNewTag", async () => {
+  // Fixed in D07-a; the full cases are in d07-supabase-tags.test.ts.
+  describe("R04 (fixed, D07) tag actions check the caller", () => {
+    it("[action] (fixed, D07) a signed-out caller can't attach an existing tag to A's project via submitNewTag", async () => {
       const before = await sql`select count(*)::int n from project_tags where project_id = ${listed.id}`;
       const result = await tagSubmissions.submitNewTag("rust", listed.id, `b@${"synthetic.invalid"}`);
-      expect(result).toMatchObject({ status: "auto_approved" });
+      expect(result).toMatchObject({ success: false });
       const after = await sql`select count(*)::int n from project_tags where project_id = ${listed.id}`;
-      expect(after[0].n).toBe(before[0].n + 1);
+      expect(after[0].n).toBe(before[0].n);
     });
 
-    it("[action] submitNewTag skips the 15-tag limit", async () => {
-      await tagSubmissions.submitNewTag("swift", fifteenTags.id, `b@synthetic.invalid`);
+    it("[action] (fixed, D07) submitNewTag keeps the 15-tag limit, even for the owner", async () => {
+      signInAs(A.subject);
+      expect(await tagSubmissions.submitNewTag("swift", fifteenTags.id, `b@synthetic.invalid`)).toMatchObject({ success: false });
       const [{ n }] = await sql`select count(*)::int n from project_tags where project_id = ${fifteenTags.id}`;
-      expect(n).toBe(16);
+      expect(n).toBe(15);
     });
 
-    it("[action] a signed-out caller rejects a pending submission (admin-only operation)", async () => {
-      await tagSubmissions.rejectTagSubmission(set.tagSubmissions[0].id, "rejected by nobody");
+    it("[action] (fixed, D07) a signed-out caller can't reject a pending submission", async () => {
+      await expect(tagSubmissions.rejectTagSubmission(set.tagSubmissions[0].id, "rejected by nobody")).rejects.toThrow(/Unauthorized/);
       const [row] = await sql`select status from tag_submissions where id = ${set.tagSubmissions[0].id}`;
-      expect(row.status).toBe("rejected");
+      expect(row.status).toBe("pending");
     });
 
-    it("[action] a signed-out caller creates a tag and attaches it to B's project", async () => {
-      expect((await tagActions.addTagToProjectAction(bobProject.id, "fixture-unauthenticated")).success).toBe(true);
+    it("[action] (fixed, D07) the unguarded tag writers are no longer exported", async () => {
+      expect((tagActions as Record<string, unknown>).addTagToProjectAction).toBeUndefined();
       const rows = await sql`select 1 from project_tags pt join tags t on t.id = pt.tag_id
         where pt.project_id = ${bobProject.id} and t.name = 'fixture-unauthenticated'`;
-      expect(rows).toHaveLength(1);
+      expect(rows).toHaveLength(0);
     });
   });
 
