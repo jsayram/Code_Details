@@ -59,6 +59,12 @@ describe("/api/llm gate", () => {
     expect(h.llmCalls).toEqual([]);
   });
 
+  it("a custom base URL off this machine is refused before a unit is taken (llm-gate-2)", async () => {
+    expect((await post({ prompt: PROMPT, provider: "openai", customBaseUrl: "http://169.254.169.254/v1" })).status).toBe(400);
+    expect(h.mutations).toEqual([]);
+    expect(h.llmCalls).toEqual([]);
+  });
+
   it("a bad body is refused before a unit is taken", async () => {
     expect((await post({ provider: "openai" })).status).toBe(400);
     expect(h.mutations).toEqual([]);

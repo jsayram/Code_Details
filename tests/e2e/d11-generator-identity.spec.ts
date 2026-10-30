@@ -99,6 +99,8 @@ const ROUTES: Array<{ name: string; call: (c: APIRequestContext) => Promise<impo
   { name: "POST /api/repo/analyze", call: (c) => c.post("/api/repo/analyze", { data: {} }) },
   { name: "POST /api/repo/crawl", call: (c) => c.post("/api/repo/crawl", { data: {} }) },
 ];
+// D08 gate: the routes that reach a model provider; admins only.
+const MODEL_ROUTES = ["POST /api/generate-docs", "POST /api/llm", "POST /api/llm-test"];
 
 test.describe("D11 generator routes, signed out (either switch state)", () => {
   test.beforeAll(() => writeDoc(DOCS.theirs, B.subject!));
@@ -186,12 +188,13 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("generator re-key: the generator routes let that account past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/generate-docs", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
+    for (const name of ["POST /api/repo/analyze", "POST /api/repo/crawl"]) {
       const r = ROUTES.find((x) => x.name === name)!;
       expect((await r.call(unlinked)).status(), name).toBe(400);
     }
-    // D08 /api/llm gate: admins only, so this (non-admin) account stops at 403.
-    expect((await ROUTES.find((x) => x.name === "POST /api/llm")!.call(unlinked)).status()).toBe(403);
+    // D08 /api/llm gate (and llm-gate-2): the model routes are admins only, so
+    // this (non-admin) account stops at 403.
+    for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(unlinked)).status(), name).toBe(403);
   });
 
   test("D11s: the owner reads its own chapter, metadata and ZIP", async () => {
@@ -249,19 +252,18 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("the generator routes get past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/generate-docs", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
+    for (const name of ["POST /api/repo/analyze", "POST /api/repo/crawl"]) {
       const r = ROUTES.find((x) => x.name === name)!;
       expect((await r.call(persona)).status(), name).toBe(400);
     }
-    // D08 /api/llm gate: a non-admin stops at 403; made an admin, the same
-    // invalid body reaches the route's own validation (400) before any unit
-    // of the daily cap is taken or a provider is called.
-    const llm = ROUTES.find((x) => x.name === "POST /api/llm")!;
-    expect((await llm.call(persona)).status()).toBe(403);
+    // D08 /api/llm gate (and llm-gate-2): a non-admin stops at 403; made an
+    // admin, the same invalid body reaches the route's own validation (400)
+    // before any unit of the daily cap is taken or a provider is called.
+    for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(403);
     const authUserId = (await authState(personaEmail))!.authUserId;
     await setRole(authUserId, "admin");
     try {
-      expect((await llm.call(persona)).status()).toBe(400);
+      for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(400);
     } finally {
       await setRole(authUserId, "user");
     }

@@ -35,7 +35,10 @@ describe("D11 route identity", () => {
       ...[...src.matchAll(/const userId = \(await routeDocOwner\(\)\)\?\.writeKey \?\? null;/g)].map((m) => ({ m, name: "userId" })),
       ...[...src.matchAll(/const owner = await routeDocOwner\(\);/g)].map((m) => ({ m, name: "owner" })),
     ];
-    expect(reads.length).toBeGreaterThan(0);
+    // D08 gate: the model routes may read the session through requireLlmAdmin
+    // (checked below), refusing on the very next line.
+    const gated = [...src.matchAll(/const admin = await requireLlmAdmin\(\);\n\s*if \(!admin\.ok\) return /g)];
+    expect(reads.length + gated.length).toBeGreaterThan(0);
     for (const { m, name } of reads) {
       const after = src.slice(m.index! + m[0].length);
       // generate-docs derives `userId` from `owner` and refuses on that
@@ -45,6 +48,14 @@ describe("D11 route identity", () => {
       const between = after.slice(0, guard).split("\n").filter((l) => new RegExp(`\\b${name}\\b`).test(l));
       expect(between.every((l) => /^\s*const userId = owner\?\.writeKey \?\? null;$/.test(l)), between.join("\n")).toBe(true);
     }
+  });
+
+  it("D08 gate: requireLlmAdmin refuses a missing role or identity right after reading each", () => {
+    const src = read("src/backend/llm/gate.ts");
+    expect(src).not.toMatch(/routeUserId|routeViewer/);
+    expect(src).toMatch(/const role = await betterAuthRole\(\);\n\s*if \(!role\) return refuse\(401/);
+    expect(src).toMatch(/if \(role !== "admin"\) return NOT_ADMIN;/);
+    expect(src).toMatch(/const accountId = \(await routeDocOwner\(\)\)\?\.writeKey \?\? null;\n\s*if \(!accountId\) return refuse\(401/);
   });
 
   it.each([...ROUTES, "src/app/api/docs/[slug]/meta/route.ts", "src/app/api/docs/[slug]/download/route.ts"])(

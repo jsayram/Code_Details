@@ -74,7 +74,7 @@ export function getApiKey(providerId: string, customKey?: string): string {
     return '';
   }
   
-  // Check all candidate env vars
+  // Check all candidate env vars (D08 gate: which one is set is never logged)
   const allCandidates = [
     ...envVarNames,
     'OPENAI_API_KEY',
@@ -82,12 +82,9 @@ export function getApiKey(providerId: string, customKey?: string): string {
     'OPENAI_KEY',
   ];
   
-  console.log('[getApiKey] All env var candidates:', allCandidates);
-
   for (const key of allCandidates) {
     const value = process.env[key];
     if (value) {
-      console.log('[getApiKey] SUCCESS - Using key from:', key);
       return value;
     }
   }

@@ -11,6 +11,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
+import { baseUrlProblem, LlmGateError, requireLlmAdmin, reserveLlmCall } from '@/backend/llm/gate';
+import type { LlmGuard } from '@/repoScrapper/nodes';
 import {
   runDocumentationFlowWithProgress,
   isValidGitHubUrl,
@@ -71,6 +73,11 @@ export async function POST(request: NextRequest) {
     if (!userId) {
       return problemResponse(401, 'Unauthorized', 'Authentication required to generate documentation.');
     }
+    // D08 gate: generating calls the model providers on the server's keys,
+    // several times per request, so admins only, and each of those calls takes
+    // one unit of the daily caps (the flow's _llmGuard below).
+    const admin = await requireLlmAdmin();
+    if (!admin.ok) return problemResponse(admin.status, admin.title, admin.detail);
 
     // Parse request body
     let body: GenerateDocsRequest;
@@ -81,6 +88,10 @@ export async function POST(request: NextRequest) {
     }
 
     const { repoUrl, llmProvider, llmModel, llmApiKey, llmBaseUrl } = body;
+
+    // A custom base URL only to a local model server (no SSRF with our keys).
+    const badBaseUrl = baseUrlProblem(llmBaseUrl);
+    if (badBaseUrl) return problemResponse(badBaseUrl.status, badBaseUrl.title, badBaseUrl.detail);
 
     // Validate repository URL
     if (!repoUrl) {
@@ -113,6 +124,13 @@ export async function POST(request: NextRequest) {
       await writer.write(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
     };
 
+    // One reserved unit per model call; a refusal stops the flow there.
+    const llmGuard: LlmGuard = async (provider, model) => {
+      const ticket = await reserveLlmCall(provider, model);
+      if (!ticket.ok) throw new LlmGateError(ticket);
+      return ticket.finish;
+    };
+
     // Start the generation in the background
     (async () => {
       try {
@@ -132,6 +150,7 @@ export async function POST(request: NextRequest) {
           max_abstraction_num: 8,
           language: 'english',
           github_token: process.env.GITHUB_TOKEN,
+          _llmGuard: llmGuard,
         };
 
         // Run the documentation generation flow

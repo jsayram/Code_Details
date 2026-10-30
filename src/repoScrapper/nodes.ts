@@ -25,6 +25,25 @@ import * as yaml from 'js-yaml';
 import { Node, BatchNode } from 'pocketflow';
 import { callLLM } from '@/llm/client';
 import type { LLMCallOptions } from '@/llm/types';
+
+/** See SharedData._llmGuard. */
+export type LlmGuard = (provider: string | undefined, model: string | undefined) => Promise<(ok: boolean, latencyMs: number, errorStatus?: number) => Promise<void>>;
+
+/** callLLM behind the gate: one reserved unit per call, its outcome logged (never the prompt). */
+export async function guardedCallLLM(guard: LlmGuard | undefined, options: LLMCallOptions): Promise<string> {
+  if (!guard) return callLLM(options);
+  const done = await guard(options.provider, options.model);
+  const startedAt = Date.now();
+  try {
+    const content = await callLLM(options);
+    await done(true, Date.now() - startedAt);
+    return content;
+  } catch (error) {
+    const status = (error as { status?: unknown })?.status;
+    await done(false, Date.now() - startedAt, typeof status === "number" ? status : undefined);
+    throw error;
+  }
+}
 import { serverGithubCrawler } from './server-crawler';
 import type { CrawlerOptions, CrawlerResult } from './types';
 
@@ -82,6 +101,12 @@ export interface SharedData {
   
   // Progress callback
   _onProgress?: ProgressCallback;
+  /**
+   * D08 /api/llm gate: called before every model call; it throws to refuse
+   * (not an admin, over a daily cap, unchecked) and returns how to log the
+   * outcome. /api/generate-docs always sets it.
+   */
+  _llmGuard?: LlmGuard;
 }
 
 export interface Abstraction {
@@ -354,7 +379,7 @@ export class IdentifyAbstractions extends Node<SharedData> {
       customBaseUrl: llmBaseUrl,
     };
     
-    const response = await callLLM(llmOptions);
+    const response = await guardedCallLLM(this._shared?._llmGuard, llmOptions);
     
     // Extract YAML
     const yamlMatch = response.trim().match(/```yaml\s*([\s\S]*?)\s*```/);
@@ -498,7 +523,7 @@ export class AnalyzeRelationships extends Node<SharedData> {
       language,
     });
 
-    const response = await callLLM({
+    const response = await guardedCallLLM(this._shared?._llmGuard, {
       prompt,
       provider: llmProvider,
       model: llmModel,
@@ -620,7 +645,7 @@ export class OrderChapters extends Node<SharedData> {
       language,
     });
 
-    const response = await callLLM({
+    const response = await guardedCallLLM(this._shared?._llmGuard, {
       prompt,
       provider: llmProvider,
       model: llmModel,
@@ -707,11 +732,13 @@ interface WriteChapterItem {
 }
 
 export class WriteChapters extends BatchNode<SharedData, WriteChapterItem> {
+  private _shared?: SharedData;
   private chaptersWrittenSoFar: string[] = [];
   private totalChapters: number = 0;
   private onProgress?: ProgressCallback;
   
   async prep(shared: SharedData): Promise<WriteChapterItem[]> {
+    this._shared = shared;
     const chapterOrder = shared.chapter_order;
     const abstractions = shared.abstractions;
     const filesData = shared.files;
@@ -838,7 +865,7 @@ export class WriteChapters extends BatchNode<SharedData, WriteChapterItem> {
       language,
     });
 
-    const response = await callLLM({
+    const response = await guardedCallLLM(this._shared?._llmGuard, {
       prompt,
       provider: llmProvider,
       model: llmModel,
