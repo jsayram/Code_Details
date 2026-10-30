@@ -7,7 +7,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SignedIn, useViewerId } from "@/components/auth/AuthGate";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
-import { useAuthBackend } from "@/backend/auth/context";
 import { getMyProfileHandle } from "@/app/actions/profile-handle";
 import {
   Card,
@@ -1008,10 +1007,9 @@ function ProfileEditorCard() {
   const fullName = user?.fullName ?? null;
   const email = user?.email ?? null;
   const imageUrl = user?.imageUrl ?? null;
-  const backend = useAuthBackend();
   const [sessionHandle, setSessionHandle] = useState<string | null>(null);
   useEffect(() => {
-    if (backend !== "better-auth" || !signedIn) return;
+    if (!signedIn) return;
     let live = true;
     void getMyProfileHandle().then((handle) => {
       if (live) setSessionHandle(handle);
@@ -1019,7 +1017,7 @@ function ProfileEditorCard() {
     return () => {
       live = false;
     };
-  }, [backend, signedIn]);
+  }, [signedIn]);
   const handle = user?.username || sessionHandle;
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);

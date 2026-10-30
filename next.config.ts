@@ -34,15 +34,11 @@ const nextConfig: NextConfig = {
     dangerouslyAllowSVG: true,
     dangerouslyAllowLocalIP: true,
     remotePatterns: [
+      // Imported profiles keep their Clerk-era avatar URLs (D00b; accepted as
+      // avatars by convex/accountRules.ts AVATAR_HOSTS). D08g4g dropped the other Clerk image host.
       {
         protocol: 'https',
         hostname: 'img.clerk.com',
-        port: '',
-        pathname: '/**',
-      },
-      {
-        protocol: 'https',
-        hostname: 'images.clerk.dev',
         port: '',
         pathname: '/**',
       },

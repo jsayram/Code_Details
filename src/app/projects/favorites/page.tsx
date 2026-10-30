@@ -2,7 +2,7 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";

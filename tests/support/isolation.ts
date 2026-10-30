@@ -44,17 +44,6 @@ function hostAllowed(host: string): boolean {
   return LOOPBACK_HOSTS.has(host) || host.endsWith(".invalid");
 }
 
-/** Clerk publishable keys are pk_(test|live)_ + base64("<frontend api host>$"). */
-export function clerkFrontendHost(publishableKey: string): string | null {
-  const m = /^pk_(?:test|live)_(.+)$/.exec(publishableKey);
-  if (!m) return null;
-  try {
-    return Buffer.from(m[1], "base64").toString("utf8").replace(/\$$/, "");
-  } catch {
-    return null;
-  }
-}
-
 /** Returns every problem with env; empty means isolated. */
 export interface IsolationOptions {
   /**
@@ -85,11 +74,12 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
         problems.push(`${name} points at development port ${port}`);
       }
     }
-    if (/\b[ps]k_live_/.test(value) && !(name.includes("CLERK") && clerkFrontendHost(value)?.endsWith(".invalid"))) {
+    if (/\b[ps]k_live_/.test(value)) {
       problems.push(`${name} looks like a live key`);
     }
-    // The Clerk publishable key is public; its host is checked below instead.
-    if (SECRET_NAME.test(name) && name !== "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY" && !value.includes(SYNTHETIC)) {
+    // D08g4g: Clerk is gone, so no Clerk setting may reach a test process at all.
+    if (/CLERK/i.test(name)) problems.push(`${name}: Clerk was removed (D08g4g); no Clerk variable may be set`);
+    if (SECRET_NAME.test(name) && !value.includes(SYNTHETIC)) {
       problems.push(`${name} is set to a non-synthetic value`);
     }
     if (/^https?:\/\//.test(value) || /^postgres(ql)?:\/\//.test(value)) {
@@ -129,12 +119,6 @@ export function isolationProblems(env: Record<string, string | undefined>, optio
     problems.push(`CODEDETAILS_TEST_SLOT must match the active test slot ${ACTIVE.slot}`);
   }
   if (env.CONVEX_DEPLOYMENT) problems.push("CONVEX_DEPLOYMENT must not be set (it selects a cloud or CLI-managed deployment)");
-
-  const pk = env.NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY;
-  if (pk) {
-    const host = clerkFrontendHost(pk);
-    if (!host?.endsWith(".invalid")) problems.push("NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY must decode to a .invalid host");
-  }
 
   return problems;
 }

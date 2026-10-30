@@ -9,7 +9,7 @@
 // Otherwise the answer is "none", with the reason. D08g4f2: Clerk is gone from
 // the server, so "none" means no login at all (fail closed): the server sees
 // nobody, protected routes are refused, and /api/auth answers 404.
-// CODEDETAILS_AUTH_BACKEND=clerk or an unknown value also gives "none".
+// Any other CODEDETAILS_AUTH_BACKEND value (an old "clerk" included) gives "none".
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 export type AuthBackendChoice =
@@ -28,7 +28,6 @@ function loopbackOrigin(value: string | undefined): string | null {
 
 export function chooseAuthBackend(env: Record<string, string | undefined> = process.env): AuthBackendChoice {
   const requested = env.CODEDETAILS_AUTH_BACKEND ?? "";
-  if (requested === "clerk") return { backend: "none", reason: "CODEDETAILS_AUTH_BACKEND=clerk (Clerk was removed in D08g4f2)" };
   if (requested !== "" && requested !== "better-auth") return { backend: "none", reason: `unknown backend ${JSON.stringify(requested)}` };
   if (env.NODE_ENV !== "development") return { backend: "none", reason: "better-auth is development-only" };
   const convexUrl = loopbackOrigin(env.CODEDETAILS_CONVEX_URL);

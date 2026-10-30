@@ -17,7 +17,6 @@ const SWITCH = {
 const incoming = vi.hoisted(() => ({ headers: new Headers() }));
 vi.mock("next/headers", () => ({ headers: async () => incoming.headers }));
 vi.mock("convex/nextjs", () => ({ fetchQuery: vi.fn(async () => ({ username: "user-abcdef", role: "user", tier: "free" })) }));
-vi.mock("@clerk/nextjs/server", () => ({ auth: async () => ({ userId: null }) }));
 
 describe("isInternalAuthCall", () => {
   it("accepts only the exact secret", () => {

@@ -18,11 +18,6 @@ const setProjects = vi.hoisted(() => vi.fn());
 
 vi.mock("@/app/actions/projects", () => actions);
 vi.mock("sonner", () => ({ toast }));
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: null }),
-  useSession: () => ({ session: null }),
-  SignInButton: () => null,
-}));
 vi.mock("@/components/auth/AuthGate", () => ({ useViewerId: () => "viewer-1" }));
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: vi.fn() }) }));
 vi.mock("next/image", () => ({ default: () => null }));

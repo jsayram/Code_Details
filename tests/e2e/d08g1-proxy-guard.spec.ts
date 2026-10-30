@@ -6,7 +6,6 @@ import type { APIRequestContext } from "@playwright/test";
 import { expireSession, freshClientIp, setRole, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const PAGE = "/d08g1-no-such-page";
 const API = "/api/d08g1-no-such-endpoint";
 
@@ -24,7 +23,6 @@ async function signIn(ctx: APIRequestContext) {
 }
 
 test.describe("D08g1 proxy guard (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("signed out: pages go to /sign-in with redirect_url, APIs answer 401, public routes pass", async ({ playwright }) => {
     const ctx = await client(playwright);

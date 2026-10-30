@@ -44,11 +44,7 @@ const readBackendEnv: Record<string, string> =
     : { CODEDETAILS_PROJECT_READ_BACKEND: "supabase" };
 
 // D08b, D08g4a: Better Auth is the login (/api/auth/* and /api/dev/viewer
-// served through the local backend). D08g4f2: the Clerk modes are gone with
-// Clerk's code, and the test server gets no Clerk keys, as Jose's app has none.
-if (process.env.CODEDETAILS_E2E_AUTH_BACKEND === "clerk") {
-  throw new Error("CODEDETAILS_E2E_AUTH_BACKEND=clerk: the Clerk modes were removed in D08g4f2");
-}
+// served through the local backend), the only login since D08g4f2.
 export const AUTH_BACKEND = "better-auth";
 if (!convexAvailable()) {
   throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");

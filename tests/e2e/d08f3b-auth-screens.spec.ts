@@ -13,7 +13,6 @@ import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADE
 import { fakeMailpit, linkIn } from "../fixtures/fake-mailpit";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const SCREENS = process.env.CODEDETAILS_E2E_SCREENS_DIR;
 const VARIANT = process.env.CODEDETAILS_E2E_SCREENS_VARIANT ?? "desktop-dark";
 const SCHEME = VARIANT.endsWith("light") ? "light" : "dark";
@@ -34,7 +33,6 @@ async function shot(page: Page, name: string) {
 }
 
 test.describe("D08f3b auth screens (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   const mailbox = fakeMailpit();
 
   test.beforeAll(async () => {

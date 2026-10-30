@@ -42,7 +42,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { HeaderSection } from '@/components/layout/HeaderSection';
 import { FooterSection } from '@/components/layout/FooterSection';
 import { PageBanner } from '@/components/ui/page-banner';
-import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
+import { useSupabaseToken } from '@/hooks/use-supabase-token';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { isValidGitHubUrl } from '@/repoScrapper';
 

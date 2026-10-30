@@ -6,7 +6,6 @@ import type { Page } from "@playwright/test";
 import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const headers = { origin: BASE_URL };
 
 async function signIn(page: Page, label: string) {
@@ -19,7 +18,6 @@ async function signIn(page: Page, label: string) {
 const viewer = async (page: Page) => (await (await page.request.get("/api/dev/viewer")).json()) as { viewer: unknown };
 
 test.describe("D08g4e1 client auth controls (Better Auth)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test.beforeEach(async ({ context }) => {
     await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });

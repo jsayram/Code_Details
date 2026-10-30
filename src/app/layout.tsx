@@ -4,7 +4,6 @@ import { ToasterProvider } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SWRProvider } from "@/providers/swr-provider";
 import { DocChaptersProvider } from "@/providers/doc-chapters-provider";
-import { AuthBackendProvider } from "@/backend/auth/context";
 
 export const metadata = {
   title: "Code Details",
@@ -25,22 +24,17 @@ export default function RootLayout({
         />
       </head>
       <body className="overflow-x-hidden">
-        {/* D08g4f2: no ClerkProvider (it went keyless and contacted Clerk
-            without keys). Better Auth is the only login; with it off (backend
-            "none"), its /api/auth answers 404, so the client sees nobody. */}
-        <AuthBackendProvider backend="better-auth">
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
-            <SWRProvider>
-              <DocChaptersProvider>
-                {/* Main content with centered container and responsive padding */}
-                <ErrorBoundary>
-                  <div className="max-w-[100vw] overflow-x-hidden">{children}</div>
-                </ErrorBoundary>
-                <ToasterProvider />
-              </DocChaptersProvider>
-            </SWRProvider>
-          </ThemeProvider>
-        </AuthBackendProvider>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <SWRProvider>
+            <DocChaptersProvider>
+              {/* Main content with centered container and responsive padding */}
+              <ErrorBoundary>
+                <div className="max-w-[100vw] overflow-x-hidden">{children}</div>
+              </ErrorBoundary>
+              <ToasterProvider />
+            </DocChaptersProvider>
+          </SWRProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

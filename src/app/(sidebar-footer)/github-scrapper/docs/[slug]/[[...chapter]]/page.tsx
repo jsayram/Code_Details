@@ -34,7 +34,7 @@ import { HeaderSection } from '@/components/layout/HeaderSection';
 import { FooterSection } from '@/components/layout/FooterSection';
 import { PageBanner } from '@/components/ui/page-banner';
 import { useViewerId } from '@/components/auth/AuthGate';
-import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
+import { useSupabaseToken } from '@/hooks/use-supabase-token';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { useDocChapters } from '@/providers/doc-chapters-provider';
 

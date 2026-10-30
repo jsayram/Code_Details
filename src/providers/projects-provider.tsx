@@ -9,8 +9,6 @@ import React, {
 } from "react";
 import useSWR, { mutate } from "swr";
 import { Project } from "@/types/models/project";
-import { useAuthState } from "@/hooks/use-auth-state";
-import { useAuthBackend } from "@/backend/auth/context";
 import { API_ROUTES } from "@/constants/api-routes";
 import { ProjectCategory } from "@/constants/project-categories";
 import { revalidateProjectCache } from "@/lib/swr-fetchers";
@@ -97,7 +95,10 @@ function getProjectsCacheKey(
 
 export function ProjectsProvider({
   children,
-  token,
+  // D08g4g: no longer read (it was the Clerk-era Supabase token); the pages
+  // still pass it until E03 removes the Supabase path.
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  token: _token,
   userId,
   isLoading,
   initialFilters = {},
@@ -117,13 +118,11 @@ export function ProjectsProvider({
     ...initialFilters,
   });
 
-  const authState = useAuthState(userId, token);
-  // D02r-c: under the development Better Auth switch there is no Supabase
-  // token; a session user ID is enough, because the server reads the user
-  // from the session cookie.
-  const backend = useAuthBackend();
-  const isAuthenticated = backend === "better-auth" ? !!userId : authState.isAuthenticated;
-  const authReady = backend === "better-auth" ? true : authState.isReady;
+  // D02r-c: with Better Auth there is no Supabase token; a session user ID is
+  // enough, because the server reads the user from the session cookie.
+  // D08g4g: Better Auth is the only login, so that is always the case.
+  const isAuthenticated = !!userId;
+  const authReady = true;
 
   // Determine if we should fetch
   const shouldFetch = authReady && !isLoading && (isAuthenticated || !!filters.username);

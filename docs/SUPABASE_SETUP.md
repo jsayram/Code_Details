@@ -1,6 +1,8 @@
 # Supabase Local Development Setup
 
-This guide explains how to set up and run Supabase locally with Clerk authentication integration.
+This guide explains how to set up and run Supabase locally.
+
+> **Clerk is retired (D08g4g).** The app no longer uses Clerk; Better Auth on the local Convex backend is the login. The Clerk sections below describe `supabase/config.toml`, which still carries the Clerk-era `[auth.third_party.clerk]` block and is left untouched on purpose. Treat them as history.
 
 ## Prerequisites
 
@@ -190,7 +192,7 @@ For production, replace the local Supabase configuration with your hosted Supaba
 
 1. Create a project at https://supabase.com
 2. Update `.env.production` with your project URL and keys
-3. Configure Clerk integration in Supabase Dashboard under **Authentication > Third-party providers**
+3. (Clerk-era, no longer needed) Clerk was configured in the Supabase Dashboard under **Authentication > Third-party providers**
 
 ## Additional Resources
 

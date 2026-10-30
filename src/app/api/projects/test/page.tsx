@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 // import { DebugJwt } from "@/components/debug/page"; // Component not found
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { API_ROUTES } from "@/constants/api-routes";
 import { Project } from "@/types/models/project";
 import { toast } from "sonner";

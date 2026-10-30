@@ -18,7 +18,6 @@ import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const FIXTURES = generateFixtures();
 const { a: A, b: B } = FIXTURES.personas;
 // D11s: a live fixture project of persona A's, for a doc linked to it.
@@ -110,18 +109,14 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
     test(`${r.name}: refused as today`, async ({ playwright }) => {
       const ctx = await client(playwright);
       const res = await r.call(ctx);
-      // The D08g1 proxy answers 401. Clerk's protect redirects signed-out API calls (B13 D-6),
-      // but answers 404 instead for some requests it doesn't treat as page loads (seen on a
-      // cold server's first request). Either way the route never runs; its own refusal is 401.
-      if (betterAuth) expect(res.status()).toBe(401);
-      else expect([307, 404]).toContain(res.status());
+      // The D08g1 proxy answers 401; the route never runs.
+      expect(res.status()).toBe(401);
       await ctx.dispose();
     });
   }
 });
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   // D08h: global setup loads the D01 personas in Better Auth mode, so a missing
   // persona is a failure (releasePersona throws), never a silent skip.
   let persona: APIRequestContext;
@@ -275,7 +270,6 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
 // "Download All" button shows only for the owner (the ZIP is owner-only).
 // Each test signs in fresh; personas are released before and after the block.
 test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   const CHAPTER_URL = `/github-scrapper/docs/${DOCS.linked}/${CHAPTER}`;
 
   test.beforeAll(async () => {
@@ -328,7 +322,7 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
 // link is checked against the owner's own projects when it is made, and
 // another user reads it while that project's public page shows it.
 test.describe.serial("generator re-key: linking to a Convex project (both switches)", () => {
-  test.skip(!betterAuth || process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs both switches");
+  test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs CODEDETAILS_E2E_READ_BACKEND=convex");
   const PRIVATE = FIXTURES.projects.find((p) => p.slug === "fixture-private")!;
   const BOBS = FIXTURES.projects.find((p) => p.slug === "fixture-bob-project")!;
   let owner: APIRequestContext;

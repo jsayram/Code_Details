@@ -21,18 +21,11 @@ vi.mock("next/image", () => ({
     return <img {...props} />;
   },
 }));
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: null }),
-  SignIn: () => null,
-  SignUp: () => null,
-  SignInButton: ({ children }: { children: ReactNode }) => children,
-}));
 
-import { AuthBackendProvider } from "@/backend/auth/context";
 import { SignInComponent } from "@/components/auth/SignInComponent";
 import { SignUpComponent } from "@/components/auth/SignUpComponent";
 
-const tree = (node: ReactNode) => <AuthBackendProvider backend="better-auth">{node}</AuthBackendProvider>;
+const tree = (node: ReactNode) => <>{node}</>;
 
 afterEach(() => {
   document.body.innerHTML = "";

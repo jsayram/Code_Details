@@ -33,7 +33,7 @@ export const ShareProjectsButton = ({ userId }: ShareProjectButtonProps) => {
       // D03: the server answers for the session's own user (userId only keys the cache).
       const ownUsername = await getMyShareUsername();
       if (!ownUsername) {
-        console.warn("User not found in database, may need sync from Clerk");
+        console.warn("No profile handle for this account yet");
         userCache.set(userId, null);
         setUsername(null);
         return;

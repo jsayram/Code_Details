@@ -3,9 +3,8 @@
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
-import { useAuthBackend } from "@/backend/auth/context";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -34,12 +33,9 @@ export default function UserProjectsPage({ params }: PageProps) {
   const { token, loading: tokenLoading } = useSupabaseToken();
   // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
   const viewer = usePersonalPageViewer({ token, tokenLoading });
-  const backend = useAuthBackend();
-  // The app's login decides (D08g4e3: Clerk's userId is null while Clerk
-  // loads, as its user object was). Under Better Auth the toast waits for the
-  // session to load.
+  // The app's login decides; the toast waits for the session to load.
   const signedIn = !!viewer.userId;
-  const waitingForSession = backend !== "clerk" && viewer.isLoading;
+  const waitingForSession = viewer.isLoading;
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
   const [profileData, setProfileData] = useState<PublicProfileRow | null>(null);
   const router = useRouter();

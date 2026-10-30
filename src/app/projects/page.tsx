@@ -9,7 +9,7 @@ import React, { use, useMemo, useState } from "react";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 // Custom Hooks
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 
 // Application Components and Pages (Custom)

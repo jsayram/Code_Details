@@ -10,7 +10,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { b: B } = generateFixtures().personas;
 
@@ -29,7 +28,7 @@ const card = (page: Page) => page.locator(".project-card", { hasText: TITLE }).f
 const count = async (page: Page) => Number(await card(page).locator(".favorite-count").textContent());
 
 test.describe.serial("D05 favorites (Better Auth + Convex read)", () => {
-  test.skip(!(betterAuth && convexRead), "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk) and CODEDETAILS_E2E_READ_BACKEND=convex");
+  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

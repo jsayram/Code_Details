@@ -11,7 +11,6 @@ import { adminClient } from "../fixtures/convex";
 import { authState, freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const shots = process.env.CODEDETAILS_D04F_SHOTS;
 const setTier = makeFunctionReference<"mutation", { authUserId: string; tier: string }, null>("fixtures:setTier");
 const PAGES = [
@@ -30,7 +29,6 @@ async function signInWithTier(page: Page, tier: "pro" | "diamond") {
 }
 
 test.describe(`D04f tier display (${process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" ? "Convex" : "Supabase"} read)`, () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   for (const tier of ["pro", "diamond"] as const) {
     test(`a ${tier} account sees "${tier} member" on its personal pages`, async ({ page }) => {

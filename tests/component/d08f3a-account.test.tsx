@@ -1,36 +1,15 @@
 // @vitest-environment jsdom
 // D08f3a: the gates and the header's account controls follow the Better Auth
-// session when the development switch is on, and are exactly Clerk's otherwise.
+// session (D08g4g: the only login).
 import { act, cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { renderToString } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
-const clerk = vi.hoisted(() => ({
-  userId: null as string | null | undefined,
-  user: null as null | { fullName: string | null; username: string | null; primaryEmailAddress: { emailAddress: string } | null },
-  userButtonProps: [] as unknown[],
-  signOutButtonProps: [] as unknown[],
-  signOut: vi.fn(async () => {}),
-}));
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: clerk.userId }),
-  useUser: () => ({ user: clerk.user, isLoaded: clerk.userId !== undefined }),
-  useClerk: () => ({ signOut: clerk.signOut }),
-  UserButton: (props: object) => {
-    clerk.userButtonProps.push(props);
-    return <span data-testid="clerk-user-button" />;
-  },
-  SignOutButton: ({ children, ...props }: { children: ReactNode }) => {
-    clerk.signOutButtonProps.push(props);
-    return <span data-testid="clerk-sign-out">{children}</span>;
-  },
-}));
 const router = vi.hoisted(() => ({ push: vi.fn(), refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => "/" }));
 
-import { AuthBackendProvider, type AuthBackend } from "@/backend/auth/context";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { AccountButton, AccountSignOutButton, useAccountSignOut, useAccountSummary } from "@/components/auth/AccountButton";
 import { resetSessionForTests } from "@/lib/auth-session";
@@ -57,7 +36,7 @@ const Gates = () => (
     </SignedIn>
   </header>
 );
-const withBackend = (backend: AuthBackend, node: ReactNode) => <AuthBackendProvider backend={backend}>{node}</AuthBackendProvider>;
+const withBackend = (_backend: "better-auth", node: ReactNode) => <>{node}</>;
 
 function Summary() {
   const s = useAccountSummary();
@@ -67,11 +46,6 @@ function Summary() {
 beforeEach(() => {
   resetSessionForTests();
   sessionUser = null;
-  clerk.userId = null;
-  clerk.user = null;
-  clerk.userButtonProps = [];
-  clerk.signOutButtonProps = [];
-  clerk.signOut.mockClear();
   fetchMock.mockClear();
   router.push.mockClear();
   router.refresh.mockClear();
@@ -82,29 +56,20 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("AuthBackendProvider", () => {
-  it("adds no markup of its own", () => {
-    expect(renderToString(withBackend("better-auth", <p>x</p>))).toBe(renderToString(<p>x</p>));
-    expect(renderToString(withBackend("clerk", <p>x</p>))).toBe(renderToString(<p>x</p>));
-  });
-});
-
 describe("gates with the switch on", () => {
   it("render neither on the server", () => {
     sessionUser = SYNTHETIC_USER;
     expect(renderToString(withBackend("better-auth", <Gates />))).toBe("<header></header>");
   });
 
-  it("show the signed-in part for a Better Auth session, whatever Clerk says", async () => {
+  it("show the signed-in part for a Better Auth session", async () => {
     sessionUser = SYNTHETIC_USER;
-    clerk.userId = null;
     render(withBackend("better-auth", <Gates />));
     expect(await screen.findByText("menu")).toBeTruthy();
     expect(screen.queryByText("sign in")).toBeNull();
   });
 
-  it("show the signed-out part without a session, even when Clerk has a user", async () => {
-    clerk.userId = "user_clerk_fixture";
+  it("show the signed-out part without a session", async () => {
     render(withBackend("better-auth", <Gates />));
     expect(await screen.findByText("sign in")).toBeTruthy();
     expect(screen.queryByText("menu")).toBeNull();
@@ -131,7 +96,6 @@ describe("account controls with the switch on", () => {
     sessionUser = SYNTHETIC_USER;
     const user = userEvent.setup();
     render(withBackend("better-auth", <><AccountButton appearance={{ elements: { userButtonAvatarBox: "w-9 h-9" } }} /><Gates /></>));
-    expect(clerk.userButtonProps).toEqual([]);
     const trigger = await screen.findByRole("button", { name: "Open account menu" });
     expect(trigger.querySelector('[data-slot="avatar"]')?.className).toContain("w-9 h-9");
     expect(trigger.textContent).toBe("SP");
@@ -150,7 +114,6 @@ describe("account controls with the switch on", () => {
     sessionUser = SYNTHETIC_USER;
     const user = userEvent.setup();
     render(withBackend("better-auth", <><AccountSignOutButton><button>Sign Out</button></AccountSignOutButton><Gates /></>));
-    expect(clerk.signOutButtonProps).toEqual([]);
     await screen.findByText("menu");
     await user.click(screen.getByRole("button", { name: "Sign Out" }));
     expect(await screen.findByText("sign in")).toBeTruthy();
@@ -177,7 +140,6 @@ describe("useAccountSignOut", () => {
     render(withBackend("better-auth", <SignOutWith to="/bye" />));
     await userEvent.click(screen.getByRole("button", { name: "out" }));
     expect(fetchMock).toHaveBeenCalledWith("/api/auth/sign-out", expect.objectContaining({ method: "POST" }));
-    expect(clerk.signOut).not.toHaveBeenCalled();
     expect(router.push).toHaveBeenCalledWith("/bye");
   });
 

@@ -10,14 +10,11 @@ export default async function globalSetup() {
   try {
     await cleanupFixtures(sql);
     await loadFixtures(sql, generateFixtures());
-    // Convex mode (Phase C): the same fixtures in the local Convex backend.
-    // D08h: Better Auth mode too, so its runs always start with the D01
-    // personas loaded, whatever ran on the shared backend before (npm test's
-    // integration tests clear it).
-    if (process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" || process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk") {
-      await clearConvexFixtures();
-      await loadConvexFixtures(generateFixtures());
-    }
+    // The same fixtures in the local Convex backend, so every run starts with
+    // the D01 personas loaded, whatever ran on the shared backend before (npm
+    // test's integration tests clear it). Better Auth is the only login (D08g4g).
+    await clearConvexFixtures();
+    await loadConvexFixtures(generateFixtures());
   } finally {
     await sql.end();
   }

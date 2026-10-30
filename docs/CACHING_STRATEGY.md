@@ -487,7 +487,7 @@ revalidateTag('user-projects', {});  // After user's project changes
 
 ### Admin Authentication Cache
 
-Prevents Clerk API rate limiting by caching admin status checks.
+Historical: this described the Clerk-era `src/middleware.ts`, which cached admin checks to spare Clerk's API. Clerk is gone (D08g4f2/g4g) and `src/proxy.ts` replaced the middleware.
 
 ```typescript
 const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();

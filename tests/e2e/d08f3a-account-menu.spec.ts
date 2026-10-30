@@ -7,11 +7,9 @@ import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADE
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const listed = generateFixtures().projects.find((p) => p.case === "listed")!;
 
 test.describe("D08f3a account menu (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test.beforeEach(async ({ context, page }) => {
     // Its own client IP, as a proxy would set it, so Better Auth's per-IP limits don't collide.

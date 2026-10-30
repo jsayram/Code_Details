@@ -5,17 +5,14 @@
 import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 
 test.describe("D08g3b identity display (switch on)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
-  test.beforeEach(async ({ context, page }) => {
+  test.beforeEach(async ({ context }) => {
     await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
-    await page.route(/clerk\.browser\.js$/, (route) => route.abort("blockedbyclient"));
   });
 
-  test("signed out, the home page renders without Clerk", async ({ page }) => {
+  test("signed out, the home page renders", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByText("AUTHENTICATE TO CONTINUE")).toBeVisible();
     await expect(page.getByText("Code Minion!")).toBeVisible();

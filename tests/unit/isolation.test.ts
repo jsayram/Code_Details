@@ -35,7 +35,8 @@ describe("isolation guard", () => {
     ["OPENAI_API_KEY", "sk-proj-abc", /non-synthetic/],
     ["GITHUB_TOKEN", "ghp_abc", /non-synthetic/],
     ["DISCORD_WEBHOOK_API_KEY", "https://discord.invalid/x", /non-synthetic/],
-    ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", syntheticPk("pet-liger-00.clerk.accounts.dev"), /\.invalid host/],
+    ["NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", syntheticPk("pet-liger-00.clerk.accounts.dev"), /Clerk was removed/],
+    ["CLERK_SECRET_KEY", `sk_test_${SYNTHETIC}`, /Clerk was removed/],
     ["NEXT_PUBLIC_CONVEX_URL", "https://happy-otter-123.convex.cloud", new RegExp(`must be http://127\\.0\\.0\\.1:${CVX}|non-loopback`)],
     ["CONVEX_URL", `http://127.0.0.1:${SITE}`, new RegExp(`must be http://127\\.0\\.0\\.1:${CVX}`)],
     ["CONVEX_DEPLOYMENT", "dev:happy-otter-123", /CONVEX_DEPLOYMENT must not be set/],
@@ -46,13 +47,9 @@ describe("isolation guard", () => {
     expect(problems.join("\n")).toMatch(problem);
   });
 
-  it("allows synthetic Clerk keys whose frontend host is .invalid", () => {
-    const env = {
-      ...base(),
-      NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: syntheticPk("clerk.codedetails.invalid"),
-      CLERK_SECRET_KEY: `sk_test_${SYNTHETIC}`,
-    };
-    expect(isolationProblems(env)).toEqual([]);
+  it("D08g4g: refuses Clerk settings even with a synthetic .invalid host", () => {
+    const env = { ...base(), NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: syntheticPk("clerk.codedetails.invalid") };
+    expect(isolationProblems(env).join("\n")).toMatch(/Clerk was removed/);
   });
 
   it("requires the isolation flag and NODE_ENV=test", () => {

@@ -20,18 +20,7 @@ vi.mock("next/image", () => ({
     return <img {...props} />;
   },
 }));
-const clerk = vi.hoisted(() => ({ userId: null as string | null, signInButtons: [] as unknown[] }));
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: clerk.userId }),
-  useUser: () => ({ user: null, isLoaded: true }),
-  UserButton: () => null,
-  SignOutButton: ({ children }: { children: ReactNode }) => children,
-  SignIn: () => null,
-  SignUp: () => null,
-  SignInButton: ({ children, ...props }: { children: ReactNode }) => (clerk.signInButtons.push(props), <span data-testid="clerk-sign-in-button">{children}</span>),
-}));
 
-import { AuthBackendProvider } from "@/backend/auth/context";
 import { AccountButton } from "@/components/auth/AccountButton";
 import { SignInComponent } from "@/components/auth/SignInComponent";
 import { SignUpComponent } from "@/components/auth/SignUpComponent";
@@ -50,7 +39,7 @@ const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
 });
 const assign = vi.fn();
 
-const on = (node: ReactNode) => render(<AuthBackendProvider backend="better-auth">{node}</AuthBackendProvider>);
+const on = (node: ReactNode) => render(<>{node}</>);
 const GITHUB_URL = "https://github.com/login/oauth/authorize?client_id=SYNTHETIC&state=s";
 
 beforeEach(() => {
@@ -58,8 +47,6 @@ beforeEach(() => {
   replies = {};
   calls.length = 0;
   sessionUser = null;
-  clerk.userId = null;
-  clerk.signInButtons = [];
   nav.path = "/sign-in";
   nav.search = "";
   fetchMock.mockClear();
@@ -142,13 +129,10 @@ describe("Connect GitHub in the account menu", () => {
 describe("/sign-in/handover after D08g4b", () => {
   it("shows the plain sign-in screen, with no old-login button and no link call", async () => {
     nav.path = "/sign-in/handover";
-    clerk.userId = "user_clerk_fixture";
     sessionUser = USER;
     on(<SignInComponent />);
     expect(await screen.findByRole("heading", { name: "Sign in to Code Details" })).toBeTruthy();
     expect(screen.queryByText("Set up your new login")).toBeNull();
-    expect(screen.queryByTestId("clerk-sign-in-button")).toBeNull();
-    expect(clerk.signInButtons).toEqual([]);
     expect(calls.some((c) => c.url === "/api/account/handover")).toBe(false);
   });
 });

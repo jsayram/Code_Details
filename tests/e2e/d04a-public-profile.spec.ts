@@ -8,7 +8,6 @@ import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADE
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 const PRIVATE = [A.profile!.email, A.subject!, "email_address", "user_id", "\"tier\""];
@@ -22,7 +21,6 @@ async function signIn(page: Page, label: string) {
 }
 
 test.describe(`D04a public profile (${convexRead ? "Convex" : "Supabase"} read)`, () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("the profile APIs return public fields only, and the lookup ignores email addresses", async ({ page }) => {
     await signIn(page, "d04a-api");

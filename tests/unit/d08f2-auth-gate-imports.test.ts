@@ -1,4 +1,5 @@
-// D08f2: SignedIn/SignedOut come from the app, never from Clerk directly.
+// D08f2: SignedIn/SignedOut come from the app. (D08g4g: the old "never from
+// @clerk/nextjs" check moved to d08g4g-no-clerk, which covers every import.)
 // Client components use AuthGate (waits for hydration); server components use
 // AuthGateServer (reads the session on the server, as Clerk's server versions
 // did). Mixing them up would either bring back the hydration race or drop
@@ -16,13 +17,6 @@ const read = (f: string) => fs.readFileSync(path.join(root, f), "utf8");
 const isClient = (text: string) => /^\s*["']use client["'];?/.test(text);
 
 describe("SignedIn/SignedOut imports", () => {
-  it("none come from @clerk/nextjs", () => {
-    const offenders = files.filter((f) =>
-      [...read(f).matchAll(/import\s*\{([^}]*)\}\s*from\s*["']@clerk\/nextjs["']/g)].some((m) => /\bSigned(In|Out)\b/.test(m[1])),
-    );
-    expect(offenders).toEqual([]);
-  });
-
   it("client components never use the server gates", () => {
     const offenders = files.filter((f) => isClient(read(f)) && /from\s*["']@\/components\/auth\/AuthGateServer["']/.test(read(f)));
     expect(offenders).toEqual([]);

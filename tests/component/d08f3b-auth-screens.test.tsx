@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
-// D08f3b: the app's sign-in, sign-up, reset and error screens (switch on),
-// and Clerk's components left exactly as they were (switch off).
+// D08f3b: the app's sign-in, sign-up, reset and error screens (D08g4g: the
+// only ones; Clerk's are gone).
 import { cleanup, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -19,15 +19,7 @@ vi.mock("next/image", () => ({
     return <img {...props} />;
   },
 }));
-const clerk = vi.hoisted(() => ({ calls: [] as Array<[string, Record<string, unknown>]> }));
-vi.mock("@clerk/nextjs", () => ({
-  useAuth: () => ({ userId: null }),
-  SignIn: (props: Record<string, unknown>) => (clerk.calls.push(["SignIn", props]), <div data-testid="clerk-sign-in" />),
-  SignUp: (props: Record<string, unknown>) => (clerk.calls.push(["SignUp", props]), <div data-testid="clerk-sign-up" />),
-  SignInButton: ({ children, ...props }: { children: ReactNode }) => (clerk.calls.push(["SignInButton", props]), <span data-testid="clerk-sign-in-button">{children}</span>),
-}));
 
-import { AuthBackendProvider, type AuthBackend } from "@/backend/auth/context";
 import { SignInComponent } from "@/components/auth/SignInComponent";
 import { SignUpComponent } from "@/components/auth/SignUpComponent";
 import { SignInButtonComponent } from "@/components/auth/SignInButtonComponent";
@@ -43,7 +35,7 @@ const fetchMock = vi.fn(async (url: string, init?: RequestInit) => {
   return new Response(JSON.stringify(r.body ?? null), { status: r.status });
 });
 
-const on = (node: ReactNode, backend: AuthBackend = "better-auth") => render(<AuthBackendProvider backend={backend}>{node}</AuthBackendProvider>);
+const on = (node: ReactNode) => render(<>{node}</>);
 const at = (path: string, search = "") => {
   nav.path = path;
   nav.search = search;
@@ -53,7 +45,6 @@ beforeEach(() => {
   resetSessionForTests();
   replies = {};
   calls.length = 0;
-  clerk.calls = [];
   fetchMock.mockClear();
   nav.push.mockClear();
   nav.refresh.mockClear();
@@ -73,7 +64,6 @@ describe("sign-in (switch on)", () => {
   it("signs in and goes to a same-site redirect_url", async () => {
     at("/sign-in", "redirect_url=%2Fprojects%2Fx");
     on(<SignInComponent />);
-    expect(clerk.calls).toEqual([]);
     await fill("Email address", "a@synthetic.invalid");
     await fill("Password", "synthetic-Password-123");
     await userEvent.click(screen.getByRole("button", { name: "Continue" }));
@@ -163,7 +153,6 @@ describe("error screen /sign-in/error (switch on)", () => {
 describe("sign-up (switch on)", () => {
   it("creates the account and shows 'Check your inbox' with the typed address", async () => {
     on(<SignUpComponent />);
-    expect(clerk.calls).toEqual([]);
     await fill("Name", "Synthetic Person");
     await fill("Email address", "c@synthetic.invalid");
     await fill("Password", "synthetic-Password-123");
@@ -255,7 +244,6 @@ describe("sign-in button", () => {
     on(<SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />);
     await userEvent.click(screen.getByRole("button", { name: "Sign In" }));
     expect(nav.push).toHaveBeenCalledWith("/sign-in?redirect_url=%2Fprojects%2Fx");
-    expect(clerk.calls).toEqual([]);
   });
 });
 

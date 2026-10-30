@@ -1,6 +1,6 @@
 // D08b, D08g4a: the login switch. Better Auth by default in development with
 // local URLs. D08g4f2: otherwise "none" (no login; fail closed), always
-// outside development, and for CODEDETAILS_AUTH_BACKEND=clerk (Clerk is gone).
+// outside development, and for an old CODEDETAILS_AUTH_BACKEND=clerk (Clerk is gone).
 import { describe, expect, it } from "vitest";
 import { betterAuthEnabled, chooseAuthBackend } from "@/backend/auth";
 
@@ -24,7 +24,7 @@ describe("auth backend switch", () => {
   });
 
   it("CODEDETAILS_AUTH_BACKEND=clerk means no login now, with the reason", () => {
-    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toEqual({ backend: "none", reason: "CODEDETAILS_AUTH_BACKEND=clerk (Clerk was removed in D08g4f2)" });
+    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toEqual({ backend: "none", reason: 'unknown backend "clerk"' });
     expect(betterAuthEnabled({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toBe(false);
   });
 

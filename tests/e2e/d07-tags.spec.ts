@@ -10,7 +10,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, setRole, SYNTHET
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { b: B } = generateFixtures().personas;
 
@@ -34,7 +33,7 @@ async function newPage(browser: Browser): Promise<Page> {
 }
 
 test.describe.serial("D07 tag suggestions and moderation (Better Auth + Convex read)", () => {
-  test.skip(!(betterAuth && convexRead), "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk) and CODEDETAILS_E2E_READ_BACKEND=convex");
+  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

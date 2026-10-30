@@ -10,13 +10,10 @@ import { fileURLToPath } from "node:url";
 import { SYNTHETIC, isolatedEnv } from "../support/isolation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
-const clerkHost = Buffer.from("clerk.codedetails.invalid$").toString("base64");
 
 const env = isolatedEnv(
   {
     CODEDETAILS_TEST_DIST_DIR: ".next-test",
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${clerkHost}`,
-    CLERK_SECRET_KEY: `sk_test_${SYNTHETIC}_clerk`,
   },
   `${SYNTHETIC}-no-such-database`,
   { devServer: true },

@@ -21,46 +21,12 @@
 
 ## 📦 1. Authentication & Authorization Tests
 
-### 1.1 Clerk Integration
-- [ ] **Unit: Token Generation**
-  - `useClerkSupabaseClient` returns valid client with session
-  - `useClerkSupabaseClient` returns null without session
-  - Token refresh handling
-  - Error handling when `getToken()` fails
-  - JWT template "supabase" configuration
-
-- [ ] **Integration: Server-side Auth**
-  - `createServerSupabaseClient` correctly fetches token
-  - Authorization header injection works
-  - Service role bypasses RLS for webhooks
-
-- [ ] **E2E: Sign In/Out Flow**
-  - User can sign in with email/password
-  - User can sign in with OAuth (Google, GitHub)
-  - User redirected to dashboard after sign in
-  - User can sign out
-  - Session persists across page refreshes
-  - Protected routes redirect to sign-in
-
-### 1.2 User Profile Sync
-- [ ] **Unit: User Sync Utils**
-  - `extractClerkUserData` handles all field variations
-  - `createOrUpdateUserProfile` creates new users
-  - `createOrUpdateUserProfile` updates existing users
-  - Tier defaults to 'free' for new users
-  - Existing tier preserved on update
-
-- [ ] **Integration: Webhook Handlers**
-  - `user.created` webhook creates profile
-  - `user.updated` webhook updates profile
-  - `user.deleted` webhook soft-deletes profile
-  - `session.created` syncs user on first login
-  - Duplicate sync prevention (cache)
-
-- [ ] **E2E: User Registration**
-  - New user signs up → profile created in DB
-  - User updates Clerk profile → Supabase profile syncs
-  - User profile displays correct tier badge
+### 1.1 Login (Better Auth)
+Clerk was removed in D08g4f2/g4g, and with it the Clerk token hook, the
+sync-user route and the Clerk webhook. Better Auth on the local Convex backend
+is the login; its unit, integration and browser tests live under `tests/`
+(`auth-backend-switch`, `better-auth-route`, `d08f3b-auth-screens`, and the
+D08g4 specs).
 
 ### 1.3 Authorization & Tiers
 - [ ] **Unit: ProtectedPage Component**
@@ -242,7 +208,6 @@
   - Middleware redirects unauthenticated to /sign-in
   - Middleware redirects non-admin to /dashboard
   - Middleware uses ADMIN_DASHBOARD_MODERATOR env variable
-  - Server-side email verification via Clerk
   - Test pages protected: /api/toasttest, /api/darkmodetest, /api/projects/test
 
 - [ ] **E2E: Admin Dashboard Access**

@@ -8,7 +8,6 @@ import { accountRows, authState, freshClientIp, SYNTHETIC_PASSWORD, syntheticEma
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A, b: B } = generateFixtures().personas;
 
@@ -25,7 +24,6 @@ const put = (page: Page, name: string, data: unknown) =>
   page.request.put(`/api/profiles/${encodeURIComponent(name)}`, { headers: { origin: BASE_URL }, data });
 
 test.describe(`D04b profile edit (${convexRead ? "Convex" : "Supabase"} read)`, () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("a new account renames its handle; the old one redirects; bad and taken names change nothing", async ({ page }) => {
     test.skip(!convexRead, "the Convex edit runs only with both switches");

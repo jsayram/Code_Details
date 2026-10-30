@@ -109,11 +109,11 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator /> */}
             {/* TODO: Implement user management pages
-                - /user/account: Profile settings, email/password management (integrate with Clerk)
+                - /user/account: Profile settings, email/password management (Better Auth)
                 - /user/billing: Subscription management, payment methods, invoices (integrate with Stripe)
                 - /user/notifications: Notification preferences, email settings, push notifications
                 Priority: MEDIUM - Important for user experience
-                Dependencies: Clerk user management, Stripe customer portal, notification system
+                Dependencies: Better Auth account management, Stripe customer portal, notification system
             */}
             {/* <DropdownMenuGroup>
               <DropdownMenuItem asChild>

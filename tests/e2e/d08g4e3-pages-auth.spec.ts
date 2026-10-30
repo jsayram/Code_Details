@@ -12,7 +12,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const { b: B } = generateFixtures().personas;
 const headers = { origin: BASE_URL };
 
@@ -25,7 +24,6 @@ async function signIn(page: Page, label: string): Promise<string> {
 }
 
 test.describe.serial("D08g4e3 pages (Better Auth)", () => {
-  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

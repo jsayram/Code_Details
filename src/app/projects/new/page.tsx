@@ -7,41 +7,22 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectCreateComponent } from "@/components/Projects/ProjectComponents/ProjectCreateComponent";
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
-import { redirect } from "next/navigation";
+import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
-import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
 import { SelectUserWithProject } from "@/db/schema/projects";
-import { useAuthBackend } from "@/backend/auth/context";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 
 export default function CreateProjectPage() {
-  // D08g4e3: the signed-in user's display fields from the app's login
-  // (exactly Clerk's useUser values with Clerk).
-  const { user, isLoaded: userLoaded } = useDisplayUser();
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  // D03: under the development Better Auth switch the page follows that
-  // session; ProtectedPage below sends a signed-out visitor to sign in, and
-  // the save goes to Convex, which takes the creator from the session.
-  const clerkMode = useAuthBackend() === "clerk";
+  // D08g4e3: the signed-in user's display fields from the app's login.
+  const { user } = useDisplayUser();
+  const { token } = useSupabaseToken();
+  // D03: the page follows the Better Auth session; ProtectedPage below sends
+  // a signed-out visitor to sign in, and the save goes to Convex, which takes
+  // the creator from the session.
   const viewerId = useViewerId();
   const ownerId = viewerId ?? "";
-
-  // If user is not logged in, redirect to sign in
-  if (clerkMode && userLoaded && !user) {
-    redirect("/sign-in");
-  }
-
-  // If still loading, show loading state
-  if (clerkMode && (!userLoaded || tokenLoading)) {
-    return (
-      <div className="container mx-auto px-4 py-8">
-        <ProjectListLoadingState />
-      </div>
-    );
-  }
 
   // Create current date to use for timestamps
   const currentDate = new Date();
