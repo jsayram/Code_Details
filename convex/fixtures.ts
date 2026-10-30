@@ -623,3 +623,14 @@ export const accountResidue = internalQuery({
     };
   },
 });
+
+// D04f: give a synthetic Better Auth account a paid tier, for the tier display test.
+export const setTier = internalMutation({
+  args: { authUserId: v.string(), tier: v.union(v.literal("free"), v.literal("pro"), v.literal("diamond")) },
+  handler: async (ctx, { authUserId, tier }) => {
+    assertFixturesAllowed();
+    const user = await ctx.db.query("users").withIndex("by_authUserId", (q) => q.eq("authUserId", authUserId)).unique();
+    if (!user) throw new Error("no account for that auth user");
+    await ctx.db.patch(user._id, { tier });
+  },
+});

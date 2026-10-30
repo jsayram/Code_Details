@@ -5,9 +5,11 @@ import { ValidTier, isValidTier } from "@/services/tierServiceServer";
 import { SWR_KEYS } from "@/lib/swr-fetchers";
 
 /**
- * Fetcher for user tier API
+ * Fetcher for user tier API. D04f: the route answers
+ * `{ success: true, data: { tier } }`; this used to read `result.tier`, so
+ * every account showed as "free".
  */
-async function fetchUserTier(url: string): Promise<ValidTier> {
+export async function fetchUserTier(url: string): Promise<ValidTier> {
   const response = await fetch(url);
 
   if (!response.ok) {
@@ -16,9 +18,10 @@ async function fetchUserTier(url: string): Promise<ValidTier> {
   }
 
   const result = await response.json();
+  const tier = result?.data?.tier;
 
-  if (result.success && isValidTier(result.tier)) {
-    return result.tier;
+  if (result.success && typeof tier === "string" && isValidTier(tier)) {
+    return tier as ValidTier;
   }
 
   return "free";

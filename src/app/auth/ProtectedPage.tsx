@@ -55,8 +55,8 @@ export default function ProtectedPage({
   const clerk = useUser();
   const { user } = clerk;
   // D02r-c: under the development Better Auth switch, "signed in" follows the
-  // Better Auth session. The tier lookup is still keyed on Clerk's ID (D04e),
-  // so it falls back to "free" there, which every current page allows.
+  // Better Auth session. D04f: the tier lookup is keyed on that session too
+  // (the route reads the tier from the session, D04e).
   const backend = useAuthBackend();
   const viewerId = useViewerId();
   const isLoaded = backend === "clerk" ? clerk.isLoaded : viewerId !== undefined;
@@ -67,7 +67,7 @@ export default function ProtectedPage({
 
   // Use the tierService hook directly
   const { userTier, loading: loadingTier } = useUserTier(
-    user?.id || null
+    (backend === "clerk" ? user?.id : viewerId) || null
   );
 
   // Calculate the lowest required tier once when allowedTiers changes

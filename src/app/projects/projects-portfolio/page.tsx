@@ -22,11 +22,13 @@ import { GemIcon } from "lucide-react";
 export default function MyProjectsShowcase() {
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
-  const { userTier } = useUserTier(user?.id ?? null);
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
   // D02r-c: Clerk's values by default; the Better Auth session under the switch.
   const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  // D04f: keyed on the session's viewer (Clerk's ID, or the Better Auth
+  // session's under the switch); the route reads the tier from the session.
+  const { userTier } = useUserTier(viewer.userId);
   const { user: displayUser } = useDisplayUser();
 
   // Determine overall loading state
