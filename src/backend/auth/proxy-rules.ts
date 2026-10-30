@@ -1,6 +1,7 @@
-// What src/proxy.ts does with a request while the development Better Auth
-// switch is on (D08g1, g1). Pure, so the whole table is unit-tested; the
-// proxy only supplies the route classes and the viewer.
+// What src/proxy.ts does with a request (D08g1). Pure, so the whole table is
+// unit-tested; the proxy only supplies the path and the viewer. D08g4f2: this
+// is the only proxy path. With Better Auth off there is no login, so the
+// viewer is always null and every protected route is refused.
 
 export type ProxyViewer = { role: "user" | "admin" } | null;
 
@@ -8,6 +9,35 @@ export type ProxyDecision =
   | { kind: "next" }
   | { kind: "redirect"; location: string }
   | { kind: "unauthorized" };
+
+/**
+ * D08g4f2: the route classes, as Clerk's createRouteMatcher matched them
+ * (whole path, case-insensitive, an optional trailing slash). The Clerk
+ * webhook and sync-user entries are gone with those routes.
+ */
+const route = (pattern: string) => new RegExp(`^${pattern}/?$`, "i");
+const PUBLIC_ROUTES = [
+  route("/"),
+  route("/sign-in.*"),
+  route("/sign-up.*"),
+  route("/shared-projects/.*"),
+  route("/projects/[^/]+"),
+  route("/projects/users/[^/]+.*"),
+  route("/api/shared-projects/.*"),
+];
+// Better Auth's own endpoints and the dev viewer check: public only while Better Auth is on.
+const BETTER_AUTH_ROUTES = [route("/api/auth/.*"), route("/api/dev/viewer")];
+const ADMIN_ROUTES = [
+  route("/dashboard/admin.*"),
+  route("/dashboard/tag-submissions.*"), // D07 (P08 R04): its read was admin-checked; now the route is too
+  route("/api/projects/test.*"),
+  route("/api/darkmodetest.*"),
+  route("/api/toasttest.*"),
+];
+const matches = (routes: RegExp[], pathname: string) => routes.some((r) => r.test(pathname));
+export const isPublicPath = (pathname: string) => matches(PUBLIC_ROUTES, pathname);
+export const isBetterAuthPath = (pathname: string) => matches(BETTER_AUTH_ROUTES, pathname);
+export const isAdminPath = (pathname: string) => matches(ADMIN_ROUTES, pathname);
 
 export const isApiPath = (pathname: string) => /^\/(api|trpc)(\/|$)/.test(pathname);
 

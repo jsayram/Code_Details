@@ -1,11 +1,9 @@
-import { ClerkProvider } from "@clerk/nextjs";
 import "@/styles/globals.css";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ToasterProvider } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SWRProvider } from "@/providers/swr-provider";
 import { DocChaptersProvider } from "@/providers/doc-chapters-provider";
-import { chooseAuthBackend } from "@/backend/auth";
 import { AuthBackendProvider } from "@/backend/auth/context";
 
 export const metadata = {
@@ -27,8 +25,10 @@ export default function RootLayout({
         />
       </head>
       <body className="overflow-x-hidden">
-        <ClerkProvider>
-          <AuthBackendProvider backend={chooseAuthBackend().backend}>
+        {/* D08g4f2: no ClerkProvider (it went keyless and contacted Clerk
+            without keys). Better Auth is the only login; with it off (backend
+            "none"), its /api/auth answers 404, so the client sees nobody. */}
+        <AuthBackendProvider backend="better-auth">
           <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
             <SWRProvider>
               <DocChaptersProvider>
@@ -40,8 +40,7 @@ export default function RootLayout({
               </DocChaptersProvider>
             </SWRProvider>
           </ThemeProvider>
-          </AuthBackendProvider>
-        </ClerkProvider>
+        </AuthBackendProvider>
       </body>
     </html>
   );

@@ -1,6 +1,6 @@
 // D08b, D08g4a: the login switch. Better Auth by default in development with
-// local URLs; Clerk otherwise, always outside development, and when
-// CODEDETAILS_AUTH_BACKEND=clerk asks for it (until D08g4f/g).
+// local URLs. D08g4f2: otherwise "none" (no login; fail closed), always
+// outside development, and for CODEDETAILS_AUTH_BACKEND=clerk (Clerk is gone).
 import { describe, expect, it } from "vitest";
 import { betterAuthEnabled, chooseAuthBackend } from "@/backend/auth";
 
@@ -12,8 +12,8 @@ const dev = {
 };
 
 describe("auth backend switch", () => {
-  it("is Clerk with nothing set (no local Convex URLs, not development)", () => {
-    expect(chooseAuthBackend({})).toMatchObject({ backend: "clerk" });
+  it("is no login with nothing set (no local Convex URLs, not development)", () => {
+    expect(chooseAuthBackend({})).toMatchObject({ backend: "none" });
     expect(betterAuthEnabled({})).toBe(false);
   });
 
@@ -23,13 +23,14 @@ describe("auth backend switch", () => {
     expect(chooseAuthBackend({ ...unnamed, CODEDETAILS_AUTH_BACKEND: "" })).toMatchObject({ backend: "better-auth" });
   });
 
-  it("CODEDETAILS_AUTH_BACKEND=clerk still forces Clerk, with the reason", () => {
-    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toEqual({ backend: "clerk", reason: "CODEDETAILS_AUTH_BACKEND=clerk" });
+  it("CODEDETAILS_AUTH_BACKEND=clerk means no login now, with the reason", () => {
+    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toEqual({ backend: "none", reason: "CODEDETAILS_AUTH_BACKEND=clerk (Clerk was removed in D08g4f2)" });
+    expect(betterAuthEnabled({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toBe(false);
   });
 
-  it("falls back to Clerk in development without the local URLs", () => {
-    expect(chooseAuthBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "clerk" });
-    expect(chooseAuthBackend({ NODE_ENV: "development", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3210" })).toMatchObject({ backend: "clerk" });
+  it("is no login in development without the local URLs", () => {
+    expect(chooseAuthBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "none" });
+    expect(chooseAuthBackend({ NODE_ENV: "development", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3210" })).toMatchObject({ backend: "none" });
   });
 
   it("uses Better Auth only in development with local URLs", () => {
@@ -39,7 +40,7 @@ describe("auth backend switch", () => {
   });
 
   it.each(["production", "test", undefined, "Development", "dev"])("can't be enabled with NODE_ENV=%s", (nodeEnv) => {
-    expect(chooseAuthBackend({ ...dev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "clerk" });
+    expect(chooseAuthBackend({ ...dev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "none" });
   });
 
   it.each([
@@ -51,10 +52,10 @@ describe("auth backend switch", () => {
     ["no site URL", "CODEDETAILS_CONVEX_SITE_URL", ""],
     ["garbage", "CODEDETAILS_CONVEX_URL", "not a url"],
   ])("refuses %s", (_name, key, value) => {
-    expect(chooseAuthBackend({ ...dev, [key]: value })).toMatchObject({ backend: "clerk" });
+    expect(chooseAuthBackend({ ...dev, [key]: value })).toMatchObject({ backend: "none" });
   });
 
   it.each(["BETTER-AUTH", "better-auth ", "betterauth", "true", "1"])("ignores the near-miss value %j", (value) => {
-    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: value })).toMatchObject({ backend: "clerk" });
+    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: value })).toMatchObject({ backend: "none" });
   });
 });

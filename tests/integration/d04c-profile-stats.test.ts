@@ -4,13 +4,13 @@
 import { NextRequest } from "next/server";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { generateFixtures, type PersonaKey } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 import { expectedProfileStats } from "../support/profile-stats-spec";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();

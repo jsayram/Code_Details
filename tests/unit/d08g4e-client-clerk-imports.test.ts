@@ -1,7 +1,8 @@
 // D08g4e: client code reaches the login through the app's adapters in
-// src/components/auth, not through @clerk/* directly. A ratchet: the files that
-// still import Clerk are listed here and the list only shrinks (g4e2, g4e3,
-// g4f). g4g removes the adapters' own Clerk branches and the package.
+// src/components/auth, not through @clerk/* directly. A ratchet that shrank
+// through g4e2, g4e3 and g4f; D08g4f2 took out the root layout's ClerkProvider
+// and the adapters' Clerk branches, so nothing in src imports Clerk. g4g
+// removes the package.
 import fs from "node:fs";
 import path from "node:path";
 import { execSync } from "node:child_process";
@@ -15,18 +16,8 @@ const files = execSync("git ls-files --cached --others --exclude-standard -- src
 const withoutComments = (text: string) => text.replace(/^\s*\/\*[\s\S]*?\*\//gm, "").replace(/^\s*\/\/.*$/gm, "");
 const importsClerk = (f: string) => /from\s*["']@clerk\//.test(withoutComments(fs.readFileSync(path.join(root, f), "utf8")));
 
-// Still on Clerk outside the adapters: the root layout's ClerkProvider (g4g)
-// and server code (g4f).
-const REMAINING = [
-  "src/app/actions/projects.ts",
-  "src/app/api/auth/sync-user/route.ts",
-  "src/app/api/webhook/clerk/route.ts",
-  "src/app/layout.tsx",
-  "src/lib/admin-action.ts",
-  "src/lib/auth-server.ts",
-  "src/lib/user-sync-utils.ts",
-  "src/proxy.ts",
-];
+// Nothing is left (D08g4f2).
+const REMAINING: string[] = [];
 
 const MOVED_IN_G4E1 = [
   "src/components/sidebar/app-sidebar.tsx",
@@ -85,6 +76,22 @@ describe("Clerk imports outside the auth adapters", () => {
     expect(files).not.toContain("src/services/supabase-server.ts");
     const supabase = fs.readFileSync(path.join(root, "src/services/supabase.ts"), "utf8");
     expect(supabase).not.toMatch(/export function (createClerkSupabaseClient|getAuthenticatedClient)\b/);
+  });
+
+  it("the server is off Clerk (g4f2): nothing imports @clerk/nextjs/server, and its routes are gone", () => {
+    const server = files.filter((f) => /from\s*["']@clerk\/nextjs\/server["']/.test(withoutComments(fs.readFileSync(path.join(root, f), "utf8"))));
+    expect(server).toEqual([]);
+    for (const gone of [
+      "src/app/api/auth/sync-user/route.ts",
+      "src/app/api/webhook/clerk/route.ts",
+      "src/lib/user-sync-utils.ts",
+      "src/services/clerkServerFetchUserService.ts",
+      "src/types/models/clerkUserData.tsx",
+    ]) expect(files).not.toContain(gone);
+  });
+
+  it("nothing in src imports Clerk, the auth adapters included (g4f2)", () => {
+    expect(files.filter(importsClerk)).toEqual([]);
   });
 
   const outside = files.filter((f) => !f.startsWith("src/components/auth/") && importsClerk(f));

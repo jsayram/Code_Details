@@ -33,31 +33,6 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-describe("useDisplayUser with Clerk (default)", () => {
-  it("passes Clerk's fields through unchanged and asks nothing of Better Auth", () => {
-    clerk.user = {
-      fullName: "Clerk Fixture",
-      firstName: "Clerk",
-      lastName: "Fixture",
-      primaryEmailAddress: { emailAddress: "clerk.fixture@synthetic.invalid" },
-      imageUrl: "https://img.clerk.invalid/a.png",
-      username: "clerk-fixture",
-    };
-    on("clerk");
-    expect(read()).toEqual({
-      isLoaded: true,
-      user: { fullName: "Clerk Fixture", firstName: "Clerk", lastName: "Fixture", email: "clerk.fixture@synthetic.invalid", imageUrl: "https://img.clerk.invalid/a.png", username: "clerk-fixture" },
-    });
-    expect(fetch).not.toHaveBeenCalled();
-  });
-
-  it("follows Clerk's loading and signed-out states", () => {
-    clerk.isLoaded = false;
-    on("clerk");
-    expect(read()).toEqual({ isLoaded: false, user: null });
-  });
-});
-
 describe("useDisplayUser with the switch on", () => {
   it("is loading first, then the Better Auth user with the name split", async () => {
     sessionUser = { id: "ba_1", name: "Synthetic  Person Jones", email: "s@synthetic.invalid", image: null };

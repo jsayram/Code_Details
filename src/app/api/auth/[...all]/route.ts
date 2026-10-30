@@ -1,8 +1,7 @@
 // Better Auth's endpoints (D08b), forwarded to the local Convex backend's site
 // port. Development-only: while the switch in src/backend/auth is off (always,
-// outside development) every path here is a plain 404 and Clerk is the only
-// login. The static /api/auth/sync-user route (Clerk) takes precedence over
-// this catch-all, so it is unaffected either way.
+// outside development) every path here is a plain 404 and there is no login
+// (D08g4f2: the Clerk sync-user route is gone too).
 //
 // SEC-D08-RL: the server's internal secret header is only ever set by this
 // server (src/lib/auth-server.ts); a browser request that carries one has it

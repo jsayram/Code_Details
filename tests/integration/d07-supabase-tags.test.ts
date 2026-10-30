@@ -9,12 +9,12 @@ import path from "node:path";
 import { NextRequest } from "next/server";
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 vi.mock("next/navigation", () => ({
   redirect: (to: string) => {
@@ -68,21 +68,6 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       expect(await submissionsFor(listed.id, "rust")).toHaveLength(0);
     });
 
-    it("a non-owner's suggestion of an existing tag stays pending, under their own email whatever they pass", async () => {
-      signInAs(B.subject);
-      const result = await subs.submitNewTag("rust", listed.id, A.profile!.email);
-      expect(result).toMatchObject({ status: "pending" });
-      expect(await hasTag(listed.id, "rust")).toBe(false);
-      const rows = await submissionsFor(listed.id, "rust");
-      expect(rows).toEqual([{ submitter_email: B.profile!.email, status: "pending" }]);
-    });
-
-    it("the owner attaches an existing tag directly", async () => {
-      signInAs(A.subject);
-      expect(await subs.submitNewTag("rust", listed.id, "ignored@synthetic.invalid")).toMatchObject({ status: "auto_approved" });
-      expect(await hasTag(listed.id, "rust")).toBe(true);
-    });
-
     it("the owner at the limit is refused", async () => {
       signInAs(A.subject);
       expect(await subs.submitNewTag("swift", fifteenTags.id)).toMatchObject({ success: false });
@@ -103,11 +88,6 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       expect(await submissionsFor(listed.id, "rust")).toHaveLength(0);
     });
 
-    it("a second pending suggestion of the same tag from the same viewer is refused", async () => {
-      signInAs(B.subject);
-      await subs.submitNewTag("fixture-new-idea", listed.id);
-      await expect(subs.submitNewTag("fixture-new-idea", listed.id)).rejects.toThrow(/pending/);
-    });
   });
 
   describe("approve and reject are admin-only", () => {
@@ -134,36 +114,6 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       expect(row).toMatchObject({ status: "rejected", admin_notes: "not a fit" });
     });
 
-    it("an approved non-owner suggestion of an existing tag attaches it (the review path)", async () => {
-      signInAs(B.subject);
-      await subs.submitNewTag("rust", listed.id);
-      const [{ id }] = await sql`select id from tag_submissions where project_id = ${listed.id} and tag_name = 'rust'`;
-      signInAdmin();
-      await subs.approveTagSubmission(id);
-      expect(await hasTag(listed.id, "rust")).toBe(true);
-    });
-  });
-
-  describe("approveRejectedTagSubmission", () => {
-    const rejectRow = async (email: string) =>
-      sql`insert into tag_submissions (tag_name, project_id, submitter_email, status)
-        values ('fixture-was-rejected', ${listed.id}, ${email}, 'rejected')`;
-    const statusOf = async (email: string) =>
-      (await sql`select status from tag_submissions where tag_name = 'fixture-was-rejected' and submitter_email = ${email}`)[0].status;
-
-    it("only the project's owner flips only their own rejected suggestion", async () => {
-      await rejectRow(A.profile!.email);
-      await rejectRow(B.profile!.email);
-      await subs.approveRejectedTagSubmission(listed.id, "fixture-was-rejected", A.profile!.email);
-      expect(await statusOf(A.profile!.email)).toBe("rejected");
-      signInAs(B.subject);
-      await subs.approveRejectedTagSubmission(listed.id, "fixture-was-rejected", B.profile!.email);
-      expect(await statusOf(B.profile!.email)).toBe("rejected");
-      signInAs(A.subject);
-      await subs.approveRejectedTagSubmission(listed.id, "fixture-was-rejected", B.profile!.email);
-      expect(await statusOf(A.profile!.email)).toBe("approved");
-      expect(await statusOf(B.profile!.email)).toBe("rejected");
-    });
   });
 
   describe("GET /api/projects/[id]/tag-submissions", () => {

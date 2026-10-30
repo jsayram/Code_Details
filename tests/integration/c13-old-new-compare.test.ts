@@ -9,13 +9,13 @@ import type postgres from "postgres";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import type { PublicProject } from "@/backend/projects/public-project";
-import { clerkServerDouble, nextCacheDouble } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { convexImportUsername, generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 import { anonymousClient, clearConvexFixtures, convexAvailable, getPublicBySlug, loadConvexFixtures } from "../fixtures/convex";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();

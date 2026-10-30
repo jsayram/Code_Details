@@ -16,12 +16,12 @@
 import { NextRequest } from "next/server";
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkGetUser, clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();
@@ -47,7 +47,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   let countsRoute: typeof import("../../src/app/api/categories/counts/route.js");
   let profilesRoute: typeof import("../../src/app/api/profiles/route.js");
   let byIdRoute: typeof import("../../src/app/api/profiles/by-id/[userId]/route.js");
-  let syncUserRoute: typeof import("../../src/app/api/auth/sync-user/route.js");
   let schemas: typeof import("../../src/types/schemas/project.js");
 
   beforeAll(async () => {
@@ -60,7 +59,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     countsRoute = await import("../../src/app/api/categories/counts/route.js");
     profilesRoute = await import("../../src/app/api/profiles/route.js");
     byIdRoute = await import("../../src/app/api/profiles/by-id/[userId]/route.js");
-    syncUserRoute = await import("../../src/app/api/auth/sync-user/route.js");
     schemas = await import("../../src/types/schemas/project.js");
   });
 
@@ -88,13 +86,15 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     it("[action] (fixed, D03) B, signed in, passing A's subject can't restore A's deleted project", async () => {
       signInAs(B.subject);
       const result = await actions.restoreProject(deletedRecent.id, A.subject!);
-      expect(result).toMatchObject({ success: false, code: "NOT_OWNER" });
+      // D08g4f2: the Supabase restore is gone, so it refuses everyone.
+      expect(result).toMatchObject({ success: false });
       expect(await deletedAt(deletedRecent.id)).not.toBeNull();
     });
 
     it("[action] (fixed, D05) B, signed in, can't add a favorite in A's name", async () => {
       signInAs(B.subject);
-      expect((await actions.addProjectFavorite(project("oneTag").id, A.subject!)).success).toBe(true);
+      // D08g4f2: the Supabase favorite is gone, so it refuses everyone.
+      expect((await actions.addProjectFavorite(project("oneTag").id, A.subject!)).success).toBe(false);
       const rows = await sql`select 1 from favorites f join profiles p on p.id = f.profile_id
         where p.user_id = ${A.subject} and f.project_id = ${project("oneTag").id}`;
       expect(rows).toHaveLength(0);
@@ -149,41 +149,7 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  // Was the B13 reproduction (a signed-out body.userId made the server look up
-  // and sync any subject). Fixed in D01: identity comes only from the session.
-  describe("R06 (fixed, D01) /api/auth/sync-user takes identity only from the session", () => {
-    // Next still hands the handler the request; the handler no longer reads it.
-    const post = (payload: unknown) =>
-      (syncUserRoute.POST as (req: Request) => Promise<Response>)(new Request("http://localhost:3100/api/auth/sync-user", { method: "POST", body: JSON.stringify(payload) }));
-
-    it("[handler] a signed-out caller naming another subject is rejected before any Clerk lookup", async () => {
-      signInAs(null);
-      clerkGetUser.mockClear();
-      const res = await post({ userId: B.subject });
-      expect(res.status).toBe(401);
-      expect(clerkGetUser).not.toHaveBeenCalled();
-    });
-
-    it("[handler] a signed-in caller naming someone else still syncs only themself", async () => {
-      signInAs(A.subject);
-      clerkGetUser.mockClear();
-      const { currentUser } = await import("@clerk/nextjs/server");
-      const res = await post({ userId: B.subject });
-      expect(currentUser).toHaveBeenCalled();
-      expect(clerkGetUser).not.toHaveBeenCalled();
-      // The isolated stack runs no PostgREST, so the profile write fails; the
-      // handler now says so (500) instead of answering 200 with an inner error.
-      expect(res.status).toBe(500);
-      expect(await res.text()).not.toContain(B.subject!);
-    });
-
-    it("[handler] without a session or a body it rejects (control)", async () => {
-      signInAs(null);
-      const res = await syncUserRoute.POST();
-      expect(res.status).toBe(401);
-    });
-  });
-
+  // R06 (sync-user) moved out: D08g4f2 deleted the route; tests/e2e/b13-http.spec.ts checks it answers 404.
   describe("R07 email exposure", () => {
     // Was "GET /api/profiles returns every email with a public cache header";
     // fixed in D04a. The header stays: nothing private is left to cache.

@@ -126,40 +126,6 @@ describe("gates with the switch on", () => {
   });
 });
 
-describe("with Clerk (the default)", () => {
-  it("never asks for a Better Auth session", async () => {
-    clerk.userId = "user_clerk_fixture";
-    render(<Gates />);
-    render(withBackend("clerk", <Gates />));
-    expect(screen.getAllByText("menu")).toHaveLength(2);
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("AccountButton is Clerk's UserButton with the same props", () => {
-    const props = { afterSignOutUrl: "/", appearance: { elements: { userButtonAvatarBox: "w-10 h-10" } } };
-    render(withBackend("clerk", <AccountButton {...props} />));
-    expect(screen.getByTestId("clerk-user-button")).toBeTruthy();
-    expect(clerk.userButtonProps.at(-1)).toEqual(props);
-  });
-
-  it("AccountSignOutButton is Clerk's SignOutButton around the same child", () => {
-    render(withBackend("clerk", <AccountSignOutButton><button>Sign Out</button></AccountSignOutButton>));
-    expect(screen.getByTestId("clerk-sign-out").textContent).toBe("Sign Out");
-  });
-
-  it("useAccountSummary reads Clerk's user as the header did", () => {
-    clerk.userId = "user_clerk_fixture";
-    clerk.user = { fullName: null, username: "fixture-handle", primaryEmailAddress: { emailAddress: "clerk.fixture@synthetic.invalid" } };
-    render(withBackend("clerk", <Summary />));
-    expect(JSON.parse(screen.getByRole("status").textContent!)).toEqual({
-      isLoaded: true,
-      hasUser: true,
-      name: "fixture-handle",
-      email: "clerk.fixture@synthetic.invalid",
-    });
-  });
-});
-
 describe("account controls with the switch on", () => {
   it("the menu shows the account and signs out through /api/auth/sign-out", async () => {
     sessionUser = SYNTHETIC_USER;
@@ -215,11 +181,4 @@ describe("useAccountSignOut", () => {
     expect(router.push).toHaveBeenCalledWith("/bye");
   });
 
-  it("with Clerk, calls Clerk's signOut and goes home, as nav-user did", async () => {
-    render(withBackend("clerk", <SignOutWith />));
-    await userEvent.click(screen.getByRole("button", { name: "out" }));
-    expect(clerk.signOut).toHaveBeenCalledTimes(1);
-    expect(fetchMock).not.toHaveBeenCalledWith("/api/auth/sign-out", expect.anything());
-    expect(router.push).toHaveBeenCalledWith("/");
-  });
 });

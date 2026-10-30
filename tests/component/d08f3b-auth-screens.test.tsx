@@ -259,23 +259,3 @@ describe("sign-in button", () => {
   });
 });
 
-describe("with Clerk (the default) nothing changes", () => {
-  it("SignInComponent and SignUpComponent render Clerk's components with the same props", () => {
-    on(<SignInComponent />, "clerk");
-    on(<SignUpComponent />, "clerk");
-    expect(screen.getByTestId("clerk-sign-in")).toBeTruthy();
-    expect(screen.getByTestId("clerk-sign-up")).toBeTruthy();
-    const [signIn, signUp] = clerk.calls;
-    expect(signIn[0]).toBe("SignIn");
-    expect(signIn[1]).toMatchObject({ path: "/sign-in", routing: "path", signUpUrl: "/sign-up" });
-    expect(signUp[0]).toBe("SignUp");
-    expect(signUp[1]).toMatchObject({ path: "/sign-up", routing: "path", signInUrl: "/sign-in" });
-    expect(fetchMock).not.toHaveBeenCalled();
-  });
-
-  it("SignInButtonComponent is Clerk's modal SignInButton", () => {
-    on(<SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />, "clerk");
-    expect(screen.getByTestId("clerk-sign-in-button").textContent).toBe("Sign In");
-    expect(clerk.calls[0][1]).toMatchObject({ mode: "modal" });
-  });
-});

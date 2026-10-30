@@ -1,21 +1,14 @@
 // Server-component SignedIn/SignedOut (D08f2), for pages rendered on the
-// server. They do exactly what Clerk's server versions did (read the
-// request's session with auth() and render or not), so the server HTML is
-// unchanged; there is no hydration step for them to race. Client components
+// server, so there is no hydration step for them to race. Client components
 // use ./AuthGate instead.
 //
-// D08f3a: with the development Better Auth switch on, "signed in" means the
-// request's cookies get a Convex token, which checks the Better Auth session.
-import { auth } from "@clerk/nextjs/server";
+// D08f3a: "signed in" means the request's cookies get a Convex token, which
+// checks the Better Auth session. D08g4f2: Clerk's auth() is gone; with
+// Better Auth off nobody is signed in.
 import type { ReactNode } from "react";
 import { betterAuthSignedIn } from "@/lib/auth-server";
 
-async function signedIn(): Promise<boolean> {
-  const betterAuth = await betterAuthSignedIn();
-  if (betterAuth !== null) return betterAuth;
-  const { userId } = await auth();
-  return !!userId;
-}
+const signedIn = async () => (await betterAuthSignedIn()) === true;
 
 export async function SignedIn({ children }: { children: ReactNode }) {
   return (await signedIn()) ? <>{children}</> : null;

@@ -1,41 +1,22 @@
 "use server";
 
 import { eq, sql, inArray } from "drizzle-orm";
-import {
-  insertProjectRow,
-  isProjectOwner,
-  purgeProjectRow,
-  restoreProjectRow,
-  softDeleteProjectRow,
-  updateProjectRow,
-  type ProjectUpdate,
-} from "@/db/project-write";
-import { checkCategoryData } from "@/backend/projects/project-update-rules";
 import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
 import { changeLifecycleOnConvex, createProjectOnConvex } from "@/backend/projects/project-lifecycle";
 import { changeFavoriteOnConvex } from "@/backend/projects/favorites";
-import { chooseAuthBackend } from "@/backend/auth";
-import { auth } from "@clerk/nextjs/server";
 import { InsertProject } from "@/db/schema/projects";
 import { projects } from "@/db/schema/projects";
 import { project_tags } from "@/db/schema/project_tags";
 import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
 import { mapDrizzleProjectToProject } from "@/types/models/project";
 import { executeQuery } from "@/db/server";
-import { addFavoriteRow, removeFavoriteRow } from "@/db/favorite-write";
-import { getProfileByUserId } from "@/db/operations";
-import { createProjectSchema, updateProjectSchema } from "@/types/schemas";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { 
   unauthorizedError, 
-  notOwnerError, 
   notFoundError, 
-  zodValidationError, 
-  validationError,
   serverError,
   actionSuccess,
   type ActionResult,
-  type ActionError
 } from "@/lib/action-errors";
 import { ErrorCode } from "@/constants/error-codes";
 import { routeViewer } from "@/lib/auth-server";
@@ -95,16 +76,10 @@ export async function getProjectBySlugServer(slug: string) {
   }));
 }
 
-// D03 (P08 R02): the Supabase writes below (create, delete, restore, purge)
-// take the caller from the Clerk session. Under both development switches
-// they go to the Convex lifecycle mutations instead, which take the caller
-// from getViewer; under the Better Auth switch alone they write nothing:
-// there are no mixed-provider writes.
-async function clerkWriter(): Promise<string | null> {
-  if (chooseAuthBackend().backend !== "clerk") return null;
-  const { userId } = await auth();
-  return userId ?? null;
-}
+// D03 (P08 R02): the writes below (create, update, delete, restore, purge,
+// favorites) go to the Convex mutations, which take the caller from
+// getViewer. D08g4f2: the Clerk-keyed Supabase writes are gone, so anything
+// else (Better Auth alone, or no login) writes nothing.
 
 // Server action to create a new project.
 //
@@ -124,50 +99,7 @@ export async function createProject(
       if (result.success) revalidateAfterLifecycleChange();
       return result.success ? actionSuccess(result.data) : result;
     }
-    const userId = await clerkWriter();
-    if (!userId) {
-      return unauthorizedError("You must be signed in to create a project");
-    }
-
-    // Validate input with Zod schema
-    const validationResult = createProjectSchema.safeParse({
-      title: project.title,
-      slug: project.slug,
-      description: project.description,
-      category: project.category,
-      url_links: project.url_links,
-      tags: project.tags || [],
-      category_data: project.category_data,
-      field_order: project.field_order,
-    });
-
-    if (!validationResult.success) {
-      return zodValidationError(validationResult);
-    }
-
-    // Use validated and transformed data
-    const validatedData = validationResult.data;
-
-    // D02 (R29): url fields in the project details are http(s) only.
-    const detailIssues = checkCategoryData(validatedData.category, validatedData.category_data, validatedData.field_order, { strictKeys: false });
-    if (detailIssues.length) return validationError(detailIssues[0].message, detailIssues);
-
-    const newProject = await insertProjectRow(userId, {
-      title: validatedData.title,
-      slug: validatedData.slug,
-      description: validatedData.description,
-      category: validatedData.category,
-      url_links: validatedData.url_links,
-      tags: validatedData.tags,
-      category_data: validatedData.category_data ?? null,
-      field_order: validatedData.field_order ?? null,
-    });
-    // Revalidate the projects list page
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    return actionSuccess(mapDrizzleProjectToProject(newProject));
+    return unauthorizedError("You must be signed in to create a project");
   } catch (error) {
     console.error("Failed to create project:", error);
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
@@ -203,23 +135,7 @@ export async function removeProject(
       revalidateAfterLifecycleChange(result.slug);
       return actionSuccess(null);
     }
-    const userId = await clerkWriter();
-    if (!userId) {
-      return unauthorizedError("You must be signed in to delete a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    const deletedProject = await softDeleteProjectRow(id);
-    if (!deletedProject) {
-      return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
-    }
-    revalidateAfterLifecycleChange();
-    return actionSuccess(mapDrizzleProjectToProject(deletedProject));
+    return unauthorizedError("You must be signed in to delete a project");
   } catch (error) {
     console.error("Failed to remove project:", error);
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
@@ -256,71 +172,11 @@ export async function updateProject(
       if (result.success) return actionSuccess(result.data);
       return result;
     }
-    if (chooseAuthBackend().backend !== "clerk") {
-      return unauthorizedError("You must be signed in to update a project");
-    }
-    const { userId } = await auth();
-    if (!userId) {
-      return unauthorizedError("You must be signed in to update a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    // Validate input with Zod schema
-    const validationResult = updateProjectSchema.safeParse({
-      title: project.title,
-      slug: project.slug,
-      description: project.description,
-      category: project.category,
-      url_links: project.url_links,
-      tags: project.tags,
-      category_data: project.category_data,
-      field_order: project.field_order,
-    });
-
-    if (!validationResult.success) {
-      return zodValidationError(validationResult);
-    }
-
-    // Use validated and transformed data
-    const validatedData = validationResult.data;
-
-    // R29: url fields in the project details are http(s) only, checked against
-    // the category the project will be saved under. Unknown keys stay accepted
-    // here (see project-update-rules.ts).
-    if (validatedData.category_data || validatedData.field_order) {
-      const category = validatedData.category ?? (await getProjectCategory(id));
-      const issues = checkCategoryData(category, validatedData.category_data, validatedData.field_order, { strictKeys: false });
-      if (issues.length) return validationError(issues[0].message, issues);
-    }
-
-    // Only the whitelisted columns reach the row (updateProjectRow).
-    const update: ProjectUpdate = {};
-    if (validatedData.title !== undefined) update.title = validatedData.title;
-    if (validatedData.slug !== undefined) update.slug = validatedData.slug;
-    if (validatedData.description !== undefined) update.description = validatedData.description;
-    if (validatedData.category !== undefined) update.category = validatedData.category;
-    if (validatedData.url_links !== undefined) update.url_links = validatedData.url_links;
-    if (validatedData.tags !== undefined) update.tags = validatedData.tags;
-    if (validatedData.category_data !== undefined) update.category_data = validatedData.category_data ?? null;
-    if (validatedData.field_order !== undefined) update.field_order = validatedData.field_order ?? null;
-
-    const updatedProject = await updateProjectRow(id, update);
-    revalidateAfterUpdate(updatedProject.slug || validatedData.slug);
-    return actionSuccess(mapDrizzleProjectToProject(updatedProject));
+    return unauthorizedError("You must be signed in to update a project");
   } catch (error) {
     console.error("Failed to update project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
-}
-
-async function getProjectCategory(id: string): Promise<string> {
-  const [row] = await executeQuery((db) => db.select({ category: projects.category }).from(projects).where(eq(projects.id, id)));
-  return row?.category ?? "other";
 }
 
 function revalidateAfterUpdate(slug?: string | null, previousSlug?: string | null) {
@@ -379,23 +235,7 @@ export async function permanentlyDeleteProject(
       revalidateAfterLifecycleChange(result.slug);
       return actionSuccess(null);
     }
-    const userId = await clerkWriter();
-    if (!userId) {
-      return unauthorizedError("You must be signed in to delete a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    if (!(await purgeProjectRow(id))) {
-      return validationError("Project must be in the graveyard before permanent deletion");
-    }
-
-    revalidateAfterLifecycleChange();
-    return actionSuccess(null);
+    return unauthorizedError("You must be signed in to delete a project");
   } catch (error) {
     console.error("Failed to permanently delete project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
@@ -417,24 +257,7 @@ export async function restoreProject(
       revalidateAfterLifecycleChange(result.slug);
       return actionSuccess(null);
     }
-    const userId = await clerkWriter();
-    if (!userId) {
-      return unauthorizedError("You must be signed in to restore a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    const restoredProject = await restoreProjectRow(id);
-    if (!restoredProject) {
-      return validationError("Only a deleted project can be restored");
-    }
-
-    revalidateAfterLifecycleChange();
-    return actionSuccess(mapDrizzleProjectToProject(restoredProject));
+    return unauthorizedError("You must be signed in to restore a project");
   } catch (error) {
     console.error("Failed to restore project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
@@ -459,16 +282,7 @@ export async function addProjectFavorite(
       revalidateAfterFavorite();
       return actionSuccess(undefined);
     }
-    const profile = await favoritingProfile();
-    if (!profile.ok) return profile.error;
-    if (!UUID_RE.test(projectId)) return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
-
-    if ((await addFavoriteRow(profile.id, projectId)) === "missing") {
-      return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
-    }
-
-    revalidateAfterFavorite();
-    return actionSuccess(undefined);
+    return unauthorizedError("You must be signed in to favorite a project");
   } catch (error) {
     console.error("Failed to add favorite:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
@@ -487,25 +301,11 @@ export async function removeProjectFavorite(
       revalidateAfterFavorite();
       return actionSuccess(undefined);
     }
-    const profile = await favoritingProfile();
-    if (!profile.ok) return profile.error;
-    // Nothing to remove for an ID that can't exist; same answer as a repeat.
-    if (!UUID_RE.test(projectId)) return actionSuccess(undefined);
-
-    if (await removeFavoriteRow(profile.id, projectId)) revalidateAfterFavorite();
-    return actionSuccess(undefined);
+    return unauthorizedError("You must be signed in to favorite a project");
   } catch (error) {
     console.error("Failed to remove favorite:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
-}
-
-async function favoritingProfile(): Promise<{ ok: true; id: string } | { ok: false; error: ActionError }> {
-  const userId = await clerkWriter();
-  if (!userId) return { ok: false, error: unauthorizedError("You must be signed in to favorite a project") };
-  const profile = await getProfileByUserId(userId);
-  if (!profile) return { ok: false, error: notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND) };
-  return { ok: true, id: profile.id };
 }
 
 function revalidateAfterFavorite() {

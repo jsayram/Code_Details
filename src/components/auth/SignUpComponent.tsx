@@ -1,10 +1,7 @@
 "use client";
 
-import { SignUp } from "@clerk/nextjs";
-import { Card, CardContent } from "../ui/card";
 import { UserPlus } from "lucide-react";
 import { motion } from "framer-motion";
-import { useAuthBackend } from "@/backend/auth/context";
 import { BetterAuthSignUp } from "./better-auth/AuthScreens";
 
 interface SignUpComponentProps {
@@ -14,10 +11,9 @@ interface SignUpComponentProps {
   subTitleText?: string;
 }
 
-/** The bare form on /auth/sign-up: Clerk's default SignUp, or the app's screen. */
+/** The bare form on /auth/sign-up: the app's screen. */
 export function SignUpForm() {
-  const backend = useAuthBackend();
-  return backend === "better-auth" ? <BetterAuthSignUp /> : <SignUp />;
+  return <BetterAuthSignUp />;
 }
 
 export function SignUpComponent({
@@ -26,7 +22,6 @@ export function SignUpComponent({
   titleText = "",
   subTitleText = "",
 }: SignUpComponentProps) {
-  const backend = useAuthBackend();
   return (
     <>
       {(withIcon || withTitle) && (
@@ -51,69 +46,8 @@ export function SignUpComponent({
           )}
         </motion.div>
       )}
-      {/* D08f3b: the app's own screens while the development Better Auth switch is on. */}
-      {backend === "better-auth" ? (
-        <BetterAuthSignUp />
-      ) : (
-      <Card className="w-full bg-background shadow-none rounded-lg border-0 backdrop-blur-sm">
-        <CardContent className="p-0">
-          <SignUp
-            path="/sign-up"
-            routing="path"
-            signInUrl="/sign-in"
-            appearance={{
-              elements: {
-                card: "shadow-none bg-transparent/1 backdrop-blur-sm",
-                headerTitle: "text-foreground",
-                headerSubtitle: "text-muted-foreground",
-                socialButtonsBlockButton:
-                  "bg-primary hover:bg-secondary/90 text-secondary-foreground",
-                formButtonPrimary:
-                  "bg-primary hover:bg-primary/90 text-primary-foreground font-semibold shadow-none",
-                formButtonReset: "text-muted-foreground hover:text-foreground",
-                formFieldLabel: "text-foreground",
-                formFieldInput:
-                  "bg-background border-border focus:border-primary text-foreground placeholder:text-muted-foreground",
-                dividerLine: "bg-border",
-                dividerText: "text-muted-foreground",
-                formFieldInputError:
-                  "bg-destructive/10 border-destructive text-destructive placeholder:text-destructive/50",
-                formFieldInputSuccess:
-                  "bg-success/10 border-success text-success placeholder:text-success/50",
-                formFieldInputWarning:
-                  "bg-warning/10 border-warning text-warning placeholder:text-warning/50",
-                formFieldInputNeutral:
-                  "bg-muted/10 border-muted text-muted placeholder:text-muted/50",
-                formFieldInputInvalid:
-                  "bg-destructive/10 border-destructive text-destructive placeholder:text-destructive/50",
-                formFieldInputValid:
-                  "bg-success/10 border-success text-success placeholder:text-success/50",
-                footerActionText: "text-muted-foreground",
-                footerActionTextLink: "text-primary hover:text-primary/90",
-                footerAction: "mt-4 text-center space-x-1",
-                footer: "mt-6 pt-4 border-t border-border/50",
-                footerText: "text-muted-foreground text-sm",
-                logoBox: "flex items-center justify-center mb-4 mt-4",
-                logoImage: "w-29 h-29 object-contain",
-                organizationSwitcherTrigger:
-                  "bg-background border-border hover:bg-muted",
-                footer__terms:
-                  "text-muted-foreground hover:text-foreground text-sm",
-                footer__privacy:
-                  "text-muted-foreground hover:text-foreground text-sm",
-                otherLoginText: "text-muted-foreground text-sm",
-                alternativeMethodsBlockButton: "text-foreground hover:bg-muted",
-              },
-              layout: {
-                showOptionalFields: true,
-                logoPlacement: "inside",
-                logoImageUrl: "/images/CodeDetails_IconLogo.png",
-              },
-            }}
-          />
-        </CardContent>
-      </Card>
-      )}
+      {/* D08f3b: the app's own screen. D08g4f2: Clerk's is gone. */}
+      <BetterAuthSignUp />
     </>
   );
 }

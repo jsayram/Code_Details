@@ -2,7 +2,7 @@
 // D08g4e2: useSupabaseToken asks Clerk's session for a Supabase token only
 // when Clerk is the login; with Better Auth it never touches Clerk and has no
 // token, so the pages' Better Auth paths (usePersonalPageViewer) decide.
-import { cleanup, renderHook, waitFor } from "@testing-library/react";
+import { cleanup, renderHook } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { ReactNode } from "react";
 
@@ -30,11 +30,6 @@ beforeEach(() => {
 afterEach(cleanup);
 
 describe("useSupabaseToken", () => {
-  it("with Clerk, gets the token from Clerk's session as before", async () => {
-    const { result } = renderHook(() => useSupabaseToken(), { wrapper: wrapper("clerk") });
-    await waitFor(() => expect(result.current.token).toBe("clerk-supabase-token-fixture"));
-    expect(clerk.getToken).toHaveBeenCalled();
-  });
 
   it("with Better Auth, never asks Clerk, even if a Clerk session is around", async () => {
     const { result } = renderHook(() => useSupabaseToken(), { wrapper: wrapper("better-auth") });

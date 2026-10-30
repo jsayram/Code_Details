@@ -12,11 +12,8 @@
 // server's. Clerk shows these only after it loads anyway, so nothing visible
 // changes.
 //
-// D08f3a: with the development Better Auth switch on (AuthBackendProvider),
-// they follow the Better Auth session instead of Clerk's.
-import { useAuth } from "@clerk/nextjs";
+// D08f3a: they follow the Better Auth session. D08g4f2: Clerk's is gone.
 import { useSyncExternalStore, type ReactNode } from "react";
-import { useAuthBackend } from "@/backend/auth/context";
 import { useBetterAuthSession } from "@/lib/auth-session";
 
 const subscribe = () => () => {};
@@ -32,10 +29,7 @@ export function useHydrated(): boolean {
 
 /** Clerk's userId convention: a string when signed in, null when signed out, undefined while loading. */
 export function useViewerId(): string | null | undefined {
-  const backend = useAuthBackend();
-  const { userId: clerkUserId } = useAuth();
-  const session = useBetterAuthSession(backend === "better-auth");
-  if (backend === "clerk") return clerkUserId;
+  const session = useBetterAuthSession(true);
   return session.status === "loading" ? undefined : (session.user?.id ?? null);
 }
 

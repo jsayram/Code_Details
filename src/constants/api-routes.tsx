@@ -72,7 +72,6 @@ export const API_ROUTES = {
     USER_TIER: "/api/tiers/user-tier",
   },
   AUTH: {
-    WEBHOOK: "/api/webhook/clerk",
     USER: (userId: string) => `/users/${userId}`,
   },
   TEST: {

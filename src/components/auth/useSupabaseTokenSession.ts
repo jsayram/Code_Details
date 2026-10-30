@@ -1,11 +1,9 @@
 "use client";
 
-// D08g4e2: the session useSupabaseToken asks for a Supabase token. With Clerk
-// it is Clerk's session (unchanged); with Better Auth there is no Clerk
-// session and so no Supabase token, as before (those reads go through Convex
-// or the anonymous client). g4g removes the Clerk branch.
-import { useSession } from "@clerk/nextjs";
-import { useAuthBackend } from "@/backend/auth/context";
+// D08g4e2: the session useSupabaseToken asks for a Supabase token. D08g4f2:
+// that was Clerk's session, now gone; with Better Auth there is no Supabase
+// token, as before (those reads go through Convex or the anonymous client).
+// E03 removes the Supabase token path with its callers.
 
 export interface SupabaseTokenSession {
   session: { getToken: () => Promise<string | null> } | null;
@@ -13,8 +11,5 @@ export interface SupabaseTokenSession {
 }
 
 export function useSupabaseTokenSession(): SupabaseTokenSession {
-  const backend = useAuthBackend();
-  const { session, isLoaded } = useSession();
-  if (backend !== "clerk") return { session: null, isLoaded: true };
-  return { session: session ?? null, isLoaded };
+  return { session: null, isLoaded: true };
 }

@@ -4,12 +4,12 @@
 // tier and the tag submitters' emails.
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();

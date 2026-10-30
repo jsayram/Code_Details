@@ -12,12 +12,12 @@ const listed = set.projects.find((p) => p.case === "listed")!;
 
 test.describe("B13 over HTTP, signed out", () => {
   // Was the B13 reproduction (a body userId got past the auth check). Fixed
-  // in D01: the handler ignores the body and answers 401 to anyone signed out.
-  test("R06 (fixed, D01): sync-user rejects a signed-out body.userId", async ({ request }) => {
+  // in D01; D08g4f2 deleted the Clerk route, so nothing answers it any more.
+  test("R06 (fixed, D01; route gone, D08g4f2): sync-user syncs nothing for a body.userId", async ({ request }) => {
     const empty = await request.post("/api/auth/sync-user", { data: {} });
-    expect(empty.status()).toBe(401);
+    expect(empty.status()).toBe(404);
     const chosen = await request.post("/api/auth/sync-user", { data: { userId: A.subject } });
-    expect(chosen.status()).toBe(401);
+    expect(chosen.status()).toBe(404);
   });
 
   // Was the B13 reproduction (email and subject in the HTML); fixed for

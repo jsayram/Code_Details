@@ -152,11 +152,9 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
     await other.dispose();
   });
 
-  test("/api/auth/sync-user is still the Clerk route, not Better Auth's", async ({ request }) => {
-    // Signed out, the Clerk route refuses with its own 401 JSON; the Better Auth
-    // catch-all would have answered 404 for an unknown endpoint.
+  test("/api/auth/sync-user is gone (D08g4f2): Better Auth's catch-all answers 404", async ({ request }) => {
     const res = await request.post("/api/auth/sync-user", { headers: { origin: BASE_URL } });
-    expect(res.status()).toBe(401);
+    expect(res.status()).toBe(404);
   });
 });
 
@@ -198,27 +196,6 @@ test.describe("D08f1: emailed links never put the address in a logged URL (switc
     expect(revealsAddress(log, email), "the server log reveals the address").toBe(false);
     expect(log).toContain("/api/auth/email-link?code=");
     for (const mail of [verify, reset]) expect(revealsAddress(linkIn(mail).href, email)).toBe(false);
-  });
-});
-
-test.describe("D08b with the switch off", () => {
-  test.skip(betterAuth, "only with CODEDETAILS_E2E_AUTH_BACKEND=clerk");
-
-  test("Better Auth's endpoints and the dev viewer don't exist", async ({ request }) => {
-    for (const [method, path] of [
-      ["post", "/api/auth/sign-in/email"],
-      ["post", "/api/auth/sign-up/email"],
-      ["get", "/api/auth/get-session"],
-      ["get", "/api/auth/convex/token"],
-      ["get", "/api/dev/viewer"],
-    ] as const) {
-      const res = await request[method](path, { headers: { origin: BASE_URL }, maxRedirects: 0 });
-      // Behind Clerk as before: a signed-out call is sent to /sign-in by
-      // Clerk's protect (or would get the route's own 404), never served.
-      expect([307, 404], `${method} ${path}`).toContain(res.status());
-      if (res.status() === 307) expect(new URL(res.headers().location, BASE_URL).pathname, `${method} ${path}`).toBe("/sign-in");
-      expect(setCookies(res).filter((c) => c.startsWith("better-auth.")), `${method} ${path}`).toEqual([]);
-    }
   });
 });
 

@@ -9,7 +9,6 @@ const requiredEnvVars = [
   // MVP: Secret keys (DO NOT expose)
   "SUPABASE_SERVICE_ROLE_KEY",  // Secret Supabase service role key (DO NOT expose)
   "CLERK_SECRET_KEY", // Secret API key for Clerk authentication (server-side)
-  "CLERK_WEBHOOK_SIGNING_SECRET", // Secret for verifying Clerk webhooks
   "DATABASE_URL", // Database connection string (PostgreSQL)
   
   // MVP: Public keys 

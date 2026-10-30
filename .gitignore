@@ -89,3 +89,6 @@ venv/
 
 # Local Convex state (Phase C); task-owned state lives in .test-runtime/convex
 .convex/
+
+# D08g4f2: Clerk keyless mode writes this; never commit it.
+.clerk/

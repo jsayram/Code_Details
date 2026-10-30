@@ -1,22 +1,25 @@
 // @vitest-environment jsdom
 // D08f2: the app's SignedIn/SignedOut. Server HTML and the first client render
-// must match whatever Clerk already knows on the client, which is the race
-// that made Clerk's own SignedOut fail hydration in the header.
+// must match whatever the login already knows on the client, which is the race
+// that made Clerk's own SignedOut fail hydration in the header. D08g4f2: the
+// gates follow the Better Auth session (Clerk is gone), so that is what the
+// test drives; the race is the same.
 import { act } from "react";
 import { hydrateRoot } from "react-dom/client";
 import { renderToString } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const auth = vi.hoisted(() => ({ userId: undefined as string | null | undefined }));
-vi.mock("@clerk/nextjs", () => ({ useAuth: () => ({ userId: auth.userId }) }));
+const session = () =>
+  auth.userId === undefined ? { status: "loading" as const } : { status: "ready" as const, user: auth.userId ? { id: auth.userId } : null };
+vi.mock("@/lib/auth-session", () => ({ useBetterAuthSession: () => session() }));
 
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
-import { useAuth } from "@clerk/nextjs";
 import type { ReactNode } from "react";
 
-/** How Clerk's own client SignedOut behaves: it reads auth during hydration. */
+/** How Clerk's own client SignedOut behaved: it read auth during hydration. */
 function ClerkLikeSignedOut({ children }: { children: ReactNode }) {
-  return useAuth().userId === null ? <>{children}</> : null;
+  return auth.userId === null ? <>{children}</> : null;
 }
 
 const Tree = () => (
@@ -30,7 +33,7 @@ const Tree = () => (
   </header>
 );
 
-/** Server-renders with one auth state, then hydrates with another, as clerk-js loading in between would. */
+/** Server-renders with one auth state, then hydrates with another, as the session loading in between would. */
 async function hydrateWith(server: string | null | undefined, client: string | null | undefined) {
   auth.userId = server;
   const html = renderToString(<Tree />);

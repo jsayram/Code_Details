@@ -7,12 +7,12 @@
 // src/backend/projects/public-project.ts.
 import type postgres from "postgres";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkServerDouble, nextCacheDouble } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { fixtureId, generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();

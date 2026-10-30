@@ -9,11 +9,11 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { CONVEX_URL, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const publicCategoryCounts = makeFunctionReference<"query", { handle?: string }, Record<string, number> | null>("projects:publicCategoryCounts");

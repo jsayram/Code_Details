@@ -1,16 +1,14 @@
 "use client";
 
-// The header's account controls (D08f3a). With Clerk (the default) these are
-// exactly Clerk's UserButton, SignOutButton and useUser with the props the
-// headers already pass, so nothing changes on screen. With the development
-// Better Auth switch on, they are an app menu built from the shadcn dropdown
-// and avatar: the user's name and email, and "Sign out".
-import { SignOutButton, UserButton, useClerk, useUser } from "@clerk/nextjs";
+// The header's account controls (D08f3a): an app menu built from the shadcn
+// dropdown and avatar (the user's name and email, and "Sign out"), from the
+// Better Auth session. D08g4f2: Clerk's UserButton and SignOutButton are gone;
+// the headers still pass Clerk's `appearance` prop, of which only the avatar
+// size class is used.
 import { Slot } from "@radix-ui/react-slot";
 import { Github } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { useState, type ComponentProps, type ReactElement } from "react";
-import { useAuthBackend } from "@/backend/auth/context";
+import { useState, type ReactElement } from "react";
 import { signOut, useBetterAuthSession } from "@/lib/auth-session";
 import { startGitHub } from "@/components/auth/better-auth/api";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -26,23 +24,13 @@ import {
 export interface AccountSummary {
   isLoaded: boolean;
   hasUser: boolean;
-  /** Display name, falling back to the handle (Clerk: fullName || username). */
+  /** Display name. */
   name: string | null;
   email: string | null;
 }
 
 export function useAccountSummary(): AccountSummary {
-  const backend = useAuthBackend();
-  const { user, isLoaded } = useUser();
-  const session = useBetterAuthSession(backend === "better-auth");
-  if (backend === "clerk") {
-    return {
-      isLoaded,
-      hasUser: !!user,
-      name: user ? user.fullName || user.username : null,
-      email: user?.primaryEmailAddress?.emailAddress ?? null,
-    };
-  }
+  const session = useBetterAuthSession(true);
   if (session.status === "loading") return { isLoaded: false, hasUser: false, name: null, email: null };
   return { isLoaded: true, hasUser: !!session.user, name: session.user?.name ?? null, email: session.user?.email ?? null };
 }
@@ -56,17 +44,9 @@ function useSignOutThen(afterSignOutUrl = "/") {
   };
 }
 
-/** Sign out with whichever login is on, then go to afterSignOutUrl. */
+/** Sign out, then go to afterSignOutUrl. */
 export function useAccountSignOut(afterSignOutUrl = "/") {
-  const backend = useAuthBackend();
-  const clerk = useClerk();
-  const router = useRouter();
-  const signOutThen = useSignOutThen(afterSignOutUrl);
-  if (backend === "better-auth") return signOutThen;
-  return async () => {
-    await clerk.signOut();
-    router.push(afterSignOutUrl);
-  };
+  return useSignOutThen(afterSignOutUrl);
 }
 
 const initials = (name: string | null) =>
@@ -77,12 +57,10 @@ const initials = (name: string | null) =>
     .map((part) => part[0]!.toUpperCase())
     .join("") || "?";
 
-type UserButtonProps = ComponentProps<typeof UserButton>;
+type AccountButtonProps = { appearance?: { elements?: Record<string, unknown> }; afterSignOutUrl?: string };
 
-export function AccountButton(props: UserButtonProps) {
-  const backend = useAuthBackend();
-  if (backend === "clerk") return <UserButton {...props} />;
-  // The same size class the header gives Clerk's avatar.
+export function AccountButton(props: AccountButtonProps) {
+  // The same size class the header gave Clerk's avatar.
   const elements = props.appearance?.elements as Record<string, unknown> | undefined;
   const avatarClassName = typeof elements?.userButtonAvatarBox === "string" ? elements.userButtonAvatarBox : undefined;
   return <AppAccountMenu avatarClassName={avatarClassName} afterSignOutUrl={props.afterSignOutUrl} />;
@@ -149,10 +127,8 @@ function AppAccountMenu({ avatarClassName, afterSignOutUrl }: { avatarClassName?
   );
 }
 
-/** Clerk's SignOutButton, or the same child wired to the Better Auth sign-out. */
+/** The child, wired to the Better Auth sign-out. */
 export function AccountSignOutButton({ children, redirectUrl }: { children: ReactElement; redirectUrl?: string }) {
-  const backend = useAuthBackend();
   const signOutThen = useSignOutThen(redirectUrl);
-  if (backend === "clerk") return <SignOutButton redirectUrl={redirectUrl}>{children}</SignOutButton>;
   return <Slot onClick={() => void signOutThen()}>{children}</Slot>;
 }

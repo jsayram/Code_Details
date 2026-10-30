@@ -10,12 +10,10 @@
 //
 // The JWT cache stays off: every server render asks Convex for a fresh token,
 // so each one re-checks that the session is still live (D08A_REPORT, limits).
-import { auth } from "@clerk/nextjs/server";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { headers } from "next/headers";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
-import { isAdmin } from "@/lib/admin-utils";
 import { INTERNAL_AUTH_HEADER } from "../../convex/authRules";
 
 // The package is ESM-only and the root tsconfig resolves app files as
@@ -161,18 +159,14 @@ const legacySubject = makeFunctionReference<"query", Record<string, never>, stri
 
 /**
  * D11 (decision A): the user ID the docs and generator routes compare with
- * their data, which is still keyed by Clerk user IDs. With Clerk (the
- * default), exactly Clerk's userId. With the development Better Auth switch
- * on, the request's live session resolved to its account's own Clerk-era
- * subject; null when there is no session or the account has no Clerk-era
- * link, so those routes refuse exactly as they do for a signed-out user.
- * Server-side only.
+ * their data, which is still keyed by Clerk user IDs: the request's live
+ * Better Auth session resolved to its account's own Clerk-era subject; null
+ * when there is no session or the account has no Clerk-era link, so those
+ * routes refuse exactly as they do for a signed-out user. D08g4f2: null with
+ * Better Auth off (no login). Server-side only.
  */
 export async function routeUserId(): Promise<string | null> {
-  const choice = chooseAuthBackend();
-  if (choice.backend !== "better-auth") {
-    return (await auth()).userId;
-  }
+  if (chooseAuthBackend().backend !== "better-auth") return null;
   try {
     return (await viewerQuery(legacySubject))?.result ?? null;
   } catch {
@@ -187,13 +181,12 @@ const docOwnerQuery = makeFunctionReference<"query", Record<string, never>, { us
  * `writeKey` is the key a new doc is written with; `keys` are every key the
  * caller owns docs under; `legacyUserId` is the caller's Clerk-era subject,
  * kept on new docs only because Supabase projects are still keyed by it.
- * With Clerk (the default), all of them are Clerk's userId, exactly as before.
- * With the Better Auth switch on, the session's own Convex account ID, plus its
+ * They are the session's own Convex account ID, plus its
  * own Clerk-era subject while that link exists, so an account that never had
  * a Clerk login owns its docs too. `projectViewer` is what routeViewer()
  * would return, for the project lookups that still read Supabase. Null when
- * nobody is signed in. Identity comes only from the session. Server-side
- * only; never sent to the client.
+ * nobody is signed in, or with Better Auth off (D08g4f2). Identity comes only
+ * from the session. Server-side only; never sent to the client.
  */
 export type DocOwner = {
   writeKey: string;
@@ -203,12 +196,7 @@ export type DocOwner = {
 };
 
 export async function routeDocOwner(): Promise<DocOwner | null> {
-  const choice = chooseAuthBackend();
-  if (choice.backend !== "better-auth") {
-    const viewer = await routeViewer();
-    if (!viewer) return null;
-    return { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null, projectViewer: viewer };
-  }
+  if (chooseAuthBackend().backend !== "better-auth") return null;
   let owner: { userId: string; legacySubject: string | null } | null = null;
   try {
     owner = (await viewerQuery(docOwnerQuery))?.result ?? null;
@@ -235,17 +223,10 @@ export async function routeDocOwner(): Promise<DocOwner | null> {
  * projects, favorites, graveyard, category counts, the dashboard, deleted
  * projects by slug or ID). Identity comes only from the session, never from a
  * query string or an argument. `userId` is routeUserId()'s answer; `isAdmin`
- * is Clerk's email check today (the session's email, as the project page
- * already did) and users.role under the Better Auth switch, as the proxy
- * does since D08g1. Null when nobody is signed in. Server-side only.
+ * is users.role, as the proxy does since D08g1. Null when nobody is signed
+ * in, or with Better Auth off (D08g4f2: no login). Server-side only.
  */
 export async function routeViewer(): Promise<{ userId: string; isAdmin: boolean } | null> {
-  const choice = chooseAuthBackend();
-  if (choice.backend !== "better-auth") {
-    const { userId, sessionClaims } = await auth();
-    if (!userId) return null;
-    return { userId, isAdmin: isAdmin(sessionClaims?.email as string | undefined) };
-  }
   const userId = await routeUserId();
   if (!userId) return null;
   let admin = false;

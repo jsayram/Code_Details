@@ -5,11 +5,11 @@
 // without the Better Auth switch too.
 import { makeFunctionReference } from "convex/server";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, clearConvexFixtures, convexAvailable, CONVEX_URL, loadConvexFixtures } from "../fixtures/convex";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const addImages = makeFunctionReference<"action", { projectId: string; count: number }, string[]>("fixtures:addProjectImages");
@@ -64,7 +64,8 @@ describe.skipIf(!convexAvailable())("D06-b image actions, Convex read switch", (
     await adminClient().action(addImages, { projectId: ids["fixture-listed"], count: 1 });
     const [row] = await adminClient().query(imageState, { projectId: ids["fixture-listed"] });
     signInAs(A.subject);
-    expect(await actions.beginProjectImageUploadAction(ids["fixture-listed"], "cover")).toEqual({ success: true, data: { backend: "supabase" } });
+    // D08g4f2: no Supabase upload either; it refuses.
+    expect(await actions.beginProjectImageUploadAction(ids["fixture-listed"], "cover")).toMatchObject({ success: false, code: "UNAUTHORIZED" });
     expect((await actions.permanentlyDeleteProjectImageAction(row.id)).success).toBe(false);
     expect((await actions.deleteProjectImageAction(row.id)).success).toBe(false);
     expect(await adminClient().query(imageState, { projectId: ids["fixture-listed"] })).toEqual([row]);

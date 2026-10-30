@@ -6,13 +6,14 @@
 //   CODEDETAILS_AUTH_BACKEND is unset, empty or "better-auth",
 //   CODEDETAILS_CONVEX_URL and CODEDETAILS_CONVEX_SITE_URL are loopback http
 //   URLs (the local backend; any cloud deployment needs Jose's separate approval).
-// Otherwise the answer is Clerk, with the reason. CODEDETAILS_AUTH_BACKEND=clerk
-// still forces Clerk until the Clerk removal (D08g4f/g); an unknown value
-// falls back to Clerk as before.
+// Otherwise the answer is "none", with the reason. D08g4f2: Clerk is gone from
+// the server, so "none" means no login at all (fail closed): the server sees
+// nobody, protected routes are refused, and /api/auth answers 404.
+// CODEDETAILS_AUTH_BACKEND=clerk or an unknown value also gives "none".
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
 export type AuthBackendChoice =
-  | { backend: "clerk"; reason: string }
+  | { backend: "none"; reason: string }
   | { backend: "better-auth"; convexUrl: string; convexSiteUrl: string };
 
 function loopbackOrigin(value: string | undefined): string | null {
@@ -27,13 +28,13 @@ function loopbackOrigin(value: string | undefined): string | null {
 
 export function chooseAuthBackend(env: Record<string, string | undefined> = process.env): AuthBackendChoice {
   const requested = env.CODEDETAILS_AUTH_BACKEND ?? "";
-  if (requested === "clerk") return { backend: "clerk", reason: "CODEDETAILS_AUTH_BACKEND=clerk" };
-  if (requested !== "" && requested !== "better-auth") return { backend: "clerk", reason: `unknown backend ${JSON.stringify(requested)}` };
-  if (env.NODE_ENV !== "development") return { backend: "clerk", reason: "better-auth is development-only" };
+  if (requested === "clerk") return { backend: "none", reason: "CODEDETAILS_AUTH_BACKEND=clerk (Clerk was removed in D08g4f2)" };
+  if (requested !== "" && requested !== "better-auth") return { backend: "none", reason: `unknown backend ${JSON.stringify(requested)}` };
+  if (env.NODE_ENV !== "development") return { backend: "none", reason: "better-auth is development-only" };
   const convexUrl = loopbackOrigin(env.CODEDETAILS_CONVEX_URL);
-  if (!convexUrl) return { backend: "clerk", reason: "CODEDETAILS_CONVEX_URL must be a local http URL" };
+  if (!convexUrl) return { backend: "none", reason: "CODEDETAILS_CONVEX_URL must be a local http URL" };
   const convexSiteUrl = loopbackOrigin(env.CODEDETAILS_CONVEX_SITE_URL);
-  if (!convexSiteUrl) return { backend: "clerk", reason: "CODEDETAILS_CONVEX_SITE_URL must be a local http URL" };
+  if (!convexSiteUrl) return { backend: "none", reason: "CODEDETAILS_CONVEX_SITE_URL must be a local http URL" };
   return { backend: "better-auth", convexUrl, convexSiteUrl };
 }
 

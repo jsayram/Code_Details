@@ -12,11 +12,11 @@ import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs, type PersonaClient, forgetPersonaLogins } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
-import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
+import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
+vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 type Card = {

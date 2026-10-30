@@ -1,19 +1,15 @@
 "use client";
 
 // The signed-in user's display fields (D08g3b): name, email, picture, and
-// whether auth has loaded. With Clerk (the default) these are exactly what
-// useUser() gives; with the development Better Auth switch on they come from
-// the Better Auth session (whose single name is split into first/last).
-// Only for showing who is signed in, never as an identity for data.
+// whether auth has loaded, from the Better Auth session (whose single name is
+// split into first/last). D08g4f2: the Clerk branch is gone. Only for showing
+// who is signed in, never as an identity for data.
 //
 // FLAKE-HYD-HOME: until hydration has finished it reports "still loading, no
 // user", as the server render does. The home page and HeroSection choose
-// between the hero and its loading skeleton on isLoaded, and when clerk-js had
-// loaded before React hydrated, the first client render picked the hero while
-// the server HTML had the skeleton ("Hydration failed", 2 in 3 full Convex
-// runs). The same race D08f2 fixed for SignedIn/SignedOut (AuthGate).
-import { useUser } from "@clerk/nextjs";
-import { useAuthBackend } from "@/backend/auth/context";
+// between the hero and its loading skeleton on isLoaded, so the first client
+// render must match the server HTML. The same race D08f2 fixed for
+// SignedIn/SignedOut (AuthGate).
 import { useBetterAuthSession } from "@/lib/auth-session";
 import { useHydrated } from "./AuthGate";
 
@@ -23,31 +19,14 @@ export interface DisplayUser {
   lastName: string | null;
   email: string | null;
   imageUrl: string | null;
-  /** Clerk's handle; null with Better Auth (its session has none). D08g4e3. */
+  /** Clerk's handle once; always null with Better Auth (its session has none). D08g4e3. */
   username: string | null;
 }
 
 export function useDisplayUser(): { isLoaded: boolean; user: DisplayUser | null } {
-  const backend = useAuthBackend();
-  const { user, isLoaded } = useUser();
-  const session = useBetterAuthSession(backend === "better-auth");
+  const session = useBetterAuthSession(true);
   const hydrated = useHydrated();
   if (!hydrated) return { isLoaded: false, user: null };
-  if (backend === "clerk") {
-    return {
-      isLoaded,
-      user: user
-        ? {
-            fullName: user.fullName,
-            firstName: user.firstName,
-            lastName: user.lastName,
-            email: user.primaryEmailAddress?.emailAddress ?? null,
-            imageUrl: user.imageUrl,
-            username: user.username ?? null,
-          }
-        : null,
-    };
-  }
   if (session.status === "loading") return { isLoaded: false, user: null };
   const u = session.user;
   if (!u) return { isLoaded: true, user: null };

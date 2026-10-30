@@ -14,7 +14,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";
-import { SYNTHETIC, TEST_CONVEX_SITE_URL, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
+import { TEST_CONVEX_SITE_URL, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
 import { convexAvailable } from "./tests/fixtures/convex";
 import { RUNTIME_DIR, readTestDbPassword } from "./tests/support/test-db";
 import { ACTIVE } from "./tests/support/slot.cjs";
@@ -43,38 +43,29 @@ const readBackendEnv: Record<string, string> =
     ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL }
     : { CODEDETAILS_PROJECT_READ_BACKEND: "supabase" };
 
-// D08b, D08g4a: Better Auth is the login by default (/api/auth/* and
-// /api/dev/viewer served through the local backend).
-// CODEDETAILS_E2E_AUTH_BACKEND=clerk runs the old Clerk mode until the Clerk
-// removal (D08g4f/g); the test server is then told so explicitly.
-export const AUTH_BACKEND = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "clerk" ? "clerk" : "better-auth";
-if (AUTH_BACKEND === "better-auth" && !convexAvailable()) {
+// D08b, D08g4a: Better Auth is the login (/api/auth/* and /api/dev/viewer
+// served through the local backend). D08g4f2: the Clerk modes are gone with
+// Clerk's code, and the test server gets no Clerk keys, as Jose's app has none.
+if (process.env.CODEDETAILS_E2E_AUTH_BACKEND === "clerk") {
+  throw new Error("CODEDETAILS_E2E_AUTH_BACKEND=clerk: the Clerk modes were removed in D08g4f2");
+}
+export const AUTH_BACKEND = "better-auth";
+if (!convexAvailable()) {
   throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
 }
 // SEC-D08-RL: the same throwaway internal secret tests/convex/push.mjs gave the
 // test backend, for the server's own token calls.
 const internalSecretFile = path.join(RUNTIME_DIR, "convex", "internal-auth-secret");
-const authBackendEnv: Record<string, string> =
-  AUTH_BACKEND === "better-auth"
-    ? {
-        CODEDETAILS_AUTH_BACKEND: "better-auth",
-        CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL,
-        CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL,
-        ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
-      }
-    : { CODEDETAILS_AUTH_BACKEND: "clerk" };
+const authBackendEnv: Record<string, string> = {
+  CODEDETAILS_AUTH_BACKEND: "better-auth",
+  CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL,
+  CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL,
+  ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
+};
 
-// Synthetic Clerk keys whose frontend API is a .invalid host. A pk_live-shaped
-// key keeps Clerk's middleware from redirecting signed-out page loads to a
-// development-instance handshake on that host.
-const clerkHost = Buffer.from("clerk.codedetails.invalid$").toString("base64");
 const serverEnv = isolatedEnv(
   {
     CODEDETAILS_TEST_DIST_DIR: ".next-test",
-    NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY: `pk_live_${clerkHost}`,
-    CLERK_SECRET_KEY: `sk_test_${SYNTHETIC}_clerk`,
-    NEXT_PUBLIC_CLERK_SIGN_IN_URL: "/sign-in",
-    NEXT_PUBLIC_CLERK_SIGN_UP_URL: "/sign-up",
     ...readBackendEnv,
     ...authBackendEnv,
   },
