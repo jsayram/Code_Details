@@ -17,12 +17,17 @@
 //   deletion on the server (R13: the browser never deletes files).
 // - Reads compute URLs on the fly; nothing stores a URL. A listed project's
 //   images are public; anything else only its owner (or an admin) sees.
+// - D06-c: an hourly sweep deletes uploads that never became an image (no
+//   image row of any status, no stored avatar) once they are 24 hours old. It
+//   deletes files, so it does nothing unless the deployment set
+//   CODEDETAILS_IMAGE_SWEEP_ALLOWED=1, which only the test backends do.
 // Refusals that would reveal a hidden project answer not_found.
 import { v } from "convex/values";
-import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import { internalMutation, mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getViewer, type Viewer } from "./viewer";
+import { ORPHAN_MIN_AGE_MS, ORPHAN_SWEEP_BATCH, sweepAllowed } from "../src/backend/projects/image-sweep-rules";
 
 export const IMAGE_KINDS = ["cover", "screenshot", "diagram", "logo"] as const;
 export type ImageKind = (typeof IMAGE_KINDS)[number];
@@ -292,5 +297,52 @@ export const coverForProject = query({
     if (!project || !canSee(project, await getViewer(ctx))) return null;
     const [cover] = await activeOfKind(ctx, project._id, "cover");
     return cover ? toView(ctx, cover) : null;
+  },
+});
+
+type SweepResult = { disabled: true } | { disabled: false; examined: number; deleted: number; continuing: boolean };
+
+/**
+ * One step of the orphan sweep: looks at up to `batch` files created before
+ * `cutoff`, oldest first, and deletes those nothing points at. Reschedules
+ * itself with the same cutoff until it has seen them all. A file referenced by
+ * an image row (active or soft-deleted, whose file must stay, §5.11) or by a
+ * stored avatar is never touched. The cron passes no arguments; `minAgeMs` and
+ * `batch` exist for the tests (internal only, and behind the same flag).
+ */
+export const sweepOrphans = internalMutation({
+  args: {
+    cutoff: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+    minAgeMs: v.optional(v.number()),
+    batch: v.optional(v.number()),
+  },
+  handler: async (ctx, args): Promise<SweepResult> => {
+    if (!sweepAllowed(process.env)) return { disabled: true };
+    const cutoff = args.cutoff ?? Date.now() - Math.max(0, args.minAgeMs ?? ORPHAN_MIN_AGE_MS);
+    const batch = Math.min(Math.max(1, Math.floor(args.batch ?? ORPHAN_SWEEP_BATCH)), ORPHAN_SWEEP_BATCH);
+    const page = await ctx.db.system
+      .query("_storage")
+      .withIndex("by_creation_time", (q) => q.lt("_creationTime", cutoff))
+      .paginate({ cursor: args.cursor ?? null, numItems: batch });
+
+    // Nothing writes stored avatars yet; when something does, give them an index.
+    const avatars = new Set<string>();
+    for (const profile of await ctx.db.query("profiles").collect()) {
+      if (profile.avatar?.kind === "stored") avatars.add(profile.avatar.storageId);
+    }
+
+    let deleted = 0;
+    for (const file of page.page) {
+      if (avatars.has(file._id)) continue;
+      const image = await ctx.db.query("projectImages").withIndex("by_storageId", (q) => q.eq("storageId", file._id)).first();
+      if (image) continue;
+      await ctx.storage.delete(file._id);
+      deleted++;
+    }
+    if (!page.isDone) {
+      await ctx.scheduler.runAfter(0, internal.projectImages.sweepOrphans, { cutoff, cursor: page.continueCursor, batch });
+    }
+    return { disabled: false, examined: page.page.length, deleted, continuing: !page.isDone };
   },
 });

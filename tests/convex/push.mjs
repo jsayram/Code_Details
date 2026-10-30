@@ -176,6 +176,9 @@ if (res.status === 0 && !dryRun && runtime.allow) res = convex(["env", "set", ru
 // D04d: the automatic account purge is opt-in, and only the test backends opt
 // in (convex/accountDeletion.ts). Never the import or manual backend.
 if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_ACCOUNT_PURGE_ALLOWED", "1"]);
+// D06-c: the orphan image sweep deletes files, so it is opt-in the same way
+// (convex/projectImages.ts sweepOrphans). Never the import or manual backend.
+if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_IMAGE_SWEEP_ALLOWED", "1"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");

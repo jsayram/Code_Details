@@ -12,4 +12,8 @@ crons.hourly("repair half-finished sign-ups", { minuteUTC: 17 }, internal.accoun
 // set CODEDETAILS_ACCOUNT_PURGE_ALLOWED=1 (only the test backends do).
 crons.hourly("purge accounts past their grace period", { minuteUTC: 41 }, internal.accountDeletion.purgeDue, {});
 
+// D06-c: uploads that never became an image, after 24 hours. A no-op unless the
+// deployment set CODEDETAILS_IMAGE_SWEEP_ALLOWED=1 (only the test backends do).
+crons.hourly("sweep orphaned image uploads", { minuteUTC: 53 }, internal.projectImages.sweepOrphans, {});
+
 export default crons;

@@ -702,3 +702,14 @@ export const storeUnattachedFile = internalAction({
     return await ctx.storage.store(new Blob([new Uint8Array(bytes)], { type: contentType }));
   },
 });
+
+// D06-c: points a fixture profile's avatar at a stored file (nothing in the app writes stored avatars yet).
+export const setStoredAvatar = internalMutation({
+  args: { usernameKey: v.string(), storageId: v.id("_storage") },
+  handler: async (ctx, { usernameKey, storageId }) => {
+    assertFixturesAllowed();
+    const profile = await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).unique();
+    if (!profile) throw new Error("no such profile");
+    await ctx.db.patch(profile._id, { avatar: { kind: "stored", storageId } });
+  },
+});
