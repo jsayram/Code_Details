@@ -107,11 +107,11 @@ describe("slot to port mapping", () => {
 });
 
 describe("forbidden ports", () => {
-  it("covers the dev server, the import and manual backends and the dev Supabase", () => {
-    for (const port of [3000, 3220, 3221, 3230, 3231, 54321, 54322]) expect(NEVER_TEST_PORTS).toContain(port);
+  it("covers the dev server, the import, manual and dev backends and the dev Supabase", () => {
+    for (const port of [3000, 3220, 3221, 3230, 3231, 3240, 3241, 54321, 54322]) expect(NEVER_TEST_PORTS).toContain(port);
   });
 
-  it.each([3000, 3220, 3221, 3230, 3231, 54321, 54322])("refuses a slot whose ports would include %i", (port) => {
+  it.each([3000, 3220, 3221, 3230, 3231, 3240, 3241, 54321, 54322])("refuses a slot whose ports would include %i", (port) => {
     const ports = { slot: 7, convexPort: 3370, convexSitePort: port, dbPort: 55439, nextPort: 3107, mailPort: 3372 };
     expect(() => assertSlotPortsSafe(ports)).toThrow(new RegExp(`convexSitePort would be ${port}`));
   });

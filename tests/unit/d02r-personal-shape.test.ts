@@ -15,7 +15,9 @@ describe("personalReadsFromConvex", () => {
   it("needs the Convex read and Better Auth together, in development", () => {
     expect(personalReadsFromConvex(both)).toBe(true);
     expect(personalReadsFromConvex({})).toBe(false);
-    expect(personalReadsFromConvex({ ...both, CODEDETAILS_PROJECT_READ_BACKEND: undefined })).toBe(false);
+    // D08g4 flip-on: no read backend named means Convex; naming Supabase opts out.
+    expect(personalReadsFromConvex({ ...both, CODEDETAILS_PROJECT_READ_BACKEND: undefined })).toBe(true);
+    expect(personalReadsFromConvex({ ...both, CODEDETAILS_PROJECT_READ_BACKEND: "supabase" })).toBe(false);
     // D08g4a: with no backend named the login is Better Auth (the default), so
     // only an explicit Clerk login keeps the personal reads on Supabase.
     expect(personalReadsFromConvex({ ...both, CODEDETAILS_AUTH_BACKEND: undefined })).toBe(true);

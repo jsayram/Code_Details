@@ -1,13 +1,12 @@
-// D08g4d: the data-default switch in the ON position (mocked here; committed
-// off). Convex becomes the default for reads and, with the Better Auth login
+// D08g4d: the data-default switch in the ON position, committed by the D08g4
+// flip-on (the OFF rollback is mocked in d08g4d-data-default.test.ts). Convex becomes the default for reads and, with the Better Auth login
 // on the same local Convex, writes. Everything outside local development stays
 // on Supabase, and naming Supabase still wins.
 import path from "node:path";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-vi.mock("@/backend/data-default", () => ({ DATA_DEFAULT: "convex" }));
-
+import { DATA_DEFAULT } from "@/backend/data-default";
 import { chooseProjectReadBackend } from "@/backend/projects";
 import { imageReadsFromConvex } from "@/backend/projects/images";
 import { personalReadsFromConvex } from "@/backend/projects/personal";
@@ -20,6 +19,10 @@ const localDev = {
 };
 
 describe("data-default switch: on", () => {
+  it("is committed on", () => {
+    expect(DATA_DEFAULT).toBe("convex");
+  });
+
   it("with no backend named, local development reads and writes Convex", () => {
     expect(chooseProjectReadBackend(localDev)).toEqual({ backend: "convex", url: "http://127.0.0.1:3210" });
     expect(chooseProjectReadBackend({ ...localDev, CODEDETAILS_PROJECT_READ_BACKEND: "" })).toMatchObject({ backend: "convex" });

@@ -1,11 +1,13 @@
-// D08g4d: the data-default switch, OFF (the committed position). An unset
-// CODEDETAILS_PROJECT_READ_BACKEND means Supabase; turning the switch on is a
-// deliberate one-line change in src/backend/data-default.ts, and this test
-// changes with it. The ON position: d08g4d-data-default-on.test.ts.
+// D08g4d: the data-default switch in the OFF position (mocked here; committed
+// on since the D08g4 flip-on). Off is the rollback: an unset
+// CODEDETAILS_PROJECT_READ_BACKEND means Supabase. The committed ON position:
+// d08g4d-data-default-on.test.ts.
 import path from "node:path";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { DATA_DEFAULT } from "@/backend/data-default";
+
+vi.mock("@/backend/data-default", () => ({ DATA_DEFAULT: "supabase" }));
+
 import { chooseProjectReadBackend } from "@/backend/projects";
 import { imageReadsFromConvex } from "@/backend/projects/images";
 import { personalReadsFromConvex } from "@/backend/projects/personal";
@@ -19,10 +21,6 @@ const localDev = {
 };
 
 describe("data-default switch: off", () => {
-  it("is committed off", () => {
-    expect(DATA_DEFAULT).toBe("supabase");
-  });
-
   it("an unset or empty backend means Supabase, even with local Convex URLs", () => {
     expect(chooseProjectReadBackend(localDev)).toMatchObject({ backend: "supabase", reason: "default" });
     expect(chooseProjectReadBackend({ ...localDev, CODEDETAILS_PROJECT_READ_BACKEND: "" })).toMatchObject({ backend: "supabase" });

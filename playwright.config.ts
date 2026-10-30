@@ -10,7 +10,7 @@
 // 3302+10n, container codedetails-phaseb-testdb-slot<n>, state under
 // .test-runtime/slot-<n>/. Unset or 0 is the original layout (3210/3211,
 // 55432, 3100, 3299). Every guard refuses the other slots' ports and 3000,
-// 3220/3221, 3230/3231 and 54320-54329. The mapping is tests/support/slot.cjs.
+// 3220/3221, 3230/3231, 3240/3241 and 54320-54329. The mapping is tests/support/slot.cjs.
 import fs from "node:fs";
 import path from "node:path";
 import { defineConfig, devices } from "@playwright/test";

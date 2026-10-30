@@ -6,8 +6,10 @@ import { chooseProjectReadBackend } from "@/backend/projects";
 const dev = { NODE_ENV: "development", CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3210" };
 
 describe("project read backend switch", () => {
-  it("defaults to Supabase with nothing set", () => {
-    expect(chooseProjectReadBackend({})).toMatchObject({ backend: "supabase", reason: "default" });
+  // D08g4 flip-on: the default is Convex now, but with nothing set the guards
+  // (development, loopback URL) still leave Supabase.
+  it("stays on Supabase with nothing set", () => {
+    expect(chooseProjectReadBackend({})).toMatchObject({ backend: "supabase" });
     expect(chooseProjectReadBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "supabase" });
   });
 

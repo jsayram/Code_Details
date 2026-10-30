@@ -24,14 +24,24 @@ if (targetFlag !== -1) argv.splice(targetFlag, 2);
 // (scripts/dev-auth/backend-up.sh, 127.0.0.1:3230) where Jose tries the real
 // GitHub app by hand. It gets neither the fixtures nor the import flag, and
 // this script never sets GitHub values there (set-github-secrets.mjs does).
-if (!["test", "import", "manual"].includes(target)) throw new Error(`unknown --target ${target}`);
+// D08g4 flip-on: `--target dev` pushes to the backend Jose's dev app uses now
+// that Convex is the data default (scripts/dev-backend/backend-up.sh,
+// 127.0.0.1:3240). Its state is in the main checkout (git's common dir), so a
+// push from a worktree reaches the same deployment. It gets no fixtures,
+// import, purge or sweep flag, and no GitHub values.
+if (!["test", "import", "manual", "dev"].includes(target)) throw new Error(`unknown --target ${target}`);
+const mainRoot = () =>
+  path.dirname(path.resolve(root, spawnSync("git", ["rev-parse", "--git-common-dir"], { cwd: root, encoding: "utf8" }).stdout.trim()));
 const runtime = {
   import: { envFile: ".test-runtime/convex-import.env", state: ".test-runtime/convex-import", port: "3220", up: "scripts/d00b-import/backend-up.sh", allow: "CODEDETAILS_IMPORT_ALLOWED" },
   manual: { envFile: ".test-runtime/convex-manual.env", state: ".test-runtime/convex-manual", port: "3230", up: "scripts/dev-auth/backend-up.sh", allow: null },
+  ...(target === "dev"
+    ? { dev: { envFile: path.join(mainRoot(), ".test-runtime/convex-dev.env"), state: path.join(mainRoot(), ".test-runtime/convex-dev"), port: "3240", up: "scripts/dev-backend/backend-up.sh", allow: null } }
+    : {}),
   // The active test slot's backend (tests/support/slot.cjs; slot 0: .test-runtime/convex on 3210).
   test: { envFile: `${slot.runtimeDir}/convex.env`, state: `${slot.runtimeDir}/convex`, port: String(slot.convexPort), up: "tests/convex/up.sh", allow: "CODEDETAILS_FIXTURES_ALLOWED" },
 }[target];
-const envFile = path.join(root, runtime.envFile);
+const envFile = path.resolve(root, runtime.envFile);
 if (!fs.existsSync(envFile)) {
   console.error(`no local Convex backend: run ${runtime.up} first`);
   process.exit(1);
@@ -81,7 +91,7 @@ const RETIRED_ENV = ["CODEDETAILS_AUTH_ISSUER", "CODEDETAILS_AUTH_AUDIENCE", "CO
 const betterAuth = [];
 /** A throwaway made once per state folder; SYNTHETIC-marked so the test server's isolation check accepts it. */
 function throwawaySecret(name) {
-  const file = path.join(root, runtime.state, name);
+  const file = path.resolve(root, runtime.state, name);
   if (!fs.existsSync(file)) fs.writeFileSync(file, `SYNTHETIC-${randomBytes(32).toString("base64url")}`, { mode: 0o600 });
   return fs.readFileSync(file, "utf8").trim();
 }
@@ -90,10 +100,10 @@ function throwawaySecret(name) {
 // deploy an auth config that reads an unset env var, so the first push sets the
 // placeholder "unset" (convex/authRules.ts staticJwks), deploys, asks the
 // deployment for its current keys (auth:latestJwks), and deploys again with them.
-const jwksFile = path.join(root, runtime.state, "jwks.json");
+const jwksFile = path.resolve(root, runtime.state, "jwks.json");
 betterAuth.push(["JWKS", fs.existsSync(jwksFile) ? fs.readFileSync(jwksFile, "utf8").trim() : "unset"]);
 if (target === "test") {
-  const secretFile = path.join(root, runtime.state, "better-auth-secret");
+  const secretFile = path.resolve(root, runtime.state, "better-auth-secret");
   if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
   betterAuth.push(
     ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
@@ -121,7 +131,7 @@ if (target === "test") {
   );
 }
 if (target === "manual") {
-  const secretFile = path.join(root, runtime.state, "better-auth-secret");
+  const secretFile = path.resolve(root, runtime.state, "better-auth-secret");
   if (!fs.existsSync(secretFile)) fs.writeFileSync(secretFile, randomBytes(32).toString("base64"), { mode: 0o600 });
   betterAuth.push(
     ["BETTER_AUTH_SECRET", fs.readFileSync(secretFile, "utf8").trim()],
@@ -130,6 +140,26 @@ if (target === "manual") {
     ["CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION", "1"],
     // The pinned Mailpit from tests/mail/up.sh; its UI is http://127.0.0.1:8025.
     ["CODEDETAILS_EMAIL_HTTP_URL", "http://127.0.0.1:8025/api/v1/send"],
+  );
+}
+if (target === "dev") {
+  // Like the manual backend: Jose's own sign-up by email and password, verified
+  // through the pinned Mailpit (tests/mail/up.sh; UI http://127.0.0.1:8025).
+  // The internal auth secret (SEC-D08-RL) is made once in the state folder; his
+  // .env.local copies it from there (FOR_JOSE_MORNING item 1), so it is never
+  // printed or kept anywhere else.
+  const secret = (name) => {
+    const file = path.resolve(root, runtime.state, name);
+    if (!fs.existsSync(file)) fs.writeFileSync(file, randomBytes(32).toString("base64url"), { mode: 0o600 });
+    return fs.readFileSync(file, "utf8").trim();
+  };
+  betterAuth.push(
+    ["BETTER_AUTH_SECRET", secret("better-auth-secret")],
+    ["SITE_URL", "http://localhost:3000"],
+    ["CODEDETAILS_AUTH_EMAIL_PASSWORD", "1"],
+    ["CODEDETAILS_AUTH_REQUIRE_EMAIL_VERIFICATION", "1"],
+    ["CODEDETAILS_EMAIL_HTTP_URL", "http://127.0.0.1:8025/api/v1/send"],
+    ["CODEDETAILS_INTERNAL_AUTH_SECRET", secret("internal-auth-secret")],
   );
 }
 let res = { status: 0 };

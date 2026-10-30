@@ -10,11 +10,12 @@
 
 /**
  * Ports no slot may ever use: the normal dev server (3000), the D00b import
- * backend holding real data (3220/3221), the manual-check backend (3230/3231)
- * and the development Supabase range (54320-54329).
+ * backend holding real data (3220/3221), the manual-check backend (3230/3231),
+ * Jose's dev-app Convex backend (3240/3241, D08g4 flip-on) and the development
+ * Supabase range (54320-54329).
  * @type {readonly number[]}
  */
-const NEVER_TEST_PORTS = Object.freeze([3000, 3220, 3221, 3230, 3231, 54320, 54321, 54322, 54323, 54324, 54325, 54326, 54327, 54328, 54329]);
+const NEVER_TEST_PORTS = Object.freeze([3000, 3220, 3221, 3230, 3231, 3240, 3241, 54320, 54321, 54322, 54323, 54324, 54325, 54326, 54327, 54328, 54329]);
 
 const MAX_SLOT = 9;
 
