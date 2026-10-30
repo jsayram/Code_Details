@@ -10,7 +10,7 @@ import { PROJECT_CATEGORIES, ProjectCategory } from "@/constants/project-categor
 import { Checkbox } from "@/components/ui/checkbox";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { getInitials } from "@/utils/stringUtils";
-import { useAuth } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { FavoriteButton } from "./FavoriteButton";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -46,7 +46,8 @@ export function ProjectTableView({
   onDeleteProject,
   onUpdateProject,
 }: ProjectTableViewProps) {
-  const { userId } = useAuth();
+  // D08g4e2: the session's user (Clerk's or Better Auth's).
+  const userId = useViewerId();
   const router = useRouter();
   
   const [sortConfig, setSortConfig] = useState<SortConfig>({ key: "created_at", direction: "desc" });

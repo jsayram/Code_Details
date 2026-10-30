@@ -15,7 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { submitNewTag } from "@/app/actions/tag-submissions";
 import { toast } from "sonner";
-import { useUser } from "@clerk/nextjs";
+import { useAccountSummary } from "@/components/auth/AccountButton";
 import { Badge } from "@/components/ui/badge";
 import { useProjects } from "@/providers/projects-provider";
 import { ClientOnly } from "@/components/ClientOnly";
@@ -68,7 +68,8 @@ export function TagSubmissionModal({
   onSubmit,
   isOwner = false, // Default to false for safety
 }: TagSubmissionModalProps) {
-  const { user, isLoaded } = useUser();
+  // D08g4e2: the signed-in account's email fills the form (Clerk or Better Auth).
+  const { email: accountEmail, isLoaded } = useAccountSummary();
   const { projects } = useProjects();
   const { refreshCache } = useTags();
   const [open, setOpen] = useState(false);
@@ -97,10 +98,10 @@ export function TagSubmissionModal({
   }, []);
 
   useEffect(() => {
-    if (mounted && isLoaded && user?.primaryEmailAddress?.emailAddress) {
-      setEmail(user.primaryEmailAddress.emailAddress);
+    if (mounted && isLoaded && accountEmail) {
+      setEmail(accountEmail);
     }
-  }, [user, isLoaded, mounted]);
+  }, [accountEmail, isLoaded, mounted]);
 
   // Reset form when dialog is closed
   const handleOpenChange = (newOpen: boolean) => {

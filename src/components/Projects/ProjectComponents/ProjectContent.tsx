@@ -33,7 +33,7 @@ import { Separator } from "@/components/ui/separator";
 import { SelectProject } from "@/db/schema/projects";
 import { validateUrlFormat } from "@/lib/url-validation";
 import { toast } from "sonner";
-import { useUser, useAuth } from "@clerk/nextjs";
+import { useAccountSummary } from "@/components/auth/AccountButton";
 import { SignedOut, useViewerId } from "@/components/auth/AuthGate";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
@@ -94,8 +94,8 @@ export function ProjectContent({
   userProfile,
   create = false,
 }: ProjectContentProps): React.ReactElement {
-  const { user } = useUser();
-  const { userId } = useAuth();
+  // D08g4e2: the signed-in account's email (approves a rejected tag below).
+  const { email: accountEmail } = useAccountSummary();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -152,9 +152,9 @@ export function ProjectContent({
   const projectIdRef = useRef<string | null>(null);
 
   // Derived state with proper memoization
-  // D02: the session's user ID. With Clerk it is exactly useAuth's userId;
-  // under the Better Auth switch it is the Better Auth session's, which the
-  // Convex owner view puts in userProfile.user_id.
+  // D02: the session's user ID (Clerk's userId, or the Better Auth session's,
+  // which the Convex owner view puts in userProfile.user_id). The project
+  // actions take the user from the session; the ID passed to them is ignored.
   const viewerId = useViewerId();
   const isOwner = useMemo(() => {
     return !!viewerId && !!userProfile?.user_id && viewerId === userProfile.user_id;
@@ -473,7 +473,7 @@ export function ProjectContent({
   const handleNavigateUser = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (!user) {
+    if (!viewerId) {
       toast.dismiss();
       toast.info(
         <div className="relative flex flex-row items-center gap-2">
@@ -618,7 +618,7 @@ export function ProjectContent({
 
       if (create) {
         // Create new project
-        result = await createProject(projectData, userId ?? "");
+        result = await createProject(projectData, viewerId ?? "");
         if (result.success) {
           toast.success("Project created successfully!");
           // Navigate to the new project if we have a slug
@@ -638,7 +638,7 @@ export function ProjectContent({
         result = await updateProject(
           project.id,
           contentVersion === undefined ? projectData : { ...projectData, content_version: contentVersion },
-          userId
+          viewerId
         );
         if (result.success) {
           toast.success("Project updated successfully!");
@@ -648,7 +648,7 @@ export function ProjectContent({
 
           // Check if there was a tag from URL that was added
           const tagFromUrl = searchParams?.get("tag");
-          if (tagFromUrl && user?.primaryEmailAddress?.emailAddress) {
+          if (tagFromUrl && accountEmail) {
             // Check if the tag from URL is in the saved tags
             const tagWasAdded = projectData.tags.some(
               (tag) => tag.toLowerCase() === tagFromUrl.toLowerCase()
@@ -660,7 +660,7 @@ export function ProjectContent({
                 await approveRejectedTagSubmission(
                   project.id,
                   tagFromUrl,
-                  user.primaryEmailAddress.emailAddress
+                  accountEmail
                 );
               } catch (error) {
                 console.error("Failed to approve rejected tag submission:", error);

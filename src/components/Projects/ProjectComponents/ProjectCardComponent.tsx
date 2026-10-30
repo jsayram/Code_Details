@@ -19,7 +19,6 @@ import {
   Video,
 } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { useUser } from "@clerk/nextjs";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 import {
@@ -64,8 +63,7 @@ export const ProjectCard = React.memo(
     isFavorite = false,
     hideActions = false,
   }: ProjectCardProps) {
-    const { user } = useUser();
-    // D03: the session's user (Clerk's userId by default); Convex rows say is_mine.
+    // D03: the session's user; Convex rows say is_mine.
     const userId = useViewerId();
     const router = useRouter();
     const [isDeleting, setIsDeleting] = useState(false);
@@ -235,11 +233,6 @@ export const ProjectCard = React.memo(
       return project.tags || [];
     }, [project.tags]);
 
-    // Check if the current user is the project owner
-    const isCurrentUserProject = useMemo(() => {
-      return user?.id === project.user_id;
-    }, [user?.id, project.user_id]);
-
     // Check if we can navigate to the user profile (has valid username)
     const canNavigateToUser = !!project.profile?.username;
 
@@ -264,7 +257,7 @@ export const ProjectCard = React.memo(
         project.profile?.email_address?.split("@")[0] ||
         "Unknown user"
       );
-    }, [isCurrentUserProject, project.profile]);
+    }, [project.profile]);
 
     // Get initials for the avatar fallback
     const userInitials = useMemo(() => {

@@ -18,7 +18,6 @@ import { toast } from "sonner";
 import { Project } from "@/types/models/project";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { UnfavoriteConfirmationModal } from "./UnfavoriteConfirmationModal";
-import { useAuth, SignInButton } from "@clerk/nextjs";
 import { PaginationControls } from "@/components/navigation/Pagination/PaginationControlComponent";
 import Image from "next/image";
 import {
@@ -35,7 +34,6 @@ import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLo
 import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 import { SignInButtonComponent } from "@/components/auth/SignInButtonComponent";
 import ShareProjectsButton from "../ShareProjectsButton";
-import { useSession } from "@clerk/nextjs";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 
@@ -80,13 +78,14 @@ export const ProjectList = React.memo(function ProjectList({
     pagination,
   } = useProjects();
 
-  const { userId } = useAuth();
   // D02r-c: the category-count filters follow the session (Clerk's userId by
   // default, the Better Auth session's under the switch). D03: so does the
   // delete control, whose action now takes the user from the session. D05:
   // and the favorite controls; their actions take the user from the session
   // too and are no longer sent an ID.
+  // D08g4e2: and the create/share buttons.
   const viewerId = useViewerId();
+  const userId = viewerId;
   const router = useRouter();
 
   // Determine category counts filter based on current view
@@ -120,7 +119,6 @@ export const ProjectList = React.memo(function ProjectList({
   } | null>(null);
   const [isUnfavoriting, setIsUnfavoriting] = useState(false);
   const [layoutReady, setLayoutReady] = useState(false);
-  const user = useSession();
 
   // Wait for layout to be ready before showing skeleton
   useEffect(() => {

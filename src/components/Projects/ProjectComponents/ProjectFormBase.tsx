@@ -6,7 +6,7 @@ import { InsertProject } from "@/db/schema/projects";
 import { createProject, updateProject } from "@/app/actions/projects";
 import { toast } from "sonner";
 import { useProjects } from "@/providers/projects-provider";
-import { useAuth } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import {
   validateProjectForm,
   handleFormSubmit,
@@ -67,7 +67,8 @@ export function ProjectFormBase({
   showCancelButton = true,
 }: ProjectFormBaseProps) {
   const projectsContext = useProjects();
-  const { userId } = useAuth();
+  // D08g4e2: the session's user; the actions read it from the session again.
+  const userId = useViewerId();
   const [mounted, setMounted] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);

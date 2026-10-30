@@ -11,10 +11,11 @@ const root = path.resolve(__dirname, "../..");
 const files = execSync("git ls-files --cached --others --exclude-standard -- src", { cwd: root, encoding: "utf8" })
   .split("\n")
   .filter((f) => /\.(ts|tsx)$/.test(f));
-const importsClerk = (f: string) => /from\s*["']@clerk\//.test(fs.readFileSync(path.join(root, f), "utf8"));
+// Comments don't count (a doc example may show the old import).
+const withoutComments = (text: string) => text.replace(/^\s*\/\*[\s\S]*?\*\//gm, "").replace(/^\s*\/\/.*$/gm, "");
+const importsClerk = (f: string) => /from\s*["']@clerk\//.test(withoutComments(fs.readFileSync(path.join(root, f), "utf8")));
 
-// Still on Clerk outside the adapters (g4e2: project components and Supabase
-// token hooks; g4e3: pages; g4f: server code).
+// Still on Clerk outside the adapters (g4e3: pages; g4f: server code).
 const REMAINING = [
   "src/app/(administrator)/dashboard/admin/AdminDashboardClient.tsx",
   "src/app/(administrator)/dashboard/page.tsx",
@@ -37,20 +38,11 @@ const REMAINING = [
   "src/app/tags/[tag]/page.tsx",
   "src/app/tags/page.tsx",
   "src/app/users/page.tsx",
-  "src/components/Projects/ProjectComponents/ProjectCardComponent.tsx",
-  "src/components/Projects/ProjectComponents/ProjectContent.tsx",
-  "src/components/Projects/ProjectComponents/ProjectFormBase.tsx",
-  "src/components/Projects/ProjectComponents/ProjectListComponent.tsx",
-  "src/components/Projects/ProjectComponents/ProjectTableViewComponent.tsx",
-  "src/components/Projects/ProjectComponents/TagSubmissionModal.tsx",
-  "src/hooks/use-SupabaseClerkJWTToken.ts",
-  "src/hooks/use-clerk-supabase-client.ts",
   "src/lib/admin-action.ts",
   "src/lib/auth-server.ts",
   "src/lib/user-sync-utils.ts",
   "src/proxy.ts",
   "src/services/supabase-server.ts",
-  "src/services/supabase.ts",
 ];
 
 const MOVED_IN_G4E1 = [
@@ -61,7 +53,28 @@ const MOVED_IN_G4E1 = [
   "src/app/auth/[[...slug]]/page.tsx",
 ];
 
+const MOVED_IN_G4E2 = [
+  "src/components/Projects/ProjectComponents/ProjectCardComponent.tsx",
+  "src/components/Projects/ProjectComponents/ProjectContent.tsx",
+  "src/components/Projects/ProjectComponents/ProjectFormBase.tsx",
+  "src/components/Projects/ProjectComponents/ProjectListComponent.tsx",
+  "src/components/Projects/ProjectComponents/ProjectTableViewComponent.tsx",
+  "src/components/Projects/ProjectComponents/TagSubmissionModal.tsx",
+  "src/hooks/use-SupabaseClerkJWTToken.ts",
+  "src/services/supabase.ts",
+];
+
 describe("Clerk imports outside the auth adapters", () => {
+  it("a commented-out import doesn't count, a real one does", () => {
+    expect(/from\s*["']@clerk\//.test(withoutComments('// forwards /api/auth/* here\nimport { auth } from "@clerk/nextjs/server";\n'))).toBe(true);
+    expect(/from\s*["']@clerk\//.test(withoutComments("/**\n * import { x } from '@clerk/nextjs';\n */\n// from \"@clerk/nextjs\"\n"))).toBe(false);
+    expect(/from\s*["']@clerk\//.test(withoutComments('import { useAuth } from "@clerk/nextjs";'))).toBe(true);
+  });
+
+  it("the unused Clerk-Supabase client hook is gone (g4e2)", () => {
+    expect(files).not.toContain("src/hooks/use-clerk-supabase-client.ts");
+  });
+
   const outside = files.filter((f) => !f.startsWith("src/components/auth/") && importsClerk(f));
 
   it("only the listed files still import Clerk", () => {
@@ -72,8 +85,8 @@ describe("Clerk imports outside the auth adapters", () => {
     expect(REMAINING.filter((f) => !outside.includes(f))).toEqual([]);
   });
 
-  it("the g4e1 files use the adapters", () => {
-    for (const f of MOVED_IN_G4E1) {
+  it("the g4e1 and g4e2 files use the adapters", () => {
+    for (const f of [...MOVED_IN_G4E1, ...MOVED_IN_G4E2]) {
       expect(files).toContain(f);
       expect(importsClerk(f), f).toBe(false);
     }

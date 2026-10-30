@@ -1,6 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, useRef } from "react";
-import { useSession } from "@clerk/nextjs";
+import { useSupabaseTokenSession } from "@/components/auth/useSupabaseTokenSession";
 import { TOKEN_REFRESH_DEBOUNCE_MS, TOKEN_CACHE_DURATION_MS } from "@/constants/project-limits";
 
 // Token refresh constants
@@ -21,7 +21,7 @@ export function useSupabaseToken() {
   const [token, setToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
-  const { session, isLoaded } = useSession();
+  const { session, isLoaded } = useSupabaseTokenSession();
 
   const lastRefreshTime = useRef<number>(0);
   const tokenExpiry = useRef<number>(0);
