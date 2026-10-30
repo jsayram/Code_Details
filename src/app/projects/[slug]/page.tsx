@@ -18,10 +18,7 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { cookies } from "next/headers";
 import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
-import { getProjectForViewer } from "@/backend/projects/viewer-read";
 import { currentSlugFor, ownProjectForEdit } from "@/backend/projects/owner-edit";
-import { routeViewer } from "@/lib/auth-server";
-import { chooseAuthBackend } from "@/backend/auth";
 
 type Props = {
   params: Promise<{ slug: string }>;
@@ -36,31 +33,18 @@ export default async function ProjectPage({
   // Ensure params is handled as a Promise
   const resolvedParams = await Promise.resolve(params);
   
-  // Get auth data first. D04a: through the provider-neutral session helper
-  // instead of Clerk's auth(). Under the Better Auth switch this stays null,
-  // as Clerk's answer was: the owner gets their own read from
-  // ownProjectForEdit and everyone else the public projection.
-  const userId =
-    chooseAuthBackend().backend === "better-auth" ? null : (await routeViewer())?.userId ?? null;
-  
-  // Anonymous visitors get the C02 public projection only (no owner email,
-  // subject or tier in the page). Signed-in viewers get the session-checked
-  // read, scrubbed the same way, except that the owner keeps their own user
-  // ID for the edit controls (D02r).
+  // D02: a Better Auth owner gets their own project with the version the save
+  // needs; everyone else gets the C02 public projection (no owner email,
+  // subject or tier in the page). D08g4i: the Clerk-era signed-in read
+  // (routeViewer, then getProjectForViewer) is gone from this page; with Better
+  // Auth it never ran.
   let project: SelectProjectWithOwner | null;
   let user: SelectUserWithProject | null;
-  if (!userId) {
-    // D02: under both development switches a Better Auth owner gets their
-    // own project with the version the save needs; everyone else, and every
-    // other mode, gets the public projection as before.
+  {
     const own = await ownProjectForEdit(resolvedParams.slug);
     const publicProject = own ? null : await getProjectReadBackend().getPublicProjectBySlug(resolvedParams.slug);
     ({ project, userProfile: user } = own
       ?? (publicProject ? toProjectContentProps(publicProject) : { project: null, userProfile: null }));
-  } else {
-    const read = await getProjectForViewer(resolvedParams.slug);
-    project = read?.project ?? null;
-    user = read?.userProfile ?? null;
   }
   const cookieStore = await cookies();
   const token = cookieStore.get("__supabase_auth_token")?.value || null;
@@ -103,7 +87,7 @@ export default async function ProjectPage({
             />
           </div>
         </SignedOut>
-        <ProjectsProvider token={token} userId={userId} isLoading={false}>
+        <ProjectsProvider token={token} userId={null} isLoading={false}>
           <Suspense
             fallback={
               <div className="container mx-auto px-4 py-8">

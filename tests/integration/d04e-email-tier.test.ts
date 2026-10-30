@@ -77,11 +77,14 @@ describe.skipIf(!testDbAvailable())("D04e email and tier (Supabase/Clerk path)",
       expect(await tierOf()).toBe("free");
     });
 
-    it("signed in: the session user's own tier, whatever ?userId= says", async () => {
+    // D08g4i: the Supabase profile tier read is gone. In the app it needed a
+    // Clerk-era routeViewer without Better Auth, which routeUserId never gives
+    // (no login); this double faked one. With Better Auth the tier is users.tier
+    // through whoami (tests/unit/d08g4i-legacy-subject.test.ts, tests/e2e/d04f-tier-display.spec.ts).
+    it("without Better Auth, even a (faked) Clerk-era viewer gets free, whatever ?userId= says", async () => {
       expect(A.profile!.tier).toBe("pro");
       signInAs(A.subject);
-      expect(await tierOf()).toBe("pro");
-      signInAs(B.subject);
+      expect(await tierOf()).toBe("free");
       expect(await tierOf(`?userId=${A.subject}`)).toBe("free");
     });
 
