@@ -3,6 +3,9 @@
 // exists, and nothing for anyone getViewer refuses. Real test backend; personas
 // are the D01 fixtures, Better Auth logins are real sign-ups linked to a
 // persona with fixtures:linkPersona.
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
+import path from "node:path";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
@@ -95,5 +98,28 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("generator re-key 
     // Internal: no client can call it, signed in or not
     await expect(new ConvexHttpClient(TEST_CONVEX_URL).query(clerkSubjectMap, {})).rejects.toThrow();
     await expect(clientWithToken(a.token).query(clerkSubjectMap, {})).rejects.toThrow();
+  });
+
+  it("slice 3: a hand-written one-entry map with a real account ID re-keys a doc through the tool", async () => {
+    // As Jose would for his own docs: old Clerk subject -> the account ID of his new Better Auth login
+    const fresh = await login("genrekey-handmap");
+    const accountId = (await clientWithToken(fresh.token).query(docOwner, {}))!.userId;
+    const work = path.resolve(__dirname, "../../.test-runtime", `rekey-handmap-${process.pid}`);
+    const root = path.resolve(__dirname, "../../.test-runtime/docs-output", `rekey-handmap-${process.pid}`);
+    fs.rmSync(work, { recursive: true, force: true });
+    fs.rmSync(root, { recursive: true, force: true });
+    try {
+      fs.mkdirSync(path.join(root, "handmap-doc"), { recursive: true });
+      fs.mkdirSync(work, { recursive: true });
+      fs.writeFileSync(path.join(root, "handmap-doc", "_meta.json"), JSON.stringify({ projectSlug: "handmap-doc", userId: "user_fixture_handmap_old", repoName: "x" }, null, 2));
+      fs.writeFileSync(path.join(work, "map.json"), `{ "user_fixture_handmap_old": "${accountId}" }\n`);
+      const script = path.resolve(__dirname, "../../scripts/docs-rekey.mjs");
+      const res = spawnSync(process.execPath, [script, "--root", root, "--map", path.join(work, "map.json"), "--apply", "--backup", path.join(work, "backup")], { encoding: "utf8" });
+      expect(res.status, res.stdout + res.stderr).toBe(0);
+      expect(JSON.parse(fs.readFileSync(path.join(root, "handmap-doc", "_meta.json"), "utf8"))).toMatchObject({ userId: accountId, legacyUserId: "user_fixture_handmap_old" });
+    } finally {
+      fs.rmSync(work, { recursive: true, force: true });
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 });
