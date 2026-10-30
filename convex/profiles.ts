@@ -5,15 +5,15 @@
 // 90-day reservation redirects to the holder's current name; after that it
 // resolves to nothing until someone claims it.
 import { v } from "convex/values";
-import { mutation, query, type QueryCtx } from "./_generated/server";
-import type { Doc } from "./_generated/dataModel";
+import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
+import type { Doc, Id } from "./_generated/dataModel";
 import { type PublicProfile, assertPublicProfile, usernameKey } from "../src/backend/profiles/public-profile";
 import { USERNAME_RESERVATION_MS, USERNAME_TAKEN_MESSAGE, checkUsername } from "../src/backend/profiles/username-rules";
 import { MAX_NAME_LENGTH, seedAvatar } from "./accountRules";
 import { getViewer } from "./viewer";
 
 const iso = (ms: number) => new Date(ms).toISOString();
-const PROFILE_PROJECTION_VERSION = 1;
+export const PROFILE_PROJECTION_VERSION = 1;
 // Longer than any valid username (3–30) plus room for legacy forms; anything
 // longer can't match and isn't worth an index lookup.
 const MAX_LOOKUP_LENGTH = 100;
@@ -34,7 +34,7 @@ async function activeProfile(ctx: QueryCtx, userId: Doc<"users">["_id"]): Promis
 
 // The argument is the public name from the URL, not the caller: it is called
 // `handle` so the D01 identity-argument scan stays as strict as it is.
-async function avatarUrlOf(ctx: QueryCtx, profile: Doc<"profiles">): Promise<string | null> {
+export async function avatarUrlOf(ctx: QueryCtx, profile: Doc<"profiles">): Promise<string | null> {
   if (profile.avatar?.kind === "external") return profile.avatar.url;
   if (profile.avatar?.kind === "stored") return await ctx.storage.getUrl(profile.avatar.storageId);
   return null;
@@ -92,7 +92,7 @@ export type ProfileUpdateResult =
   | { ok: false; code: "invalid" | "taken"; field: string; message: string };
 
 /** A name field: control and format characters dropped, whitespace collapsed, capped; never an address. */
-function cleanName(value: string | null | undefined): { ok: true; value: string | undefined } | { ok: false } {
+export function cleanName(value: string | null | undefined): { ok: true; value: string | undefined } | { ok: false } {
   if (value === undefined || value === null) return { ok: true, value: undefined };
   const cleaned = value.replace(/[\p{Cc}\p{Cf}]/gu, "").replace(/\s+/g, " ").trim();
   if (cleaned.includes("@")) return { ok: false };
@@ -150,53 +150,10 @@ export const updateMine = mutation({
       }
     }
 
-    if (patch.handle !== undefined && usernameKey(patch.handle) !== profile.usernameKey) {
-      const check = checkUsername(patch.handle);
-      if (!check.ok) return { ok: false, code: "invalid", field: "username", message: check.message };
-      const holder = await ctx.db
-        .query("profiles")
-        .withIndex("by_usernameKey", (q) => q.eq("usernameKey", check.key))
-        .first();
-      const current = await ctx.db
-        .query("usernames")
-        .withIndex("by_usernameKey_state", (q) => q.eq("usernameKey", check.key).eq("state", "current"))
-        .first();
-      const previous = await ctx.db
-        .query("usernames")
-        .withIndex("by_usernameKey_state", (q) => q.eq("usernameKey", check.key).eq("state", "previous"))
-        .collect();
-      const reservedByOther = previous.some((p) => p.userId !== viewer.userId && (p.reservedUntil ?? 0) > now);
-      if ((holder && holder._id !== profile._id) || (current && current.userId !== viewer.userId) || reservedByOther) {
-        return { ok: false, code: "taken", field: "username", message: USERNAME_TAKEN_MESSAGE };
-      }
-
-      const mine = await ctx.db
-        .query("usernames")
-        .withIndex("by_userId_state", (q) => q.eq("userId", viewer.userId).eq("state", "current"))
-        .collect();
-      for (const row of mine) {
-        await ctx.db.patch(row._id, { state: "previous", releasedAt: now, reservedUntil: now + USERNAME_RESERVATION_MS });
-      }
-      // Expired claims on the new name (anyone's) and the caller's own
-      // reserved row for it are replaced by one current row.
-      for (const row of previous) {
-        if (row.userId === viewer.userId || (row.reservedUntil ?? 0) <= now) await ctx.db.delete(row._id);
-      }
-      await ctx.db.insert("usernames", { usernameKey: check.key, userId: viewer.userId, state: "current", claimedAt: now });
-      await ctx.db.insert("auditEvents", {
-        kind: "username.changed",
-        actorId: viewer.userId,
-        subjectTable: "profiles",
-        subjectId: profile._id,
-        at: now,
-        details: { from: profile.usernameKey, to: check.key },
-      });
-      changes.username = check.username;
-      changes.usernameKey = check.key;
-    } else if (patch.handle !== undefined) {
-      // Same key: only the display casing may change.
-      const check = checkUsername(patch.handle);
-      if (check.ok) changes.username = check.username;
+    if (patch.handle !== undefined) {
+      const renamed = await changeUsername(ctx, profile, patch.handle, viewer.userId, now);
+      if (!renamed.ok) return renamed;
+      Object.assign(changes, renamed.changes);
     }
 
     await ctx.db.patch(profile._id, { ...changes, updatedAt: now });
@@ -328,3 +285,104 @@ export const listPublic = query({
     return { rows, capped };
   },
 });
+
+/**
+ * D07-d: the public top-contributors list (the user directory's sidebar),
+ * from public profiles and their listed projects only. Score = projects x 10
+ * + favorites received x 5; tag suggestions don't count here, as on the
+ * default path, so they can't be farmed for rank.
+ */
+export const topContributorsPublic = query({
+  args: { limit: v.number() },
+  handler: async (ctx, { limit }) => {
+    const profiles = await ctx.db.query("profiles").take(DIRECTORY_CAP);
+    const rows = [];
+    for (const doc of profiles) {
+      const profile = await activeProfile(ctx, doc.userId);
+      if (!profile) continue;
+      const own = await listedProjectsOf(ctx, profile.userId);
+      const projectsCount = own.rows.length;
+      const favoritesReceived = own.rows.reduce((n, p) => n + p.favoriteCount, 0);
+      const pub = await toPublic(ctx, profile);
+      rows.push({
+        username: pub.username,
+        full_name: pub.fullName,
+        profile_image_url: pub.avatarUrl,
+        projects_count: projectsCount,
+        favorites_received: favoritesReceived,
+        tag_submissions_count: 0,
+        approved_tags_count: 0,
+        contribution_score: projectsCount * 10 + favoritesReceived * 5,
+      });
+    }
+    return rows.sort((a, b) => b.contribution_score - a.contribution_score).slice(0, Math.max(0, Math.min(100, Math.floor(limit))));
+  },
+});
+
+/**
+ * D07-d: the username change shared by updateMine (the owner) and
+ * admin:updateUser (an admin acting on a target), moved here unchanged from
+ * updateMine. Same rules either way: the name checks, nobody else's current
+ * or reserved name, the old name reserved for its owner for 90 days, the
+ * usernames history and a username.changed audit row with the actor. Returns
+ * the profile fields to patch; the caller writes them.
+ */
+export async function changeUsername(
+  ctx: MutationCtx,
+  profile: Doc<"profiles">,
+  handle: string,
+  actorId: Id<"users">,
+  now: number,
+): Promise<{ ok: true; changes: Partial<Doc<"profiles">> } | { ok: false; code: "invalid" | "taken"; field: "username"; message: string }> {
+  const changes: Partial<Doc<"profiles">> = {};
+  const ownerId = profile.userId;
+  if (usernameKey(handle) !== profile.usernameKey) {
+    const check = checkUsername(handle);
+    if (!check.ok) return { ok: false, code: "invalid", field: "username", message: check.message };
+    const holder = await ctx.db
+      .query("profiles")
+      .withIndex("by_usernameKey", (q) => q.eq("usernameKey", check.key))
+      .first();
+    const current = await ctx.db
+      .query("usernames")
+      .withIndex("by_usernameKey_state", (q) => q.eq("usernameKey", check.key).eq("state", "current"))
+      .first();
+    const previous = await ctx.db
+      .query("usernames")
+      .withIndex("by_usernameKey_state", (q) => q.eq("usernameKey", check.key).eq("state", "previous"))
+      .collect();
+    const reservedByOther = previous.some((p) => p.userId !== ownerId && (p.reservedUntil ?? 0) > now);
+    if ((holder && holder._id !== profile._id) || (current && current.userId !== ownerId) || reservedByOther) {
+      return { ok: false, code: "taken", field: "username", message: USERNAME_TAKEN_MESSAGE };
+    }
+
+    const mine = await ctx.db
+      .query("usernames")
+      .withIndex("by_userId_state", (q) => q.eq("userId", ownerId).eq("state", "current"))
+      .collect();
+    for (const row of mine) {
+      await ctx.db.patch(row._id, { state: "previous", releasedAt: now, reservedUntil: now + USERNAME_RESERVATION_MS });
+    }
+    // Expired claims on the new name (anyone's) and the owner's own
+    // reserved row for it are replaced by one current row.
+    for (const row of previous) {
+      if (row.userId === ownerId || (row.reservedUntil ?? 0) <= now) await ctx.db.delete(row._id);
+    }
+    await ctx.db.insert("usernames", { usernameKey: check.key, userId: ownerId, state: "current", claimedAt: now });
+    await ctx.db.insert("auditEvents", {
+      kind: "username.changed",
+      actorId,
+      subjectTable: "profiles",
+      subjectId: profile._id,
+      at: now,
+      details: { from: profile.usernameKey, to: check.key },
+    });
+    changes.username = check.username;
+    changes.usernameKey = check.key;
+  } else {
+    // Same key: only the display casing may change.
+    const check = checkUsername(handle);
+    if (check.ok) changes.username = check.username;
+  }
+  return { ok: true, changes };
+}

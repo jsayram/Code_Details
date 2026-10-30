@@ -11,6 +11,8 @@ import { toPublicProfileRow } from "@/backend/profiles/public-profile";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { DEFAULT_TOP_CONTRIBUTORS } from "@/constants/project-limits";
+import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { tagPipelineOnConvex, topContributorsOnConvex, topContributorsPublicOnConvex } from "@/backend/admin";
 
 export interface TopContributor {
   user_id: string;
@@ -277,7 +279,8 @@ export async function getTopContributors(limit: number, forceRefresh = false) {
   } else {
     console.log('[getTopContributors] 📦 Using server cache for contributors (if available)');
   }
-  const result = await getCachedTopContributors(limit);
+  // D07-d: under both development switches, Convex (read as the admin, no shared cache).
+  const result = projectWritesToConvex() ? await topContributorsOnConvex(limit) : await getCachedTopContributors(limit);
   console.log('[getTopContributors] ✅ Contributors data returned');
   return result;
 }
@@ -290,18 +293,20 @@ export async function getTagPipelineAnalytics(forceRefresh = false) {
   } else {
     console.log('[getTagPipelineAnalytics] 📦 Using server cache for tag pipeline (if available)');
   }
-  const result = await getCachedTagPipelineAnalytics();
+  const result = projectWritesToConvex() ? await tagPipelineOnConvex() : await getCachedTagPipelineAnalytics();
   console.log('[getTagPipelineAnalytics] ✅ Tag pipeline data returned');
   return result;
 }
 
 export async function fetchTopContributors(limit: number = DEFAULT_TOP_CONTRIBUTORS): Promise<TopContributor[]> {
   await checkAdminAccess();
-  return getCachedTopContributors(limit);
+  return projectWritesToConvex() ? topContributorsOnConvex(limit) : getCachedTopContributors(limit);
 }
 
 // Public version for user list - excludes tag metrics to prevent spam
 export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CONTRIBUTORS): Promise<PublicTopContributor[]> {
+  // D07-d: under both development switches, Convex's public list (listed projects only).
+  if (projectWritesToConvex()) return topContributorsPublicOnConvex(limit);
   return executeQuery(async (db) => {
     // Get contributor stats without tag submissions (public view)
     const contributors = await db
@@ -356,5 +361,5 @@ export async function fetchTopContributorsPublic(limit: number = DEFAULT_TOP_CON
 
 export async function fetchTagPipelineAnalytics(): Promise<TagPipelineMetrics> {
   await checkAdminAccess();
-  return getCachedTagPipelineAnalytics();
+  return projectWritesToConvex() ? tagPipelineOnConvex() : getCachedTagPipelineAnalytics();
 }

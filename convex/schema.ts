@@ -233,6 +233,9 @@ export default defineSchema({
       // D08d: a Clerk-era account took over a Better Auth login (handover).
       // The handover is gone (D08g4b); the literal stays so old rows still validate.
       v.literal("account.linked"),
+      // D07-d: an admin changed another account's username, name or tier
+      // (admin:updateUser). details: the fields changed and tier from/to.
+      v.literal("admin.user_updated"),
     ),
     actorId: v.optional(v.id("users")),
     subjectTable: v.string(),

@@ -7,6 +7,7 @@ import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { projectWritesToConvex } from "@/backend/projects/project-update";
 import { pendingSuggestionsOnConvex } from "@/backend/projects/tags";
+import { dashboardStatsOnConvex } from "@/backend/admin";
 
 // Cache admin dashboard stats for 2 minutes. SEC-D04-DASH: not exported (an
 // export of this "use server" file is callable by anyone; the stats carry new
@@ -45,11 +46,12 @@ export async function fetchAdminDashboardData(forceRefresh = false) {
     console.log('[fetchAdminDashboardData] 📦 Using server cache (if available)');
   }
 
-  // D07-c: under both development switches the pending list comes from
-  // Convex, read as the admin (no shared cache: the read needs the session).
+  // D07-c/d: under both development switches the pending list and the stats
+  // come from Convex, read as the admin (no shared cache: the reads need the session).
+  const toConvex = projectWritesToConvex();
   const [submissions, stats] = await Promise.all([
-    projectWritesToConvex() ? pendingSuggestionsOnConvex() : getCachedTagSubmissions(),
-    getCachedDashboardStats(),
+    toConvex ? pendingSuggestionsOnConvex() : getCachedTagSubmissions(),
+    toConvex ? dashboardStatsOnConvex() : getCachedDashboardStats(),
   ]);
 
   console.log('[fetchAdminDashboardData] ✅ Admin dashboard data returned from server');

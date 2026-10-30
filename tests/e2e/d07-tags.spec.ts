@@ -45,7 +45,8 @@ test.describe.serial("D07 tag suggestions and moderation (Better Auth + Convex r
 
   test("a suggestion stays pending until the users.role admin approves or rejects it", async ({ browser }) => {
     const suggester = await newPage(browser);
-    await linkPersona(B.subject!, (await authState(await signIn(suggester, "d07-suggester")))!.authUserId);
+    const suggesterEmail = await signIn(suggester, "d07-suggester");
+    await linkPersona(B.subject!, (await authState(suggesterEmail))!.authUserId);
 
     await suggester.goto(`/projects/${SLUG}/suggest-tags`);
     const input = suggester.locator("#tag-name");
@@ -68,7 +69,7 @@ test.describe.serial("D07 tag suggestions and moderation (Better Auth + Convex r
     await expect(card(APPROVED)).toBeVisible();
     for (const name of [APPROVED, REJECTED]) await card(name).getByRole("button", { name: "View All Submissions" }).click();
     await expect(card(APPROVED).getByText("Submitted by: fixture-bob")).toBeVisible();
-    expect(await admin.locator("main, body").first().textContent()).not.toMatch(/@synthetic\.invalid/);
+    expect(await admin.locator("body").textContent()).not.toContain(suggesterEmail);
 
     await card(APPROVED).getByRole("button", { name: "Approve for Project" }).click();
     await expect(card(APPROVED)).toHaveCount(0);
@@ -80,7 +81,11 @@ test.describe.serial("D07 tag suggestions and moderation (Better Auth + Convex r
     await expect(suggester.getByText(APPROVED).first()).toBeVisible();
     await expect(suggester.getByText(REJECTED)).toHaveCount(0);
 
+    // D07-d: the admin dashboard reads Convex (admin:dashboardStats) and shows no emails.
     await admin.goto("/dashboard/admin");
     await expect(admin).toHaveURL(/\/dashboard\/admin/);
+    await expect(admin.getByText("Fixture Listed Project").first()).toBeVisible();
+    // The only email on the page is the admin's own, in the account menu.
+    expect(await admin.locator("body").textContent()).not.toContain(suggesterEmail);
   });
 });

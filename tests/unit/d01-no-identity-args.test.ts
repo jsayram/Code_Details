@@ -15,6 +15,13 @@ const CONVEX_DIR = path.resolve(__dirname, "../../convex");
 const NOT_FUNCTION_MODULES = new Set(["schema.ts", "auth.config.ts", "convex.config.ts"]);
 const IDENTITY_NAME = /user|owner|viewer|subject|email|identity|account|author|creator|member|caller|actor|token|session/i;
 const IDENTITY_TABLES = new Set(["users", "authLinks", "profiles"]);
+// D07-d (coordinator's rule, 2026-10-30): an admin acting on another account
+// names it as a target, never as the caller. Every argument whose name starts
+// with "target" must be listed here exactly (function -> argument names); the
+// function must be admin-only (tests/integration/d07-convex-admin.test.ts).
+// The identity checks still apply to everything else, these arguments included.
+const ADMIN_TARGETS: Record<string, string[]> = { "admin:updateUser": ["targetProfileId"] };
+const TARGET_NAME = /^target/i;
 
 interface Registered {
   isPublic?: boolean;
@@ -26,6 +33,12 @@ interface Registered {
 }
 
 type ValidatorJson = { type: string; value?: unknown; tableName?: string; keys?: ValidatorJson; values?: { fieldType: ValidatorJson } };
+
+/** The top-level argument names of an exported args validator that start with "target". */
+function targetArgs(argsJson: string): string[] {
+  const node = JSON.parse(argsJson) as ValidatorJson;
+  return node.type === "object" ? Object.keys(node.value as Record<string, unknown>).filter((n) => TARGET_NAME.test(n)) : [];
+}
 
 /** Every identity-shaped field name or ID in an exported args validator. */
 function identityProblems(argsJson: string): string[] {
@@ -75,6 +88,16 @@ describe("D01 no public Convex function takes an identity argument", () => {
   it("every public function's arguments are free of identity", async () => {
     const problems = (await publicFunctions()).flatMap((f) => identityProblems(f.argsJson).map((p) => `${f.name} ${p}`));
     expect(problems).toEqual([]);
+  });
+
+  it("D07-d: target arguments appear only in the exact admin allowlist, and every entry still exists", async () => {
+    const found: Record<string, string[]> = {};
+    for (const f of await publicFunctions()) {
+      const targets = targetArgs(f.argsJson);
+      if (targets.length) found[f.name] = targets.sort();
+    }
+    expect(found).toEqual(Object.fromEntries(Object.entries(ADMIN_TARGETS).map(([k, a]) => [k, [...a].sort()])));
+    expect(Object.keys(found).every((name) => name.startsWith("admin:"))).toBe(true);
   });
 
   it("the checker catches the shapes it is meant to (self-test)", () => {

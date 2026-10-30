@@ -778,3 +778,29 @@ export const addTagAlias = internalMutation({
     await ctx.db.insert("tagAliases", { aliasKey, tagId: tag._id, reviewedBy: reviewer.userId, reviewedAt: Date.now() });
   },
 });
+
+// D07-d: audit rows of one kind, with actor and target usernames.
+export const auditRows = internalQuery({
+  args: { kind: v.string() },
+  handler: async (ctx, { kind }) => {
+    assertFixturesAllowed();
+    const rows = (await ctx.db.query("auditEvents").withIndex("by_at").collect()).filter((a) => a.kind === kind);
+    const nameOfUser = async (id: Id<"users"> | undefined) =>
+      id ? ((await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", id)).first())?.usernameKey ?? null) : null;
+    const out = [];
+    for (const a of rows) {
+      const target = a.subjectTable === "profiles" ? await ctx.db.get(a.subjectId as Id<"profiles">) : null;
+      out.push({ actor: await nameOfUser(a.actorId), target: target ? await nameOfUser(target.userId) : null, details: a.details ?? null });
+    }
+    return out;
+  },
+});
+
+// D07-d: a fixture persona's profile ID by usernameKey.
+export const profileIdOf = internalQuery({
+  args: { usernameKey: v.string() },
+  handler: async (ctx, { usernameKey }) => {
+    assertFixturesAllowed();
+    return (await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).first())?._id ?? null;
+  },
+});
