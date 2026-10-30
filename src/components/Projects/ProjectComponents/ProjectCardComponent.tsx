@@ -294,7 +294,9 @@ export const ProjectCard = React.memo(
       e.preventDefault();
       e.stopPropagation();
 
-      if (!user) {
+      // D07x: the session decides (Clerk's userId by default), so a Better
+      // Auth user isn't told to sign in.
+      if (!userId) {
         toast.dismiss();
         toast.info(
           <div className="relative flex flex-row items-center gap-2">
@@ -351,7 +353,9 @@ export const ProjectCard = React.memo(
     const handleCategoryClick = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      if (!user) {
+      // D07x: the session decides (Clerk's userId by default), so a Better
+      // Auth user isn't told to sign in.
+      if (!userId) {
         toast.dismiss();
         toast.info(
           <div className="relative flex flex-row items-center gap-2">
@@ -425,7 +429,9 @@ export const ProjectCard = React.memo(
 
     const handleNavigateUser = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!user) {
+      // D07x: the session decides (Clerk's userId by default), so a Better
+      // Auth user isn't told to sign in.
+      if (!userId) {
         toast.dismiss();
         toast.info(
           <div className="relative flex flex-row items-center gap-2">
@@ -453,7 +459,9 @@ export const ProjectCard = React.memo(
 
     const handleNavigatetoUsersProjects = async (e: React.MouseEvent) => {
       e.stopPropagation();
-      if (!user) {
+      // D07x: the session decides (Clerk's userId by default), so a Better
+      // Auth user isn't told to sign in.
+      if (!userId) {
         toast.dismiss();
         toast.info(
           <div className="relative flex flex-row items-center gap-2">

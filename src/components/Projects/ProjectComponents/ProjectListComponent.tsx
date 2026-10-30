@@ -244,10 +244,12 @@ export const ProjectList = React.memo(function ProjectList({
 
   const handleFavoriteAction = async (id: string, isFavorite: boolean) => {
     try {
-      if (isFavorite) {
-        await addProjectFavorite(id);
-      } else {
-        await removeProjectFavorite(id);
+      // D07x: the actions answer { success: false } rather than throwing; a
+      // refused change used to show "Added to favorites" and move the count.
+      const result = isFavorite ? await addProjectFavorite(id) : await removeProjectFavorite(id);
+      if (!result.success) {
+        toast.error(result.error || "Failed to update favorite status");
+        return;
       }
 
       // If we're unfavoriting and on the favorites page, remove from UI immediately

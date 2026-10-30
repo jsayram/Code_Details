@@ -105,4 +105,12 @@ test.describe.serial("D07x public lists (Better Auth + Convex read)", () => {
     await page.goto("/tags");
     await expect(page.getByText(/^Rust\s*\d+$/).first()).toBeVisible();
   });
+
+  test("a Better Auth user's click on a card's tag opens the tag page instead of a sign-in toast", async ({ page }) => {
+    await signIn(page, "d07x-tag-click");
+    await page.goto("/projects");
+    await card(page).getByText("#C#", { exact: true }).click();
+    await expect(page).toHaveURL(/\/tags\/C%23$/);
+    await expect(page.getByText("You have to sign in to browse projects by tags")).toHaveCount(0);
+  });
 });
