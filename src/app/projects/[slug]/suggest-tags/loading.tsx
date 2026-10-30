@@ -3,7 +3,10 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { FooterSection } from "@/components/layout/FooterSection";
-import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
+// D07-c: the client gates. The client page renders this file too, and a
+// client module can't import the server gates (next/headers): since D08f2 the
+// page failed to build.
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 export default function SuggestTagsLoading() {

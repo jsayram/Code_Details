@@ -226,6 +226,24 @@ export function TagSubmissionManagement({
       const projectNameMap: Record<string, string> = {};
       const projectSlugMap: Record<string, string> = {};
 
+      // D07-c: the Convex list (under the development switches) carries each
+      // project's title, slug and tag count; no lookups needed.
+      type WithProject = { project_title?: string | null; project_slug?: string | null; project_tag_count?: number | null };
+      const carried = submissions.flatMap((group) => group.submissions as (SelectTagSubmission & WithProject)[]);
+      if (carried.length > 0 && carried.every((sub) => sub.project_slug !== undefined)) {
+        const tagCountMap: Record<string, number> = {};
+        for (const sub of carried) {
+          if (!sub.project_id || !sub.project_slug) continue;
+          projectNameMap[sub.project_id] = sub.project_title ?? "";
+          projectSlugMap[sub.project_id] = sub.project_slug;
+          tagCountMap[sub.project_id] = sub.project_tag_count ?? 0;
+        }
+        setProjectNames((prev) => ({ ...prev, ...projectNameMap }));
+        setProjectTagCounts((prev) => ({ ...prev, ...tagCountMap }));
+        setProjectSlugs((prev) => ({ ...prev, ...projectSlugMap }));
+        return;
+      }
+
       // Fetch project details
       for (const projectId of uniqueProjectIds) {
         if (!projectId) continue; // Skip null project IDs

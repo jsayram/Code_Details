@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { SelectTagSubmission } from "@/db/schema/tag_submissions";
-import { useUser } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 
 /**
  * Hook to fetch and manage pending tag submissions for a project
@@ -14,10 +14,12 @@ export function useProjectTagSubmissions(projectId: string) {
   const [pendingTags, setPendingTags] = useState<SelectTagSubmission[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { user } = useUser();
+  // D07-c: any signed-in viewer (Clerk or Better Auth); the server picks the
+  // viewer's own suggestions from the session, so no email is sent.
+  const viewerId = useViewerId();
 
   const fetchPendingTags = useCallback(async () => {
-    if (!projectId || !user?.primaryEmailAddress?.emailAddress) {
+    if (!projectId || !viewerId) {
       setPendingTags([]);
       setIsLoading(false);
       return;
@@ -28,9 +30,7 @@ export function useProjectTagSubmissions(projectId: string) {
 
     try {
       const response = await fetch(
-        `/api/projects/${projectId}/tag-submissions?status=pending&email=${encodeURIComponent(
-          user.primaryEmailAddress.emailAddress
-        )}`,
+        `/api/projects/${encodeURIComponent(projectId)}/tag-submissions?status=pending`,
         { cache: "no-store" }
       );
 
@@ -57,7 +57,7 @@ export function useProjectTagSubmissions(projectId: string) {
     } finally {
       setIsLoading(false);
     }
-  }, [projectId, user?.primaryEmailAddress?.emailAddress]);
+  }, [projectId, viewerId]);
 
   useEffect(() => {
     fetchPendingTags();

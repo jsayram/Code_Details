@@ -143,6 +143,20 @@ export async function viewerForCookies(cookie: string | null): Promise<{ role: "
 
 const whoami = makeFunctionReference<"query", Record<string, never>, { username: string | null; role: string; tier: string } | null>("identity:whoami");
 
+/**
+ * D07-c: the Better Auth viewer's users.role, for the admin checks. Unlike
+ * routeViewer it needs no Clerk-era link, so an account that signed up with
+ * Better Auth can be an admin. Null when signed out, on any error, or with
+ * the switch off.
+ */
+export async function betterAuthRole(): Promise<string | null> {
+  try {
+    return (await viewerQuery(whoami))?.result?.role ?? null;
+  } catch {
+    return null;
+  }
+}
+
 const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
 
 /**

@@ -220,6 +220,16 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       expect(submissions.flatMap((g) => g.submissions.map((s) => s.id))).toContain(pending.id);
     });
 
+    it("D07-c: the admin page checks on the server: signed out and B are redirected, the admin renders", async () => {
+      const mod = await import("../../src/app/(administrator)/dashboard/admin/page.js");
+      const page = (mod as unknown as { default: () => Promise<unknown> }).default;
+      await expect(page()).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
+      signInAs(B.subject);
+      await expect(page()).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
+      signInAdmin();
+      expect(await page()).toBeTruthy();
+    });
+
     it("the three admin action files read nothing from Clerk", () => {
       for (const file of ["admin-dashboard.ts", "user-management.ts", "advanced-analytics.ts"]) {
         expect(readFileSync(path.join(__dirname, "../../src/app/actions", file), "utf8")).not.toMatch(/@clerk\//);

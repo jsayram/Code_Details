@@ -4,7 +4,9 @@ import { tag_submissions } from "@/db/schema/tag_submissions";
 import { profiles } from "@/db/schema/profiles";
 import { eq, and } from "drizzle-orm";
 import { success, invalidInput, databaseError, unauthorized } from "@/lib/api-errors";
-import { routeViewer } from "@/lib/auth-server";
+import { betterAuthSignedIn, routeViewer } from "@/lib/auth-server";
+import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { mySuggestionsOnConvex } from "@/backend/projects/tags";
 
 const STATUSES = new Set(["pending", "approved", "rejected"]);
 
@@ -23,6 +25,13 @@ export async function GET(
     const status = searchParams.get("status") || "pending";
     if (!STATUSES.has(status)) {
       return invalidInput("Invalid status");
+    }
+    // D07-c: under both development switches, the viewer's own Convex suggestions.
+    if (projectWritesToConvex()) {
+      if (projectId.length > 64) return invalidInput("Invalid project ID");
+      // A Better Auth account needs no Clerk-era link here (routeViewer would).
+      if (!(await betterAuthSignedIn())) return unauthorized();
+      return success(await mySuggestionsOnConvex(projectId, status));
     }
     if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
       return invalidInput("Invalid project ID");

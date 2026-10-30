@@ -17,6 +17,8 @@ import { routeViewer } from "@/lib/auth-server";
 import { profiles } from "@/db/schema/profiles";
 import { getProjectById } from "@/app/actions/projects";
 import { listPendingTagSubmissions } from "@/db/operations/tag-submission-operations";
+import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { moderateOnConvex, pendingSuggestionsOnConvex, suggestTagOnConvex } from "@/backend/projects/tags";
 
 // D07 (P08 R04). Every export here is callable by anyone, so each one checks
 // the caller itself. Suggestions come from the signed-in viewer (Clerk backend
@@ -49,7 +51,8 @@ async function liveProject(projectId: string) {
 // Schema for submitNewTag input validation
 const submitNewTagSchema = z.object({
   tagName: tagNameSchema,
-  projectId: z.string().uuid("Invalid project ID format"),
+  // A UUID on Supabase, a Convex ID under the switches (checked by Convex).
+  projectId: z.string().min(1).max(64),
   description: tagDescriptionSchema,
 });
 
@@ -70,6 +73,11 @@ export async function submitNewTag(
   if (!validationResult.success) {
     const firstError = validationResult.error.issues[0];
     return { success: false, error: firstError.message };
+  }
+
+  // D07-c: under both development switches the suggestion goes to Convex.
+  if (projectWritesToConvex()) {
+    return suggestTagOnConvex(projectId, validationResult.data.tagName, validationResult.data.description?.trim());
   }
 
   const viewer = await suggestionViewer();
@@ -199,12 +207,17 @@ export async function submitNewTag(
 // this returned every submitter's email. Admins only.
 export async function getPendingTagSubmissions() {
   await requireAdminForAction();
+  if (projectWritesToConvex()) return pendingSuggestionsOnConvex();
   return listPendingTagSubmissions();
 }
 
 // Schema for approveTagSubmission input validation
+const submissionIdSchema = z
+  .string()
+  .refine((id) => (projectWritesToConvex() ? id.length > 0 && id.length <= 64 : UUID_RE.test(id)), "Invalid submission ID format");
+
 const approveTagSubmissionSchema = z.object({
-  submissionId: z.string().uuid("Invalid submission ID format"),
+  submissionId: submissionIdSchema,
   adminNotes: z.string().max(MAX_ADMIN_NOTES_LENGTH, `Admin notes must be at most ${MAX_ADMIN_NOTES_LENGTH} characters`).optional(),
   approvalType: z.enum(["system", "project"]).default("project"),
 });
@@ -229,6 +242,12 @@ export async function approveTagSubmission(
   }
 
   const validated = validationResult.data;
+
+  if (projectWritesToConvex()) {
+    await moderateOnConvex("approve", validated.submissionId, validated.adminNotes, validated.approvalType);
+    revalidateAfterModeration();
+    return;
+  }
 
   return executeQuery(async (db) => {
     // Get the submission
@@ -428,7 +447,7 @@ export async function approveTagSubmission(
 }
 
 const rejectTagSubmissionSchema = z.object({
-  submissionId: z.string().uuid("Invalid submission ID format"),
+  submissionId: submissionIdSchema,
   adminNotes: z.string().max(MAX_ADMIN_NOTES_LENGTH, `Admin notes must be at most ${MAX_ADMIN_NOTES_LENGTH} characters`).optional(),
 });
 
@@ -440,6 +459,12 @@ export async function rejectTagSubmission(submissionId: string, adminNotes: stri
     return { success: false, error: validationResult.error.issues[0].message };
   }
   const validated = validationResult.data;
+
+  if (projectWritesToConvex()) {
+    await moderateOnConvex("reject", validated.submissionId, validated.adminNotes);
+    revalidateAfterModeration();
+    return;
+  }
 
   return executeQuery(async (db) => {
     await db
@@ -467,6 +492,8 @@ export async function approveRejectedTagSubmission(
   _submitterEmail?: string
 ) {
   if (typeof tagName !== "string" || !tagName.trim() || tagName.length > 100) return;
+  // Convex keeps a rejected suggestion as it was; the owner's save adds the tag.
+  if (projectWritesToConvex()) return;
   const viewer = await suggestionViewer();
   if (!viewer?.email) return;
   const project = await liveProject(projectId);
@@ -501,4 +528,13 @@ export async function approveRejectedTagSubmission(
     revalidatePath("/dashboard");
     revalidatePath(`/projects/${projectId}`);
   });
+}
+
+function revalidateAfterModeration() {
+  revalidateTag(CACHE_TAGS.TAGS, {});
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+  revalidateTag(CACHE_TAGS.ADMIN_DASHBOARD, {});
+  revalidateTag(CACHE_TAGS.TAG_SUBMISSIONS, {});
+  revalidatePath("/dashboard/tag-submissions");
 }

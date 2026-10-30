@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { submitNewTag } from "@/app/actions/tag-submissions";
 import { toast } from "sonner";
-import { useUser } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { Badge } from "@/components/ui/badge";
 import { useTags } from "@/hooks/use-tags";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
@@ -88,11 +88,12 @@ export default function SuggestTagsPage() {
   const params = useParams();
   const projectSlug = params.slug as string;
   
-  const { user, isLoaded } = useUser();
+  // D07-c: the session viewer (Clerk or Better Auth); the server takes the
+  // submitter and their email from the session, so none is sent from here.
+  const viewerId = useViewerId();
   const { refreshCache } = useTags();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [tagInput, setTagInput] = useState("");
-  const [email, setEmail] = useState("");
   const [tagError, setTagError] = useState<string | null>(null);
   const [tagReasons, setTagReasons] = useState<Record<string, string>>({});
   const [processedTags, setProcessedTags] = useState<
@@ -151,13 +152,11 @@ export default function SuggestTagsPage() {
   // Fetch pending tag submissions
   useEffect(() => {
     const fetchPendingTags = async () => {
-      if (!projectData?.id || !user?.primaryEmailAddress?.emailAddress) return;
+      if (!projectData?.id || !viewerId) return;
 
       try {
         const response = await fetch(
-          `/api/projects/${projectData.id}/tag-submissions?status=pending&email=${encodeURIComponent(
-            user.primaryEmailAddress.emailAddress
-          )}`,
+          `/api/projects/${encodeURIComponent(projectData.id)}/tag-submissions?status=pending`,
           { cache: "no-store" }
         );
         const result = await response.json();
@@ -172,14 +171,7 @@ export default function SuggestTagsPage() {
     };
 
     fetchPendingTags();
-  }, [projectData?.id, user?.primaryEmailAddress?.emailAddress]);
-
-  // Set user email when loaded
-  useEffect(() => {
-    if (isLoaded && user?.primaryEmailAddress?.emailAddress) {
-      setEmail(user.primaryEmailAddress.emailAddress);
-    }
-  }, [user, isLoaded]);
+  }, [projectData?.id, viewerId]);
 
   // Check if there are unsaved changes
   const hasUnsavedChanges = () => {
@@ -350,13 +342,8 @@ export default function SuggestTagsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
-    if (!user) {
+    if (!viewerId) {
       toast.error("You must be signed in to submit tags");
-      return;
-    }
-
-    if (!email) {
-      toast.error("Email is required");
       return;
     }
 
@@ -403,7 +390,7 @@ export default function SuggestTagsPage() {
         const result = await submitNewTag(
           tag.name,
           projectData?.id || "",
-          email,
+          undefined,
           tagReasons[tag.name] || ""
         );
         
@@ -467,11 +454,11 @@ export default function SuggestTagsPage() {
     }
   };
 
-  if (!isLoaded || isLoadingProject) {
+  if (viewerId === undefined || isLoadingProject) {
     return <SuggestTagsLoading />;
   }
 
-  if (!user) {
+  if (!viewerId) {
     return (
       <SidebarProvider>
         <SignedIn>

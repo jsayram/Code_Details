@@ -5,7 +5,7 @@ import { TagInput } from "@/components/ui/tag-input";
 import { TagInfo } from "@/db/operations/tag-operations";
 import { useTags } from "@/hooks/use-tags";
 import { TagSubmissionModal } from "./TagSubmissionModal";
-import { useUser } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useProjects } from "@/providers/projects-provider";
 import { SelectTagSubmission } from "@/db/schema/tag_submissions";
 import { toast } from "sonner";
@@ -35,7 +35,7 @@ export function TagSelector({
     refreshCache,
   } = useTags();
   const isMounted = useRef(false);
-  const { user } = useUser();
+  const viewerId = useViewerId();
   const { projects } = useProjects();
 
   useEffect(() => {
@@ -156,13 +156,11 @@ export function TagSelector({
   );
 
   const loadPendingSubmissions = useCallback(async () => {
-    if (projectId === "new" || !user?.primaryEmailAddress?.emailAddress) return;
+    if (projectId === "new" || !viewerId) return;
 
     try {
       const result = await fetch(
-        `/api/projects/${projectId}/tag-submissions?status=pending&email=${encodeURIComponent(
-          user.primaryEmailAddress.emailAddress
-        )}`,
+        `/api/projects/${encodeURIComponent(projectId)}/tag-submissions?status=pending`,
         { cache: "no-store" }
       ).then((res) => res.json());
 
@@ -176,7 +174,7 @@ export function TagSelector({
       console.error("Failed to load pending tag submissions:", error);
       setPendingTags([]);
     }
-  }, [projectId, user?.primaryEmailAddress?.emailAddress]);
+  }, [projectId, viewerId]);
 
   useEffect(() => {
     if (isMounted.current) {
