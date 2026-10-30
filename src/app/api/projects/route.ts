@@ -13,6 +13,9 @@ import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
 import { routeViewer } from "@/lib/auth-server";
+import { getProjectReadBackend } from "@/backend/projects";
+import { ownProjectForEdit } from "@/backend/projects/owner-edit";
+import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import { convexPersonalList, convexPublicList, listResponse, personalListResponse, personalReadsFromConvex } from "@/backend/projects/personal";
 
 // Helper function to build base project selection
@@ -134,7 +137,11 @@ export async function GET(request: NextRequest) {
     // D02r (P08 R08): who "my projects", "my favorites" and "my graveyard"
     // belong to comes from the session only. A userId in the query string is
     // still accepted (the client puts it in its cache key) but never used.
-    const viewer = await routeViewer();
+    // D08g4f3: under the Convex data default every branch below reads Convex
+    // with the session itself, so the Supabase viewer (a Clerk-era subject,
+    // which a fresh account doesn't have) isn't looked up at all.
+    const fromConvex = personalReadsFromConvex();
+    const viewer = fromConvex ? null : await routeViewer();
     const userId = viewer?.userId ?? null;
 
     const {
@@ -154,7 +161,7 @@ export async function GET(request: NextRequest) {
     console.log(
       `🔍 API Request - Projects:
        - Category: ${category || "any"}
-       - Viewer: ${userId ? "signed in" : "anonymous"}
+       - Viewer: ${fromConvex ? "from the session (Convex)" : userId ? "signed in" : "anonymous"}
        - Username: ${username || "any"}
        - Tags: ${tags.length > 0 ? tags.join(", ") : "any"}
        - Show All: ${showAll}
@@ -164,6 +171,19 @@ export async function GET(request: NextRequest) {
        - Page: ${page}
        - Limit: ${limit || "all"}`
     );
+
+    // D08g4f3: under the Convex default, the same read as the project page and
+    // /api/projects/slug/[slug]: the owner's own project (deleted included),
+    // else the public projection.
+    if (slug && fromConvex) {
+      const own = await ownProjectForEdit(slug);
+      const publicProject = own ? null : await getProjectReadBackend().getPublicProjectBySlug(slug);
+      const project = own?.project ?? (publicProject ? toProjectContentProps(publicProject).project : null);
+      return new NextResponse(
+        JSON.stringify(project ? { success: true, data: project } : { success: false, error: "Project not found" }),
+        { status: project ? 200 : 404, headers },
+      );
+    }
 
     // Handle single project request by slug
     if (slug) {

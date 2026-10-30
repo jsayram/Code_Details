@@ -451,19 +451,24 @@ async function ownActiveProject(ctx: QueryCtx, viewer: Viewer | null, project: D
  * save must send back. `viewerAuthSubject` is the caller's own token subject:
  * the page hands it to ProjectContent, whose owner check compares the
  * session's user ID with the profile's. Null for anyone else.
+ *
+ * D08g4f3: the owner's own project in the graveyard comes back too, with
+ * `deletedAt`, so the graveyard card's link opens it for its owner as it did on
+ * Supabase. Saving it is still refused (updateMine takes active projects only).
  */
 export const getMineForEdit = query({
   args: { slug: v.string() },
-  handler: async (ctx, { slug }): Promise<(EditableProject & { viewerAuthSubject: string }) | null> => {
+  handler: async (ctx, { slug }): Promise<(EditableProject & { viewerAuthSubject: string; deletedAt: string | null }) | null> => {
     const viewer = await getViewer(ctx);
     const identity = await ctx.auth.getUserIdentity();
     const project = await ctx.db
       .query("projects")
       .withIndex("by_slug", (q) => q.eq("slug", slug))
       .first();
-    const own = await ownActiveProject(ctx, viewer, project);
+    const own = viewer && project && project.ownerId === viewer.userId && (project.status === "active" || project.status === "deleted") ? project : null;
     if (!own || !identity) return null;
-    return { ...(await toEditable(ctx, own)), viewerAuthSubject: identity.subject };
+    const deletedAt = own.status === "deleted" ? iso(own.deletedAt ?? own.updatedAt) : null;
+    return { ...(await toEditable(ctx, own)), viewerAuthSubject: identity.subject, deletedAt };
   },
 });
 

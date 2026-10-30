@@ -20,7 +20,7 @@ type Result =
   | { ok: false; code: "not_found" | "stale" | "invalid"; issues?: { field: string; message: string }[]; contentVersion?: number };
 
 const update = makeFunctionReference<"mutation", Args, Result>("projects:update");
-const getMineForEdit = makeFunctionReference<"query", { slug: string }, (Editable & { viewerAuthSubject: string }) | null>("projects:getMineForEdit");
+const getMineForEdit = makeFunctionReference<"query", { slug: string }, (Editable & { viewerAuthSubject: string; deletedAt: string | null }) | null>("projects:getMineForEdit");
 const currentSlug = makeFunctionReference<"query", { slug: string }, string | null>("projects:currentSlug");
 const getPublicBySlug = makeFunctionReference<"query", { slug: string }, Record<string, unknown> | null>("projects:getPublicBySlug");
 
@@ -162,7 +162,19 @@ describe.skipIf(!convexAvailable())("D02 Convex project update", () => {
       for (const c of [anonymousClient(), clientAs(B.subject!), clientAs(admin.subject!), clientAs(deleting.subject!), clientAs("user_fixture_unlinked")]) {
         expect(await c.query(getMineForEdit, { slug: "fixture-listed" })).toBeNull();
       }
-      expect(await asA().query(getMineForEdit, { slug: "fixture-deleted-recent" })).toBeNull();
+      expect(mine?.deletedAt).toBeNull();
+    });
+
+    it("D08g4f3: the owner also gets their own project in the graveyard, marked deleted; nobody else does, and saving it is refused", async () => {
+      const deleted = await asA().query(getMineForEdit, { slug: "fixture-deleted-recent" });
+      expect(deleted).toMatchObject({ id: ids["fixture-deleted-recent"], slug: "fixture-deleted-recent" });
+      expect(deleted?.deletedAt).toEqual(expect.any(String));
+      for (const c of [anonymousClient(), clientAs(B.subject!), clientAs(admin.subject!), clientAs("user_fixture_unlinked")]) {
+        expect(await c.query(getMineForEdit, { slug: "fixture-deleted-recent" })).toBeNull();
+      }
+      const before = await state(ids["fixture-deleted-recent"]);
+      expect(await save(asA(), "fixture-deleted-recent", { title: "Edited in the graveyard" })).toEqual({ ok: false, code: "not_found" });
+      expect(await state(ids["fixture-deleted-recent"])).toEqual(before);
     });
   });
 

@@ -17,7 +17,8 @@ import type { ProjectLink } from "@/types/project-links";
 import { chooseProjectReadBackend, getProjectReadBackend } from "./index";
 import { projectWritesToConvex, type EditableProject } from "./project-update";
 
-type Mine = EditableProject & { viewerAuthSubject: string };
+/** D08g4f3: `deletedAt` is set for the owner's own project in the graveyard. */
+type Mine = EditableProject & { viewerAuthSubject: string; deletedAt?: string | null };
 const getMineForEdit = makeFunctionReference<"query", { slug: string }, Mine | null>("projects:getMineForEdit");
 const currentSlug = makeFunctionReference<"query", { slug: string }, string | null>("projects:currentSlug");
 
@@ -38,7 +39,7 @@ export function toOwnerContentProps(p: Mine): {
     field_order: p.fieldOrder,
     created_at: new Date(p.createdAt),
     updated_at: new Date(p.updatedAt),
-    deleted_at: null,
+    deleted_at: p.deletedAt ? new Date(p.deletedAt) : null,
     tags: p.tags,
     user_id: p.viewerAuthSubject,
     owner_user_id: p.viewerAuthSubject,
