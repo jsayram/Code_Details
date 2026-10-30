@@ -26,7 +26,6 @@ const REMAINING = [
   "src/lib/auth-server.ts",
   "src/lib/user-sync-utils.ts",
   "src/proxy.ts",
-  "src/services/supabase-server.ts",
 ];
 
 const MOVED_IN_G4E1 = [
@@ -81,8 +80,11 @@ describe("Clerk imports outside the auth adapters", () => {
     expect(/from\s*["']@clerk\//.test(withoutComments('import { useAuth } from "@clerk/nextjs";'))).toBe(true);
   });
 
-  it("the unused Clerk-Supabase client hook is gone (g4e2)", () => {
+  it("the unused Clerk-Supabase clients are gone (g4e2, g4f1)", () => {
     expect(files).not.toContain("src/hooks/use-clerk-supabase-client.ts");
+    expect(files).not.toContain("src/services/supabase-server.ts");
+    const supabase = fs.readFileSync(path.join(root, "src/services/supabase.ts"), "utf8");
+    expect(supabase).not.toMatch(/export function (createClerkSupabaseClient|getAuthenticatedClient)\b/);
   });
 
   const outside = files.filter((f) => !f.startsWith("src/components/auth/") && importsClerk(f));

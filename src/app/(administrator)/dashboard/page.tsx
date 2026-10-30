@@ -7,6 +7,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SignedIn, useViewerId } from "@/components/auth/AuthGate";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
+import { useAuthBackend } from "@/backend/auth/context";
+import { getMyProfileHandle } from "@/app/actions/profile-handle";
 import {
   Card,
   CardContent,
@@ -997,9 +999,28 @@ function DashboardError({
 // Profile Editor Card Component
 function ProfileEditorCard() {
   // D08g4e3: display fields from the app's login (Clerk's useUser values with
-  // Clerk). Better Auth has no handle here (username null), so saving under
-  // Better Auth still fails as before; see the g4e3 report.
+  // Clerk). DEF-G4E3-HANDLE: Better Auth gives the client no handle, so it
+  // comes from the server for the session (getMyProfileHandle, no arguments).
   const { user } = useDisplayUser();
+  // useDisplayUser returns a new object each render, so effects key on the
+  // values (keying on the object reset the form on every keystroke; g4e3).
+  const signedIn = !!user;
+  const fullName = user?.fullName ?? null;
+  const email = user?.email ?? null;
+  const imageUrl = user?.imageUrl ?? null;
+  const backend = useAuthBackend();
+  const [sessionHandle, setSessionHandle] = useState<string | null>(null);
+  useEffect(() => {
+    if (backend !== "better-auth" || !signedIn) return;
+    let live = true;
+    void getMyProfileHandle().then((handle) => {
+      if (live) setSessionHandle(handle);
+    });
+    return () => {
+      live = false;
+    };
+  }, [backend, signedIn]);
+  const handle = user?.username || sessionHandle;
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -1010,19 +1031,20 @@ function ProfileEditorCard() {
 
   // Load user data
   useEffect(() => {
-    if (user) {
+    if (signedIn) {
       setFormData({
-        username: user.username || user.fullName || "",
-        email: user.email || "",
-        profileImage: user.imageUrl || "",
+        username: handle || fullName || "",
+        email: email || "",
+        profileImage: imageUrl || "",
       });
     }
-  }, [user]);
+  }, [signedIn, handle, fullName, email, imageUrl]);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      const response = await fetch(`/api/profiles/${user?.username}`, {
+      if (!handle) throw new Error("Your profile isn't ready yet; try again in a moment");
+      const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
@@ -1038,6 +1060,8 @@ function ProfileEditorCard() {
       if (data.success) {
         toast.success("Profile updated successfully");
         setIsEditing(false);
+        // A renamed handle is the one the next save goes to.
+        if (!user?.username) setSessionHandle(formData.username);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
@@ -1051,7 +1075,7 @@ function ProfileEditorCard() {
   const handleCancel = () => {
     if (user) {
       setFormData({
-        username: user.username || user.fullName || "",
+        username: handle || user.fullName || "",
         email: user.email || "",
         profileImage: user.imageUrl || "",
       });
