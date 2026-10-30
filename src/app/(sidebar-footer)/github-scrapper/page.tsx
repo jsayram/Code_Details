@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { SignInButton, useUser } from '@clerk/nextjs';
+import { SignInTrigger } from '@/components/auth/SignInButtonComponent';
 import { SignedIn, SignedOut, useViewerId } from '@/components/auth/AuthGate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -254,11 +254,11 @@ function GitHubScrapperContent() {
                     <AlertTitle>Authentication Required</AlertTitle>
                     <AlertDescription>
                       Please sign in to generate documentation.
-                      <SignInButton mode="modal">
+                      <SignInTrigger mode="modal">
                         <Button variant="link" className="px-2 h-auto">
                           Sign In
                         </Button>
-                      </SignInButton>
+                      </SignInTrigger>
                     </AlertDescription>
                   </Alert>
                 </SignedOut>
@@ -478,11 +478,12 @@ function GitHubScrapperContent() {
 }
 
 export default function GitHubScrapperPage() {
-  const { user } = useUser();
+  // D08g4e3: the app's login (Clerk or Better Auth).
+  const viewerId = useViewerId();
   const { token } = useSupabaseToken();
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
+    <ProjectsProvider token={token} userId={viewerId ?? null}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

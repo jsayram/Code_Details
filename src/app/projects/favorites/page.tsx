@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
@@ -23,12 +22,11 @@ import { PageBanner } from "@/components/ui/page-banner";
 import { Heart } from "lucide-react";
 
 export default function FavoriteProjects() {
-  const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
   // D02r-c: Clerk's values by default; the Better Auth session under the switch.
-  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const viewer = usePersonalPageViewer({ token, tokenLoading });
   // D04f: keyed on the session's viewer (Clerk's ID, or the Better Auth
   // session's under the switch); the route reads the tier from the session.
   const { userTier } = useUserTier(viewer.userId);

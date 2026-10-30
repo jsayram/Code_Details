@@ -6,7 +6,6 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import React, { use, useMemo, useState } from "react";
 
 // Authentication (Clerk)
-import { useUser } from "@clerk/nextjs";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 // Custom Hooks
@@ -43,10 +42,9 @@ import { Code2 } from "lucide-react";
 import { PageBanner } from "@/components/ui/page-banner";
 
 export default function DashBoard() {
-  const { user, isLoaded: userLoaded } = useUser(); // auth from clerk
   const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x: Clerk's values by default; the Better Auth session under the switch.
-  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
+  const viewer = usePersonalPageViewer({ token, tokenLoading });
   const { userTier } = useUserTier(viewer.userId); // Fetch user tier (D04f: the session's viewer)
 
   // At the top of your component

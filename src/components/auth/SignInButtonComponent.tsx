@@ -12,7 +12,8 @@ import { Button } from "../ui/button";
 // D08f3b: with the development Better Auth switch on, the same button goes
 // to the app's /sign-in screen (and back here afterwards) instead of opening
 // Clerk's modal. With Clerk it is Clerk's SignInButton with the same props.
-function SignInTrigger({ children, ...props }: React.ComponentProps<typeof SignInButton> & { children: ReactElement }) {
+// D08g4e3: also used directly by pages that wrap their own button.
+export function SignInTrigger({ children, ...props }: React.ComponentProps<typeof SignInButton> & { children: ReactElement }) {
   const backend = useAuthBackend();
   const router = useRouter();
   const pathname = usePathname();

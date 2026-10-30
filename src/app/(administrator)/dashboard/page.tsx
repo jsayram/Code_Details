@@ -5,8 +5,8 @@ import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { useUser } from "@clerk/nextjs";
-import { SignedIn } from "@/components/auth/AuthGate";
+import { SignedIn, useViewerId } from "@/components/auth/AuthGate";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import {
   Card,
   CardContent,
@@ -495,18 +495,21 @@ function FavoriteCard({
 }: FavoriteCardProps) {
   const [isNavigating, setIsNavigating] = useState(false);
   const [isUnfavoriting, setIsUnfavoriting] = useState(false);
-  const { user } = useUser();
+  // D08g4e3: the app's login, so unfavoriting works under Better Auth too (it
+  // read Clerk's user and silently did nothing). The action takes the user
+  // from the session; the ID is ignored.
+  const viewerId = useViewerId();
   const isDeleted = deleted_at !== null;
 
   const handleUnfavorite = async (e: React.MouseEvent) => {
     e.preventDefault();
     e.stopPropagation();
     
-    if (!user?.id || !id) return;
+    if (!viewerId || !id) return;
     
     setIsUnfavoriting(true);
     try {
-      const result = await removeProjectFavorite(id, user.id);
+      const result = await removeProjectFavorite(id, viewerId);
       
       if (result.success) {
         toast.success("Removed from favorites");
@@ -993,7 +996,10 @@ function DashboardError({
 // Dashboard content component
 // Profile Editor Card Component
 function ProfileEditorCard() {
-  const { user } = useUser();
+  // D08g4e3: display fields from the app's login (Clerk's useUser values with
+  // Clerk). Better Auth has no handle here (username null), so saving under
+  // Better Auth still fails as before; see the g4e3 report.
+  const { user } = useDisplayUser();
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [formData, setFormData] = useState({
@@ -1007,7 +1013,7 @@ function ProfileEditorCard() {
     if (user) {
       setFormData({
         username: user.username || user.fullName || "",
-        email: user.primaryEmailAddress?.emailAddress || "",
+        email: user.email || "",
         profileImage: user.imageUrl || "",
       });
     }
@@ -1046,7 +1052,7 @@ function ProfileEditorCard() {
     if (user) {
       setFormData({
         username: user.username || user.fullName || "",
-        email: user.primaryEmailAddress?.emailAddress || "",
+        email: user.email || "",
         profileImage: user.imageUrl || "",
       });
     }
@@ -1224,7 +1230,7 @@ function DashboardMain({
   stats: UserDashboardStats;
   refresh: () => Promise<void>;
 }) {
-  const { user } = useUser();
+  const { user } = useDisplayUser();
   const [refreshingTagSubmissions, setRefreshingTagSubmissions] = React.useState(false);
   const [refreshingMyProjects, setRefreshingMyProjects] = React.useState(false);
   const [refreshingFavorites, setRefreshingFavorites] = React.useState(false);
@@ -1361,7 +1367,7 @@ function DashboardMain({
           </div>
           <PageBanner
             icon={<PieChart className="h-8 w-8 text-purple-500" />}
-            userName={user?.fullName || user?.firstName || user?.emailAddresses?.[0]?.emailAddress || "User"}
+            userName={user?.fullName || user?.firstName || user?.email || "User"}
             bannerTitle="Personal Analytics Dashboard"
             description={
               stats.totalProjects > 0

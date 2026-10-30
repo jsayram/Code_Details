@@ -33,7 +33,7 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { HeaderSection } from '@/components/layout/HeaderSection';
 import { FooterSection } from '@/components/layout/FooterSection';
 import { PageBanner } from '@/components/ui/page-banner';
-import { useUser } from '@clerk/nextjs';
+import { useViewerId } from '@/components/auth/AuthGate';
 import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { useDocChapters } from '@/providers/doc-chapters-provider';
@@ -63,7 +63,8 @@ interface TOCHeading {
 }
 
 export default function DocViewerPage() {
-  const { user } = useUser();
+  // D08g4e3: the app's login (Clerk or Better Auth).
+  const viewerId = useViewerId();
   const { token } = useSupabaseToken();
   const params = useParams();
   const router = useRouter();
@@ -292,7 +293,7 @@ export default function DocViewerPage() {
   // Error state - still wrap in proper layout
   if (error && !meta) {
     return (
-      <ProjectsProvider token={token} userId={user?.id ?? null}>
+      <ProjectsProvider token={token} userId={viewerId ?? null}>
         <SidebarProvider>
           <AppSidebar />
           <SidebarInset>
@@ -322,7 +323,7 @@ export default function DocViewerPage() {
   }
   
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
+    <ProjectsProvider token={token} userId={viewerId ?? null}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

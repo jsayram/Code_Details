@@ -63,7 +63,7 @@ import { TopContributorsCard } from "@/components/administrator/TopContributorsC
 import { TagPipelineCard, TopSubmittersCard, RecentSubmissionsCard } from "@/components/administrator/TagPipelineCard";
 import { HighlightText } from "@/components/HighlightText";
 import { PageBanner } from "@/components/ui/page-banner";
-import { useUser } from "@clerk/nextjs";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 
 // Type definitions
 interface StatsCardProps {
@@ -1125,7 +1125,8 @@ function AllUsersCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
 
 // Dashboard content component
 function DashboardContent() {
-  const { user } = useUser();
+  // D08g4e3: the banner's name from the app's login (Clerk's values with Clerk).
+  const { user } = useDisplayUser();
   const [stats, setStats] = React.useState<DashboardStats | null>(null);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
@@ -1403,7 +1404,7 @@ function DashboardContent() {
         <div className="mx-auto">
           <PageBanner
             icon={<ShieldCheck className="h-8 w-8 text-cyan-500" />}
-            userName={user?.fullName || user?.firstName || user?.emailAddresses?.[0]?.emailAddress || "Administrator"}
+            userName={user?.fullName || user?.firstName || user?.email || "Administrator"}
             bannerTitle="System Administration"
             description="Platform-wide analytics, user management, and system controls. Monitor performance, manage users, and oversee tag submissions."
             isUserBanner={false}

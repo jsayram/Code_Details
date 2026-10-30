@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { SignIn, useUser } from "@clerk/nextjs";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
@@ -32,14 +31,14 @@ interface PageProps {
 
 export default function UserProjectsPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
-  const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x: Clerk's values by default; the Better Auth session under the switch.
-  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
+  const viewer = usePersonalPageViewer({ token, tokenLoading });
   const backend = useAuthBackend();
-  // Clerk's user object decides by default, as before; under the switch the
-  // session does, once it has loaded (no "log in" toast while it loads).
-  const signedIn = backend === "clerk" ? !!user : !!viewer.userId;
+  // The app's login decides (D08g4e3: Clerk's userId is null while Clerk
+  // loads, as its user object was). Under Better Auth the toast waits for the
+  // session to load.
+  const signedIn = !!viewer.userId;
   const waitingForSession = backend !== "clerk" && viewer.isLoading;
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
   const [profileData, setProfileData] = useState<PublicProfileRow | null>(null);

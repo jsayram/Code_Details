@@ -41,11 +41,12 @@ describe("useDisplayUser with Clerk (default)", () => {
       lastName: "Fixture",
       primaryEmailAddress: { emailAddress: "clerk.fixture@synthetic.invalid" },
       imageUrl: "https://img.clerk.invalid/a.png",
+      username: "clerk-fixture",
     };
     on("clerk");
     expect(read()).toEqual({
       isLoaded: true,
-      user: { fullName: "Clerk Fixture", firstName: "Clerk", lastName: "Fixture", email: "clerk.fixture@synthetic.invalid", imageUrl: "https://img.clerk.invalid/a.png" },
+      user: { fullName: "Clerk Fixture", firstName: "Clerk", lastName: "Fixture", email: "clerk.fixture@synthetic.invalid", imageUrl: "https://img.clerk.invalid/a.png", username: "clerk-fixture" },
     });
     expect(fetch).not.toHaveBeenCalled();
   });
@@ -66,7 +67,7 @@ describe("useDisplayUser with the switch on", () => {
     await screen.findByText(/Synthetic/);
     expect(read()).toEqual({
       isLoaded: true,
-      user: { fullName: "Synthetic  Person Jones", firstName: "Synthetic", lastName: "Person Jones", email: "s@synthetic.invalid", imageUrl: null },
+      user: { fullName: "Synthetic  Person Jones", firstName: "Synthetic", lastName: "Person Jones", email: "s@synthetic.invalid", imageUrl: null, username: null },
     });
   });
 

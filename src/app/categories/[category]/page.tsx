@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
@@ -21,10 +20,9 @@ interface PageProps {
 
 export default function CategoryPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
-  const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x: Clerk's values by default; the Better Auth session under the switch.
-  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
+  const viewer = usePersonalPageViewer({ token, tokenLoading });
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
   const [decodedCategory, setDecodedCategory] = useState<string>("");
 

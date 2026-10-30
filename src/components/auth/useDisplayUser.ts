@@ -23,6 +23,8 @@ export interface DisplayUser {
   lastName: string | null;
   email: string | null;
   imageUrl: string | null;
+  /** Clerk's handle; null with Better Auth (its session has none). D08g4e3. */
+  username: string | null;
 }
 
 export function useDisplayUser(): { isLoaded: boolean; user: DisplayUser | null } {
@@ -41,6 +43,7 @@ export function useDisplayUser(): { isLoaded: boolean; user: DisplayUser | null 
             lastName: user.lastName,
             email: user.primaryEmailAddress?.emailAddress ?? null,
             imageUrl: user.imageUrl,
+            username: user.username ?? null,
           }
         : null,
     };
@@ -51,6 +54,6 @@ export function useDisplayUser(): { isLoaded: boolean; user: DisplayUser | null 
   const [first, ...rest] = (u.name ?? "").trim().split(/\s+/).filter(Boolean);
   return {
     isLoaded: true,
-    user: { fullName: u.name || null, firstName: first ?? null, lastName: rest.length ? rest.join(" ") : null, email: u.email, imageUrl: u.image },
+    user: { fullName: u.name || null, firstName: first ?? null, lastName: rest.length ? rest.join(" ") : null, email: u.email, imageUrl: u.image, username: null },
   };
 }

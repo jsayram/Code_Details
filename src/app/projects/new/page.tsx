@@ -7,7 +7,6 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectCreateComponent } from "@/components/Projects/ProjectComponents/ProjectCreateComponent";
-import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
 import { redirect } from "next/navigation";
 import ProtectedPage from "@/app/auth/ProtectedPage";
@@ -16,16 +15,19 @@ import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLo
 import { SelectUserWithProject } from "@/db/schema/projects";
 import { useAuthBackend } from "@/backend/auth/context";
 import { useViewerId } from "@/components/auth/AuthGate";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 
 export default function CreateProjectPage() {
-  const { user, isLoaded: userLoaded } = useUser();
+  // D08g4e3: the signed-in user's display fields from the app's login
+  // (exactly Clerk's useUser values with Clerk).
+  const { user, isLoaded: userLoaded } = useDisplayUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
   // D03: under the development Better Auth switch the page follows that
   // session; ProtectedPage below sends a signed-out visitor to sign in, and
   // the save goes to Convex, which takes the creator from the session.
   const clerkMode = useAuthBackend() === "clerk";
   const viewerId = useViewerId();
-  const ownerId = clerkMode ? user?.id || "" : viewerId ?? "";
+  const ownerId = viewerId ?? "";
 
   // If user is not logged in, redirect to sign in
   if (clerkMode && userLoaded && !user) {
@@ -44,7 +46,7 @@ export default function CreateProjectPage() {
   // Create current date to use for timestamps
   const currentDate = new Date();
 
-  // Create user profile from Clerk user data as SelectUserWithProject type
+  // Create user profile from the signed-in user's data as SelectUserWithProject type
   const userProfile: SelectUserWithProject = {
     // Project fields (empty since this is a new project)
     id: "",
@@ -62,11 +64,11 @@ export default function CreateProjectPage() {
 
     // User fields
     user_id: ownerId,
-    username: user?.username || user?.emailAddresses?.[0]?.emailAddress || "",
+    username: user?.username || user?.email || "",
     full_name: user?.fullName || "",
     profile_image_url: user?.imageUrl || "",
     tier: "",
-    email_address: user?.emailAddresses?.[0]?.emailAddress || "",
+    email_address: user?.email || "",
   };
 
   return (
