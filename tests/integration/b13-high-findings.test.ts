@@ -92,12 +92,12 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect(await deletedAt(deletedRecent.id)).not.toBeNull();
     });
 
-    it("[action] B, signed in, adds a favorite in A's name", async () => {
+    it("[action] (fixed, D05) B, signed in, can't add a favorite in A's name", async () => {
       signInAs(B.subject);
       expect((await actions.addProjectFavorite(project("oneTag").id, A.subject!)).success).toBe(true);
       const rows = await sql`select 1 from favorites f join profiles p on p.id = f.profile_id
         where p.user_id = ${A.subject} and f.project_id = ${project("oneTag").id}`;
-      expect(rows).toHaveLength(1);
+      expect(rows).toHaveLength(0);
     });
   });
 

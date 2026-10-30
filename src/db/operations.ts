@@ -7,13 +7,11 @@ import { executeQuery } from "./server";
 import {
   projects,
   profiles,
-  favorites,
   project_tags,
   tags,
 } from "./schema";
 import { SelectProject, SelectProjectWithOwner } from "./schema/projects";
 import { SelectProfile } from "./schema/profiles";
-import { SelectFavorite } from "./schema/favorites";
 import { eq, sql, desc, and, isNull, inArray, getTableColumns } from "drizzle-orm";
 import { ProjectCategory } from "@/constants/project-categories";
 
@@ -145,85 +143,9 @@ export async function getProfileByUserId(
   });
 }
 
-/**
- * Get all favorites for a project
- * @param projectId The project ID to get favorites for
- * @returns An array of favorites for the project
- */
-export async function getProjectFavorites(
-  projectId: string
-): Promise<SelectFavorite[]> {
-  return await executeQuery(async (db) => {
-    return await db
-      .select()
-      .from(favorites)
-      .where(eq(favorites.project_id, projectId));
-  });
-}
-
-/**
- * Add a favorite to a project
- * @param projectId The project ID to favorite
- * @param profileId The profile ID favoriting the project
- * @returns The created favorite
- */
-export async function addProjectFavorite(
-  projectId: string,
-  profileId: string
-): Promise<SelectFavorite> {
-  return await executeQuery(async (db) => {
-    // Check if favorite already exists
-    const existingFavorite = await db
-      .select()
-      .from(favorites)
-      .where(
-        and(
-          eq(favorites.project_id, projectId),
-          eq(favorites.profile_id, profileId)
-        )
-      )
-      .limit(1);
-
-    if (existingFavorite.length > 0) {
-      return existingFavorite[0];
-    }
-
-    // Create new favorite
-    const [newFavorite] = await db
-      .insert(favorites)
-      .values({
-        project_id: projectId,
-        profile_id: profileId,
-      })
-      .returning();
-
-    return newFavorite;
-  });
-}
-
-/**
- * Remove a favorite from a project
- * @param projectId The project ID to unfavorite
- * @param profileId The profile ID unfavoriting the project
- * @returns The number of favorites removed (0 or 1)
- */
-export async function removeProjectFavorite(
-  projectId: string,
-  profileId: string
-): Promise<number> {
-  return await executeQuery(async (db) => {
-    const result = await db
-      .delete(favorites)
-      .where(
-        and(
-          eq(favorites.project_id, projectId),
-          eq(favorites.profile_id, profileId)
-        )
-      );
-
-    return result.length;
-  });
-}
+// getProjectFavorites, addProjectFavorite and removeProjectFavorite were
+// removed (D05): no callers, and the add/remove pair skipped the counter.
+// Favorites are written by src/db/favorite-write.ts.
 
 /**
  * Get all projects with a specific tag

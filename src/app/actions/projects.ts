@@ -1,6 +1,6 @@
 "use server";
 
-import { eq, sql, and, inArray } from "drizzle-orm";
+import { eq, sql, inArray } from "drizzle-orm";
 import {
   insertProjectRow,
   isProjectOwner,
@@ -21,7 +21,7 @@ import { project_tags } from "@/db/schema/project_tags";
 import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
 import { mapDrizzleProjectToProject } from "@/types/models/project";
 import { executeQuery } from "@/db/server";
-import { favorites } from "@/db/schema/favorites";
+import { addFavoriteRow, removeFavoriteRow } from "@/db/favorite-write";
 import { getProfileByUserId } from "@/db/operations";
 import { createProjectSchema, updateProjectSchema } from "@/types/schemas";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
@@ -33,7 +33,8 @@ import {
   validationError,
   serverError,
   actionSuccess,
-  type ActionResult
+  type ActionResult,
+  type ActionError
 } from "@/lib/action-errors";
 import { ErrorCode } from "@/constants/error-codes";
 import { routeViewer } from "@/lib/auth-server";
@@ -439,62 +440,26 @@ export async function restoreProject(
   }
 }
 
-// Server action to add a favorite to a project
+// Favorite and unfavorite. D05 (P08 R02): the caller comes from the session;
+// the second argument is the client's own idea of its user ID, ignored and
+// kept only so the callers don't change. Both are idempotent and move
+// total_favorites only when a row is really added or removed (R25). The
+// writes live in src/db/favorite-write.ts.
 export async function addProjectFavorite(
   projectId: string,
-  userId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    if (!userId || !projectId) {
-      return unauthorizedError("Both user ID and project ID are required");
+    const profile = await favoritingProfile();
+    if (!profile.ok) return profile.error;
+    if (!UUID_RE.test(projectId)) return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
+
+    if ((await addFavoriteRow(profile.id, projectId)) === "missing") {
+      return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
     }
 
-    // First get the profile ID for the user
-    const profile = await getProfileByUserId(userId);
-    if (!profile) {
-      return notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND);
-    }
-
-    await executeQuery(async (db) => {
-      // Check if favorite already exists
-      const existingFavorite = await db
-        .select()
-        .from(favorites)
-        .where(
-          and(
-            eq(favorites.project_id, projectId),
-            eq(favorites.profile_id, profile.id)
-          )
-        )
-        .limit(1);
-
-      if (existingFavorite.length === 0) {
-        // Create new favorite and increment total_favorites in a transaction
-        await db.transaction(async (tx) => {
-          // Add the favorite
-          await tx
-            .insert(favorites)
-            .values({
-              project_id: projectId,
-              profile_id: profile.id,
-            });
-
-          // Increment total_favorites
-          await tx
-            .update(projects)
-            .set({ 
-              total_favorites: sql`total_favorites + 1`,
-              updated_at: new Date()
-            })
-            .where(eq(projects.id, projectId));
-        });
-      }
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+    revalidateAfterFavorite();
     return actionSuccess(undefined);
   } catch (error) {
     console.error("Failed to add favorite:");
@@ -502,55 +467,38 @@ export async function addProjectFavorite(
   }
 }
 
-// Server action to remove a favorite from a project
 export async function removeProjectFavorite(
   projectId: string,
-  userId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    if (!userId || !projectId) {
-      return unauthorizedError("Both user ID and project ID are required");
-    }
+    const profile = await favoritingProfile();
+    if (!profile.ok) return profile.error;
+    // Nothing to remove for an ID that can't exist; same answer as a repeat.
+    if (!UUID_RE.test(projectId)) return actionSuccess(undefined);
 
-    // First get the profile ID for the user
-    const profile = await getProfileByUserId(userId);
-    if (!profile) {
-      return notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND);
-    }
-
-    await executeQuery(async (db) => {
-      // Delete favorite and decrement total_favorites in a transaction
-      await db.transaction(async (tx) => {
-        // Remove the favorite
-        await tx
-          .delete(favorites)
-          .where(
-            and(
-              eq(favorites.project_id, projectId),
-              eq(favorites.profile_id, profile.id)
-            )
-          );
-
-        // Decrement total_favorites, ensuring it doesn't go below 0
-        await tx
-          .update(projects)
-          .set({ 
-            total_favorites: sql`GREATEST(total_favorites - 1, 0)`,
-            updated_at: new Date()
-          })
-          .where(eq(projects.id, projectId));
-      });
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+    if (await removeFavoriteRow(profile.id, projectId)) revalidateAfterFavorite();
     return actionSuccess(undefined);
   } catch (error) {
     console.error("Failed to remove favorite:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
+}
+
+async function favoritingProfile(): Promise<{ ok: true; id: string } | { ok: false; error: ActionError }> {
+  const userId = await clerkWriter();
+  if (!userId) return { ok: false, error: unauthorizedError("You must be signed in to favorite a project") };
+  const profile = await getProfileByUserId(userId);
+  if (!profile) return { ok: false, error: notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND) };
+  return { ok: true, id: profile.id };
+}
+
+function revalidateAfterFavorite() {
+  revalidatePath(pathToRevalidate);
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
