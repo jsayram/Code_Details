@@ -58,7 +58,7 @@ describe("sessionTier", () => {
     vi.doMock("@/backend/auth", () => ({ chooseAuthBackend: () => choice }));
     vi.doMock("@/lib/auth-server", () => ({ viewerQuery: async () => ({ result: { tier: "pro" } }) }));
     vi.doMock("@/services/tierServiceServer", () => ({ isValidTier: (t: string) => ["free", "pro", "diamond"].includes(t) }));
-    const { sessionTier } = await import("@/backend/profiles/session-tier");
+    const { sessionTier } = await import("../../src/backend/profiles/session-tier.js");
     expect(await sessionTier()).toBe("free");
     choice.backend = "better-auth";
     expect(await sessionTier()).toBe("pro");
