@@ -1,6 +1,6 @@
 import { unstable_cache } from "next/cache";
 import { readAllActiveProjects } from "@/db/project-read";
-import { getCachedDashboardStats } from "@/app/actions/dashboard";
+import { getDashboardStats } from "@/db/operations/dashboardOperations";
 import { getCachedAllTags } from "@/app/actions/tags";
 import type { Metadata } from "next";
 
@@ -17,6 +17,11 @@ export const dynamic = 'force-dynamic';
 const getCachedAllProjects = unstable_cache(async () => readAllActiveProjects(), ["all-projects"], {
   revalidate: 300, // 5 minutes
   tags: ["projects"],
+});
+// D04e (SEC-D04-DASH): was a callable export of src/app/actions/dashboard.ts.
+const getCachedDashboardStats = unstable_cache(async () => getDashboardStats(), ["dashboard-stats"], {
+  revalidate: 180, // 3 minutes
+  tags: ["dashboard"],
 });
 
 export default async function CacheTestPage() {

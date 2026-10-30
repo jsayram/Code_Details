@@ -8,8 +8,11 @@ import { redirect } from "next/navigation";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 
-// Cache admin dashboard stats for 2 minutes
-export const getCachedDashboardStats = unstable_cache(
+// Cache admin dashboard stats for 2 minutes. SEC-D04-DASH: not exported (an
+// export of this "use server" file is callable by anyone; the stats carry new
+// users' emails, tiers and provider subjects). fetchAdminDashboardData checks
+// the admin first.
+const getCachedDashboardStats = unstable_cache(
   async () => getDashboardStats(),
   ['admin-dashboard-stats'],
   {
@@ -18,7 +21,7 @@ export const getCachedDashboardStats = unstable_cache(
   }
 );
 
-export const getCachedTagSubmissions = unstable_cache(
+const getCachedTagSubmissions = unstable_cache(
   async () => getPendingTagSubmissions(),
   ['admin-tag-submissions'],
   {

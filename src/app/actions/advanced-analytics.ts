@@ -6,12 +6,8 @@ import { projects } from "@/db/schema/projects";
 import { profiles } from "@/db/schema/profiles";
 import { favorites } from "@/db/schema/favorites";
 import { tag_submissions } from "@/db/schema/tag_submissions";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { isAdmin } from "@/lib/admin-utils";
-import { chooseAuthBackend } from "@/backend/auth";
-import { routeViewer } from "@/lib/auth-server";
+import { requireAdminForAction } from "@/lib/admin-action";
 import { toPublicProfileRow } from "@/backend/profiles/public-profile";
-import { redirect } from "next/navigation";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { DEFAULT_TOP_CONTRIBUTORS } from "@/constants/project-limits";
@@ -67,27 +63,8 @@ export interface TagPipelineMetrics {
   }[];
 }
 
-async function checkAdminAccess() {
-  // Under the Better Auth switch the admin role is users.role (D08g1); the
-  // Clerk path below is unchanged.
-  if (chooseAuthBackend().backend === "better-auth") {
-    if (!(await routeViewer())?.isAdmin) redirect("/dashboard");
-    return;
-  }
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
-  }
-
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const userEmail = user.emailAddresses[0]?.emailAddress;
-
-  if (!isAdmin(userEmail)) {
-    redirect("/dashboard");
-  }
-}
+// The admin check moved to src/lib/admin-action.ts (D04e).
+const checkAdminAccess = requireAdminForAction;
 
 // Cached version of top contributors query. SEC-D04-ANALYTICS: not exported.
 // An export of this "use server" file is a callable action, and this one

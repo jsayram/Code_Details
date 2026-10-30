@@ -114,17 +114,15 @@ async function runCacheTests() {
   // Import all cached functions
   const { readAllActiveProjects } = await import('../src/db/project-read.js');
   
-  const { 
-    getCachedDashboardStats,
-    getCachedTagSubmissions 
-  } = await import('../src/app/actions/dashboard.js');
+  // D04e (SEC-D04-DASH): the dashboard reads are server-only now.
+  const { getDashboardStats: getCachedDashboardStats } = await import('../src/db/operations/dashboardOperations.js');
   
   const { 
     getCachedProjectTags,
     getCachedAllTags 
   } = await import('../src/app/actions/tags.js');
   
-  const { getCachedUserTier } = await import('../src/app/actions/user-tier.js');
+  // D04e: getCachedUserTier(userId) is gone (P08 R21); the tier now comes from the session.
   
   
   // D04a (SEC-D04-ANALYTICS): only the admin-checked wrappers are exported.
@@ -133,17 +131,13 @@ async function runCacheTests() {
     fetchTagPipelineAnalytics 
   } = await import('../src/app/actions/advanced-analytics.js');
   
-  const { 
-    getCachedDashboardStats: adminDashboardStats,
-    getCachedTagSubmissions: adminTagSubmissions 
-  } = await import('../src/app/actions/admin-dashboard.js');
+  const adminDashboardStats = getCachedDashboardStats;
   
   console.log('📦 Testing Projects Cache...');
   results.push(await testCachePerformance('getCachedAllProjects', () => readAllActiveProjects()));
   
   console.log('\n📊 Testing Dashboard Cache...');
   results.push(await testCachePerformance('getCachedDashboardStats', () => getCachedDashboardStats()));
-  results.push(await testCachePerformance('getCachedTagSubmissions', () => getCachedTagSubmissions()));
   
   console.log('\n🏷️  Testing Tags Cache...');
   results.push(await testCachePerformance('getCachedAllTags', () => getCachedAllTags()));
@@ -154,7 +148,6 @@ async function runCacheTests() {
   
   console.log('\n🔧 Testing Admin Cache...');
   results.push(await testCachePerformance('admin:getCachedDashboardStats', () => adminDashboardStats()));
-  results.push(await testCachePerformance('admin:getCachedTagSubmissions', () => adminTagSubmissions()));
   results.push(await testCachePerformance('admin:getCachedTopContributors', () => fetchTopContributors(10)));
   results.push(await testCachePerformance('admin:getCachedTagPipeline', () => fetchTagPipelineAnalytics()));
   

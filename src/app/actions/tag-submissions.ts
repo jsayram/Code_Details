@@ -11,6 +11,7 @@ import { MAX_PROJECT_TAGS, MAX_ADMIN_NOTES_LENGTH } from "@/constants/project-li
 import { z } from "zod";
 import { tagNameSchema, tagDescriptionSchema } from "@/types/schemas";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
+import { requireAdminForAction } from "@/lib/admin-action";
 
 // Schema for submitNewTag input validation
 const submitNewTagSchema = z.object({
@@ -133,7 +134,10 @@ export async function submitNewTag(
   });
 }
 
+// SEC-D04-DASH: an export of this "use server" file is callable by anyone, and
+// this returned every submitter's email. Admins only now (the rest of R04 is D07).
 export async function getPendingTagSubmissions() {
+  await requireAdminForAction();
   return executeQuery(async (db) => {
     const submissions = await db
       .select({
