@@ -36,8 +36,12 @@ export const READ_BACKEND = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex
 if (READ_BACKEND === "convex" && !convexAvailable()) {
   throw new Error("Convex browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
 }
+// D08g4d: each mode names its backend, so a mode means the same whichever way
+// the data-default switch (src/backend/data-default.ts) is set.
 const readBackendEnv: Record<string, string> =
-  READ_BACKEND === "convex" ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL } : {};
+  READ_BACKEND === "convex"
+    ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL }
+    : { CODEDETAILS_PROJECT_READ_BACKEND: "supabase" };
 
 // D08b, D08g4a: Better Auth is the login by default (/api/auth/* and
 // /api/dev/viewer served through the local backend).
