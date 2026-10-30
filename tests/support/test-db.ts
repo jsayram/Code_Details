@@ -28,15 +28,17 @@ export function testDbAvailable(): boolean {
 /**
  * Opens a connection and refuses to hand it out unless the target carries the
  * isolation marker. A database on the right port without the marker is not ours.
+ * `owner` connects as supabase_admin (same throwaway password, same container),
+ * for policy DDL on the tables it owns; use it only inside a rolled-back transaction.
  */
-export async function connectTestDb(): Promise<postgres.Sql> {
+export async function connectTestDb({ owner = false } = {}): Promise<postgres.Sql> {
   const password = readTestDbPassword();
   if (!password) throw new IsolationError(["no test database: run tests/db/provision.sh first"]);
   const sql = postgres({
     host: "127.0.0.1",
     port: TEST_DB_PORT,
     database: TEST_DB_NAME,
-    username: "postgres",
+    username: owner ? "supabase_admin" : "postgres",
     password,
     max: 2,
     onnotice: () => {},
