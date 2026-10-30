@@ -58,10 +58,11 @@ export async function getProjectImages(
 }
 
 /**
- * Get cover image for a project
+ * Get the project's active image of one kind (cover or logo: at most one each)
  */
-export async function getProjectCoverImage(
-  projectId: string
+export async function getProjectImageByType(
+  projectId: string,
+  imageType: ImageType
 ): Promise<SelectProjectImage | null> {
   return await executeQuery(async (db) => {
     const result = await db
@@ -70,7 +71,7 @@ export async function getProjectCoverImage(
       .where(
         and(
           eq(project_images.project_id, projectId),
-          eq(project_images.image_type, "cover"),
+          eq(project_images.image_type, imageType),
           isNull(project_images.deleted_at)
         )
       )
@@ -78,6 +79,15 @@ export async function getProjectCoverImage(
 
     return result.length > 0 ? result[0] : null;
   });
+}
+
+/**
+ * Get cover image for a project
+ */
+export async function getProjectCoverImage(
+  projectId: string
+): Promise<SelectProjectImage | null> {
+  return getProjectImageByType(projectId, "cover");
 }
 
 /**
@@ -176,21 +186,22 @@ export async function countProjectImagesByType(
 }
 
 /**
- * Reorder project images
+ * Reorder project images. D06 (P08 R12): only images of `projectId` move; an
+ * ID from another project matches no row.
  */
 export async function reorderProjectImages(
+  projectId: string,
   imageOrders: { imageId: string; order: number }[]
 ): Promise<boolean> {
   return await executeQuery(async (db) => {
-    // Update display_order for each image
-    const updates = imageOrders.map(({ imageId, order }) =>
-      db
-        .update(project_images)
-        .set({ display_order: order })
-        .where(eq(project_images.id, imageId))
-    );
-
-    await Promise.all(updates);
+    await db.transaction(async (tx) => {
+      for (const { imageId, order } of imageOrders) {
+        await tx
+          .update(project_images)
+          .set({ display_order: order })
+          .where(and(eq(project_images.id, imageId), eq(project_images.project_id, projectId)));
+      }
+    });
     return true;
   });
 }
