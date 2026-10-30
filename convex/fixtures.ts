@@ -44,6 +44,10 @@ export const clear = internalMutation({
     for (const table of ["projectSlugs", "projectTags", "contentChanges", "tagAliases"] as const) {
       for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
     }
+    // D08 /api/llm gate: usage counters and the call log the gate tests write.
+    for (const table of ["llmDailyUsage", "llmCalls"] as const) {
+      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
+    }
     // D08d wrote account.linked audit rows; emptied in case an old run left some.
     for (const doc of await ctx.db.query("auditEvents").collect()) await ctx.db.delete(doc._id);
     // D08a: Better Auth's own tables, so no auth user outlives its app account.
@@ -819,5 +823,17 @@ export const profileIdOf = internalQuery({
   handler: async (ctx, { usernameKey }) => {
     assertFixturesAllowed();
     return (await ctx.db.query("profiles").withIndex("by_usernameKey", (q) => q.eq("usernameKey", usernameKey)).first())?._id ?? null;
+  },
+});
+
+// D08 /api/llm gate: the usage counters and the call log, for the gate tests.
+export const llmState = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    assertFixturesAllowed();
+    return {
+      usage: (await ctx.db.query("llmDailyUsage").collect()).map(({ day, scope, count }) => ({ day, scope, count })),
+      calls: (await ctx.db.query("llmCalls").collect()).map(({ _id, _creationTime, ...row }) => ({ id: _id, ...row })),
+    };
   },
 });

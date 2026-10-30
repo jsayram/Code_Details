@@ -23,6 +23,7 @@ import type * as http from "../http.js";
 import type * as identity from "../identity.js";
 import type * as importCore from "../importCore.js";
 import type * as importer from "../importer.js";
+import type * as llmUsage from "../llmUsage.js";
 import type * as profiles from "../profiles.js";
 import type * as projectImages from "../projectImages.js";
 import type * as projectLifecycle from "../projectLifecycle.js";
@@ -54,6 +55,7 @@ declare const fullApi: ApiFromModules<{
   identity: typeof identity;
   importCore: typeof importCore;
   importer: typeof importer;
+  llmUsage: typeof llmUsage;
   profiles: typeof profiles;
   projectImages: typeof projectImages;
   projectLifecycle: typeof projectLifecycle;

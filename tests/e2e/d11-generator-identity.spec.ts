@@ -13,7 +13,7 @@ import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
-import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, signIn as fixtureSignIn, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, setRole, signIn as fixtureSignIn, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 import { TEST_CONVEX_URL } from "../support/isolation";
@@ -125,6 +125,7 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   let persona: APIRequestContext;
   let unlinked: APIRequestContext;
   let unlinkedId = "";
+  let personaEmail = "";
 
   test.beforeAll(async ({ playwright }) => {
     writeDoc(DOCS.mine, A.subject!);
@@ -134,8 +135,8 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     await releasePersona(A.subject!);
     // A Better Auth login on Clerk-era persona A (the end state the removed D08d handover left).
     persona = await client(playwright);
-    const email = await signIn(persona, "d11-persona");
-    await linkPersona(A.subject!, (await authState(email))!.authUserId);
+    personaEmail = await signIn(persona, "d11-persona");
+    await linkPersona(A.subject!, (await authState(personaEmail))!.authUserId);
     unlinked = await client(playwright);
     unlinkedId = await accountIdOf(await signIn(unlinked, "d11-unlinked"));
     // Generator re-key: docs written for an account with no Clerk-era login, keyed by its account ID.
@@ -185,10 +186,12 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("generator re-key: the generator routes let that account past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/generate-docs", "POST /api/llm", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
+    for (const name of ["POST /api/generate-docs", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
       const r = ROUTES.find((x) => x.name === name)!;
       expect((await r.call(unlinked)).status(), name).toBe(400);
     }
+    // D08 /api/llm gate: admins only, so this (non-admin) account stops at 403.
+    expect((await ROUTES.find((x) => x.name === "POST /api/llm")!.call(unlinked)).status()).toBe(403);
   });
 
   test("D11s: the owner reads its own chapter, metadata and ZIP", async () => {
@@ -246,9 +249,21 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("the generator routes get past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/generate-docs", "POST /api/llm", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
+    for (const name of ["POST /api/generate-docs", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
       const r = ROUTES.find((x) => x.name === name)!;
       expect((await r.call(persona)).status(), name).toBe(400);
+    }
+    // D08 /api/llm gate: a non-admin stops at 403; made an admin, the same
+    // invalid body reaches the route's own validation (400) before any unit
+    // of the daily cap is taken or a provider is called.
+    const llm = ROUTES.find((x) => x.name === "POST /api/llm")!;
+    expect((await llm.call(persona)).status()).toBe(403);
+    const authUserId = (await authState(personaEmail))!.authUserId;
+    await setRole(authUserId, "admin");
+    try {
+      expect((await llm.call(persona)).status()).toBe(400);
+    } finally {
+      await setRole(authUserId, "user");
     }
   });
 });

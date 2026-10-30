@@ -146,6 +146,15 @@ const P07: Record<string, { fields: string[]; indexes: Record<string, string[]> 
     fields: ["runId", "sourceTable", "sourceId", "reason"],
     indexes: { by_run: ["runId"] },
   },
+  // D08 /api/llm gate (Jose, 2026-10-30): persistent daily caps and the call log (no prompts).
+  llmDailyUsage: {
+    fields: ["day", "scope", "count"],
+    indexes: { by_day_scope: ["day", "scope"] },
+  },
+  llmCalls: {
+    fields: ["userId", "day", "startedAt", "provider", "model", "status", "latencyMs", "errorStatus"],
+    indexes: { by_user_day: ["userId", "day"] },
+  },
 };
 
 /** Every validator node under a field, depth first. */

@@ -291,4 +291,25 @@ export default defineSchema({
     sourceId: v.string(),
     reason: v.string(),
   }).index("by_run", ["runId"]),
+
+  // D08 /api/llm gate (Jose, 2026-10-30): calls per UTC day, per user
+  // ("user:<id>") and for everyone ("global"), so the caps survive restarts.
+  llmDailyUsage: defineTable({
+    day: v.string(),
+    scope: v.string(),
+    count: v.number(),
+  }).index("by_day_scope", ["day", "scope"]),
+
+  // One row per /api/llm call: who, when, which provider and model, how it
+  // ended. Never the prompt or the answer.
+  llmCalls: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    startedAt: v.number(),
+    provider: v.string(),
+    model: v.optional(v.string()),
+    status: v.union(v.literal("started"), v.literal("ok"), v.literal("error")),
+    latencyMs: v.optional(v.number()),
+    errorStatus: v.optional(v.number()),
+  }).index("by_user_day", ["userId", "day"]),
 });

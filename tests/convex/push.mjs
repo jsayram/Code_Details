@@ -192,6 +192,10 @@ if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set"
 // D06-c: the orphan image sweep deletes files, so it is opt-in the same way
 // (convex/projectImages.ts sweepOrphans). Never the import or manual backend.
 if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_IMAGE_SWEEP_ALLOWED", "1"]);
+// D08 /api/llm gate: small daily caps on the test backends, so the cap tests
+// reach them in a few calls. Other targets keep the defaults (convex/llmUsage.ts).
+if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_LLM_USER_DAILY_CAP", "3"]);
+if (res.status === 0 && !dryRun && target === "test") res = convex(["env", "set", "CODEDETAILS_LLM_GLOBAL_DAILY_CAP", "5"]);
 
 if (envDigest() !== before) {
   console.error("an .env file changed during the Convex push; restore it before continuing");
