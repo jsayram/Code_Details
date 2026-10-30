@@ -653,13 +653,14 @@ export const ProjectCard = React.memo(
                       {/* Share button moved to footer */}
                     </div>
                   )}
-                  {!hideActions && user && (
+                  {/* D05: the favorite controls follow the session (useViewerId), so they work under the Better Auth switch. */}
+                  {!hideActions && userId && (
                     <FavoriteButton
                       isFavorite={!!isFavorite}
                       count={Number(project.total_favorites) || 0}
                       onClick={(e: React.MouseEvent) => {
                         e.stopPropagation();
-                        if (!user) {
+                        if (!userId) {
                           toast.info(
                             "You have to sign in to favorite projects silly"
                           );
@@ -674,7 +675,7 @@ export const ProjectCard = React.memo(
                       }
                     />
                   )}
-                  {!user && Number(project.total_favorites) > 0 && (
+                  {!userId && Number(project.total_favorites) > 0 && (
                     <div className="flex items-center gap-1">
                       <Heart
                         size={20}
@@ -693,7 +694,7 @@ export const ProjectCard = React.memo(
                   <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800 text-xs pointer-events-auto">
                     🪦 In Graveyard
                   </Badge>
-                  {isFavorite && user && onToggleFavorite && (
+                  {isFavorite && userId && onToggleFavorite && (
                     <Button
                       variant="ghost"
                       size="sm"

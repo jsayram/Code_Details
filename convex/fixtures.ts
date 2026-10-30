@@ -634,3 +634,30 @@ export const setTier = internalMutation({
     await ctx.db.patch(user._id, { tier });
   },
 });
+
+// D05: one project's favorites (who, listed copy), its counters and timestamps, and its outbox rows.
+export const favoriteState = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const project = await ctx.db.get(projectId);
+    const rows = await ctx.db.query("favorites").withIndex("by_project_created", (q) => q.eq("projectId", projectId)).collect();
+    const who = [];
+    for (const r of rows) {
+      const profile = await ctx.db.query("profiles").withIndex("by_userId", (q) => q.eq("userId", r.userId)).unique();
+      who.push({ username: profile?.usernameKey ?? null, listed: r.listed, self: r.userId === project?.ownerId });
+    }
+    const outbox = await ctx.db.query("contentChanges").withIndex("by_entity", (q) => q.eq("entityType", "project").eq("entityId", projectId)).collect();
+    return {
+      project: project && {
+        favoriteCount: project.favoriteCount,
+        rankingFavoriteCount: project.rankingFavoriteCount,
+        updatedAt: project.updatedAt,
+        contentVersion: project.contentVersion,
+        listed: project.listed,
+      },
+      rows: who.sort((a, b) => String(a.username).localeCompare(String(b.username))),
+      outbox: outbox.map((o) => ({ change: o.change, sourceVersion: o.sourceVersion })),
+    };
+  },
+});

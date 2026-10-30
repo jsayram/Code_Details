@@ -83,10 +83,9 @@ export const ProjectList = React.memo(function ProjectList({
   const { userId } = useAuth();
   // D02r-c: the category-count filters follow the session (Clerk's userId by
   // default, the Better Auth session's under the switch). D03: so does the
-  // delete control, whose action now takes the user from the session. The
-  // favorite controls keep Clerk's userId: those Supabase actions still trust
-  // the ID they are given (P08 R02, D05), so a Better Auth ID must never
-  // reach them.
+  // delete control, whose action now takes the user from the session. D05:
+  // and the favorite controls; their actions take the user from the session
+  // too and are no longer sent an ID.
   const viewerId = useViewerId();
   const router = useRouter();
 
@@ -222,7 +221,7 @@ export const ProjectList = React.memo(function ProjectList({
 
   const handleToggleFavorite = useCallback(
     async (id: string, isFavorite: boolean) => {
-      if (!userId) return;
+      if (!viewerId) return;
 
       try {
         if (!isFavorite) {
@@ -240,15 +239,15 @@ export const ProjectList = React.memo(function ProjectList({
         toast.error("Failed to update favorite status");
       }
     },
-    [userId, setProjects, projects]
+    [viewerId, setProjects, projects]
   );
 
   const handleFavoriteAction = async (id: string, isFavorite: boolean) => {
     try {
       if (isFavorite) {
-        await addProjectFavorite(id, userId!);
+        await addProjectFavorite(id);
       } else {
-        await removeProjectFavorite(id, userId!);
+        await removeProjectFavorite(id);
       }
 
       // If we're unfavoriting and on the favorites page, remove from UI immediately

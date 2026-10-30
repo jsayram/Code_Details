@@ -13,6 +13,7 @@ import {
 import { checkCategoryData } from "@/backend/projects/project-update-rules";
 import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
 import { changeLifecycleOnConvex, createProjectOnConvex } from "@/backend/projects/project-lifecycle";
+import { changeFavoriteOnConvex } from "@/backend/projects/favorites";
 import { chooseAuthBackend } from "@/backend/auth";
 import { auth } from "@clerk/nextjs/server";
 import { InsertProject } from "@/db/schema/projects";
@@ -444,13 +445,20 @@ export async function restoreProject(
 // the second argument is the client's own idea of its user ID, ignored and
 // kept only so the callers don't change. Both are idempotent and move
 // total_favorites only when a row is really added or removed (R25). The
-// writes live in src/db/favorite-write.ts.
+// writes live in src/db/favorite-write.ts; under both development switches
+// they go to the Convex favorites:add/remove mutations instead.
 export async function addProjectFavorite(
   projectId: string,
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await changeFavoriteOnConvex("add", projectId);
+      if (!result.success) return result;
+      revalidateAfterFavorite();
+      return actionSuccess(undefined);
+    }
     const profile = await favoritingProfile();
     if (!profile.ok) return profile.error;
     if (!UUID_RE.test(projectId)) return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
@@ -473,6 +481,12 @@ export async function removeProjectFavorite(
   _clientUserId?: string | null
 ) {
   try {
+    if (projectWritesToConvex()) {
+      const result = await changeFavoriteOnConvex("remove", projectId);
+      if (!result.success) return result;
+      revalidateAfterFavorite();
+      return actionSuccess(undefined);
+    }
     const profile = await favoritingProfile();
     if (!profile.ok) return profile.error;
     // Nothing to remove for an ID that can't exist; same answer as a repeat.

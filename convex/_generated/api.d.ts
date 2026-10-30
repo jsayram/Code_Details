@@ -16,6 +16,7 @@ import type * as authRules from "../authRules.js";
 import type * as crons from "../crons.js";
 import type * as email from "../email.js";
 import type * as emailLinks from "../emailLinks.js";
+import type * as favorites from "../favorites.js";
 import type * as fixtures from "../fixtures.js";
 import type * as http from "../http.js";
 import type * as identity from "../identity.js";
@@ -41,6 +42,7 @@ declare const fullApi: ApiFromModules<{
   crons: typeof crons;
   email: typeof email;
   emailLinks: typeof emailLinks;
+  favorites: typeof favorites;
   fixtures: typeof fixtures;
   http: typeof http;
   identity: typeof identity;
