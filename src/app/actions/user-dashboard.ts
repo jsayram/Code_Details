@@ -2,6 +2,8 @@
 
 import { getUserDashboardStats } from "@/db/operations/userDashboardOperations";
 import { routeViewer } from "@/lib/auth-server";
+import { personalReadsFromConvex } from "@/backend/projects/personal";
+import { convexDashboardStats } from "@/backend/projects/dashboard";
 import { unstable_cache, revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 
@@ -23,8 +25,17 @@ const getCachedUserDashboardStats = unstable_cache(
 );
 
 export async function fetchUserDashboardData(forceRefresh = false) {
-  // D02r: the user comes from the session only (routeUserId: Clerk by
-  // default, the Clerk-era account under the Better Auth switch).
+  // DEF-FLIP-FRESHACCT (D08g4f2): under the Convex data default the stats come
+  // from the session's own Convex lists, so an account with no Clerk-era
+  // subject has a dashboard too. Not cached: each call is the session's own.
+  if (personalReadsFromConvex()) {
+    const stats = await convexDashboardStats();
+    if (!stats) throw new Error("Unauthorized: User not logged in");
+    return { stats };
+  }
+
+  // D02r: on Supabase the user comes from the session only (routeViewer: the
+  // Better Auth account's Clerk-era subject).
   const userId = (await routeViewer())?.userId;
   
   if (!userId) {

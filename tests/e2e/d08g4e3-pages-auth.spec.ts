@@ -38,6 +38,10 @@ test.describe.serial("D08g4e3 pages (Better Auth)", () => {
   });
 
   test("/dashboard's Unfavorite sends the remove action", async ({ page }) => {
+    // D08g4f2: under the Convex read the dashboard's favorites are listed,
+    // active, public projects only (D02r-b), so there is no deleted-favorite
+    // card and no "Unfavorite" badge to press.
+    test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND === "convex", "the deleted-favorite card is Supabase-read only");
     await linkPersona(B.subject!, (await authState(await signIn(page, "g4e3-dashboard")))!.authUserId);
     await page.goto("/dashboard");
     const unfavorite = page.getByText("Unfavorite", { exact: true }).first();
