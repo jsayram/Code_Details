@@ -42,6 +42,17 @@ import {
   deleteProjectImage as deleteFromStorage,
   getProjectImageUrl,
 } from "@/lib/supabase-storage";
+import {
+  attachImageOnConvex,
+  coverImageOnConvex,
+  deleteImageOnConvex,
+  imageReadsFromConvex,
+  imageUploadUrlOnConvex,
+  imageWritesToConvex,
+  listImagesOnConvex,
+  reorderImagesOnConvex,
+  setCoverOnConvex,
+} from "@/backend/projects/images";
 
 // =============================================================================
 // Types
@@ -49,7 +60,10 @@ import {
 
 export interface ImageUploadInput {
   projectId: string;
+  /** Supabase path; "" on the Convex path. */
   storagePath: string;
+  /** Convex path only: the ID the upload URL returned. */
+  storageId?: string;
   /** Ignored: the server derives the URL from the validated path (D06, R11). */
   storageUrl?: string;
   fileName: string;
@@ -181,20 +195,60 @@ function uploadInputError(input: ImageUploadInput, userId: string): string | nul
 // =============================================================================
 
 /**
+ * Where the browser uploads the file. Supabase (the default) keeps its own
+ * flow; the Convex path gets a one-time upload URL after the owner, privacy
+ * and limit checks (D06-b).
+ */
+export async function beginProjectImageUploadAction(
+  projectId: string,
+  imageType: ImageType
+): Promise<ActionResult<{ backend: "supabase" } | { backend: "convex"; uploadUrl: string }>> {
+  try {
+    if (!imageWritesToConvex()) return actionSuccess({ backend: "supabase" as const });
+    if (!IMAGE_TYPES.includes(imageType)) {
+      return validationError(`Invalid image type. Must be one of: ${IMAGE_TYPES.join(", ")}`);
+    }
+    const result = await imageUploadUrlOnConvex(projectId, imageType);
+    return "uploadUrl" in result ? actionSuccess({ backend: "convex" as const, uploadUrl: result.uploadUrl }) : result;
+  } catch (error) {
+    console.error("Error starting image upload:", error);
+    return serverError(error, "Failed to start upload");
+  }
+}
+
+/**
  * Create a new project image record after upload
  */
 export async function createProjectImageAction(
   input: ImageUploadInput
 ): Promise<ActionResult<SelectProjectImage>> {
   try {
+    if (!input || typeof input !== "object") {
+      return validationError("Invalid image");
+    }
+
+    if (imageWritesToConvex()) {
+      if (typeof input.storageId !== "string" || !IMAGE_TYPES.includes(input.imageType)) {
+        return validationError("Invalid image");
+      }
+      const attached = await attachImageOnConvex({
+        projectId: String(input.projectId),
+        storageId: input.storageId,
+        kind: input.imageType,
+        fileName: String(input.fileName ?? ""),
+        ...(input.width != null && { width: input.width }),
+        ...(input.height != null && { height: input.height }),
+        ...(input.aspectRatio != null && { aspectRatio: input.aspectRatio }),
+        ...(input.altText != null && { altText: input.altText }),
+        ...(input.caption != null && { caption: input.caption }),
+      });
+      return "success" in attached ? attached : actionSuccess(attached);
+    }
+
     const userId = await imageWriter();
 
     if (!userId) {
       return unauthorizedError("Authentication required to upload images");
-    }
-
-    if (!input || typeof input !== "object") {
-      return validationError("Invalid image");
     }
 
     // Verify project ownership
@@ -270,6 +324,10 @@ export async function getProjectImagesAction(
     if (imageType !== undefined && !IMAGE_TYPES.includes(imageType)) {
       return validationError(`Invalid image type. Must be one of: ${IMAGE_TYPES.join(", ")}`);
     }
+    if (imageReadsFromConvex()) {
+      const images = await listImagesOnConvex(String(projectId), imageType);
+      return images ? actionSuccess(images) : notFoundError("Project");
+    }
     // Public projects need no sign-in; a deleted one only its owner or an admin
     if (!(await visibleProject(projectId))) {
       return notFoundError("Project");
@@ -289,6 +347,9 @@ export async function getProjectCoverImageAction(
   projectId: string
 ): Promise<ActionResult<SelectProjectImage | null>> {
   try {
+    if (imageReadsFromConvex()) {
+      return actionSuccess(await coverImageOnConvex(String(projectId)));
+    }
     if (!(await visibleProject(projectId))) {
       return actionSuccess(null);
     }
@@ -307,6 +368,11 @@ export async function setProjectCoverImageAction(
   imageId: string
 ): Promise<ActionResult<SelectProjectImage>> {
   try {
+    if (imageWritesToConvex()) {
+      const updated = await setCoverOnConvex(String(imageId));
+      return "success" in updated ? updated : actionSuccess(updated);
+    }
+
     const userId = await imageWriter();
 
     if (!userId) {
@@ -350,6 +416,11 @@ export async function deleteProjectImageAction(
   imageId: string
 ): Promise<ActionResult<boolean>> {
   try {
+    if (imageWritesToConvex()) {
+      const done = await deleteImageOnConvex(String(imageId), false);
+      return done === true ? actionSuccess(true) : done;
+    }
+
     const userId = await imageWriter();
 
     if (!userId) {
@@ -386,6 +457,12 @@ export async function permanentlyDeleteProjectImageAction(
   imageId: string
 ): Promise<ActionResult<{ storagePath: string }>> {
   try {
+    // Convex deletes the file itself; the empty path tells the client there is nothing left to delete.
+    if (imageWritesToConvex()) {
+      const done = await deleteImageOnConvex(String(imageId), true);
+      return done === true ? actionSuccess({ storagePath: "" }) : done;
+    }
+
     const userId = await imageWriter();
 
     if (!userId) {
@@ -428,6 +505,15 @@ export async function reorderProjectImagesAction(
   imageOrders: { imageId: string; order: number }[]
 ): Promise<ActionResult<boolean>> {
   try {
+    if (imageWritesToConvex()) {
+      if (!Array.isArray(imageOrders)) return validationError("Invalid image order");
+      const done = await reorderImagesOnConvex(
+        String(projectId),
+        imageOrders.map((o) => ({ imageId: String(o?.imageId), order: Number(o?.order) }))
+      );
+      return done === true ? actionSuccess(true) : done;
+    }
+
     const userId = await imageWriter();
 
     if (!userId) {

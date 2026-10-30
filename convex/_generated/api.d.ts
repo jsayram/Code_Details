@@ -23,6 +23,7 @@ import type * as identity from "../identity.js";
 import type * as importCore from "../importCore.js";
 import type * as importer from "../importer.js";
 import type * as profiles from "../profiles.js";
+import type * as projectImages from "../projectImages.js";
 import type * as projectLifecycle from "../projectLifecycle.js";
 import type * as projects from "../projects.js";
 import type * as viewer from "../viewer.js";
@@ -49,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   importCore: typeof importCore;
   importer: typeof importer;
   profiles: typeof profiles;
+  projectImages: typeof projectImages;
   projectLifecycle: typeof projectLifecycle;
   projects: typeof projects;
   viewer: typeof viewer;

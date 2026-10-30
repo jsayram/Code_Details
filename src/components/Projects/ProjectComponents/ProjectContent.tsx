@@ -963,11 +963,12 @@ export function ProjectContent({
                   </Card>
 
                   {/* Images Section */}
-                  {!create && project?.id && userId && (
+                  {/* D06-b: the session's viewer (Clerk's userId by default, Better Auth's under the switch) */}
+                  {!create && project?.id && viewerId && (
                     <section id="images">
                       <ProjectImagesManager
                         projectId={project.id}
-                        userId={userId}
+                        userId={viewerId}
                         isEditing={true}
                         onImagesChange={handleImagesChange}
                         discardRef={discardImagesRef}
@@ -1115,10 +1116,10 @@ export function ProjectContent({
 
                   {/* Images Section */}
                   <section id="images">
-                    {project.id && userId && (
+                    {project.id && viewerId && (
                       <ProjectImagesManager
                         projectId={project.id}
-                        userId={userId}
+                        userId={viewerId}
                         isEditing={false}
                         isOwner={isOwner}
                         onEditClick={() => {

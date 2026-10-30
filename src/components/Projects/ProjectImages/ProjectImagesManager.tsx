@@ -117,7 +117,8 @@ export function ProjectImagesManager({
     for (const image of pendingImages) {
       try {
         const result = await permanentlyDeleteProjectImageAction(image.id);
-        if (result.success) {
+        // An empty path means the server already deleted the file (Convex, D06-b).
+        if (result.success && result.data.storagePath) {
           await deleteFromStorage(result.data.storagePath);
           console.log("Deleted pending image:", image.id);
         }
@@ -221,8 +222,8 @@ export function ProjectImagesManager({
       const result = await permanentlyDeleteProjectImageAction(imageToDelete.id);
       
       if (result.success) {
-        // Then delete from storage
-        await deleteFromStorage(result.data.storagePath);
+        // Then delete from storage (an empty path: the server already did, D06-b)
+        if (result.data.storagePath) await deleteFromStorage(result.data.storagePath);
         
         // Update local state
         setImages((prev) => prev.filter((img) => img.id !== imageToDelete.id));

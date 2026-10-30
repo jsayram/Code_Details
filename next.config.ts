@@ -2,6 +2,20 @@ import type { NextConfig } from "next";
 
 const isolatedTestServer = process.env.CODEDETAILS_ENV_ISOLATED === "1" && !!process.env.CODEDETAILS_TEST_DIST_DIR;
 
+// D06-b: image files on the local Convex backend (/api/storage/<id>), only in
+// development with the project read switch on and a loopback http URL, the same
+// conditions as chooseProjectReadBackend. Never in a production build.
+function localConvexStorage() {
+  if (process.env.NODE_ENV !== "development" || process.env.CODEDETAILS_PROJECT_READ_BACKEND !== "convex") return [];
+  try {
+    const url = new URL(process.env.CODEDETAILS_CONVEX_URL ?? "");
+    if (url.protocol !== "http:" || !["127.0.0.1", "localhost"].includes(url.hostname)) return [];
+    return [{ protocol: "http" as const, hostname: url.hostname, port: url.port, pathname: "/api/storage/**", search: "" }];
+  } catch {
+    return [];
+  }
+}
+
 const nextConfig: NextConfig = {
   // Browser tests build into their own folder so they never share caches with
   // the normal dev server. Only honored under the isolated test harness.
@@ -58,6 +72,7 @@ const nextConfig: NextConfig = {
       ...(process.env.CODEDETAILS_ENV_ISOLATED === "1"
         ? [{ protocol: 'http' as const, hostname: '127.0.0.1', port: '9', pathname: '/storage/v1/object/public/**', search: '' }]
         : []),
+      ...localConvexStorage(),
     ],
   },
 };

@@ -661,3 +661,44 @@ export const favoriteState = internalQuery({
     };
   },
 });
+
+// D06-b: one project's image rows (every status) with whether each file still
+// exists, and a placeholder file stored without an image row (an upload that
+// was never attached), for the image tests.
+export const imageState = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const rows = await ctx.db.query("projectImages").withIndex("by_project_status_order", (q) => q.eq("projectId", projectId)).collect();
+    const out = [];
+    for (const r of rows) {
+      out.push({
+        id: r._id,
+        storageId: r.storageId,
+        kind: r.kind,
+        status: r.status,
+        displayOrder: r.displayOrder,
+        mimeType: r.mimeType,
+        size: r.size,
+        fileExists: (await ctx.db.system.get(r.storageId)) !== null,
+      });
+    }
+    return out.sort((a, b) => a.kind.localeCompare(b.kind) || a.displayOrder - b.displayOrder);
+  },
+});
+
+export const fileExists = internalQuery({
+  args: { storageId: v.id("_storage") },
+  handler: async (ctx, { storageId }) => {
+    assertFixturesAllowed();
+    return (await ctx.db.system.get(storageId)) !== null;
+  },
+});
+
+export const storeUnattachedFile = internalAction({
+  args: { contentType: v.string(), bytes: v.number() },
+  handler: async (ctx, { contentType, bytes }): Promise<Id<"_storage">> => {
+    assertFixturesAllowed();
+    return await ctx.storage.store(new Blob([new Uint8Array(bytes)], { type: contentType }));
+  },
+});
