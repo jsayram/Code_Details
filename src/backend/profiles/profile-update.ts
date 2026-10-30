@@ -28,10 +28,7 @@ export type ConvexProfileUpdate =
   | { ok: false; code: "invalid" | "taken"; field: string; message: string };
 
 export async function updateProfileOnConvex(currentHandle: string, input: UpdateProfileInput): Promise<ConvexProfileUpdate> {
-  // Email goes through the auth provider (D04e); there is no bio (P07 §3.3).
-  if (input.email_address !== undefined) {
-    return { ok: false, code: "invalid", field: "email_address", message: "Change your email address in your account settings" };
-  }
+  // Email is refused by the route before this (D04e); there is no bio (P07 §3.3).
   if (input.bio !== undefined && input.bio !== null) {
     return { ok: false, code: "invalid", field: "bio", message: "Profiles have no bio" };
   }

@@ -71,6 +71,19 @@ export const createAuth = (ctx: GenericCtx<DataModel>) =>
       // A reset signs out every other session of that user.
       revokeSessionsOnPasswordReset: true,
     },
+    // D04e (P08 R23): email changes only through here, and only verified. A
+    // verified account confirms from its current address first, then the new
+    // address must be verified before the change happens (Better Auth's
+    // change-email-confirmation → change-email-verification). Both links are
+    // opaque (f5). updateEmailWithoutVerification stays off, and update-user
+    // refuses an email field. The app never stores the address (P07 §5.5).
+    user: {
+      changeEmail: {
+        enabled: true,
+        sendChangeEmailConfirmation: async ({ user, url, token }) =>
+          sendAuthEmail("change-email", user.email, await opaqueVerificationLink(ctx, token, url, 60 * 60)),
+      },
+    },
     emailVerification: {
       // f5: email an opaque single-use link instead of Better Auth's, whose
       // JWT carries the address in the URL (convex/emailLinks.ts).

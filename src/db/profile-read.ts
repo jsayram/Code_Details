@@ -108,3 +108,11 @@ export async function readProfileByUserId(userId: string): Promise<SelectProfile
     return row ?? null;
   });
 }
+
+/** D04e: the tier of a user the caller already resolved from the session. */
+export async function readTierByUserId(userId: string): Promise<string | null> {
+  return executeQuery(async (db) => {
+    const [row] = await db.select({ tier: profiles.tier }).from(profiles).where(eq(profiles.user_id, userId)).limit(1);
+    return row?.tier ?? null;
+  });
+}

@@ -133,6 +133,13 @@ export async function PUT(
     }
     const validatedData = validation.data;
 
+    // D04e (P08 R23): the email address changes only through the auth
+    // provider, verified. The app never takes it from a form.
+    if (validatedData.email_address !== undefined) {
+      const message = "Change your email address in your account settings";
+      return validationError([{ field: "email_address", message }], message);
+    }
+
     if (toConvex) {
       const result = await updateProfileOnConvex(username, validatedData);
       if (result.ok) {
@@ -176,7 +183,6 @@ export async function PUT(
     // have no column and were never stored)
     const result = await updateProfileRow({ userId: viewer.userId }, {
       ...(validatedData.username !== undefined && { username: validatedData.username }),
-      ...(validatedData.email_address && { email_address: validatedData.email_address }),
       ...(validatedData.profile_image_url !== undefined && { profile_image_url: validatedData.profile_image_url }),
       ...(validatedData.full_name !== undefined && { full_name: validatedData.full_name }),
     });

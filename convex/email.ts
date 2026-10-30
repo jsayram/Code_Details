@@ -7,16 +7,19 @@
 // address, the link or the token.
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
-export type AuthEmailKind = "verify-email" | "reset-password";
+export type AuthEmailKind = "verify-email" | "reset-password" | "change-email";
 
 const SUBJECTS: Record<AuthEmailKind, string> = {
   "verify-email": "Confirm your email for Code Details",
   "reset-password": "Reset your Code Details password",
+  "change-email": "Confirm the email change on your Code Details account",
 };
 
 const BODIES: Record<AuthEmailKind, (url: string) => string> = {
   "verify-email": (url) => `Confirm your email address for Code Details:\n\n${url}\n\nThe link works for one hour. If you didn't sign up, ignore this email.`,
   "reset-password": (url) => `Reset your Code Details password:\n\n${url}\n\nThe link works for one hour. If you didn't ask for this, ignore this email; your password stays the same.`,
+  // D04e: sent to the current address. It doesn't name the new one.
+  "change-email": (url) => `Someone asked to change the email address on your Code Details account. To confirm, open:\n\n${url}\n\nThen confirm the new address from the email we send there. The link works for one hour. If this wasn't you, ignore this email and change your password.`,
 };
 
 export function emailEndpoint(value: string | undefined = process.env.CODEDETAILS_EMAIL_HTTP_URL): string | null {

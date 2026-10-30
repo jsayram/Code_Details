@@ -21,7 +21,7 @@ export interface ProfileChanges {
   username?: string;
   full_name?: string | null;
   profile_image_url?: string | null;
-  /** Owner's PUT only, until D04e moves email changes to the auth provider. */
+  /** Admin user management only (D07 owns it); the owner's PUT refuses email (D04e). */
   email_address?: string;
   /** Admin only. */
   tier?: string;
