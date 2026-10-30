@@ -22,7 +22,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Loader2, AlertTriangle, Link2, FolderGit2, FileText, Calendar, Tag } from 'lucide-react';
 import useSWR, { useSWRConfig } from 'swr';
-import { useAuth } from '@clerk/nextjs';
+import { useViewerId } from '@/components/auth/AuthGate';
 import { Project } from '@/types/models/project';
 import { API_ROUTES } from '@/constants/api-routes';
 
@@ -57,7 +57,9 @@ export function AssignToProjectDialog({
   onAssigned,
 }: AssignToProjectDialogProps) {
   const { mutate } = useSWRConfig();
-  const { userId } = useAuth();
+  // Generator re-key: the active session's ID, only the cache key and "signed in"
+  // signal; the server lists the session's own projects (D02r).
+  const userId = useViewerId();
   
   // Fetch ALL of the current user's non-deleted projects when dialog opens
   // Uses the same API_ROUTES helper as the projects portfolio page

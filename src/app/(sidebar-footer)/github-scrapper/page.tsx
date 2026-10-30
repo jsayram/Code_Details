@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useAuth, SignInButton, useUser } from '@clerk/nextjs';
-import { SignedIn, SignedOut } from '@/components/auth/AuthGate';
+import { SignInButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, useViewerId } from '@/components/auth/AuthGate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderGit2,
@@ -72,7 +72,8 @@ interface GeneratedDoc {
 }
 
 function GitHubScrapperContent() {
-  const { isSignedIn } = useAuth();
+  // Generator re-key: the active session (Clerk, or Better Auth behind the switch)
+  const isSignedIn = !!useViewerId();
   
   // Form state
   const [repoUrl, setRepoUrl] = useState('');

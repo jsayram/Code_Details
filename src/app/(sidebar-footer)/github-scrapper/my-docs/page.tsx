@@ -1,8 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth, SignInButton, useUser } from '@clerk/nextjs';
-import { SignedIn, SignedOut } from '@/components/auth/AuthGate';
+import { SignInButton, useUser } from '@clerk/nextjs';
+import { SignedIn, SignedOut, useViewerId } from '@/components/auth/AuthGate';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -62,7 +62,8 @@ interface ProjectInfo {
 }
 
 function MyDocsContent() {
-  const { isSignedIn } = useAuth();
+  // Generator re-key: the active session (Clerk, or Better Auth behind the switch)
+  const isSignedIn = !!useViewerId();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

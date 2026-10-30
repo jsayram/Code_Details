@@ -29,6 +29,9 @@ vi.mock("@/lib/auth-server", () => ({
       ? { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null, projectViewer: { userId: viewer.userId, isAdmin: viewer.isAdmin } }
       : null,
 }));
+// The Supabase path (the D11s rule); the Convex path is in gen-rekey-links.test.ts.
+vi.mock("@/backend/projects/personal", () => ({ personalReadsFromConvex: () => false, convexPersonalList: async () => [] }));
+vi.mock("@/backend/projects", () => ({ getProjectReadBackend: () => ({ getPublicProjectBySlug: async () => null }) }));
 vi.mock("@/db/project-read", () => ({
   readProjectBySlug: async (...args: unknown[]) => {
     db.calls.push(args);

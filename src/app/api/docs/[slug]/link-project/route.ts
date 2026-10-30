@@ -11,6 +11,7 @@
 import { NextRequest } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { isDocOwner } from '@/lib/docs-access';
+import { convexPersonalList, personalReadsFromConvex } from '@/backend/projects/personal';
 import { 
   getProjectMeta, 
   updateProjectMeta, 
@@ -35,6 +36,25 @@ interface RouteParams {
   params: Promise<{
     slug: string;
   }>;
+}
+
+async function supabaseOwnProject(ownerId: string | undefined, projectId: string, projectSlug: string) {
+  if (!ownerId) return null;
+  return executeQuery(async (db) => {
+    const result = await db
+      .select()
+      .from(projects)
+      .where(
+        and(
+          eq(projects.id, projectId),
+          eq(projects.slug, projectSlug),
+          eq(projects.user_id, ownerId),
+          isNull(projects.deleted_at)
+        )
+      )
+      .limit(1);
+    return result.length > 0 ? result[0] : null;
+  });
 }
 
 /**
@@ -72,26 +92,18 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { projectId, projectSlug, projectTitle, replace } = validation.data;
+    const { projectId, projectSlug, replace } = validation.data;
 
-    // Verify the target project exists and user owns it using Drizzle. Supabase
-    // projects are keyed by the Clerk-era subject, so an account without one owns none there.
-    const projectOwnerId = owner.projectViewer?.userId;
-    const targetProject = projectOwnerId ? await executeQuery(async (db) => {
-      const result = await db
-        .select()
-        .from(projects)
-        .where(
-          and(
-            eq(projects.id, projectId),
-            eq(projects.slug, projectSlug),
-            eq(projects.user_id, projectOwnerId),
-            isNull(projects.deleted_at)
-          )
-        )
-        .limit(1);
-      return result.length > 0 ? result[0] : null;
-    }) : null;
+    // Verify the target project exists and the caller owns it. Under both
+    // development switches projects live in Convex, and the caller's own
+    // active projects come from the session (the same list the picker shows);
+    // this is where a link's ownership is checked, since the read side can't
+    // see a Convex project's owner. Otherwise Supabase via Drizzle, whose
+    // projects are keyed by the Clerk-era subject, so an account without one
+    // owns none there.
+    const targetProject = personalReadsFromConvex()
+      ? (await convexPersonalList('mine')).find((p) => p.id === projectId && p.slug === projectSlug) ?? null
+      : await supabaseOwnProject(owner.projectViewer?.userId, projectId, projectSlug);
 
     if (!targetProject) {
       return notFound('project', { 
@@ -121,7 +133,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const updatedMeta = await updateProjectMeta(slug, {
       linkedProjectId: projectId,
       linkedProjectSlug: projectSlug,
-      linkedProjectTitle: projectTitle,
+      // The project's own title, not the one the request sent
+      linkedProjectTitle: targetProject.title,
     });
 
     if (!updatedMeta) {
@@ -133,7 +146,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       docSlug: slug,
       projectId,
       projectSlug,
-      projectTitle,
+      projectTitle: targetProject.title,
       replacedDoc: existingLinkedDoc?.projectSlug !== slug ? existingLinkedDoc?.projectSlug : null,
     });
   } catch (error) {

@@ -11,10 +11,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
+import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, signIn as fixtureSignIn, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
+import { TEST_CONVEX_URL } from "../support/isolation";
 
 const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
 const FIXTURES = generateFixtures();
@@ -25,15 +27,16 @@ const ROOT = path.resolve(__dirname, "../..");
 const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
 const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
 const CHAPTER = "01_intro.md";
-const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked", fresh: "genrekey-fixture-fresh", fresh2: "genrekey-fixture-fresh-two" };
+const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked", fresh: "genrekey-fixture-fresh", fresh2: "genrekey-fixture-fresh-two", convexLink: "genrekey-fixture-convex-link" };
+const getPublicBySlug = makeFunctionReference<"query", { slug: string }, { id: string } | null>("projects:getPublicBySlug");
 const docOwner = makeFunctionReference<"query", Record<string, never>, { userId: string; legacySubject: string | null } | null>("identity:docOwner");
 
 /** The account ID a Better Auth login's docs are keyed by, read in its own second session. */
-async function accountIdOf(email: string): Promise<string> {
+async function accountIdOf(email: string, legacySubject: string | null = null): Promise<string> {
   const session = await fixtureSignIn(email, SYNTHETIC_PASSWORD);
   expect(session.status).toBe(200);
   const owner = await clientWithToken((await convexToken(session.jar))!).query(docOwner, {});
-  expect(owner?.legacySubject ?? null).toBeNull();
+  expect(owner?.legacySubject ?? null).toBe(legacySubject);
   return owner!.userId;
 }
 
@@ -259,7 +262,11 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
   const CHAPTER_URL = `/github-scrapper/docs/${DOCS.linked}/${CHAPTER}`;
 
   test.beforeAll(async () => {
-    writeDoc(DOCS.linked, A.subject!, { linkedProjectId: LISTED.id, linkedProjectSlug: LISTED.slug, linkedProjectTitle: LISTED.title });
+    // Generator re-key: under both switches projects live in Convex, so a link carries the Convex project ID.
+    const linkedProjectId = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex"
+      ? (await new ConvexHttpClient(TEST_CONVEX_URL).query(getPublicBySlug, { slug: LISTED.slug }))!.id
+      : LISTED.id;
+    writeDoc(DOCS.linked, A.subject!, { linkedProjectId, linkedProjectSlug: LISTED.slug, linkedProjectTitle: LISTED.title });
     await releasePersona(A.subject!);
     await releasePersona(B.subject!);
   });
@@ -296,5 +303,89 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
     await expect(page.getByText("Synthetic chapter.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Download All" })).toHaveCount(0);
     await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
+  });
+});
+
+// Generator re-key, slice 2: under both switches projects live in Convex. The
+// owner links its doc (keyed by its account ID) to its own Convex project; the
+// link is checked against the owner's own projects when it is made, and
+// another user reads it while that project's public page shows it.
+test.describe.serial("generator re-key: linking to a Convex project (both switches)", () => {
+  test.skip(!betterAuth || process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs both switches");
+  const PRIVATE = FIXTURES.projects.find((p) => p.slug === "fixture-private")!;
+  const BOBS = FIXTURES.projects.find((p) => p.slug === "fixture-bob-project")!;
+  let owner: APIRequestContext;
+  let other: APIRequestContext;
+  let ownerEmail = "";
+  const projectIds: Record<string, string> = {};
+
+  test.beforeAll(async ({ playwright }) => {
+    await releasePersona(A.subject!);
+    await releasePersona(B.subject!);
+    owner = await client(playwright);
+    ownerEmail = await signIn(owner, "genrekey-link-owner");
+    await linkPersona(A.subject!, (await authState(ownerEmail))!.authUserId);
+    other = await client(playwright);
+    const otherEmail = await signIn(other, "genrekey-link-other");
+    await linkPersona(B.subject!, (await authState(otherEmail))!.authUserId);
+    // A new doc of A's, keyed by A's account ID as the generator now writes it
+    writeDoc(DOCS.convexLink, await accountIdOf(ownerEmail, A.subject!), { legacyUserId: A.subject });
+    // Convex project IDs, as the link picker and the community list see them
+    for (const row of (await (await owner.get("/api/projects?limit=100")).json()).data) projectIds[row.slug] = row.id;
+    for (const row of (await (await other.get("/api/projects?limit=100")).json()).data) projectIds[row.slug] = row.id;
+    expect(projectIds[LISTED.slug] && projectIds[PRIVATE.slug] && projectIds[BOBS.slug]).toBeTruthy();
+  });
+  test.afterAll(async () => {
+    fs.rmSync(path.join(OUTPUT, DOCS.convexLink), { recursive: true, force: true });
+    await releasePersona(A.subject!);
+    await releasePersona(B.subject!);
+    await owner?.dispose();
+    await other?.dispose();
+  });
+
+  const linkTo = (ctx: APIRequestContext, slug: string) =>
+    ctx.patch(`/api/docs/${DOCS.convexLink}/link-project`, { data: { projectId: projectIds[slug], projectSlug: slug, projectTitle: "Spoofed title" } });
+
+  test("linking someone else's project is refused, and someone else can't link the owner's doc", async () => {
+    expect((await linkTo(owner, BOBS.slug)).status()).toBe(404);
+    expect((await linkTo(other, BOBS.slug)).status()).toBe(403);
+    expect(JSON.parse(fs.readFileSync(path.join(OUTPUT, DOCS.convexLink, "_meta.json"), "utf8")).linkedProjectId).toBeUndefined();
+  });
+
+  test("a doc linked to the owner's private project stays the owner's", async () => {
+    expect((await linkTo(owner, PRIVATE.slug)).status()).toBe(200);
+    expect((await other.get(`/api/docs/${DOCS.convexLink}/${CHAPTER}`)).status()).toBe(404);
+    expect((await owner.get(`/api/docs/${DOCS.convexLink}/${CHAPTER}`)).status()).toBe(200);
+  });
+
+  test("linked to the owner's public project, another user reads it with trimmed meta and no ZIP", async () => {
+    const res = await linkTo(owner, LISTED.slug);
+    expect(res.status()).toBe(200);
+    expect(JSON.parse(fs.readFileSync(path.join(OUTPUT, DOCS.convexLink, "_meta.json"), "utf8"))).toMatchObject({
+      linkedProjectId: projectIds[LISTED.slug],
+      linkedProjectSlug: LISTED.slug,
+      linkedProjectTitle: LISTED.title,
+    });
+    expect((await other.get(`/api/docs/${DOCS.convexLink}/${CHAPTER}`)).status()).toBe(200);
+    const meta = await (await other.get(`/api/docs/${DOCS.convexLink}/meta`)).json();
+    expect(meta).toMatchObject({ isOwner: false, userId: null });
+    expect(JSON.stringify(meta)).not.toContain(A.subject!);
+    expect((await other.get(`/api/docs/${DOCS.convexLink}/download`)).status()).toBe(404);
+    const linked = await (await other.get(`/api/projects/slug/${LISTED.slug}/linked-doc`)).json();
+    expect(linked.data).toMatchObject({ hasLinkedDoc: true, linkedDoc: { docSlug: DOCS.convexLink } });
+  });
+
+  test("the owner's my-docs page lists the linked doc under the Better Auth session", async ({ page }) => {
+    // The owner's own session, in the browser
+    await page.context().addCookies((await owner.storageState()).cookies);
+    await page.goto("/github-scrapper/my-docs");
+    await expect(page.getByText(DOCS.convexLink).first()).toBeVisible();
+  });
+
+  test("unlinking takes it away from everyone else", async () => {
+    expect((await owner.delete(`/api/docs/${DOCS.convexLink}/link-project`)).status()).toBe(200);
+    expect((await other.get(`/api/docs/${DOCS.convexLink}/${CHAPTER}`)).status()).toBe(404);
+    const linked = await (await other.get(`/api/projects/slug/${LISTED.slug}/linked-doc`)).json();
+    expect(linked.data).toMatchObject({ hasLinkedDoc: false });
   });
 });
