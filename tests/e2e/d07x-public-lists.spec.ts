@@ -84,4 +84,25 @@ test.describe.serial("D07x public lists (Better Auth + Convex read)", () => {
     // Convex rows: no owner ID, no email, and none of them the viewer's.
     expect(body.data.every((r) => r.user_id === "" && r.profile.email_address === null && !r.is_mine)).toBe(true);
   });
+
+  test("a signed-out visitor's shared-projects page lists A's public projects from Convex", async ({ page }) => {
+    const api = await page.request.get(`/api/shared-projects/${A.profile!.username}?limit=50`);
+    expect(api.status()).toBe(200);
+    const body = (await api.json()) as { data: { data: { project: { id: string; slug: string } }[] } };
+    const slugs = body.data.data.map((r) => r.project.slug);
+    expect(slugs).toContain("fixture-listed");
+    expect(slugs).not.toContain("fixture-private");
+    // A Convex ID, not a Supabase UUID: the grid really came from Convex.
+    expect(body.data.data[0].project.id).not.toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-/);
+
+    await page.goto(`/shared-projects/${A.profile!.username}`);
+    await expect(page.getByText("Fixture One Tag").first()).toBeVisible();
+    await expect(page.getByText("Fixture Private Project")).toHaveCount(0);
+  });
+
+  test("the tag list comes from Convex", async ({ page }) => {
+    await signIn(page, "d07x-tags");
+    await page.goto("/tags");
+    await expect(page.getByText(/^Rust\s*\d+$/).first()).toBeVisible();
+  });
 });

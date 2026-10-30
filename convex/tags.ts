@@ -85,6 +85,29 @@ export const search = query({
   },
 });
 
+/** At most this many tags in the full list (MAX_TAGS_QUERY_RESULTS on Supabase). */
+const LIST_LIMIT = 500;
+
+/**
+ * D07x: every active tag with its listed-project count, most used first, for
+ * the /tags page and the tag picker's cache (searchTagsAction's empty query
+ * on Supabase). Public; counts cover listed projects only, so a private or
+ * deleted project never shows through a count.
+ */
+export const listAll = query({
+  args: {},
+  handler: async (ctx): Promise<{ id: string; name: string; count: number }[]> => {
+    const rows = await ctx.db
+      .query("tags")
+      .withIndex("by_status_count", (i) => i.eq("status", "active"))
+      .order("desc")
+      .take(LIST_LIMIT);
+    return rows
+      .map((t) => ({ id: t._id, name: t.name, count: t.listedProjectCount }))
+      .sort((a, b) => b.count - a.count || (a.name < b.name ? 1 : a.name > b.name ? -1 : 0));
+  },
+});
+
 // ---------------------------------------------------------------------------
 // Suggestions (signed in)
 

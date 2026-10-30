@@ -343,14 +343,17 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     });
   });
 
-  describe("R16 multi-tag filter", () => {
-    it("[handler] one tag works, two tags make /api/projects fail", async () => {
+  // Was the B13 reproduction (two tags made the route 500). Fixed in D07x
+  // (DEF-D07X-MULTITAG, the sql.join separator); tests/integration/d07x-multitag.test.ts covers it in full.
+  describe("R16 (fixed, D07x) multi-tag filter", () => {
+    it("[handler] one tag and two tags both work", async () => {
       const one = await projectsRoute.GET(url("/api/projects?showAll=true&tags=Postgres"));
       expect(one.status).toBe(200);
       expect((await body(one)).data.map((p: { slug: string }) => p.slug)).toContain(listed.slug);
 
       const two = await projectsRoute.GET(url("/api/projects?showAll=true&tags=Postgres&tags=Next.js"));
-      expect(two.status).toBe(500);
+      expect(two.status).toBe(200);
+      expect((await body(two)).data.map((p: { slug: string }) => p.slug)).toContain(listed.slug);
     });
   });
 

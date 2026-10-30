@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
@@ -20,6 +21,8 @@ import { HighlightText } from "@/components/HighlightText";
 export default function TagsIndexPage() {
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
+  // D07x: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
   const router = useRouter();
   const { tags: allTags, isLoading: tagsLoading } = useTags();
   const [searchQuery, setSearchQuery] = useState("");
@@ -59,7 +62,7 @@ export default function TagsIndexPage() {
   };
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
+    <ProjectsProvider token={viewer.token} userId={viewer.userId}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

@@ -6,7 +6,7 @@ import { favorites } from "@/db/schema/favorites";
 import { sql, isNull, isNotNull, eq, and, SQL } from "drizzle-orm";
 import { success, databaseError } from "@/lib/api-errors";
 import { routeViewer } from "@/lib/auth-server";
-import { convexPersonalCounts, personalReadsFromConvex } from "@/backend/projects/personal";
+import { convexPersonalCounts, convexPublicCategoryCounts, personalReadsFromConvex } from "@/backend/projects/personal";
 
 /**
  * GET /api/categories/counts
@@ -33,6 +33,13 @@ export async function GET(request: NextRequest) {
     if (personal && personalReadsFromConvex()) {
       const response = success(await convexPersonalCounts(showDeleted ? "deleted" : showFavorites ? "favorites" : "mine"));
       response.headers.set("Cache-Control", "private, no-store");
+      return response;
+    }
+
+    // D07x: the community counts too, from listed projects only.
+    if (!personal && personalReadsFromConvex()) {
+      const response = success((await convexPublicCategoryCounts()) ?? {});
+      response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
       return response;
     }
 

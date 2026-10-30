@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
@@ -992,11 +993,13 @@ function SearchContent() {
 }
 
 export default function SearchPage() {
-  const { user } = useUser();
-  const { token } = useSupabaseToken();
+  const { user, isLoaded } = useUser();
+  const { token, loading: tokenLoading } = useSupabaseToken();
+  // D07x: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: isLoaded, token, tokenLoading });
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
+    <ProjectsProvider token={viewer.token} userId={viewer.userId}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

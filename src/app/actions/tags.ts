@@ -2,6 +2,7 @@
 
 import { TagInfo, searchTags } from "@/db/operations/tag-operations";
 import { unstable_cache } from 'next/cache';
+import { convexTagList, personalReadsFromConvex } from "@/backend/projects/personal";
 
 // D07 (P08 R04, R30): every export of a "use server" file is callable by
 // anyone. The tag writers that were here (addTagToProjectAction,
@@ -16,7 +17,10 @@ import { unstable_cache } from 'next/cache';
  */
 export async function searchTagsAction(query: string): Promise<TagInfo[]> {
   try {
-    return await searchTags(typeof query === "string" ? query : "");
+    const q = typeof query === "string" ? query : "";
+    // D07x: under both development switches, the active tags from Convex.
+    if (personalReadsFromConvex()) return await convexTagList(q);
+    return await searchTags(q);
   } catch (error) {
     console.error("Error searching tags:", error);
     return [];
@@ -38,6 +42,7 @@ export const getCachedAllTags = unstable_cache(
  */
 export async function getTags(): Promise<TagInfo[]> {
   try {
+    if (personalReadsFromConvex()) return await convexTagList("");
     return await getCachedAllTags();
   } catch (error) {
     console.error('Error fetching tags:', error);

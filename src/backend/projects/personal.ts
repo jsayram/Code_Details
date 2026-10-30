@@ -13,7 +13,8 @@
 // controls (which write to Supabase with Clerk's ID) stay hidden until the
 // writes move (D02/D03). Null would not do: the cards compare it with Clerk's
 // userId, which is null under the Better Auth switch.
-import { makeFunctionReference } from "convex/server";
+import { makeFunctionReference, type FunctionReference } from "convex/server";
+import { fetchQuery } from "convex/nextjs";
 import { chooseAuthBackend } from "@/backend/auth";
 import { viewerQuery, viewerQueryWithArgs } from "@/lib/auth-server";
 import { chooseProjectReadBackend } from "./index";
@@ -79,6 +80,45 @@ const publicList = makeFunctionReference<"query", PublicListArgs, { cards: Perso
  */
 export async function convexPublicList(args: PublicListArgs): Promise<{ cards: PersonalProjectCard[]; total: number }> {
   return (await viewerQueryWithArgs(publicList, args))?.result ?? { cards: [], total: 0 };
+}
+
+const publicCounts = makeFunctionReference<"query", { handle?: string }, Record<string, number> | null>("projects:publicCategoryCounts");
+type HandleRead = { kind: "profile"; profile: { username: string } } | { kind: "redirect"; currentUsername: string } | null;
+const handleRead = makeFunctionReference<"query", { handle: string }, HandleRead>("profiles:getPublicByUsername");
+
+/** A Convex read that doesn't depend on who asks, sent with no token. Only called under both switches. */
+async function publicQuery<Args extends Record<string, unknown>, R>(query: FunctionReference<"query", "public", Args, R>, args: Args): Promise<R> {
+  const choice = chooseProjectReadBackend();
+  if (choice.backend !== "convex") throw new Error("public Convex read used without the Convex read switch");
+  const ref = query as unknown as FunctionReference<"query", "public", Record<string, unknown>, R>;
+  return (await fetchQuery(ref, args, { url: choice.url })) as R;
+}
+
+/** D07x: listed projects per category, community-wide or for one handle (null: nobody holds it). */
+export async function convexPublicCategoryCounts(handle?: string): Promise<Record<string, number> | null> {
+  return publicQuery(publicCounts, handle === undefined ? {} : { handle });
+}
+
+/** D07x: who a handle belongs to now (the D04b 90-day redirect included), or null. */
+export async function convexHandle(handle: string): Promise<HandleRead> {
+  return publicQuery(handleRead, { handle });
+}
+
+/** D07x: one owner's public portfolio for the shared-projects page, asked with no token (it is public). */
+export async function convexSharedList(args: PublicListArgs): Promise<{ cards: PersonalProjectCard[]; total: number }> {
+  return publicQuery(publicList, args);
+}
+
+const tagList = makeFunctionReference<"query", Record<string, never>, { id: string; name: string; count: number }[]>("tags:listAll");
+
+/**
+ * D07x: the active tags and their listed-project counts. A non-empty query
+ * keeps the names containing it, case-insensitively, as ILIKE does on Supabase.
+ */
+export async function convexTagList(query: string): Promise<{ id: string; name: string; count: number }[]> {
+  const tags = await publicQuery(tagList, {});
+  const q = query.trim().toLowerCase();
+  return q ? tags.filter((t) => t.name.toLowerCase().includes(q)) : tags;
 }
 
 export async function convexPersonalCounts(view: PersonalView): Promise<Record<string, number>> {

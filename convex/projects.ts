@@ -365,6 +365,28 @@ export const listPublic = query({
   },
 });
 
+/**
+ * Listed projects per category, for the community (no handle) or one owner's
+ * public portfolio. Anonymous by design: nothing here depends on the caller.
+ * An unknown handle gives null (the shared-projects route answers 404 for it).
+ */
+export const publicCategoryCounts = query({
+  args: { handle: v.optional(v.string()) },
+  handler: async (ctx, { handle }): Promise<Record<string, number> | null> => {
+    const projects =
+      handle !== undefined
+        ? await listedOf(ctx, handle)
+        : await ctx.db
+            .query("projects")
+            .withIndex("by_listed_created", (q) => q.eq("listed", true))
+            .take(PUBLIC_LIST_SCAN_LIMIT);
+    if (!projects) return null;
+    const counts: Record<string, number> = {};
+    for (const p of projects) if (isPublic(p)) counts[p.category] = (counts[p.category] ?? 0) + 1;
+    return counts;
+  },
+});
+
 // ---------------------------------------------------------------------------
 // D02: the project update (P07 §4 "one mutation", P08 R27–R29). The caller
 // comes from getViewer only; the arguments name the project, the version the

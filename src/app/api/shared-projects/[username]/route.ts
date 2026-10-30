@@ -10,6 +10,7 @@ import { serverError, success, invalidInput } from "@/lib/api-errors";
 import { sharedProjectsQuerySchema, parseSearchParams, type SharedProjectsQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
 import { publicUsername } from "@/backend/profiles/public-profile";
+import { convexHandle, convexSharedList, personalReadsFromConvex } from "@/backend/projects/personal";
 
 export async function GET(
   request: NextRequest,
@@ -35,6 +36,43 @@ export async function GET(
   const offset = (page - 1) * limit;
 
   try {
+    // D07x: under both development switches, from Convex. Same response
+    // shape; listed projects only, and the D04b redirect for a handle given up
+    // in the last 90 days.
+    if (personalReadsFromConvex()) {
+      const holder = await convexHandle(username);
+      if (holder?.kind === "redirect") {
+        return success({ redirect: true, oldUsername: username, currentUsername: holder.currentUsername });
+      }
+      if (!holder) return success({ data: [], pagination: { total: 0, page, limit, totalPages: 0 } });
+      const { cards, total } = await convexSharedList({
+        handle: username,
+        ...(category && category !== "all" ? { category } : {}),
+        sortBy,
+        page,
+        limit,
+      });
+      return success({
+        data: cards.map((c) => ({
+          project: {
+            id: c.id,
+            title: c.title,
+            slug: c.slug,
+            description: c.description,
+            category: c.category,
+            created_at: c.createdAt,
+            updated_at: c.updatedAt,
+            total_favorites: String(c.favoriteCount),
+          },
+          profile: c.owner
+            ? { username: c.owner.username, profile_image_url: c.owner.avatarUrl, full_name: c.owner.fullName }
+            : null,
+          tags: c.tags,
+        })),
+        pagination: { total, page, limit, totalPages: Math.ceil(total / limit) },
+      });
+    }
+
     const result = await executeQuery(async (db) => {
       // First check if this username exists in profiles
       const profileCheck = await db

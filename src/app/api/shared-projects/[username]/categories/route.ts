@@ -4,6 +4,7 @@ import { eq, and, isNull, sql } from "drizzle-orm";
 import { projects } from "@/db/schema/projects";
 import { profiles } from "@/db/schema/profiles";
 import { success, notFound, serverError } from "@/lib/api-errors";
+import { convexPublicCategoryCounts, personalReadsFromConvex } from "@/backend/projects/personal";
 
 /**
  * GET /api/shared-projects/[username]/categories
@@ -18,6 +19,16 @@ export async function GET(
   const username = params.username.toLowerCase();
 
   try {
+    // D07x: under both development switches, from Convex: listed projects of
+    // an active account only (a deleting account's portfolio is not public).
+    if (personalReadsFromConvex()) {
+      const counts = await convexPublicCategoryCounts(username);
+      if (!counts) return notFound("user", { identifier: username });
+      const response = success(counts);
+      response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
+      return response;
+    }
+
     const result = await executeQuery(async (db) => {
       // First verify the user exists
       const profileCheck = await db
