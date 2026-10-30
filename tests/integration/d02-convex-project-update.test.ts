@@ -9,6 +9,9 @@ import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loa
 import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
 
+/** The same ID with its last character changed (never to itself: an ID ending in "x" made this the real ID). */
+const otherLastChar = (id: string) => id.slice(0, -1) + (id.endsWith("x") ? "y" : "x");
+
 type Patch = Record<string, unknown>;
 type Args = { projectId: string; expectedContentVersion: number; patch: Patch };
 type Editable = { id: string; slug: string; title: string; tags: string[]; contentVersion: number; description: string | null } & Record<string, unknown>;
@@ -179,7 +182,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02 Convex projec
 
     it("a deleted project, a malformed ID and another table's ID look the same as someone else's project", async () => {
       expect(await unchanged("fixture-deleted-recent", () => save(asA(), "fixture-deleted-recent", { title: "Back" }))).toEqual({ ok: false, code: "not_found" });
-      for (const projectId of ["not-an-id", "", ids["fixture-listed"].replace(/.$/, "x")]) {
+      for (const projectId of ["not-an-id", "", otherLastChar(ids["fixture-listed"])]) {
         expect(await asA().mutation(update, { projectId, expectedContentVersion: 1, patch: { title: "x" } })).toEqual({ ok: false, code: "not_found" });
       }
     });
