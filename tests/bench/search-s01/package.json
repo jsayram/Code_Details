@@ -1,0 +1,6 @@
+{
+  "name": "codedetails-search-s01-bench",
+  "private": true,
+  "description": "D09 S01 throwaway benchmark deployment; never installed or published. Resolves convex from the repo root.",
+  "dependencies": { "convex": "1.48.0" }
+}
