@@ -12,10 +12,12 @@ const clerk = vi.hoisted(() => ({
   user: null as null | { fullName: string | null; username: string | null; primaryEmailAddress: { emailAddress: string } | null },
   userButtonProps: [] as unknown[],
   signOutButtonProps: [] as unknown[],
+  signOut: vi.fn(async () => {}),
 }));
 vi.mock("@clerk/nextjs", () => ({
   useAuth: () => ({ userId: clerk.userId }),
   useUser: () => ({ user: clerk.user, isLoaded: clerk.userId !== undefined }),
+  useClerk: () => ({ signOut: clerk.signOut }),
   UserButton: (props: object) => {
     clerk.userButtonProps.push(props);
     return <span data-testid="clerk-user-button" />;
@@ -30,7 +32,7 @@ vi.mock("next/navigation", () => ({ useRouter: () => router, usePathname: () => 
 
 import { AuthBackendProvider, type AuthBackend } from "@/backend/auth/context";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
-import { AccountButton, AccountSignOutButton, useAccountSummary } from "@/components/auth/AccountButton";
+import { AccountButton, AccountSignOutButton, useAccountSignOut, useAccountSummary } from "@/components/auth/AccountButton";
 import { resetSessionForTests } from "@/lib/auth-session";
 
 const SYNTHETIC_USER = { id: "ba_user_fixture", name: "Synthetic Person", email: "d08f3a.person@synthetic.invalid", image: null };
@@ -69,6 +71,7 @@ beforeEach(() => {
   clerk.user = null;
   clerk.userButtonProps = [];
   clerk.signOutButtonProps = [];
+  clerk.signOut.mockClear();
   fetchMock.mockClear();
   router.push.mockClear();
   router.refresh.mockClear();
@@ -193,5 +196,30 @@ describe("account controls with the switch on", () => {
     render(withBackend("better-auth", <Summary />));
     await screen.findByText(/Synthetic Person/);
     expect(JSON.parse(screen.getByRole("status").textContent!)).toEqual({ isLoaded: true, hasUser: true, name: SYNTHETIC_USER.name, email: SYNTHETIC_USER.email });
+  });
+});
+
+// D08g4e1: the sidebar's account menu (nav-user) signs out through this hook.
+function SignOutWith({ to }: { to?: string }) {
+  const signOut = useAccountSignOut(to);
+  return <button onClick={() => void signOut()}>out</button>;
+}
+
+describe("useAccountSignOut", () => {
+  it("with the switch on, signs out of Better Auth and goes to the page given", async () => {
+    sessionUser = SYNTHETIC_USER;
+    render(withBackend("better-auth", <SignOutWith to="/bye" />));
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/auth/sign-out", expect.objectContaining({ method: "POST" }));
+    expect(clerk.signOut).not.toHaveBeenCalled();
+    expect(router.push).toHaveBeenCalledWith("/bye");
+  });
+
+  it("with Clerk, calls Clerk's signOut and goes home, as nav-user did", async () => {
+    render(withBackend("clerk", <SignOutWith />));
+    await userEvent.click(screen.getByRole("button", { name: "out" }));
+    expect(clerk.signOut).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalledWith("/api/auth/sign-out", expect.anything());
+    expect(router.push).toHaveBeenCalledWith("/");
   });
 });

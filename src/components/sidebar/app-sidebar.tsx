@@ -1,10 +1,7 @@
 "use client";
 import * as React from "react";
-import {
-  SignInButton,
-  SignOutButton,
-} from "@clerk/nextjs";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
+import { AccountSignOutButton } from "@/components/auth/AccountButton";
 import {
   Code,
   Database,
@@ -262,14 +259,14 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <SidebarFooter>
           <SignedIn>
             {/* <NavUser user={userData} /> */}
-            <SignOutButton>
+            <AccountSignOutButton>
               <Button
                 size="sm"
                 className="hover:scale-105 transition-transform cursor-pointer"
               >
                 Sign out
               </Button>
-            </SignOutButton>
+            </AccountSignOutButton>
           </SignedIn>
           <SignedOut>
             <SidebarMenu>

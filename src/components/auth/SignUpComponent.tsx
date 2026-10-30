@@ -14,6 +14,12 @@ interface SignUpComponentProps {
   subTitleText?: string;
 }
 
+/** The bare form on /auth/sign-up: Clerk's default SignUp, or the app's screen. */
+export function SignUpForm() {
+  const backend = useAuthBackend();
+  return backend === "better-auth" ? <BetterAuthSignUp /> : <SignUp />;
+}
+
 export function SignUpComponent({
   withIcon = true,
   withTitle = true,

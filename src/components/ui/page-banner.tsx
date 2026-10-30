@@ -3,7 +3,6 @@
 import { LucideIcon } from "lucide-react";
 import React from "react";
 import Image from "next/image";
-import { SignIn, SignInButton, useUser } from "@clerk/nextjs";
 import { SignInButtonComponent } from "../auth/SignInButtonComponent";
 
 interface PageBannerProps {

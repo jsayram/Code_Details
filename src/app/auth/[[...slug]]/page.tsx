@@ -1,10 +1,10 @@
 "use client";
-import { SignUp, SignOutButton } from "@clerk/nextjs";
-import { SignedIn } from "@/components/auth/AuthGate";
+import { SignedIn, useViewerId } from "@/components/auth/AuthGate";
+import { AccountSignOutButton } from "@/components/auth/AccountButton";
+import { SignUpForm } from "@/components/auth/SignUpComponent";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { useAuth } from "@clerk/nextjs";
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
@@ -20,7 +20,9 @@ export default function AuthPage({
 }) {
   const resolvedParams = React.use(params);
   const page = resolvedParams.slug?.[0];
-  const { isSignedIn, isLoaded } = useAuth();
+  const viewerId = useViewerId();
+  const isLoaded = viewerId !== undefined;
+  const isSignedIn = !!viewerId;
   const router = useRouter();
 
   // Prevent endless loop by redirecting authenticated users
@@ -83,7 +85,7 @@ function renderAuthComponent(page?: string) {
               Create your account to get started
             </p>
           </div>
-          <SignUp />
+          <SignUpForm />
         </>
       );
     case "sign-out":
@@ -93,14 +95,14 @@ function renderAuthComponent(page?: string) {
             Sign out of your account
           </h2>
           <SignedIn>
-            <SignOutButton redirectUrl="/">
+            <AccountSignOutButton redirectUrl="/">
               <Button
                 size="sm"
                 className="hover:scale-105 transition-transform"
               >
                 Sign out
               </Button>
-            </SignOutButton>
+            </AccountSignOutButton>
           </SignedIn>
         </div>
       );

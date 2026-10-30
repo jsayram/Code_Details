@@ -5,7 +5,7 @@
 // headers already pass, so nothing changes on screen. With the development
 // Better Auth switch on, they are an app menu built from the shadcn dropdown
 // and avatar: the user's name and email, and "Sign out".
-import { SignOutButton, UserButton, useUser } from "@clerk/nextjs";
+import { SignOutButton, UserButton, useClerk, useUser } from "@clerk/nextjs";
 import { Slot } from "@radix-ui/react-slot";
 import { Github } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
@@ -53,6 +53,19 @@ function useSignOutThen(afterSignOutUrl = "/") {
     await signOut();
     router.push(afterSignOutUrl);
     router.refresh();
+  };
+}
+
+/** Sign out with whichever login is on, then go to afterSignOutUrl. */
+export function useAccountSignOut(afterSignOutUrl = "/") {
+  const backend = useAuthBackend();
+  const clerk = useClerk();
+  const router = useRouter();
+  const signOutThen = useSignOutThen(afterSignOutUrl);
+  if (backend === "better-auth") return signOutThen;
+  return async () => {
+    await clerk.signOut();
+    router.push(afterSignOutUrl);
   };
 }
 

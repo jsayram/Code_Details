@@ -6,8 +6,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
-import { useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useAccountSignOut } from "@/components/auth/AccountButton";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -36,13 +35,7 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
-  const { signOut } = useClerk();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
-  };
+  const handleSignOut = useAccountSignOut("/");
 
   // Create initials for avatar fallback
   const getInitials = (name: string) => {

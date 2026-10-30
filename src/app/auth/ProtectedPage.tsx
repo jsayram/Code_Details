@@ -1,8 +1,6 @@
 "use client";
 
 import React, { useEffect, useState, useMemo } from "react";
-import { useUser } from "@clerk/nextjs";
-import { useAuthBackend } from "@/backend/auth/context";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 import { isValidTier, getAccessibleTiers } from "@/services/tierServiceServer";
@@ -52,22 +50,19 @@ export default function ProtectedPage({
   allowedTiers,
   children,
 }: ProtectedPageProps) {
-  const clerk = useUser();
-  const { user } = clerk;
-  // D02r-c: under the development Better Auth switch, "signed in" follows the
-  // Better Auth session. D04f: the tier lookup is keyed on that session too
-  // (the route reads the tier from the session, D04e).
-  const backend = useAuthBackend();
+  // D02r-c/D08g4e: "signed in" follows the app's login (useViewerId: undefined
+  // while loading, null when signed out). D04f: the tier lookup is keyed on the
+  // same ID (the route reads the tier from the session, D04e).
   const viewerId = useViewerId();
-  const isLoaded = backend === "clerk" ? clerk.isLoaded : viewerId !== undefined;
-  const isSignedIn = backend === "clerk" ? clerk.isSignedIn : !!viewerId;
+  const isLoaded = viewerId !== undefined;
+  const isSignedIn = !!viewerId;
   const router = useRouter();
   const [hasAccess, setHasAccess] = useState(true);
   const [requiredTier, setRequiredTier] = useState<string | null>(null);
 
   // Use the tierService hook directly
   const { userTier, loading: loadingTier } = useUserTier(
-    (backend === "clerk" ? user?.id : viewerId) || null
+    viewerId || null
   );
 
   // Calculate the lowest required tier once when allowedTiers changes
@@ -134,7 +129,7 @@ export default function ProtectedPage({
     userTier,
     allowedRoles,
     allowedTiers,
-    user,
+    viewerId,
     lowestRequiredTier,
   ]);
 
