@@ -7,13 +7,14 @@ import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
-import { clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
+import { adminClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signIn, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
 type DocOwner = { userId: string; legacySubject: string | null } | null;
 const docOwner = makeFunctionReference<"query", Record<string, never>, DocOwner>("identity:docOwner");
+const clerkSubjectMap = makeFunctionReference<"query", Record<string, never>, Record<string, string>>("identity:clerkSubjectMap");
 const set = generateFixtures();
 const { a: A, b: B } = set.personas;
 
@@ -80,5 +81,19 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("generator re-key 
 
   it("a deleting account gets null", async () => {
     expect(await clientAs(set.personas.deleting.subject!).query(docOwner, {})).toBeNull();
+  });
+
+  it("slice 3: the re-key mapping maps each Clerk-era subject to the account docOwner reports, and only an admin can read it", async () => {
+    const a = await login("genrekey-map-a");
+    await linkPersona(A.subject!, a.authUserId);
+    const map = await adminClient().query(clerkSubjectMap, {});
+    expect(map[A.subject!]).toBe((await clientWithToken(a.token).query(docOwner, {}))!.userId);
+    expect(map[B.subject!]).toBe((await clientAs(B.subject!).query(docOwner, {}))!.userId);
+    // Only Clerk-era subjects, never a Better Auth user ID
+    expect(Object.keys(map)).not.toContain(a.authUserId);
+    expect(Object.keys(map).every((k) => k.startsWith("user_"))).toBe(true);
+    // Internal: no client can call it, signed in or not
+    await expect(new ConvexHttpClient(TEST_CONVEX_URL).query(clerkSubjectMap, {})).rejects.toThrow();
+    await expect(clientWithToken(a.token).query(clerkSubjectMap, {})).rejects.toThrow();
   });
 });

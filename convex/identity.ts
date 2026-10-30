@@ -1,7 +1,7 @@
 // Who am I (D01). The smallest read that goes through getViewer, so the
 // identity bridge can be tested end to end before any write uses it. Returns
 // only what the caller may know about themself: no email, no provider subject.
-import { query } from "./_generated/server";
+import { internalQuery, query } from "./_generated/server";
 import { getViewer } from "./viewer";
 
 export const whoami = query({
@@ -50,5 +50,21 @@ export const docOwner = query({
       .withIndex("by_user", (q) => q.eq("userId", viewer.userId))
       .collect();
     return { userId: viewer.userId, legacySubject: links.find((l) => l.provider === "clerk")?.subject ?? null };
+  },
+});
+
+// Generator re-key: the Clerk-era subject -> account ID mapping that
+// scripts/docs-rekey.mjs takes as --map. Internal (admin key only, via
+// `npx convex run identity:clerkSubjectMap`); no client can call it, and it
+// takes no arguments. Its output is personal data: keep it out of the repo and
+// delete it after the re-key.
+export const clerkSubjectMap = internalQuery({
+  args: {},
+  handler: async (ctx): Promise<Record<string, string>> => {
+    const links = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "clerk"))
+      .collect();
+    return Object.fromEntries(links.map((l) => [l.subject, l.userId]));
   },
 });
