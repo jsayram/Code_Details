@@ -41,12 +41,10 @@ test.describe("B13 over HTTP, signed out", () => {
     const text = await res.text();
     expect(text).not.toContain(A.profile!.email);
     expect(text).not.toContain(A.subject!);
-    // Side finding (DEF-D07X-SHAREDNULL): on Supabase a project with no tags
-    // is listed with tags ["NULL"]. Under both switches the grid comes from
-    // Convex (D07x), which lists no tags for it.
-    const fromConvex = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" && process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+    // Side finding, fixed in D07x (DEF-D07X-SHAREDNULL): a project with no
+    // tags was listed with tags ["NULL"]; now none, on Supabase and Convex.
     const noTags = JSON.parse(text).data.data.find((r: { project: { slug: string } }) => r.project.slug === "fixture-no-description");
-    expect(noTags.tags).toEqual(fromConvex ? [] : ["NULL"]);
+    expect(noTags.tags).toEqual([]);
   });
 
   test("controls: signed-in API routes redirect signed-out requests (D-6) instead of answering 401", async ({ request }) => {

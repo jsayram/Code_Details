@@ -202,7 +202,9 @@ export async function GET(
             profile_image_url: profiles.profile_image_url,
             full_name: profiles.full_name,
           },
-          tags: sql<string[]>`array_agg(distinct ${tags.name})`,
+          // array_remove: a project with no tags aggregates to {NULL}, which
+          // listed a "NULL" tag (DEF-D07X-SHAREDNULL).
+          tags: sql<string[]>`array_remove(array_agg(distinct ${tags.name}), NULL)`,
         })
         .from(projects)
         .leftJoin(profiles, eq(profiles.user_id, projects.user_id))

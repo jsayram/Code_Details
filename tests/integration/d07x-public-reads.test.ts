@@ -117,9 +117,8 @@ describe.skipIf(!convexAvailable())("D07x-b Convex public reads", () => {
       const { GET } = await import("../../src/app/api/shared-projects/[username]/route.js");
       return json(await GET(new NextRequest(`http://localhost:3100/api/shared-projects/${username}?limit=${limit}&${query}`), { params: Promise.resolve({ username }) }));
     };
-    // DEF-D07X-SHAREDNULL: array_agg over a project with no tags gives a
-    // literal "NULL" tag on Supabase; Convex gives none.
-    const realTags = (r: SharedRow) => r.tags.filter((t): t is string => !!t && t !== "NULL");
+    // DEF-D07X-SHAREDNULL is fixed, so no "NULL" tag is filtered out here.
+    const realTags = (r: SharedRow) => r.tags as string[];
     const norm = (rows: SharedRow[]) =>
       rows
         .filter((r) => r.project.slug !== privateFixture.slug)

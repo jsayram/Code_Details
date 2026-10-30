@@ -68,3 +68,30 @@ describe.skipIf(!testDbAvailable())("DEF-D07X-MULTITAG: several tag filters on t
     expect(body.data!.map((r) => r.slug).sort()).toEqual(carrying(["Next.js", "Postgres"]));
   });
 });
+
+// DEF-D07X-SHAREDNULL: the shared-projects grid aggregated tag names over a
+// left join, so a project with no tags came back as tags ["NULL"] and the
+// grid showed a "NULL" chip. It must list no tags.
+describe.skipIf(!testDbAvailable())("DEF-D07X-SHAREDNULL: an untagged project on the shared grid", () => {
+  let sql: postgres.Sql;
+  beforeAll(async () => {
+    sql = await connectTestDb();
+    await cleanupFixtures(sql);
+    await loadFixtures(sql, set);
+  });
+  afterAll(async () => {
+    await cleanupFixtures(sql);
+    await sql.end();
+  });
+
+  it("lists no tags for it, and the tagged projects keep theirs", async () => {
+    const { GET } = await import("../../src/app/api/shared-projects/[username]/route.js");
+    const username = A.profile!.username;
+    const res = await GET(new NextRequest(`http://localhost:3100/api/shared-projects/${username}?limit=50`), { params: Promise.resolve({ username }) });
+    expect(res.status).toBe(200);
+    const rows = JSON.parse(await res.text()).data.data as { project: { slug: string }; tags: unknown[] }[];
+    expect(rows.find((r) => r.project.slug === "fixture-no-description")!.tags).toEqual([]);
+    expect(rows.find((r) => r.project.slug === "fixture-listed")!.tags.slice().sort()).toEqual(["Next.js", "Postgres"]);
+    expect(rows.every((r) => !r.tags.includes("NULL") && !r.tags.includes(null))).toBe(true);
+  });
+});
