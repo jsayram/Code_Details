@@ -273,7 +273,7 @@ export async function GET(request: NextRequest) {
             tagCondition = sql`${projects.id} IN (
               SELECT ${project_tags.project_id}
               FROM ${project_tags}
-              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds)})
+              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds, sql`, `)})
               GROUP BY ${project_tags.project_id}
               HAVING count(*) = ${tagIds.length}
             )`;
@@ -381,7 +381,7 @@ export async function GET(request: NextRequest) {
             sql`${projects.id} IN (
               SELECT ${project_tags.project_id}
               FROM ${project_tags}
-              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds)})
+              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds, sql`, `)})
               GROUP BY ${project_tags.project_id}
               HAVING count(*) = ${tagIds.length}
             )`

@@ -182,15 +182,12 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D07x Convex publi
           [{}, ""],
           [{ category: "web" }, "category=web"],
           [{ tags: ["Rust"] }, "tags=Rust"],
+          [{ tags: ["Next.js", "Postgres"] }, "tags=Next.js&tags=Postgres"],
           [{ tags: ["Next.js", "No Such Tag"] }, "tags=Next.js&tags=No%20Such%20Tag"],
           [{ tags: ["No Such Tag"] }, "tags=No%20Such%20Tag"],
           [{ handle: A.profile!.username }, `username=${A.profile!.username}`],
           [{ handle: "fixture-nobody" }, "username=fixture-nobody"],
         ];
-        // Two or more matching tags are left out: the Supabase route's
-        // sql.join has no separator and that query fails with a 500 (a
-        // default-path defect logged in WORK_LEDGER, D07x). The Convex answer
-        // for them is checked against the fixtures above.
         for (const [args, query] of cases) {
           const convex = (await client.query(listPublic, all(args))).cards.filter((c) => c.slug !== "fixture-private");
           expect(bySlug(convex.map(fromCard)), query || "community").toEqual(bySlug((await supabaseRows(query)).map(fromRow)));
