@@ -9,7 +9,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
@@ -45,7 +45,7 @@ const listedSlugs = set.projects
 const slugsOf = (cards: { slug: string }[]) => cards.map((c) => c.slug).sort();
 const all = (over: Partial<Args> = {}): Args => ({ sortBy: "newest", page: 1, limit: 50, ...over });
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D07x Convex public lists", () => {
+describe.skipIf(!convexAvailable())("D07x Convex public lists", () => {
   beforeAll(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);

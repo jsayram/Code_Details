@@ -1,14 +1,14 @@
 // D05-b: favorites:add and favorites:remove on the task-owned test backend
 // (P07 §3.9, §5.10, §8; P08 R02, R25, R31). The caller comes only from
-// getViewer (the D01 synthetic issuer for Clerk-era personas; a real Better
-// Auth sign-up in the last test). Counters move only with a real
+// getViewer (each Clerk-era persona's own Better Auth login since
+// D08g4c; a fresh sign-up in the last test). Counters move only with a real
 // row insert or delete; self-favorites stay out of rankingFavoriteCount; a
 // favorite never touches updatedAt or contentVersion.
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, signUp, syntheticEmail } from "../fixtures/better-auth";
 
 type FavoriteResult = { ok: true; isFavorite: boolean; favoriteCount: number } | { ok: false; code: "not_found" };
@@ -33,7 +33,7 @@ const ALICE = "fixture-alice";
 const state = (projectId: string) => adminClient().query(favoriteState, { projectId });
 const rowsBy = (s: FavoriteState, username: string) => s.rows.filter((r) => r.username === username);
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D05 Convex favorites", () => {
+describe.skipIf(!convexAvailable())("D05 Convex favorites", () => {
   let ids: Record<string, string>;
 
   beforeEach(async () => {

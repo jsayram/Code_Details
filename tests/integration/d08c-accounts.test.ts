@@ -5,7 +5,6 @@
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { clearConvexFixtures, convexAvailable } from "../fixtures/convex";
-import { testIssuerAvailable } from "../fixtures/convex-auth";
 import {
   SYNTHETIC_PASSWORD,
   accountRows,
@@ -47,7 +46,7 @@ async function signedUp(label: string, name = "Synthetic Person", extra: { image
 /** A repair window that includes sign-ups made just now. */
 const now = () => ({ createdBefore: Date.now() + 1000, createdAfter: Date.now() - 60 * 60 * 1000 });
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08c account rows at sign-up", () => {
+describe.skipIf(!convexAvailable())("D08c account rows at sign-up", () => {
   beforeAll(async () => {
     await clearConvexFixtures();
   });

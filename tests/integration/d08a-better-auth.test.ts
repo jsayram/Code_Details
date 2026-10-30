@@ -11,7 +11,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { forgedToken } from "../fixtures/convex-auth";
 import {
   SITE_ORIGIN,
   SYNTHETIC_PASSWORD,
@@ -50,7 +50,7 @@ async function whoamiFor(jar: Jar) {
   return { token: token!, me: await clientWithToken(token!).query(whoami, {}) };
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08a Better Auth on Convex", () => {
+describe.skipIf(!convexAvailable())("D08a Better Auth on Convex", () => {
   beforeAll(async () => {
     await clearConvexFixtures();
     // The Clerk-era personas stay loaded, so the two paths are tested side by side.
@@ -178,13 +178,13 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08a Better Auth 
       expect(await clientWithToken(token).query(whoami, {})).toEqual(NEW_ACCOUNT);
     });
 
-    it("another trusted issuer can't borrow a Better Auth session by naming it in its claims", async () => {
+    it("a token from another issuer can't borrow a Better Auth session by naming it in its claims", async () => {
       const { jar, state } = await signedUp("forged");
       const { token } = await whoamiFor(jar);
       const sessionId = claims(token).sessionId;
-      // The Clerk-era synthetic issuer is trusted by Convex, but its tokens
-      // only resolve through clerk links; a better-auth subject has none.
-      expect(await clientAs(state.authUserId, { extraClaims: { sessionId } }).query(whoami, {})).toBeNull();
+      // D08g4c: the Clerk-era synthetic issuer is no longer trusted, so such a
+      // token is refused before any function runs.
+      await expect(clientWithToken(forgedToken(state.authUserId, { extraClaims: { sessionId } })).query(whoami, {})).rejects.toThrow(/NoAuthProvider/);
     });
 
     it("a cookie-carrying request from a foreign origin is refused (CSRF)", async () => {

@@ -3,15 +3,13 @@
 // else counts: no function takes a user, owner or viewer argument, and an
 // email is never used to find an account (P07 §3.2).
 //
-// Two issuers are trusted (convex/auth.config.ts), and the issuer decides
-// which links a token may use:
-// - Better Auth (D08a): the token must also name a session that still exists,
-//   hasn't expired and belongs to the token's subject. That is the component's
-//   session-validating safeGetAuthUser, so signing out or revoking a session
-//   ends access before the token itself expires. Links use "better-auth".
-// - The Clerk-era synthetic issuer (D01, until D08g): Convex has checked the
-//   signature, issuer, audience and expiry, but not revocation. Links use
-//   "clerk".
+// One issuer is trusted (convex/auth.config.ts): Better Auth (D08a). The token
+// must also name a session that still exists, hasn't expired and belongs to
+// the token's subject. That is the component's session-validating
+// safeGetAuthUser, so signing out or revoking a session ends access before the
+// token itself expires. Links use "better-auth". D08g4c removed the Clerk-era
+// synthetic issuer; "clerk" links stay as data (identity:legacySubject reads
+// them) but no token resolves through them.
 // The issuer check comes first because safeGetAuthUser trusts any token's
 // sessionId and subject claims, whoever signed it.
 import type { QueryCtx } from "./_generated/server";
@@ -46,19 +44,12 @@ export async function getViewer(ctx: QueryCtx): Promise<Viewer | null> {
 export async function resolveAccount(ctx: QueryCtx): Promise<Doc<"users"> | null> {
   const identity = await ctx.auth.getUserIdentity();
   if (!identity) return null;
-  let provider: Doc<"authLinks">["provider"];
-  if (identity.issuer === process.env.CONVEX_SITE_URL) {
-    const authUser = await authComponent.safeGetAuthUser(ctx);
-    if (!authUser || authUser._id !== identity.subject) return null;
-    provider = "better-auth";
-  } else if (identity.issuer === process.env.CODEDETAILS_AUTH_ISSUER) {
-    provider = "clerk";
-  } else {
-    return null;
-  }
+  if (identity.issuer !== process.env.CONVEX_SITE_URL) return null;
+  const authUser = await authComponent.safeGetAuthUser(ctx);
+  if (!authUser || authUser._id !== identity.subject) return null;
   const link = await ctx.db
     .query("authLinks")
-    .withIndex("by_provider_subject", (q) => q.eq("provider", provider).eq("subject", identity.subject))
+    .withIndex("by_provider_subject", (q) => q.eq("provider", "better-auth").eq("subject", identity.subject))
     .unique();
   if (!link) return null;
   return await ctx.db.get(link.userId);

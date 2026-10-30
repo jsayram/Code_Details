@@ -10,7 +10,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, type PersonaClient, forgetPersonaLogins } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
@@ -50,14 +50,14 @@ const slugsOf = (cards: Card[]) => cards.map((c) => c.slug).sort();
 const expectedOwn = (key: string, deleted: boolean) =>
   set.projects.filter((p) => p.ownerKey === key && !p.purged && !!p.deletedAt === deleted).map((p) => p.slug).sort();
 
-type Client = ReturnType<typeof anonymousClient>;
+type Client = PersonaClient;
 const lists = async (c: Client) => ({
   mine: await c.query(listMine, {}),
   deleted: await c.query(listMyDeleted, {}),
   favorites: await c.query(listMyFavorites, {}),
 });
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02r-b Convex personal reads", () => {
+describe.skipIf(!convexAvailable())("D02r-b Convex personal reads", () => {
   beforeAll(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);
@@ -145,6 +145,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02r-b Convex per
 
     const a = await login("d02r-a");
     await linkPersona(A.subject!, a.authUserId);
+    // A's cached login is unlinked by this; the next clientAs(A) signs in again.
+    forgetPersonaLogins();
     const viaBetterAuth = await lists(clientWithToken(a.token));
     expect(viaBetterAuth).toEqual(await lists(clientAs(A.subject!)));
   });

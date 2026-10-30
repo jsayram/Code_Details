@@ -4,7 +4,7 @@
 // into .env.local (C07 found `dev` does, even with --env-file). The CLI runs
 // with the loopback-only socket guard, and every .env* file is hashed before
 // and after; any change fails the push loudly.
-import { createHash, generateKeyPairSync, randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -69,28 +69,12 @@ if (dirFlag !== -1) argv.splice(dirFlag, 2);
 if (projectDir !== root && !dryRun) throw new Error("--project-dir is only allowed with --dry-run");
 const convex = (args) => spawnSync(path.join(root, "node_modules/.bin/convex"), args, { cwd: projectDir, env, stdio: "inherit" });
 
-// D01: a throwaway ES256 issuer stands in for the auth provider on this
-// deployment only. Its key pair is made once per state folder, next to the
-// backend's own throwaway secrets; convex/auth.config.ts reads the issuer,
-// audience and JWKS (as a data: URI) from the deployment env, so no real
-// issuer is named in code. Tests sign tokens with the private key
-// (tests/fixtures/convex-auth.ts).
-const issuerFile = path.join(root, runtime.state, "test-issuer.json");
-if (!fs.existsSync(issuerFile)) {
-  const { publicKey, privateKey } = generateKeyPairSync("ec", { namedCurve: "P-256" });
-  const issuer = {
-    issuer: "https://auth.synthetic.invalid",
-    audience: "codedetails-synthetic",
-    kid: `synthetic-${Date.now()}`,
-    publicJwk: publicKey.export({ format: "jwk" }),
-    privateJwk: privateKey.export({ format: "jwk" }),
-  };
-  fs.writeFileSync(issuerFile, JSON.stringify(issuer), { mode: 0o600 });
-}
-const issuer = JSON.parse(fs.readFileSync(issuerFile, "utf8"));
-const jwks = { keys: [{ ...issuer.publicJwk, kid: issuer.kid, alg: "ES256", use: "sig" }] };
+// D08g4c: the D01 Clerk-era synthetic issuer is gone; Better Auth is the only
+// token provider (convex/auth.config.ts). Its old env settings are removed
+// from the deployment after the deploy (below) so nothing names them.
+const RETIRED_ENV = ["CODEDETAILS_AUTH_ISSUER", "CODEDETAILS_AUTH_AUDIENCE", "CODEDETAILS_AUTH_JWKS"];
 // D08a: Better Auth on the test backend only. The secret is a throwaway made
-// once per state folder, like the issuer above; SITE_URL is the loopback dev
+// once per state folder; SITE_URL is the loopback dev
 // origin browsers will use at D08b (tests send it as Origin). Email and
 // password is enabled here for synthetic users and nowhere else. The import
 // backend gets none of this.
@@ -149,12 +133,7 @@ if (target === "manual") {
   );
 }
 let res = { status: 0 };
-for (const [name, value] of dryRun ? [] : [
-  ["CODEDETAILS_AUTH_ISSUER", issuer.issuer],
-  ["CODEDETAILS_AUTH_AUDIENCE", issuer.audience],
-  ["CODEDETAILS_AUTH_JWKS", `data:text/plain;charset=utf-8;base64,${Buffer.from(JSON.stringify(jwks)).toString("base64")}`],
-  ...betterAuth,
-]) {
+for (const [name, value] of dryRun ? [] : betterAuth) {
   if (res.status === 0) res = convex(["env", "set", name, value]);
 }
 if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
@@ -169,6 +148,10 @@ if (res.status === 0 && !dryRun && !fs.existsSync(jwksFile)) {
     res = convex(["env", "set", "JWKS", jwks]);
     if (res.status === 0) res = convex(["deploy", "--yes", "--typecheck", "disable", ...argv]);
   }
+}
+if (res.status === 0 && !dryRun) {
+  // Quietly: a deployment that never had them answers "not found".
+  for (const name of RETIRED_ENV) spawnSync(path.join(root, "node_modules/.bin/convex"), ["env", "remove", name], { cwd: projectDir, env, stdio: "ignore" });
 }
 // Only this task-owned deployment may run the fixture functions (convex/fixtures.ts),
 // or, on the import backend, the importer (convex/importer.ts).

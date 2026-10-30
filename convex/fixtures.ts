@@ -346,6 +346,23 @@ export const linkPersona = internalMutation({
   },
 });
 
+// D08g4c: a Better Auth login whose app account is gone, so its token is
+// valid but names no account (what the removed Clerk-era tests called "a
+// subject with no link"). Only for a fresh sign-up's account.
+export const unlinkLogin = internalMutation({
+  args: { authUserId: v.string() },
+  handler: async (ctx, { authUserId }) => {
+    assertFixturesAllowed();
+    const link = await ctx.db
+      .query("authLinks")
+      .withIndex("by_provider_subject", (q) => q.eq("provider", "better-auth").eq("subject", authUserId))
+      .unique();
+    if (!link) throw new Error("no account for that auth user");
+    if (!(await holdsOnlySignUpRows(ctx, link.userId))) throw new Error("that login's account holds more than sign-up rows");
+    await removeSignUpAccount(ctx, link.userId);
+  },
+});
+
 export const stripCredentials = internalMutation({
   args: { authUserId: v.string() },
   handler: async (ctx, { authUserId }) => {

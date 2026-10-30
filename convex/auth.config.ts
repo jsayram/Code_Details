@@ -3,9 +3,8 @@
 //
 // 1. Better Auth (D08a): tokens minted by the component's convex() plugin,
 //    issuer = this deployment's CONVEX_SITE_URL, RS256, audience "convex".
-// 2. The Clerk-era synthetic issuer (D01): on the task-owned local backend
-//    tests/convex/push.mjs sets a throwaway issuer; it goes away with Clerk
-//    (D08g). Nothing in code names a real issuer.
+// D08g4c removed the Clerk-era synthetic issuer (D01): Better Auth is the only
+// provider.
 //
 // Trusting a token is not the same as trusting its claims: getViewer
 // (convex/viewer.ts) checks which issuer a token came from before it reads
@@ -19,12 +18,5 @@ export default {
     // SEC-D08-RL: with JWKS set, the keys are inlined as a data: URI and Convex
     // checks tokens without fetching /api/auth/convex/jwks.
     getAuthConfigProvider({ jwks: staticJwks(process.env.JWKS) }),
-    {
-      type: "customJwt",
-      issuer: process.env.CODEDETAILS_AUTH_ISSUER!,
-      jwks: process.env.CODEDETAILS_AUTH_JWKS!,
-      applicationID: process.env.CODEDETAILS_AUTH_AUDIENCE!,
-      algorithm: "ES256",
-    },
   ],
 } satisfies AuthConfig;

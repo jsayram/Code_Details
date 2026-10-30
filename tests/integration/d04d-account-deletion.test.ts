@@ -7,7 +7,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, getPublicBySlug, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, forgetPersonaLogins } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, accountRows, authState, clientWithToken, convexToken, signIn, signUp, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
 import { ACCOUNT_DELETION_GRACE_MS, ACCOUNT_PROJECTS_PER_STEP } from "@/backend/profiles/account-deletion-rules";
 
@@ -51,7 +51,7 @@ async function untilDone(userId: string, ms = 30_000): Promise<Residue> {
   }
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account deletion (Convex)", () => {
+describe.skipIf(!convexAvailable())("D04d account deletion (Convex)", () => {
   let ids: Record<string, string>;
   let userA: string;
 
@@ -75,6 +75,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
       expect(before.listedProjects).toBeGreaterThan(0);
       const t0 = Date.now();
       const r = await asA().mutation(request, {});
+      // The request signs the account out (its sessions end); sign in again.
+      forgetPersonaLogins();
       expect(r.ok).toBe(true);
       expect(r.deleteAfter! - t0).toBeGreaterThanOrEqual(ACCOUNT_DELETION_GRACE_MS - 60_000);
       expect(r.deleteAfter! - t0).toBeLessThanOrEqual(ACCOUNT_DELETION_GRACE_MS + 60_000);
@@ -104,6 +106,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
       const before = await residue(userA);
       const listedBefore = await anon.query(getPublicBySlug, { slug: "fixture-listed" });
       await asA().mutation(request, {});
+      // The request signs the account out (its sessions end); sign in again.
+      forgetPersonaLogins();
       expect(await asA().mutation(cancel, {})).toEqual({ ok: true });
       for (let i = 0; i < 50 && (await residue(userA)).listedProjects < before.listedProjects; i++) await new Promise((res) => setTimeout(res, 200));
       const after = await residue(userA);
@@ -119,6 +123,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
     it("an active account has nothing to cancel; after the date it's too late", async () => {
       expect(await asA().mutation(cancel, {})).toEqual({ ok: false, code: "not_deleting" });
       await asA().mutation(request, {});
+      // The request signs the account out (its sessions end); sign in again.
+      forgetPersonaLogins();
       await admin().mutation(backdateDeletion, { usernameKey: "fixture-alice", deleteAfter: Date.now() - 1000 });
       expect(await asA().mutation(cancel, {})).toEqual({ ok: false, code: "too_late" });
       expect(await asA().query(myDeletionStatus, {})).toMatchObject({ status: "deleting", cancellable: false });
@@ -128,6 +134,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
   describe("purge", () => {
     it("is not started before the date", async () => {
       await asA().mutation(request, {});
+      // The request signs the account out (its sessions end); sign in again.
+      forgetPersonaLogins();
       expect(await admin().mutation(purgeAccountStep, { userId: userA })).toBe("not_due");
       expect((await residue(userA)).profiles).toBe(1);
     });
@@ -147,6 +155,10 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
       expect(before.favorites).toBeGreaterThan(0);
 
       await asA().mutation(request, {});
+
+      // The request signs the account out (its sessions end); sign in again.
+
+      forgetPersonaLogins();
       await admin().mutation(backdateDeletion, { usernameKey: "fixture-alice", deleteAfter: Date.now() - 1000 });
       expect((await admin().mutation(purgeDue, {})).started).toBe(1);
       const done = await untilDone(userA);
@@ -170,6 +182,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04d account dele
     it("leaves the reviewed suggestion in place without a submitter", async () => {
       await admin().mutation(addTagSuggestion, { projectId: ids["fixture-bob-project"], submitterUsernameKey: "fixture-alice", status: "approved" });
       await asA().mutation(request, {});
+      // The request signs the account out (its sessions end); sign in again.
+      forgetPersonaLogins();
       await admin().mutation(backdateDeletion, { usernameKey: "fixture-alice", deleteAfter: Date.now() - 1000 });
       await admin().mutation(purgeAccountStep, { userId: userA });
       const done = await untilDone(userA);

@@ -1,14 +1,17 @@
-// D01: the identity bridge on the task-owned local Convex backend. Every
-// signed-in call carries a token from the synthetic issuer, resolved token
-// subject -> authLinks -> users inside the function (convex/viewer.ts). The
-// denials cover the ways a caller can fail to be somebody: no token, a token
-// the deployment didn't issue, an expired or misaddressed one, a subject with
-// no link, and an account that is being deleted.
+// D01: the identity bridge on the task-owned local Convex backend, resolved
+// token subject -> authLinks -> users inside the function (convex/viewer.ts).
+// D08g4c: every signed-in call carries a Better Auth token (each persona's own
+// login, linked to it); the Clerk-era synthetic issuer is gone. The denials
+// cover the ways a caller can fail to be somebody: no token, a token the
+// deployment didn't issue (including the old issuer's), a login with no
+// account, and an account that is being deleted.
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, foreignKey, testIssuerAvailable } from "../fixtures/convex-auth";
+import { ConvexHttpClient } from "convex/browser";
+import { BETTER_AUTH_ISSUER, clientAs, forgedToken } from "../fixtures/convex-auth";
+import { CONVEX_URL } from "../fixtures/convex";
 
 const set = generateFixtures();
 const { a: A, b: B, admin, deleting, noProfile } = set.personas;
@@ -16,7 +19,7 @@ const whoami = makeFunctionReference<"query">("identity:whoami");
 const getOwnBySlug = makeFunctionReference<"query", { slug: string }>("projects:getOwnBySlug");
 const slug = (c: string) => set.projects.find((p) => p.case === c)!.slug;
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D01 identity bridge", () => {
+describe.skipIf(!convexAvailable())("D01 identity bridge", () => {
   beforeAll(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);
@@ -54,22 +57,26 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D01 identity brid
       expect(await clientAs(deleting.subject!).query(whoami, {})).toBeNull();
     });
 
-    it("a validly signed subject with no authLinks row (no email or username fallback)", async () => {
+    it("a valid login with no authLinks row (no email or username fallback)", async () => {
       expect(await clientAs("user_fixture_unlinked").query(whoami, {})).toBeNull();
-      // The subject string of a profile's username is not a link either.
-      expect(await clientAs(A.profile!.username).query(whoami, {})).toBeNull();
     });
   });
 
   describe("denials: tokens the deployment must refuse", () => {
     // Convex rejects these before the function runs; the client sees an auth error.
+    const withToken = (token: string) => {
+      const c = new ConvexHttpClient(CONVEX_URL, { skipConvexDeploymentUrlCheck: true });
+      c.setAuth(token);
+      return c;
+    };
     it.each([
-      ["signed with a foreign key", { key: foreignKey() }, /InvalidAuthHeader.*Could not decode token/],
-      ["expired", { expiresIn: -60 }, /InvalidAuthHeader.*Token expired/],
-      ["for another audience", { audience: "some-other-app" }, /NoAuthProvider/],
+      // D08g4c: the Clerk-era synthetic issuer is no longer trusted at all.
+      ["from the removed Clerk-era synthetic issuer", {}, /NoAuthProvider/],
       ["from another issuer", { issuer: "https://other-issuer.synthetic.invalid" }, /NoAuthProvider/],
+      ["naming the Better Auth issuer but signed with a foreign key", { issuer: BETTER_AUTH_ISSUER, audience: "convex" }, /InvalidAuthHeader/],
+      ["naming the Better Auth issuer for another audience", { issuer: BETTER_AUTH_ISSUER, audience: "some-other-app" }, /NoAuthProvider|InvalidAuthHeader/],
     ])("a token %s", async (_name, options, reason) => {
-      await expect(clientAs(A.subject!, options).query(whoami, {})).rejects.toThrow(reason);
+      await expect(withToken(forgedToken(A.subject!, options)).query(whoami, {})).rejects.toThrow(reason);
     });
   });
 

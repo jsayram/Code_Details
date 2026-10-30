@@ -5,7 +5,6 @@
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { clearConvexFixtures, convexAvailable } from "../fixtures/convex";
-import { testIssuerAvailable } from "../fixtures/convex-auth";
 import { FAKE_MAILPIT_PORT, fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import { authFetch, authState, signIn, signUpRaw, SYNTHETIC_PASSWORD, syntheticEmail, type Jar } from "../fixtures/better-auth";
 
@@ -24,7 +23,7 @@ async function verifiedUser(label: string): Promise<{ email: string; jar: Jar }>
   return { email, jar: res.jar };
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04e change email through Better Auth", () => {
+describe.skipIf(!convexAvailable())("D04e change email through Better Auth", () => {
   beforeAll(async () => {
     await mailbox.start();
     expect((mailbox.server.address() as AddressInfo).port).toBe(FAKE_MAILPIT_PORT);

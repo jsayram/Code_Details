@@ -1,6 +1,6 @@
 // D07-b: tags, suggestions, moderation and roles on the task-owned test
 // backend (P07 §3.7, §3.8, §3.11, §3.12; P08 R04, R20, R30). Callers come only
-// from getViewer (the D01 synthetic issuer for the Clerk-era personas). The
+// from getViewer (each Clerk-era persona's own Better Auth login since D08g4c). The
 // project's tags are checked as the join, the projects.tagIds copy and the
 // listed counters see them, so the one membership writer keeps them together.
 import fs from "node:fs";
@@ -9,7 +9,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 
 type Issue = { field: string; message: string };
 type SuggestResult =
@@ -47,7 +47,7 @@ const asB = () => clientAs(B.subject!);
 const asAdmin = () => clientAs(admin.subject!);
 const slug = (c: string) => set.projects.find((p) => p.case === c)!.slug;
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D07 Convex tags and suggestions", () => {
+describe.skipIf(!convexAvailable())("D07 Convex tags and suggestions", () => {
   let ids: Record<string, string>;
   const id = (c: string) => ids[slug(c)];
   const state = (c: string) => adminClient().query(tagState, { projectId: id(c) });

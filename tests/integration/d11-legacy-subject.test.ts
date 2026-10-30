@@ -7,7 +7,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
@@ -22,7 +22,7 @@ async function login(label: string) {
   return { jar: res.jar, token: (await convexToken(res.jar))!, authUserId: (await authState(email))!.authUserId };
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D11 identity:legacySubject", () => {
+describe.skipIf(!convexAvailable())("D11 identity:legacySubject", () => {
   beforeEach(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);
@@ -62,7 +62,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D11 identity:lega
     expect(await clientAs(set.personas.deleting.subject!).query(legacySubject, {})).toBeNull();
   });
 
-  it("a Clerk-era synthetic token gets only its own subject", async () => {
+  it("each persona's own login gets only its own Clerk-era subject", async () => {
     expect(await clientAs(A.subject!).query(legacySubject, {})).toBe(A.subject);
     expect(await clientAs(B.subject!).query(legacySubject, {})).toBe(B.subject);
   });

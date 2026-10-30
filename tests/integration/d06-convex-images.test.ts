@@ -4,11 +4,10 @@
 // upload URL over HTTP, so the stored type and size are whatever the backend
 // recorded, never a claim in the mutation's arguments.
 import { makeFunctionReference } from "convex/server";
-import type { ConvexHttpClient } from "convex/browser";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, type PersonaClient } from "../fixtures/convex-auth";
 
 type Kind = "cover" | "screenshot" | "diagram" | "logo";
 type Failure = { ok: false; code: string; message?: string };
@@ -38,7 +37,7 @@ const state = (projectId: string) => adminClient().query(fn.state, { projectId }
 const MB5 = 5 * 1024 * 1024;
 
 /** Uploads bytes through a real upload URL issued to `client`; returns the storage ID. */
-async function upload(client: ConvexHttpClient, projectId: string, kind: Kind, contentType = "image/png", bytes = 64): Promise<string> {
+async function upload(client: PersonaClient, projectId: string, kind: Kind, contentType = "image/png", bytes = 64): Promise<string> {
   const issued = await client.mutation(fn.uploadUrl, { projectId, kind });
   if (!issued.ok) throw new Error(`no upload URL: ${issued.code}`);
   const res = await fetch(issued.uploadUrl, { method: "POST", headers: { "Content-Type": contentType }, body: new Uint8Array(bytes) });
@@ -46,14 +45,14 @@ async function upload(client: ConvexHttpClient, projectId: string, kind: Kind, c
   return ((await res.json()) as { storageId: string }).storageId;
 }
 
-const attach = (client: ConvexHttpClient, projectId: string, storageId: string, kind: Kind, extra: Record<string, unknown> = {}) =>
+const attach = (client: PersonaClient, projectId: string, storageId: string, kind: Kind, extra: Record<string, unknown> = {}) =>
   client.mutation(fn.attach, { projectId, storageId, kind, fileName: `${kind}.png`, ...extra });
 
 async function fileGone(storageId: string) {
   await expect.poll(() => adminClient().query(fn.fileExists, { storageId }), { timeout: 10_000 }).toBe(false);
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D06-b Convex images", () => {
+describe.skipIf(!convexAvailable())("D06-b Convex images", () => {
   let ids: Record<string, string>;
   const listed = () => ids["fixture-listed"]; // A's
   const bobs = () => ids["fixture-bob-project"]; // B's

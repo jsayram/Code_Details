@@ -1,12 +1,12 @@
 // D02: projects:update, projects:getMineForEdit and projects:currentSlug on the
-// task-owned test backend. The caller comes only from getViewer (the D01
-// synthetic issuer for Clerk-era personas, a real Better Auth login linked to
-// A for the last block). Every refusal is checked to have written nothing.
+// task-owned test backend. The caller comes only from getViewer (each
+// Clerk-era persona's own Better Auth login since D08g4c, and one more login
+// linked to A for the last block). Every refusal is checked to have written nothing.
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, type PersonaClient, personaAuthUserId, forgetPersonaLogins } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
 
 /** The same ID with its last character changed (never to itself: an ID ending in "x" made this the real ID). */
@@ -41,7 +41,7 @@ const { a: A, b: B, admin, deleting } = set.personas;
 const asA = () => clientAs(A.subject!);
 const tagCount = (s: State, name: string) => s.tags.find((t) => t.name === name)?.listedProjectCount;
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02 Convex project update", () => {
+describe.skipIf(!convexAvailable())("D02 Convex project update", () => {
   let ids: Record<string, string>;
 
   beforeEach(async () => {
@@ -52,7 +52,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02 Convex projec
     await clearConvexFixtures();
   });
 
-  const save = (client: ReturnType<typeof anonymousClient>, slug: string, patch: Patch, version = 1) =>
+  const save = (client: PersonaClient, slug: string, patch: Patch, version = 1) =>
     client.mutation(update, { projectId: ids[slug], expectedContentVersion: version, patch });
 
   describe("positive", () => {
@@ -154,7 +154,8 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02 Convex projec
 
     it("getMineForEdit: the owner gets the edit view with contentVersion and their own subject; nobody else gets anything", async () => {
       const mine = await asA().query(getMineForEdit, { slug: "fixture-listed" });
-      expect(mine).toMatchObject({ id: ids["fixture-listed"], contentVersion: 1, viewerAuthSubject: A.subject, tags: ["Next.js", "Postgres"] });
+      // D08g4c: the caller's token subject is its Better Auth user ID.
+      expect(mine).toMatchObject({ id: ids["fixture-listed"], contentVersion: 1, viewerAuthSubject: await personaAuthUserId(A.subject!), tags: ["Next.js", "Postgres"] });
       const text = JSON.stringify(mine);
       expect(text).not.toMatch(/@synthetic\.invalid|"role"|"tier"|ownerId|"userId"/);
       expect(text).not.toContain(B.subject!);
@@ -265,6 +266,7 @@ describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D02 Convex projec
     const token = (await convexToken(a.jar))!;
     expect(await save(clientWithToken(token), "fixture-listed", { title: "Before link" })).toEqual({ ok: false, code: "not_found" });
     await linkPersona(A.subject!, a.authUserId);
+    forgetPersonaLogins();
     const fresh = (await convexToken(a.jar))!;
     const mine = await clientWithToken(fresh).query(getMineForEdit, { slug: "fixture-listed" });
     expect(mine?.viewerAuthSubject).toBe(a.authUserId);

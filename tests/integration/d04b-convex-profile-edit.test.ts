@@ -5,7 +5,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, type PersonaClient } from "../fixtures/convex-auth";
 
 type Patch = { handle?: string; fullName?: string | null; firstName?: string | null; lastName?: string | null; avatarUrl?: string | null };
 type Result = { ok: boolean; code?: string; field?: string; message?: string; profile?: Record<string, unknown> };
@@ -26,9 +26,9 @@ const set = generateFixtures();
 const { a: A, b: B, deleting } = set.personas;
 const DAY = 24 * 60 * 60 * 1000;
 const asA = () => clientAs(A.subject!);
-const edit = (client: ReturnType<typeof anonymousClient>, currentHandle: string, patch: Patch) => client.mutation(updateMine, { currentHandle, patch });
+const edit = (client: PersonaClient, currentHandle: string, patch: Patch) => client.mutation(updateMine, { currentHandle, patch });
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D04b Convex profile edit", () => {
+describe.skipIf(!convexAvailable())("D04b Convex profile edit", () => {
   beforeEach(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);

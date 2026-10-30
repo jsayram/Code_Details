@@ -11,7 +11,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signIn, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
@@ -28,7 +28,7 @@ async function login(label: string) {
   return { email, jar: res.jar, token: (await convexToken(res.jar))!, authUserId: (await authState(email))!.authUserId };
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("generator re-key identity:docOwner", () => {
+describe.skipIf(!convexAvailable())("generator re-key identity:docOwner", () => {
   beforeEach(async () => {
     await clearConvexFixtures();
     await loadConvexFixtures(set);

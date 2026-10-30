@@ -113,7 +113,14 @@ export function toConvexArgs(set: FixtureSet): ConvexFixtureArgs {
   return { users, profiles, tags, projects, favorites: favoriteRows };
 }
 
+/**
+ * D08g4c: bumped whenever the fixtures are cleared or loaded, so the persona
+ * logins tests/fixtures/convex-auth.ts caches are made again for the new rows.
+ */
+export let fixtureGeneration = 0;
+
 export async function clearConvexFixtures(client = adminClient()): Promise<Record<string, number>> {
+  fixtureGeneration++;
   return client.mutation(ref.clear, {});
 }
 
@@ -128,6 +135,7 @@ export async function loadConvexFixtures(
   extraProjects: ConvexFixtureArgs["projects"] = [],
 ): Promise<Record<string, string>> {
   const args = toConvexArgs(set);
+  fixtureGeneration++;
   return client.mutation(ref.load, { ...args, projects: [...args.projects, ...extraProjects] });
 }
 

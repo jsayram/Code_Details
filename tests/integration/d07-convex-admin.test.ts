@@ -10,7 +10,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs } from "../fixtures/convex-auth";
 
 /** A client typed loosely, for calling functions picked by name at run time. */
 type Loose = { query: (ref: unknown, args: unknown) => Promise<unknown>; mutation: (ref: unknown, args: unknown) => Promise<unknown> };
@@ -41,7 +41,7 @@ const asB = () => clientAs(B.subject!);
 const asAdmin = () => clientAs(admin.subject!);
 const slug = (c: string) => set.projects.find((p) => p.case === c)!.slug;
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D07-d Convex admin", () => {
+describe.skipIf(!convexAvailable())("D07-d Convex admin", () => {
   let ids: Record<string, string>;
   let bobProfile: string;
 

@@ -8,7 +8,6 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { clerkServerDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, clearConvexFixtures, convexAvailable, CONVEX_URL, loadConvexFixtures } from "../fixtures/convex";
-import { testIssuerAvailable } from "../fixtures/convex-auth";
 
 vi.mock("@clerk/nextjs/server", () => clerkServerDouble);
 vi.mock("next/cache", () => nextCacheDouble);
@@ -19,7 +18,7 @@ const imageState = makeFunctionReference<"query", { projectId: string }, { id: s
 const set = generateFixtures();
 const { a: A } = set.personas;
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D06-b image actions, Convex read switch", () => {
+describe.skipIf(!convexAvailable())("D06-b image actions, Convex read switch", () => {
   let ids: Record<string, string>;
   let actions: typeof import("../../src/app/actions/project-images.js");
 

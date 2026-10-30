@@ -10,7 +10,6 @@ import type { AddressInfo } from "node:net";
 import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { adminClient, clearConvexFixtures, convexAvailable } from "../fixtures/convex";
-import { testIssuerAvailable } from "../fixtures/convex-auth";
 import { FAKE_MAILPIT_PORT, fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import { accountRows, authFetch, authState, clientWithToken, convexToken, freshClientIp, repairHalfFinishedSignUps, signIn, signUpRaw, SITE_ORIGIN, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, type Jar } from "../fixtures/better-auth";
 import { TEST_CONVEX_SITE_URL } from "../support/isolation";
@@ -38,7 +37,7 @@ async function verifiedUser(label: string) {
   return email;
 }
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D08e login methods", () => {
+describe.skipIf(!convexAvailable())("D08e login methods", () => {
   beforeAll(async () => {
     await mailbox.start();
     expect((mailbox.server.address() as AddressInfo).port).toBe(FAKE_MAILPIT_PORT);

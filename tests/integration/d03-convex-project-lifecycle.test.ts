@@ -1,6 +1,6 @@
 // D03-b: projectLifecycle:create, softDelete, restore and purge on the
 // task-owned test backend (P07 §5.11). The caller comes only from getViewer
-// (the D01 synthetic issuer for Clerk-era personas; a real Better Auth login
+// (each Clerk-era persona's own Better Auth login since D08g4c; a real Better Auth login
 // linked to A in the last block). Every refusal is checked to have written
 // nothing; scheduled steps (listed-copy batches, purge batches, file deletes)
 // are awaited by polling the fixture state.
@@ -8,7 +8,7 @@ import { makeFunctionReference } from "convex/server";
 import { afterAll, beforeEach, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { adminClient, anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
-import { clientAs, testIssuerAvailable } from "../fixtures/convex-auth";
+import { clientAs, warmPersonas } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
 
 type Client = ReturnType<typeof anonymousClient>;
@@ -74,12 +74,14 @@ const newProject = (slug: string, extra: Input = {}): Input => ({
   ...extra,
 });
 
-describe.skipIf(!convexAvailable() || !testIssuerAvailable())("D03 Convex project lifecycle", () => {
+describe.skipIf(!convexAvailable())("D03 Convex project lifecycle", () => {
   let ids: Record<string, string>;
 
   beforeEach(async () => {
     await clearConvexFixtures();
     ids = await loadConvexFixtures(set);
+    // D08g4c: sign the personas in before any "nothing was written" count.
+    await warmPersonas([A, B, admin, deleting].map((p) => p.subject!));
   });
   afterAll(async () => {
     await clearConvexFixtures();
