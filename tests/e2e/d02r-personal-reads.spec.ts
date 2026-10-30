@@ -9,7 +9,7 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
@@ -40,7 +40,7 @@ const slugs = async (page: Page, query: string) => {
 };
 
 test.describe.serial(`D02r personal reads (switch on, ${convexRead ? "Convex" : "Supabase"} read)`, () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test.beforeAll(async () => {
     await releasePersona(A.subject!);

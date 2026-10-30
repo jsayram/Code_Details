@@ -8,7 +8,7 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
@@ -34,7 +34,7 @@ async function saveEdit(page: Page, title: string, slug: string) {
 }
 
 test.describe.serial("D02 project update (Better Auth + Convex read)", () => {
-  test.skip(!(betterAuth && convexRead), "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth and CODEDETAILS_E2E_READ_BACKEND=convex");
+  test.skip(!(betterAuth && convexRead), "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk) and CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(A.subject!);

@@ -49,7 +49,7 @@ test.describe("B13 over HTTP, signed out", () => {
 
   test("controls: signed-in API routes redirect signed-out requests (D-6) instead of answering 401", async ({ request }) => {
     // D08g1: with the Better Auth switch on, the proxy answers 401 instead (D-6 fixed there).
-    const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+    const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
     for (const path of [`/api/projects?userId=${A.subject}&showDeleted=true`, `/api/profiles`, `/api/categories/counts`]) {
       const res = await request.get(path, { maxRedirects: 0 });
       expect(res.status(), path).toBe(betterAuth ? 401 : 307);

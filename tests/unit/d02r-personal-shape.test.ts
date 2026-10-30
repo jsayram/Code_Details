@@ -16,7 +16,10 @@ describe("personalReadsFromConvex", () => {
     expect(personalReadsFromConvex(both)).toBe(true);
     expect(personalReadsFromConvex({})).toBe(false);
     expect(personalReadsFromConvex({ ...both, CODEDETAILS_PROJECT_READ_BACKEND: undefined })).toBe(false);
-    expect(personalReadsFromConvex({ ...both, CODEDETAILS_AUTH_BACKEND: undefined })).toBe(false);
+    // D08g4a: with no backend named the login is Better Auth (the default), so
+    // only an explicit Clerk login keeps the personal reads on Supabase.
+    expect(personalReadsFromConvex({ ...both, CODEDETAILS_AUTH_BACKEND: undefined })).toBe(true);
+    expect(personalReadsFromConvex({ ...both, CODEDETAILS_AUTH_BACKEND: "clerk" })).toBe(false);
     expect(personalReadsFromConvex({ ...both, NODE_ENV: "production" })).toBe(false);
     expect(personalReadsFromConvex({ ...both, CODEDETAILS_CONVEX_URL: "https://x.convex.cloud" })).toBe(false);
   });

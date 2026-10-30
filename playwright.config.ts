@@ -39,10 +39,11 @@ if (READ_BACKEND === "convex" && !convexAvailable()) {
 const readBackendEnv: Record<string, string> =
   READ_BACKEND === "convex" ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL } : {};
 
-// D08b: CODEDETAILS_E2E_AUTH_BACKEND=better-auth also turns on the
-// development-only Better Auth switch (/api/auth/* and /api/dev/viewer served
-// through the local backend). Clerk stays the login either way.
-export const AUTH_BACKEND = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth" ? "better-auth" : "clerk";
+// D08b, D08g4a: Better Auth is the login by default (/api/auth/* and
+// /api/dev/viewer served through the local backend).
+// CODEDETAILS_E2E_AUTH_BACKEND=clerk runs the old Clerk mode until the Clerk
+// removal (D08g4f/g); the test server is then told so explicitly.
+export const AUTH_BACKEND = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "clerk" ? "clerk" : "better-auth";
 if (AUTH_BACKEND === "better-auth" && !convexAvailable()) {
   throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
 }
@@ -57,7 +58,7 @@ const authBackendEnv: Record<string, string> =
         CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL,
         ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
       }
-    : {};
+    : { CODEDETAILS_AUTH_BACKEND: "clerk" };
 
 // Synthetic Clerk keys whose frontend API is a .invalid host. A pk_live-shaped
 // key keeps Clerk's middleware from redirecting signed-out page loads to a

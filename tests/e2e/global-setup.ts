@@ -14,7 +14,7 @@ export default async function globalSetup() {
     // D08h: Better Auth mode too, so its runs always start with the D01
     // personas loaded, whatever ran on the shared backend before (npm test's
     // integration tests clear it).
-    if (process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" || process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth") {
+    if (process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" || process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk") {
       await clearConvexFixtures();
       await loadConvexFixtures(generateFixtures());
     }

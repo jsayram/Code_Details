@@ -8,7 +8,7 @@ import { generateFixtures } from "../fixtures/generate";
 import { expectedProfileStats } from "../support/profile-stats-spec";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const set = generateFixtures();
 const B = set.personas.b;
@@ -22,7 +22,7 @@ async function signIn(page: Page, label: string) {
 }
 
 test.describe(`D04c profile stats (${convexRead ? "Convex" : "Supabase"} read)`, () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("the profile page shows B's active projects and only the favorites on active projects", async ({ page }) => {
     const want = expectedProfileStats(set, "b", !convexRead);

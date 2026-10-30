@@ -4,10 +4,10 @@
 import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER } from "../fixtures/better-auth";
 import { expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 
 test.describe("f7 auth forms before hydration (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("sign-up fields typed before hydration are still there after it, and the form then works", async ({ context, page }) => {
     await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });

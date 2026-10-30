@@ -1,5 +1,6 @@
-// D08b: the development-only login switch. Clerk by default and always outside
-// development; Better Auth's routes only for local URLs in development.
+// D08b, D08g4a: the login switch. Better Auth by default in development with
+// local URLs; Clerk otherwise, always outside development, and when
+// CODEDETAILS_AUTH_BACKEND=clerk asks for it (until D08g4f/g).
 import { describe, expect, it } from "vitest";
 import { betterAuthEnabled, chooseAuthBackend } from "@/backend/auth";
 
@@ -11,10 +12,24 @@ const dev = {
 };
 
 describe("auth backend switch", () => {
-  it("defaults to Clerk with nothing set", () => {
-    expect(chooseAuthBackend({})).toEqual({ backend: "clerk", reason: "default" });
-    expect(chooseAuthBackend({ NODE_ENV: "development", CODEDETAILS_AUTH_BACKEND: "clerk" })).toMatchObject({ backend: "clerk" });
+  it("is Clerk with nothing set (no local Convex URLs, not development)", () => {
+    expect(chooseAuthBackend({})).toMatchObject({ backend: "clerk" });
     expect(betterAuthEnabled({})).toBe(false);
+  });
+
+  it("D08g4a: defaults to Better Auth in development with local URLs and no backend named", () => {
+    const { CODEDETAILS_AUTH_BACKEND: _named, ...unnamed } = dev;
+    expect(chooseAuthBackend(unnamed)).toEqual({ backend: "better-auth", convexUrl: "http://127.0.0.1:3210", convexSiteUrl: "http://127.0.0.1:3211" });
+    expect(chooseAuthBackend({ ...unnamed, CODEDETAILS_AUTH_BACKEND: "" })).toMatchObject({ backend: "better-auth" });
+  });
+
+  it("CODEDETAILS_AUTH_BACKEND=clerk still forces Clerk, with the reason", () => {
+    expect(chooseAuthBackend({ ...dev, CODEDETAILS_AUTH_BACKEND: "clerk" })).toEqual({ backend: "clerk", reason: "CODEDETAILS_AUTH_BACKEND=clerk" });
+  });
+
+  it("falls back to Clerk in development without the local URLs", () => {
+    expect(chooseAuthBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "clerk" });
+    expect(chooseAuthBackend({ NODE_ENV: "development", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3210" })).toMatchObject({ backend: "clerk" });
   });
 
   it("uses Better Auth only in development with local URLs", () => {

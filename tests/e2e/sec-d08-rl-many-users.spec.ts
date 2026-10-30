@@ -8,7 +8,7 @@ import type { APIRequestContext } from "@playwright/test";
 import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 
 async function signedIn(playwright: { request: { newContext: (o: object) => Promise<APIRequestContext> } }, label: string) {
   const ctx = await playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, [TEST_CLIENT_IP_HEADER]: freshClientIp() }, maxRedirects: 0 });
@@ -20,7 +20,7 @@ async function signedIn(playwright: { request: { newContext: (o: object) => Prom
 }
 
 test.describe("SEC-D08-RL many users' server-side session checks (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   test.setTimeout(180_000);
 
   test("150 server-side checks across three users never read anyone as signed out", async ({ playwright }) => {

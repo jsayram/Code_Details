@@ -1,9 +1,9 @@
 // D08b: Better Auth through the Next.js app. With the development switch on
-// (CODEDETAILS_E2E_AUTH_BACKEND=better-auth), /api/auth/* on the app origin
+// (the default since D08g4a), /api/auth/* on the app origin
 // forwards to the local Convex backend's site port, cookies land on the app
 // origin, and server code (/api/dev/viewer) reads as the session's user the
-// way a server component will. With the switch off (the normal runs), none of
-// it exists. Synthetic users only; Clerk stays the app's login in both.
+// way a server component will. With CODEDETAILS_E2E_AUTH_BACKEND=clerk none of
+// it exists. Synthetic users only.
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext, APIResponse } from "@playwright/test";
@@ -12,7 +12,7 @@ import { fakeMailpit, linkIn, revealsAddress } from "../fixtures/fake-mailpit";
 import { RUNTIME_DIR } from "../support/test-db";
 import { BASE_URL, expect, test } from "./support";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 // D08c: a new account has a generated handle.
 const NEW_ACCOUNT = { username: expect.stringMatching(/^user-[0-9a-z]{6}$/), role: "user", tier: "free" };
 
@@ -54,7 +54,7 @@ async function signUpAndIn(ctx: APIRequestContext, email: string): Promise<APIRe
 }
 
 test.describe("D08b Better Auth through /api/auth (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
 
   test("sign-in after a verified sign-up sets the session cookie on the app origin, and server code sees the new account", async ({ playwright }) => {
     const ctx = await browserLike(playwright);
@@ -161,7 +161,7 @@ test.describe("D08b Better Auth through /api/auth (switch on)", () => {
 });
 
 test.describe("D08f1: emailed links never put the address in a logged URL (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   const mailbox = fakeMailpit();
   const LOG = path.join(RUNTIME_DIR, "next-server.log");
 
@@ -202,7 +202,7 @@ test.describe("D08f1: emailed links never put the address in a logged URL (switc
 });
 
 test.describe("D08b with the switch off", () => {
-  test.skip(betterAuth, "only without CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(betterAuth, "only with CODEDETAILS_E2E_AUTH_BACKEND=clerk");
 
   test("Better Auth's endpoints and the dev viewer don't exist", async ({ request }) => {
     for (const [method, path] of [

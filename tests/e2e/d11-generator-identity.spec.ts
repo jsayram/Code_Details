@@ -18,7 +18,7 @@ import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
-const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND !== "clerk";
 const FIXTURES = generateFixtures();
 const { a: A, b: B } = FIXTURES.personas;
 // D11s: a live fixture project of persona A's, for a doc linked to it.
@@ -119,7 +119,7 @@ test.describe("D11 generator routes, signed out (either switch state)", () => {
 });
 
 test.describe.serial("D11 generator routes, signed in (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   // D08h: global setup loads the D01 personas in Better Auth mode, so a missing
   // persona is a failure (releasePersona throws), never a silent skip.
   let persona: APIRequestContext;
@@ -258,7 +258,7 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
 // "Download All" button shows only for the owner (the ZIP is owner-only).
 // Each test signs in fresh; personas are released before and after the block.
 test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
-  test.skip(!betterAuth, "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth");
+  test.skip(!betterAuth, "needs the Better Auth login (not CODEDETAILS_E2E_AUTH_BACKEND=clerk)");
   const CHAPTER_URL = `/github-scrapper/docs/${DOCS.linked}/${CHAPTER}`;
 
   test.beforeAll(async () => {
