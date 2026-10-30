@@ -11,7 +11,8 @@
 import fs from "node:fs";
 import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
-import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { makeFunctionReference } from "convex/server";
+import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, signIn as fixtureSignIn, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
@@ -24,7 +25,17 @@ const ROOT = path.resolve(__dirname, "../..");
 const OUTPUT = path.join(ROOT, ".test-runtime", "docs-output");
 const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
 const CHAPTER = "01_intro.md";
-const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked" };
+const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked", fresh: "genrekey-fixture-fresh", fresh2: "genrekey-fixture-fresh-two" };
+const docOwner = makeFunctionReference<"query", Record<string, never>, { userId: string; legacySubject: string | null } | null>("identity:docOwner");
+
+/** The account ID a Better Auth login's docs are keyed by, read in its own second session. */
+async function accountIdOf(email: string): Promise<string> {
+  const session = await fixtureSignIn(email, SYNTHETIC_PASSWORD);
+  expect(session.status).toBe(200);
+  const owner = await clientWithToken((await convexToken(session.jar))!).query(docOwner, {});
+  expect(owner?.legacySubject ?? null).toBeNull();
+  return owner!.userId;
+}
 
 /** Names, sizes and modification times of everything under the real output root. */
 function realOutputListing(): string[] {
@@ -110,6 +121,7 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   // persona is a failure (releasePersona throws), never a silent skip.
   let persona: APIRequestContext;
   let unlinked: APIRequestContext;
+  let unlinkedId = "";
 
   test.beforeAll(async ({ playwright }) => {
     writeDoc(DOCS.mine, A.subject!);
@@ -122,7 +134,10 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     const email = await signIn(persona, "d11-persona");
     await linkPersona(A.subject!, (await authState(email))!.authUserId);
     unlinked = await client(playwright);
-    await signIn(unlinked, "d11-unlinked");
+    unlinkedId = await accountIdOf(await signIn(unlinked, "d11-unlinked"));
+    // Generator re-key: docs written for an account with no Clerk-era login, keyed by its account ID.
+    writeDoc(DOCS.fresh, unlinkedId);
+    writeDoc(DOCS.fresh2, unlinkedId);
   });
   test.afterAll(async () => {
     removeDocs();
@@ -132,8 +147,45 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
     await unlinked?.dispose();
   });
 
-  test("an account with no Clerk-era link is refused by every route, as if signed out", async () => {
-    for (const r of ROUTES) expect((await r.call(unlinked)).status(), r.name).toBe(401);
+  test("generator re-key: an account with no Clerk-era link lists, reads, edits and deletes its own docs", async () => {
+    const list = await unlinked.get("/api/docs");
+    expect(list.status()).toBe(200);
+    const listed = JSON.stringify(await list.json());
+    expect(listed).toContain(DOCS.fresh);
+    expect(listed).toContain(DOCS.fresh2);
+    for (const other of [DOCS.mine, DOCS.mine2, DOCS.theirs]) expect(listed).not.toContain(other);
+    const ch = await unlinked.get(`/api/docs/${DOCS.fresh}/${CHAPTER}`);
+    expect(ch.status()).toBe(200);
+    expect(await ch.text()).toContain("Synthetic chapter.");
+    const meta = await (await unlinked.get(`/api/docs/${DOCS.fresh}/meta`)).json();
+    expect(meta).toMatchObject({ isOwner: true, userId: unlinkedId });
+    expect(meta).not.toHaveProperty("legacyUserId");
+    expect((await unlinked.get(`/api/docs/${DOCS.fresh}/download`)).status()).toBe(200);
+    expect((await unlinked.put(`/api/docs/${DOCS.fresh}/${CHAPTER}`, { data: { content: "Edited by its owner." } })).status()).toBe(200);
+    expect(fs.readFileSync(path.join(OUTPUT, DOCS.fresh, CHAPTER), "utf8")).toContain("Edited by its owner.");
+    expect((await unlinked.delete(`/api/docs/${DOCS.fresh2}`)).status()).toBe(200);
+    expect(fs.existsSync(path.join(OUTPUT, DOCS.fresh2))).toBe(false);
+  });
+
+  test("generator re-key: that account still can't reach anyone else's doc", async () => {
+    for (const slug of [DOCS.mine, DOCS.theirs]) {
+      expect((await unlinked.get(`/api/docs/${slug}/${CHAPTER}`)).status(), slug).toBe(404);
+      expect((await unlinked.get(`/api/docs/${slug}/meta`)).status(), slug).toBe(404);
+      expect((await unlinked.get(`/api/docs/${slug}/download`)).status(), slug).toBe(404);
+      expect((await unlinked.put(`/api/docs/${slug}/${CHAPTER}`, { data: { content: "x" } })).status(), slug).toBe(403);
+      expect((await unlinked.delete(`/api/docs/${slug}`)).status(), slug).toBe(403);
+      expect((await unlinked.delete(`/api/docs/${slug}/link-project`)).status(), slug).toBe(403);
+    }
+    expect(fs.readFileSync(path.join(OUTPUT, DOCS.mine, CHAPTER), "utf8")).toContain("Synthetic chapter.");
+    // And A's login can't reach this account's doc.
+    expect((await persona.get(`/api/docs/${DOCS.fresh}/${CHAPTER}`)).status()).toBe(404);
+  });
+
+  test("generator re-key: the generator routes let that account past the identity check (invalid bodies, nothing sent out)", async () => {
+    for (const name of ["POST /api/generate-docs", "POST /api/llm", "POST /api/llm-test", "POST /api/repo/analyze", "POST /api/repo/crawl"]) {
+      const r = ROUTES.find((x) => x.name === name)!;
+      expect((await r.call(unlinked)).status(), name).toBe(400);
+    }
   });
 
   test("D11s: the owner reads its own chapter, metadata and ZIP", async () => {
@@ -229,6 +281,8 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
     await page.goto(CHAPTER_URL);
     await expect(page.getByText("Synthetic chapter.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Download All" })).toBeVisible();
+    // Generator re-key: the edit controls follow the server's isOwner, so the owner has them under the switch too.
+    await expect(page.getByRole("button", { name: "Edit" })).toBeVisible();
   });
 
   test("another user reads the linked chapter with trimmed metadata, sees no Download All, and the ZIP is refused", async ({ page }) => {
@@ -241,5 +295,6 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
     await page.goto(CHAPTER_URL);
     await expect(page.getByText("Synthetic chapter.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Download All" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Edit" })).toHaveCount(0);
   });
 });

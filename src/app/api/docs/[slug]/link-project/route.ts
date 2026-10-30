@@ -9,7 +9,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { routeUserId } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
+import { isDocOwner } from '@/lib/docs-access';
 import { 
   getProjectMeta, 
   updateProjectMeta, 
@@ -42,8 +43,8 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const userId = await routeUserId();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to link documentation');
     }
 
@@ -56,7 +57,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
 
@@ -73,8 +74,10 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { projectId, projectSlug, projectTitle, replace } = validation.data;
 
-    // Verify the target project exists and user owns it using Drizzle
-    const targetProject = await executeQuery(async (db) => {
+    // Verify the target project exists and user owns it using Drizzle. Supabase
+    // projects are keyed by the Clerk-era subject, so an account without one owns none there.
+    const projectOwnerId = owner.projectViewer?.userId;
+    const targetProject = projectOwnerId ? await executeQuery(async (db) => {
       const result = await db
         .select()
         .from(projects)
@@ -82,13 +85,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           and(
             eq(projects.id, projectId),
             eq(projects.slug, projectSlug),
-            eq(projects.user_id, userId),
+            eq(projects.user_id, projectOwnerId),
             isNull(projects.deleted_at)
           )
         )
         .limit(1);
       return result.length > 0 ? result[0] : null;
-    });
+    }) : null;
 
     if (!targetProject) {
       return notFound('project', { 
@@ -145,8 +148,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const userId = await routeUserId();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to unlink documentation');
     }
 
@@ -159,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
 

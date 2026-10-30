@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { routeUserId } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import { testProviderConnection } from '@/llm';
 
 // Rate limiting: Track last test time per user
@@ -13,7 +13,7 @@ const RATE_LIMIT_MS = 5000; // 5 seconds between tests
 
 export async function POST(request: NextRequest) {
   // 1. Authentication check
-  const userId = await routeUserId();
+  const userId = (await routeDocOwner())?.writeKey ?? null;
   if (!userId) {
     return NextResponse.json(
       { success: false, message: 'Authentication required' },

@@ -180,6 +180,56 @@ export async function routeUserId(): Promise<string | null> {
   }
 }
 
+const docOwnerQuery = makeFunctionReference<"query", Record<string, never>, { userId: string; legacySubject: string | null } | null>("identity:docOwner");
+
+/**
+ * Who the generated-docs code may treat as an owner (generator re-key).
+ * `writeKey` is the key a new doc is written with; `keys` are every key the
+ * caller owns docs under; `legacyUserId` is the caller's Clerk-era subject,
+ * kept on new docs only because Supabase projects are still keyed by it.
+ * With Clerk (the default), all of them are Clerk's userId, exactly as before.
+ * With the Better Auth switch on, the session's own Convex account ID, plus its
+ * own Clerk-era subject while that link exists, so an account that never had
+ * a Clerk login owns its docs too. `projectViewer` is what routeViewer()
+ * would return, for the project lookups that still read Supabase. Null when
+ * nobody is signed in. Identity comes only from the session. Server-side
+ * only; never sent to the client.
+ */
+export type DocOwner = {
+  writeKey: string;
+  keys: string[];
+  legacyUserId: string | null;
+  projectViewer: { userId: string; isAdmin: boolean } | null;
+};
+
+export async function routeDocOwner(): Promise<DocOwner | null> {
+  const choice = chooseAuthBackend();
+  if (choice.backend !== "better-auth") {
+    const viewer = await routeViewer();
+    if (!viewer) return null;
+    return { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null, projectViewer: viewer };
+  }
+  let owner: { userId: string; legacySubject: string | null } | null = null;
+  try {
+    owner = (await viewerQuery(docOwnerQuery))?.result ?? null;
+  } catch {
+    owner = null;
+  }
+  if (!owner?.userId) return null;
+  // The admin flag matters only to the Supabase project read, which needs a Clerk-era subject.
+  let admin = false;
+  if (owner.legacySubject) {
+    try {
+      admin = (await viewerQuery(whoami))?.result?.role === "admin";
+    } catch {
+      admin = false;
+    }
+  }
+  const keys = owner.legacySubject ? [owner.userId, owner.legacySubject] : [owner.userId];
+  const projectViewer = owner.legacySubject ? { userId: owner.legacySubject, isAdmin: admin } : null;
+  return { writeKey: owner.userId, keys, legacyUserId: owner.legacySubject, projectViewer };
+}
+
 /**
  * D02r: the viewer for the personal reads that still query Supabase (my
  * projects, favorites, graveyard, category counts, the dashboard, deleted

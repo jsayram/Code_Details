@@ -6,7 +6,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { routeUserId } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import { callLLM, PROVIDER_IDS } from '@/llm';
 import { LLMError, parseLLMError } from '@/llm/errors';
 
@@ -16,7 +16,7 @@ const RATE_LIMIT_MS = 2000; // 2 seconds between requests
 
 export async function POST(request: NextRequest) {
   // 1. Authentication check
-  const userId = await routeUserId();
+  const userId = (await routeDocOwner())?.writeKey ?? null;
   if (!userId) {
     return NextResponse.json(
       { 

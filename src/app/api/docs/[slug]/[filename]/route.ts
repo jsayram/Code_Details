@@ -11,11 +11,11 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import matter from 'gray-matter';
-import { routeUserId, routeViewer } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import { getProjectMeta } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
 import { docsOutputRoot, isSafeChapterFilename, isSafeDocSlug } from '@/lib/docs-output-root';
-import { readableDoc } from '@/lib/docs-access';
+import { isDocOwner, readableDoc } from '@/lib/docs-access';
 
 interface RouteParams {
   params: Promise<{
@@ -47,8 +47,8 @@ async function existingChapterPath(slug: string, filename: string): Promise<stri
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // D11s: identity from the session only; signed out is refused before anything is read
-    const viewer = await routeViewer();
-    if (!viewer) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to read documentation');
     }
 
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // A bad name, a doc this user can't read and a missing chapter all get the
     // same 404, so the answer never says whether someone else's doc exists.
-    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename) || !(await readableDoc(slug, viewer))) {
+    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename) || !(await readableDoc(slug, owner))) {
       return chapterNotFound();
     }
 
@@ -92,8 +92,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const userId = await routeUserId();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to edit documentation');
     }
 
@@ -120,7 +120,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
     

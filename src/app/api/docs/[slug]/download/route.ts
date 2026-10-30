@@ -10,9 +10,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import JSZip from 'jszip';
-import { routeViewer } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import { unauthorized } from '@/lib/api-errors';
-import { readableDoc } from '@/lib/docs-access';
+import { ownerMeta, readableDoc } from '@/lib/docs-access';
 import { docDir } from '@/lib/docs-output-root';
 
 interface RouteParams {
@@ -24,8 +24,8 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // D11s: identity from the session only; signed out is refused before anything is read
-    const viewer = await routeViewer();
-    if (!viewer) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to download documentation');
     }
 
@@ -33,7 +33,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     
     // Owner only, even for a linked doc: the ZIP is the whole doc in one request.
     // Anyone else gets the same 404 as a missing doc.
-    const doc = await readableDoc(slug, viewer);
+    const doc = await readableDoc(slug, owner);
     if (!doc?.isOwner) {
       return NextResponse.json(
         { error: 'Project not found' },
@@ -52,7 +52,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     for (const file of files) {
       if (file.endsWith('.md') || file.endsWith('.json')) {
         const filePath = path.join(projectDir, file);
-        const content = await fs.readFile(filePath, 'utf-8');
+        // The metadata goes in without its server-only fields (no Clerk-era subject)
+        const content = file === '_meta.json'
+          ? JSON.stringify(ownerMeta(doc.meta), null, 2)
+          : await fs.readFile(filePath, 'utf-8');
         zip.file(file, content);
       }
     }

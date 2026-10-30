@@ -7,7 +7,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { routeViewer } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import { unauthorized } from '@/lib/api-errors';
 import { metaForViewer, readableDoc } from '@/lib/docs-access';
 
@@ -20,15 +20,15 @@ interface RouteParams {
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     // D11s: identity from the session only; signed out is refused before anything is read
-    const viewer = await routeViewer();
-    if (!viewer) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to read documentation');
     }
 
     const { slug } = await params;
     
     // Someone else's unshared doc gets the same 404 as a missing one
-    const doc = await readableDoc(slug, viewer);
+    const doc = await readableDoc(slug, owner);
     
     if (!doc) {
       return NextResponse.json(

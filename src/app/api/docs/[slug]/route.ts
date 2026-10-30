@@ -8,7 +8,8 @@
  */
 
 import { NextRequest } from 'next/server';
-import { routeUserId } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
+import { isDocOwner } from '@/lib/docs-access';
 import { getProjectMeta, deleteProject } from '@/lib/output-utils';
 import { 
   unauthorized, 
@@ -29,8 +30,8 @@ interface RouteParams {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const userId = await routeUserId();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to delete documentation');
     }
 
@@ -50,7 +51,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Verify ownership
-    if (meta.userId !== userId) {
+    if (!isDocOwner(meta, owner)) {
       return notOwner('documentation');
     }
 

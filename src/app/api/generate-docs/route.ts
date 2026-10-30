@@ -10,7 +10,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { routeUserId } from '@/lib/auth-server';
+import { routeDocOwner } from '@/lib/auth-server';
 import {
   runDocumentationFlowWithProgress,
   isValidGitHubUrl,
@@ -65,7 +65,9 @@ function problemResponse(
 export async function POST(request: NextRequest) {
   try {
     // Authenticate user
-    const userId = await routeUserId();
+    // Generator re-key: new docs are written with the account's own key
+    const owner = await routeDocOwner();
+    const userId = owner?.writeKey ?? null;
     if (!userId) {
       return problemResponse(401, 'Unauthorized', 'Authentication required to generate documentation.');
     }
@@ -99,7 +101,6 @@ export async function POST(request: NextRequest) {
     const projectSlug = generateProjectSlug(repoInfo.owner, repoInfo.repo);
 
     console.log(`[generate-docs] Starting generation for ${repoUrl}`);
-    console.log(`[generate-docs] User: ${userId}`);
     console.log(`[generate-docs] Project slug: ${projectSlug}`);
 
     // Create a TransformStream for SSE
@@ -171,6 +172,7 @@ export async function POST(request: NextRequest) {
         // Save project metadata
         await saveProjectMeta(projectSlug, {
           userId,
+          ...(owner?.legacyUserId ? { legacyUserId: owner.legacyUserId } : {}),
           repoUrl,
           repoOwner: repoInfo.owner,
           repoName: repoInfo.repo,

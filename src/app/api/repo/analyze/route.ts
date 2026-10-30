@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { routeUserId } from "@/lib/auth-server";
+import { routeDocOwner } from "@/lib/auth-server";
 
 // =============================================================================
 // SUPPORTED PLATFORMS
@@ -977,7 +977,7 @@ function detectTechStack(
  */
 export async function POST(request: NextRequest) {
   try {
-    const userId = await routeUserId();
+    const userId = (await routeDocOwner())?.writeKey ?? null;
     if (!userId) {
       return NextResponse.json(
         {

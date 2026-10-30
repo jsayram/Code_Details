@@ -22,9 +22,12 @@ const viewer = vi.hoisted(() => ({ userId: null as string | null, isAdmin: false
 // rule already applied (null for a missing project, or a soft-deleted one the viewer can't see).
 const db = vi.hoisted(() => ({ project: null as null | { id: string; user_id: string }, calls: [] as unknown[][], fail: false }));
 
+// routeDocOwner as it answers with Clerk (the default): one key, Clerk's userId.
 vi.mock("@/lib/auth-server", () => ({
-  routeUserId: async () => viewer.userId,
-  routeViewer: async () => (viewer.userId ? { userId: viewer.userId, isAdmin: viewer.isAdmin } : null),
+  routeDocOwner: async () =>
+    viewer.userId
+      ? { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null, projectViewer: { userId: viewer.userId, isAdmin: viewer.isAdmin } }
+      : null,
 }));
 vi.mock("@/db/project-read", () => ({
   readProjectBySlug: async (...args: unknown[]) => {

@@ -83,8 +83,10 @@ export default function DocViewerPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeHeading, setActiveHeading] = useState<string>('');
   
-  // Check if user owns this documentation
-  const isOwner = meta?.userId === user?.id;
+  // Check if user owns this documentation. Generator re-key: the server
+  // decides (the meta route's isOwner), since a doc's key may be the account's
+  // ID rather than the client's Clerk user ID.
+  const isOwner = meta?.isOwner === true;
   
   // Use the doc chapters context to share with sidebar
   const { setChapters, setCurrentChapter, setProjectMeta, setIsDocPage } = useDocChapters();
