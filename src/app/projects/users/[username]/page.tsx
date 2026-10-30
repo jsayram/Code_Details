@@ -5,6 +5,8 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { SignIn, useUser } from "@clerk/nextjs";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { useAuthBackend } from "@/backend/auth/context";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -32,6 +34,13 @@ export default function UserProjectsPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
+  // D07x: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const backend = useAuthBackend();
+  // Clerk's user object decides by default, as before; under the switch the
+  // session does, once it has loaded (no "log in" toast while it loads).
+  const signedIn = backend === "clerk" ? !!user : !!viewer.userId;
+  const waitingForSession = backend !== "clerk" && viewer.isLoading;
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
   const [profileData, setProfileData] = useState<PublicProfileRow | null>(null);
   const router = useRouter();
@@ -52,7 +61,8 @@ export default function UserProjectsPage({ params }: PageProps) {
 
     const fetchProfile = async () => {
       try {
-        if (!user) {
+        if (waitingForSession) return;
+        if (!signedIn) {
           toast.dismiss();
           toast.info(
             <div className="relative flex flex-row items-center gap-2">
@@ -97,10 +107,10 @@ export default function UserProjectsPage({ params }: PageProps) {
     };
 
     fetchProfile();
-  }, [decodedUsername, user, router]);
+  }, [decodedUsername, signedIn, waitingForSession, router]);
 
   // Only consider loading if we're waiting for auth-related data AND we don't have profile data yet
-  const isLoading = (!userLoaded || tokenLoading) && !profileData;
+  const isLoading = viewer.isLoading && !profileData;
 
   return (
     <>
@@ -110,8 +120,8 @@ export default function UserProjectsPage({ params }: PageProps) {
         </div>
       ) : (
         <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
+          token={viewer.token}
+          userId={viewer.userId}
           isLoading={isLoading}
           initialFilters={{
             username: decodedUsername,

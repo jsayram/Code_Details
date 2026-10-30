@@ -11,6 +11,7 @@ import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 // Custom Hooks
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 
 // Application Components and Pages (Custom)
 import { ProjectsProvider } from "@/providers/projects-provider";
@@ -44,7 +45,9 @@ import { PageBanner } from "@/components/ui/page-banner";
 export default function DashBoard() {
   const { user, isLoaded: userLoaded } = useUser(); // auth from clerk
   const { token, loading: tokenLoading } = useSupabaseToken();
-  const { userTier } = useUserTier(user?.id ?? null); // Fetch user tier
+  // D07x: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
+  const { userTier } = useUserTier(viewer.userId); // Fetch user tier (D04f: the session's viewer)
 
   // At the top of your component
   const [allProjectsPage, setAllProjectsPage] = useState(CURRENT_PAGE);
@@ -56,7 +59,7 @@ export default function DashBoard() {
   const [isProjectFormOpen, setIsProjectFormOpen] = useState(false);
 
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading;
+  const isLoading = viewer.isLoading;
 
   // Handlers for pagination
   const handleAllProjectsPageChange = (page: number) => {
@@ -74,8 +77,8 @@ export default function DashBoard() {
   return (
     <>
       <ProjectsProvider
-        token={token}
-        userId={user?.id ?? null}
+        token={viewer.token}
+        userId={viewer.userId}
         isLoading={isLoading}
       >
         <SidebarProvider>

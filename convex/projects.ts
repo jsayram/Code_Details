@@ -12,8 +12,11 @@ import {
   type Issue,
   checkCategoryData,
   normalizeProjectPatch,
+  tagNameKey,
   titleSortKey,
 } from "../src/backend/projects/project-update-rules";
+import { pageRows, sortRows } from "../src/backend/projects/list-rules";
+import { usernameKey } from "../src/backend/profiles/public-profile";
 import {
   PUBLIC_PROJECT_VERSION,
   type PublicProject,
@@ -169,7 +172,7 @@ async function isFavoriteOf(ctx: QueryCtx, userId: Id<"users">, projectId: Id<"p
   return row !== null;
 }
 
-async function toCard(ctx: QueryCtx, viewer: Viewer, project: Doc<"projects">, isFavorite?: boolean): Promise<PersonalProjectCard> {
+async function toCard(ctx: QueryCtx, viewer: Viewer | null, project: Doc<"projects">, isFavorite?: boolean): Promise<PersonalProjectCard> {
   return {
     id: project._id,
     slug: project.slug,
@@ -183,8 +186,8 @@ async function toCard(ctx: QueryCtx, viewer: Viewer, project: Doc<"projects">, i
     updatedAt: iso(project.updatedAt),
     deletedAt: project.status === "deleted" && project.deletedAt !== undefined ? iso(project.deletedAt) : null,
     owner: await publicOwner(ctx, project.ownerId),
-    isMine: project.ownerId === viewer.userId,
-    isFavorite: isFavorite ?? (await isFavoriteOf(ctx, viewer.userId, project._id)),
+    isMine: viewer !== null && project.ownerId === viewer.userId,
+    isFavorite: isFavorite ?? (viewer !== null && (await isFavoriteOf(ctx, viewer.userId, project._id))),
   };
 }
 
@@ -258,6 +261,107 @@ export const myCategoryCounts = query({
     const counts: Record<string, number> = {};
     for (const p of projects) counts[p.category] = (counts[p.category] ?? 0) + 1;
     return counts;
+  },
+});
+
+// ---------------------------------------------------------------------------
+// D07x: the public lists (the community list and its category, tag and
+// portfolio variants). Listed projects only, with the getPublicBySlug check
+// repeated on each row, so private and deleted projects never appear. No
+// identity argument: the viewer, when there is one, only sets isMine and
+// isFavorite. The filters, sorts and paging match /api/projects on Supabase
+// (list-rules.ts); only the returned page is turned into cards.
+
+/** At most this many listed projects are considered per request. */
+export const PUBLIC_LIST_SCAN_LIMIT = 1000;
+const MAX_PAGE_SIZE = 100;
+
+const isPublic = (p: Doc<"projects">) => p.listed && p.status === "active" && p.visibility === "public";
+
+/** The active, listed projects of the account behind a handle, or null when nobody holds it. */
+async function listedOf(ctx: QueryCtx, handle: string): Promise<Doc<"projects">[] | null> {
+  if (handle.length > 100) return null;
+  const key = usernameKey(handle);
+  if (!key) return null;
+  const profile = await ctx.db
+    .query("profiles")
+    .withIndex("by_usernameKey", (q) => q.eq("usernameKey", key))
+    .first();
+  if (!profile) return null;
+  const user = await ctx.db.get(profile.userId);
+  if (!user || user.status !== "active") return null;
+  return ctx.db
+    .query("projects")
+    .withIndex("by_owner_listed_created", (q) => q.eq("ownerId", user._id).eq("listed", true))
+    .order("desc")
+    .take(PUBLIC_LIST_SCAN_LIMIT);
+}
+
+/**
+ * Tag filter as Supabase applies it: the names that match an active tag must
+ * all be on the project; names that match no tag are ignored, and when none
+ * match the list is empty.
+ */
+async function tagFilter(ctx: QueryCtx, names: string[]): Promise<((p: Doc<"projects">) => boolean) | "none" | null> {
+  if (names.length === 0) return null;
+  const ids: Id<"tags">[] = [];
+  for (const name of names.slice(0, 20)) {
+    const tag = await ctx.db
+      .query("tags")
+      .withIndex("by_nameKey", (q) => q.eq("nameKey", tagNameKey(name)))
+      .first();
+    if (tag && tag.status === "active") ids.push(tag._id);
+  }
+  if (ids.length === 0) return "none";
+  return (p) => ids.every((id) => p.tagIds.includes(id));
+}
+
+export const listPublic = query({
+  args: {
+    category: v.optional(v.string()),
+    tags: v.optional(v.array(v.string())),
+    // The owner's public handle (a portfolio), named as getPublicByUsername
+    // names it; a filter on public data, never the caller.
+    handle: v.optional(v.string()),
+    sortBy: v.string(),
+    page: v.number(),
+    limit: v.number(),
+  },
+  handler: async (ctx, args): Promise<{ cards: PersonalProjectCard[]; total: number }> => {
+    const empty = { cards: [], total: 0 };
+    const page = Number.isFinite(args.page) ? Math.max(1, Math.floor(args.page)) : 1;
+    const limit = Number.isFinite(args.limit) ? Math.min(MAX_PAGE_SIZE, Math.max(0, Math.floor(args.limit))) : MAX_PAGE_SIZE;
+
+    let projects: Doc<"projects">[];
+    if (args.handle !== undefined) {
+      const own = await listedOf(ctx, args.handle);
+      if (!own) return empty;
+      projects = own;
+    } else {
+      projects = await ctx.db
+        .query("projects")
+        .withIndex("by_listed_created", (q) => q.eq("listed", true))
+        .order("desc")
+        .take(PUBLIC_LIST_SCAN_LIMIT);
+    }
+
+    const byTags = await tagFilter(ctx, args.tags ?? []);
+    if (byTags === "none") return empty;
+    const category = args.category && args.category !== "all" ? args.category : null;
+    const matching = projects.filter((p) => isPublic(p) && (!category || p.category === category) && (!byTags || byTags(p)));
+
+    const sorted = sortRows(matching, args.sortBy, (p) => ({
+      id: p._id,
+      title: p.title,
+      createdAt: p.createdAt,
+      updatedAt: p.updatedAt,
+      favoriteCount: p.favoriteCount,
+      tagCount: p.tagIds.length,
+    }));
+    // Page 0 rows "all" is capped too, so one request never builds more than a page of cards.
+    const { rows, total } = pageRows(sorted, page, limit === 0 ? MAX_PAGE_SIZE : limit);
+    const viewer = await getViewer(ctx);
+    return { cards: await Promise.all(rows.map((p) => toCard(ctx, viewer, p))), total };
   },
 });
 

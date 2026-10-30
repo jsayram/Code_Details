@@ -13,7 +13,7 @@ import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
 import { routeViewer } from "@/lib/auth-server";
-import { convexPersonalList, personalListResponse, personalReadsFromConvex } from "@/backend/projects/personal";
+import { convexPersonalList, convexPublicList, listResponse, personalListResponse, personalReadsFromConvex } from "@/backend/projects/personal";
 
 // Helper function to build base project selection
 const buildProjectSelection = () => ({
@@ -186,6 +186,22 @@ export async function GET(request: NextRequest) {
       const cards = await convexPersonalList(personalView);
       const response = personalListResponse(cards, { category, tags, sortBy, page, limit });
       return new NextResponse(JSON.stringify(response), { status: 200, headers });
+    }
+
+    // D07x: the community list and its category, tag and portfolio variants
+    // come from Convex under the same switches, so their rows carry Convex IDs
+    // the favorite, edit and lifecycle actions can act on. Listed projects
+    // only; the session only marks the viewer's own rows and favorites.
+    if (!showFavorites && !showDeleted && (showAll || username) && personalReadsFromConvex()) {
+      const { cards, total } = await convexPublicList({
+        ...(category && category !== "all" ? { category } : {}),
+        ...(tags.length > 0 ? { tags } : {}),
+        ...(username ? { handle: username } : {}),
+        sortBy,
+        page,
+        limit,
+      });
+      return new NextResponse(JSON.stringify(listResponse(cards, total, page, limit)), { status: 200, headers });
     }
 
     const result = await executeQuery(async (db) => {

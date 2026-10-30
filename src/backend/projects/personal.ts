@@ -17,6 +17,7 @@ import { makeFunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
 import { viewerQuery, viewerQueryWithArgs } from "@/lib/auth-server";
 import { chooseProjectReadBackend } from "./index";
+import { pageRows, sortRows, type SortFields } from "./list-rules";
 
 export type PersonalView = "mine" | "favorites" | "deleted";
 
@@ -56,6 +57,30 @@ export async function convexPersonalList(view: PersonalView): Promise<PersonalPr
   return (await viewerQuery(lists[view]))?.result ?? [];
 }
 
+/** The filters the public list takes (D07x); never an identity. */
+export type PublicListArgs = {
+  category?: string;
+  tags?: string[];
+  /** The owner's public handle, for a portfolio. */
+  handle?: string;
+  sortBy: string;
+  page: number;
+  limit: number;
+};
+const publicList = makeFunctionReference<"query", PublicListArgs, { cards: PersonalProjectCard[]; total: number }>(
+  "projects:listPublic",
+);
+
+/**
+ * D07x: the community list and its category, tag and portfolio variants,
+ * listed projects only. Asked as the request's session, so the rows know
+ * which are the viewer's own and favorites; a request with no session gets
+ * the same rows with both flags false. Only called under both switches.
+ */
+export async function convexPublicList(args: PublicListArgs): Promise<{ cards: PersonalProjectCard[]; total: number }> {
+  return (await viewerQueryWithArgs(publicList, args))?.result ?? { cards: [], total: 0 };
+}
+
 export async function convexPersonalCounts(view: PersonalView): Promise<Record<string, number>> {
   return (await viewerQueryWithArgs(counts, { view }))?.result ?? {};
 }
@@ -68,36 +93,14 @@ export interface ListOptions {
   limit: number;
 }
 
-const byTitle = (a: PersonalProjectCard, b: PersonalProjectCard) => {
-  const x = a.title.normalize("NFKC").toLowerCase();
-  const y = b.title.normalize("NFKC").toLowerCase();
-  return x < y ? -1 : x > y ? 1 : 0;
-};
-const time = (iso: string) => Date.parse(iso);
-
-/** The sorts /api/projects offers. "trending" has no 7-day window here yet, so it is popular. */
-function sortCards(cards: PersonalProjectCard[], sortBy: string): PersonalProjectCard[] {
-  const out = [...cards];
-  if (sortBy === "random") {
-    for (let i = out.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [out[i], out[j]] = [out[j], out[i]];
-    }
-    return out;
-  }
-  const newest = (a: PersonalProjectCard, b: PersonalProjectCard) => time(b.createdAt) - time(a.createdAt) || (a.id < b.id ? -1 : 1);
-  const compare: Record<string, (a: PersonalProjectCard, b: PersonalProjectCard) => number> = {
-    oldest: (a, b) => -newest(a, b),
-    "recently-edited": (a, b) => time(b.updatedAt) - time(a.updatedAt) || newest(a, b),
-    popular: (a, b) => b.favoriteCount - a.favoriteCount || newest(a, b),
-    trending: (a, b) => b.favoriteCount - a.favoriteCount || newest(a, b),
-    "least-favorited": (a, b) => a.favoriteCount - b.favoriteCount || newest(a, b),
-    alphabetical: (a, b) => byTitle(a, b) || newest(a, b),
-    "alphabetical-desc": (a, b) => byTitle(b, a) || newest(a, b),
-    "most-tagged": (a, b) => b.tags.length - a.tags.length || newest(a, b),
-  };
-  return out.sort(compare[sortBy] ?? newest);
-}
+const sortFields = (c: PersonalProjectCard): SortFields => ({
+  id: c.id,
+  title: c.title,
+  createdAt: Date.parse(c.createdAt),
+  updatedAt: Date.parse(c.updatedAt),
+  favoriteCount: c.favoriteCount,
+  tagCount: c.tags.length,
+});
 
 /** Filter, sort and page a personal list, then map it onto /api/projects' row shape. */
 export function personalListResponse(cards: PersonalProjectCard[], options: ListOptions) {
@@ -105,10 +108,13 @@ export function personalListResponse(cards: PersonalProjectCard[], options: List
   const filtered = cards.filter(
     (c) => (!category || category === "all" || c.category === category) && tags.every((t) => c.tags.includes(t)),
   );
-  const sorted = sortCards(filtered, sortBy);
-  const total = sorted.length;
-  const pageRows = limit > 0 ? sorted.slice((page - 1) * limit, page * limit) : sorted;
-  const data = pageRows.map((c) => ({
+  const paged = pageRows(sortRows(filtered, sortBy, sortFields), page, limit);
+  return listResponse(paged.rows, paged.total, page, limit);
+}
+
+/** Cards already filtered, sorted and paged, in /api/projects' response shape. */
+export function listResponse(cards: PersonalProjectCard[], total: number, page: number, limit: number) {
+  const data = cards.map((c) => ({
     id: c.id,
     title: c.title,
     slug: c.slug,

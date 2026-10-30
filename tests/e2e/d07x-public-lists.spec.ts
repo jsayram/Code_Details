@@ -1,0 +1,87 @@
+// D07x: with both development switches on (Better Auth and the Convex read),
+// the community list reads Convex. A Better Auth user sees it instead of
+// "Please sign in", favorites a project straight from it (the row carries the
+// Convex ID favorites:add needs), sees the count survive a reload and
+// unfavorites it. Private and deleted projects stay off the list, and a
+// signed-in user with no Clerk-era link gets a public portfolio. The favorite is removed at the
+// end, so the shared fixture set is as it was.
+import type { Page } from "@playwright/test";
+import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { generateFixtures } from "../fixtures/generate";
+import { BASE_URL, expect, test } from "./support";
+
+const betterAuth = process.env.CODEDETAILS_E2E_AUTH_BACKEND === "better-auth";
+const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
+const { a: A, b: B } = generateFixtures().personas;
+
+// Owned by A; B (the signed-in persona) neither owns nor favorites it.
+const TITLE = "Fixture One Tag";
+
+async function signIn(page: Page, label: string): Promise<string> {
+  const email = syntheticEmail(label);
+  const headers = { origin: BASE_URL };
+  expect((await page.request.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+  await verifyEmail(email);
+  expect((await page.request.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+  return email;
+}
+
+const card = (page: Page, title = TITLE) => page.locator(".project-card", { hasText: title }).first();
+const count = async (page: Page) => Number(await card(page).locator(".favorite-count").textContent());
+
+test.describe.serial("D07x public lists (Better Auth + Convex read)", () => {
+  test.skip(!(betterAuth && convexRead), "needs CODEDETAILS_E2E_AUTH_BACKEND=better-auth and CODEDETAILS_E2E_READ_BACKEND=convex");
+
+  test.beforeAll(async () => {
+    await releasePersona(B.subject!);
+  });
+  test.afterAll(async () => {
+    await releasePersona(B.subject!);
+  });
+  test.beforeEach(async ({ context }) => {
+    await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
+  });
+
+  test("a Better Auth user sees the community list and favorites from it", async ({ page }) => {
+    await linkPersona(B.subject!, (await authState(await signIn(page, "d07x-community")))!.authUserId);
+
+    await page.goto("/projects");
+    await expect(card(page)).toBeVisible();
+    await expect(page.getByText("Please sign in to view projects")).toHaveCount(0);
+    await expect(card(page, "Fixture Private Project")).toHaveCount(0);
+    await expect(card(page, "Fixture Deleted Recently")).toHaveCount(0);
+
+    const before = await count(page);
+    await card(page).getByRole("button", { name: "Add to favorites" }).click();
+    await expect(card(page).getByRole("button", { name: "Remove from favorites" })).toBeVisible();
+    await expect.poll(() => count(page)).toBe(before + 1);
+
+    // The count and the flag came from the server, not just the optimistic update.
+    await page.reload();
+    await expect(card(page).getByRole("button", { name: "Remove from favorites" })).toBeVisible();
+    await expect.poll(() => count(page)).toBe(before + 1);
+
+    await card(page).getByRole("button", { name: "Remove from favorites" }).click();
+    await page.getByRole("button", { name: "Remove from Favorites" }).click();
+    await expect(card(page).getByRole("button", { name: "Add to favorites" })).toBeVisible();
+    await page.reload();
+    await expect.poll(() => count(page)).toBe(before);
+  });
+
+  test("an unlinked Better Auth user gets a public portfolio from Convex; signed out stays behind the proxy", async ({ page }) => {
+    const url = `/api/projects?showAll=true&username=${A.profile!.username}&limit=50`;
+    // /api/projects is not a public route in either mode (src/proxy.ts); unchanged.
+    expect((await page.request.get(url)).status()).toBe(401);
+
+    await signIn(page, "d07x-portfolio");
+    const res = await page.request.get(url);
+    expect(res.status(), await res.text()).toBe(200);
+    const body = (await res.json()) as { data: { slug: string; user_id: string; is_mine: boolean; profile: Record<string, unknown> }[] };
+    const slugs = body.data.map((r) => r.slug);
+    expect(slugs).toContain("fixture-listed");
+    expect(slugs).not.toContain("fixture-private");
+    expect(slugs).not.toContain("fixture-deleted-recent");
+    // Convex rows: no owner ID, no email, and none of them the viewer's.
+    expect(body.data.every((r) => r.user_id === "" && r.profile.email_address === null && !r.is_mine)).toBe(true);
+  });
+});

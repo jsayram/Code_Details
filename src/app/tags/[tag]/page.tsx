@@ -4,6 +4,7 @@ import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { useUser } from "@clerk/nextjs";
 import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -22,6 +23,8 @@ export default function TagPage({ params }: PageProps) {
   const resolvedParams = params instanceof Promise ? use(params) : params;
   const { user, isLoaded: userLoaded } = useUser();
   const { token, loading: tokenLoading } = useSupabaseToken();
+  // D07x: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer({ userId: user?.id ?? null, isLoaded: userLoaded, token, tokenLoading });
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
   const [decodedTag, setDecodedTag] = useState<string>("");
 
@@ -34,7 +37,7 @@ export default function TagPage({ params }: PageProps) {
   }, [resolvedParams.tag]);
 
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading || !decodedTag;
+  const isLoading = viewer.isLoading || !decodedTag;
 
   return (
     <>
@@ -44,8 +47,8 @@ export default function TagPage({ params }: PageProps) {
         </div>
       ) : (
         <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
+          token={viewer.token}
+          userId={viewer.userId}
           isLoading={isLoading}
           initialFilters={{ tags: [decodedTag] }}
         >
