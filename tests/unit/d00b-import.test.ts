@@ -32,7 +32,8 @@ class MemoryStore implements ImportStore {
   async reject(sourceTable: string, sourceId: string, reason: string) { this.rejects.push({ sourceTable, sourceId, reason }); }
   async insert(table: string, doc: Record<string, unknown>) { const _id = `${table}:${++this.n}`; this.tables.set(table, [...this.rows(table), { ...doc, _id }]); return _id; }
   async get(table: string, id: string) { return this.rows(table).find((d) => d._id === id) ?? null; }
-  async userBySubject(s: string) { return (this.rows("authLinks").find((l) => l.subject === s)?.userId as string) ?? null; }
+  // E03: as convex/importer.ts, through importMap's "profiles.subject" entries (no clerk auth link).
+  async userBySubject(s: string) { return (await this.mapped("profiles.subject", s))?.targetId ?? null; }
   async tagByNameKey(k: string) { return this.rows("tags").find((t) => t.nameKey === k)?._id ?? null; }
   async usernameHolder(k: string) {
     return ((this.rows("profiles").find((p) => p.usernameKey === k) ?? this.rows("usernames").find((u) => u.usernameKey === k))?.userId as string) ?? null;
@@ -188,7 +189,9 @@ describe("D00b batch logic (invalid-relationship sets)", () => {
   it("imports a clean set with its links, slugs and username claims", async () => {
     const store = await seeded();
     expect(store.rows("users")).toHaveLength(2);
-    expect(store.rows("authLinks").map((l) => l.provider)).toEqual(["clerk", "clerk"]);
+    // E03: no auth links; each source subject maps to its user in importMap only.
+    expect(store.rows("authLinks")).toEqual([]);
+    expect(store.importMap.filter((m) => m.sourceTable === "profiles.subject").map((m) => m.targetTable)).toEqual(["users", "users"]);
     expect(store.rows("usernames").map((u) => u.state)).toEqual(["current", "current"]);
     expect(store.rows("projectSlugs")).toHaveLength(2);
     expect(store.rows("projects").every((p) => p.visibility === "public" && p.listed === true)).toBe(true);

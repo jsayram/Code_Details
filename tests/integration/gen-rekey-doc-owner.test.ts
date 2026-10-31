@@ -1,6 +1,6 @@
 // Generator re-key: identity:docOwner gives the caller its own account ID (the
-// key new generated docs carry) and its own Clerk-era subject while that link
-// exists, and nothing for anyone getViewer refuses. Real test backend; personas
+// key generated docs carry), and nothing for anyone getViewer refuses. E03:
+// the Clerk-era subject (legacySubject, clerkSubjectMap) is gone. Real test backend; personas
 // are the D01 fixtures, Better Auth logins are real sign-ups linked to a
 // persona with fixtures:linkPersona.
 import { spawnSync } from "node:child_process";
@@ -15,9 +15,10 @@ import { clientAs } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signIn, signOut, signUp, syntheticEmail } from "../fixtures/better-auth";
 import { TEST_CONVEX_URL } from "../support/isolation";
 
-type DocOwner = { userId: string; legacySubject: string | null } | null;
+type DocOwner = { userId: string } | null;
 const docOwner = makeFunctionReference<"query", Record<string, never>, DocOwner>("identity:docOwner");
 const clerkSubjectMap = makeFunctionReference<"query", Record<string, never>, Record<string, string>>("identity:clerkSubjectMap");
+const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
 const set = generateFixtures();
 const { a: A, b: B } = set.personas;
 
@@ -37,11 +38,11 @@ describe.skipIf(!convexAvailable())("generator re-key identity:docOwner", () => 
     await clearConvexFixtures();
   });
 
-  it("an account with no Clerk-era link gets its own account ID and no legacy subject, the same on every sign-in", async () => {
+  it("an account gets its own account ID and nothing else, the same on every sign-in", async () => {
     const fresh = await login("genrekey-fresh");
     const first = await clientWithToken(fresh.token).query(docOwner, {});
     expect(first).not.toBeNull();
-    expect(first!.legacySubject).toBeNull();
+    expect(Object.keys(first!)).toEqual(["userId"]);
     expect(typeof first!.userId).toBe("string");
     expect(first!.userId).not.toMatch(/^user_/);
     expect(first!.userId).not.toBe(fresh.authUserId);
@@ -49,17 +50,16 @@ describe.skipIf(!convexAvailable())("generator re-key identity:docOwner", () => 
     expect(await clientWithToken((await convexToken(again.jar))!).query(docOwner, {})).toEqual(first);
   });
 
-  it("a linked Better Auth login gets its persona's account ID and Clerk-era subject; A never gets B's", async () => {
+  it("a linked Better Auth login gets its persona's account ID; A never gets B's", async () => {
     const a = await login("genrekey-a");
     const b = await login("genrekey-b");
     await linkPersona(A.subject!, a.authUserId);
     await linkPersona(B.subject!, b.authUserId);
     const ownerA = await clientWithToken(a.token).query(docOwner, {});
     const ownerB = await clientWithToken(b.token).query(docOwner, {});
-    expect(ownerA?.legacySubject).toBe(A.subject);
-    expect(ownerB?.legacySubject).toBe(B.subject);
+    expect(ownerA).toEqual({ userId: expect.any(String) });
     expect(ownerA!.userId).not.toBe(ownerB!.userId);
-    // The same account as the Clerk-era persona's own token resolves to.
+    // The same account as the persona's own token resolves to.
     expect(await clientAs(A.subject!).query(docOwner, {})).toEqual(ownerA);
   });
 
@@ -86,18 +86,14 @@ describe.skipIf(!convexAvailable())("generator re-key identity:docOwner", () => 
     expect(await clientAs(set.personas.deleting.subject!).query(docOwner, {})).toBeNull();
   });
 
-  it("slice 3: the re-key mapping maps each Clerk-era subject to the account docOwner reports, and only an admin can read it", async () => {
-    const a = await login("genrekey-map-a");
-    await linkPersona(A.subject!, a.authUserId);
-    const map = await adminClient().query(clerkSubjectMap, {});
-    expect(map[A.subject!]).toBe((await clientWithToken(a.token).query(docOwner, {}))!.userId);
-    expect(map[B.subject!]).toBe((await clientAs(B.subject!).query(docOwner, {}))!.userId);
-    // Only Clerk-era subjects, never a Better Auth user ID
-    expect(Object.keys(map)).not.toContain(a.authUserId);
-    expect(Object.keys(map).every((k) => k.startsWith("user_"))).toBe(true);
-    // Internal: no client can call it, signed in or not
-    await expect(new ConvexHttpClient(TEST_CONVEX_URL).query(clerkSubjectMap, {})).rejects.toThrow();
-    await expect(clientWithToken(a.token).query(clerkSubjectMap, {})).rejects.toThrow();
+  // E03: the clerk links are gone, and with them identity:clerkSubjectMap (the
+  // re-key's map source) and identity:legacySubject; nobody can call either.
+  it("identity:clerkSubjectMap and identity:legacySubject are gone, even for the admin key", async () => {
+    const a = await login("genrekey-gone");
+    for (const ref of [clerkSubjectMap, legacySubject]) {
+      await expect(adminClient().query(ref, {})).rejects.toThrow(/Could not find/);
+      await expect(clientWithToken(a.token).query(ref, {})).rejects.toThrow(/Could not find/);
+    }
   });
 
   it("slice 3: a hand-written one-entry map with a real account ID re-keys a doc through the tool", async () => {

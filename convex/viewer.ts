@@ -8,8 +8,7 @@
 // the token's subject. That is the component's session-validating
 // safeGetAuthUser, so signing out or revoking a session ends access before the
 // token itself expires. Links use "better-auth". D08g4c removed the Clerk-era
-// synthetic issuer; "clerk" links stay as data (identity:legacySubject reads
-// them) but no token resolves through them.
+// synthetic issuer; E03 removed the "clerk" links and the provider value.
 // The issuer check comes first because safeGetAuthUser trusts any token's
 // sessionId and subject claims, whoever signed it.
 import type { QueryCtx } from "./_generated/server";

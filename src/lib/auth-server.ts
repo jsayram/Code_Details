@@ -155,36 +155,32 @@ export async function betterAuthRole(): Promise<string | null> {
   }
 }
 
-const docOwnerQuery = makeFunctionReference<"query", Record<string, never>, { userId: string; legacySubject: string | null } | null>("identity:docOwner");
+const docOwnerQuery = makeFunctionReference<"query", Record<string, never>, { userId: string } | null>("identity:docOwner");
 
 /**
  * Who the generated-docs code may treat as an owner (generator re-key).
  * `writeKey` is the key a new doc is written with; `keys` are every key the
- * caller owns docs under; `legacyUserId` is the caller's Clerk-era subject,
- * because docs written before the re-key are keyed by it. They are the
- * session's own Convex account ID, plus its own Clerk-era subject while that
- * link exists, so an account that never had a Clerk login owns its docs too.
- * Null when nobody is signed in, or with Better Auth off (D08g4f2). Identity
- * comes only from the session. Server-side only; never sent to the client.
- * E03: `projectViewer` (for the Supabase project reads) is gone with them.
+ * caller owns docs under: the session's own Convex account ID. Null when
+ * nobody is signed in, or with Better Auth off (D08g4f2). Identity comes only
+ * from the session. Server-side only; never sent to the client. E03: the
+ * Clerk-era key (`legacyUserId`) and `projectViewer` are gone with the clerk
+ * links and the Supabase reads.
  */
 export type DocOwner = {
   writeKey: string;
   keys: string[];
-  legacyUserId: string | null;
 };
 
 export async function routeDocOwner(): Promise<DocOwner | null> {
   if (chooseAuthBackend().backend !== "better-auth") return null;
-  let owner: { userId: string; legacySubject: string | null } | null = null;
+  let owner: { userId: string } | null = null;
   try {
     owner = (await viewerQuery(docOwnerQuery))?.result ?? null;
   } catch {
     owner = null;
   }
   if (!owner?.userId) return null;
-  const keys = owner.legacySubject ? [owner.userId, owner.legacySubject] : [owner.userId];
-  return { writeKey: owner.userId, keys, legacyUserId: owner.legacySubject };
+  return { writeKey: owner.userId, keys: [owner.userId] };
 }
 
 // E03: routeUserId and routeViewer (the Clerk-era viewer for the Supabase

@@ -180,7 +180,6 @@ async function importRow(store: ImportStore, run: { startedAt: number }, step: S
       if (await store.userBySubject(r.subject)) return "duplicate_subject";
       if (await store.usernameHolder(r.usernameKey)) return "duplicate_username";
       const userId = await store.insert("users", { role: "user", tier: r.tier, status: "active", createdAt: r.createdAt });
-      await store.insert("authLinks", { userId, provider: "clerk", subject: r.subject, linkedAt: r.createdAt });
       await store.insert("profiles", {
         userId, username: r.username, usernameKey: r.usernameKey, firstName: r.firstName, lastName: r.lastName, fullName: r.fullName,
         avatar: r.avatarUrl ? { kind: "external", url: r.avatarUrl } : undefined, createdAt: r.createdAt, updatedAt: r.updatedAt,
@@ -188,6 +187,9 @@ async function importRow(store: ImportStore, run: { startedAt: number }, step: S
       await store.insert("usernames", { usernameKey: r.usernameKey, userId, state: "current", claimedAt: r.createdAt });
       await store.map("profiles", r.sourceId, "users", userId, r.rowHash);
       await store.map("profiles.email", r.sourceId, "users", userId, r.emailHmac);
+      // E03: the source (Clerk-era) subject is kept only here, for the later
+      // steps that resolve owners by it; it is no auth link and signs nobody in.
+      await store.map("profiles.subject", r.subject, "users", userId, r.rowHash);
       return null;
     }
     case "usernameHistory": {

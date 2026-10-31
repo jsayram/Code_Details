@@ -52,9 +52,10 @@ function storeFor(ctx: MutationCtx, runId: Id<"importRuns">): ImportStore {
       const docId = db.normalizeId(table as TableNames, id);
       return docId ? ((await db.get(docId)) as Record<string, unknown> | null) : null;
     },
+    // E03: the source subject maps to its user through importMap (no clerk auth link).
     async userBySubject(subject) {
-      const link = await db.query("authLinks").withIndex("by_provider_subject", (q) => q.eq("provider", "clerk").eq("subject", subject)).unique();
-      return link?.userId ?? null;
+      const hit = await db.query("importMap").withIndex("by_source", (q) => q.eq("sourceTable", "profiles.subject").eq("sourceId", subject)).first();
+      return hit?.targetId ?? null;
     },
     async tagByNameKey(nameKey) {
       return (await db.query("tags").withIndex("by_nameKey", (q) => q.eq("nameKey", nameKey)).first())?._id ?? null;

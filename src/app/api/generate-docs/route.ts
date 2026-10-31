@@ -191,7 +191,6 @@ export async function POST(request: NextRequest) {
         // Save project metadata
         await saveProjectMeta(projectSlug, {
           userId,
-          ...(owner?.legacyUserId ? { legacyUserId: owner.legacyUserId } : {}),
           repoUrl,
           repoOwner: repoInfo.owner,
           repoName: repoInfo.repo,

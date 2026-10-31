@@ -13,7 +13,7 @@ import path from "node:path";
 import type { APIRequestContext } from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
-import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, setRole, signIn as fixtureSignIn, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, setRole, signIn as fixtureSignIn, signUp as fixtureSignUp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 import { TEST_CONVEX_URL } from "../support/isolation";
@@ -28,14 +28,28 @@ const REAL_OUTPUT = path.join(ROOT, "src", "app", "output");
 const CHAPTER = "01_intro.md";
 const DOCS = { mine: "d11-fixture-mine", mine2: "d11-fixture-mine-two", theirs: "d11-fixture-theirs", linked: "d11s-fixture-linked", fresh: "genrekey-fixture-fresh", fresh2: "genrekey-fixture-fresh-two", convexLink: "genrekey-fixture-convex-link" };
 const getPublicBySlug = makeFunctionReference<"query", { slug: string }, { id: string } | null>("projects:getPublicBySlug");
-const docOwner = makeFunctionReference<"query", Record<string, never>, { userId: string; legacySubject: string | null } | null>("identity:docOwner");
+const docOwner = makeFunctionReference<"query", Record<string, never>, { userId: string } | null>("identity:docOwner");
 
 /** The account ID a Better Auth login's docs are keyed by, read in its own second session. */
-async function accountIdOf(email: string, legacySubject: string | null = null): Promise<string> {
+async function accountIdOf(email: string): Promise<string> {
   const session = await fixtureSignIn(email, SYNTHETIC_PASSWORD);
   expect(session.status).toBe(200);
   const owner = await clientWithToken((await convexToken(session.jar))!).query(docOwner, {});
-  expect(owner?.legacySubject ?? null).toBe(legacySubject);
+  return owner!.userId;
+}
+
+/**
+ * E03: persona `subject`'s account ID, the only key its docs can carry now
+ * that the Clerk-era legacy key is gone. Read through a throwaway linked
+ * login, released again afterwards.
+ */
+async function personaAccountId(subject: string, label: string): Promise<string> {
+  const email = syntheticEmail(label);
+  const res = await fixtureSignUp(email, SYNTHETIC_PASSWORD);
+  expect(res.status).toBe(200);
+  await linkPersona(subject, (await authState(email))!.authUserId);
+  const owner = await clientWithToken((await convexToken(res.jar))!).query(docOwner, {});
+  await releasePersona(subject);
   return owner!.userId;
 }
 
@@ -125,12 +139,14 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   let personaEmail = "";
 
   test.beforeAll(async ({ playwright }) => {
-    writeDoc(DOCS.mine, A.subject!);
-    writeDoc(DOCS.mine2, A.subject!);
+    // E03: A's docs are keyed by A's account ID (no Clerk-era legacy key any more).
+    const accountA = await personaAccountId(A.subject!, "d11-account-a");
+    writeDoc(DOCS.mine, accountA);
+    writeDoc(DOCS.mine2, accountA);
     writeDoc(DOCS.theirs, B.subject!);
     // Independent of test order and earlier runs: persona A starts with no Better Auth link.
     await releasePersona(A.subject!);
-    // A Better Auth login on Clerk-era persona A (the end state the removed D08d handover left).
+    // A Better Auth login on fixture persona A (the end state the removed D08d handover left).
     persona = await client(playwright);
     personaEmail = await signIn(persona, "d11-persona");
     await linkPersona(A.subject!, (await authState(personaEmail))!.authUserId);
@@ -271,15 +287,17 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
 // Each test signs in fresh; personas are released before and after the block.
 test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
   const CHAPTER_URL = `/github-scrapper/docs/${DOCS.linked}/${CHAPTER}`;
+  let accountA = "";
 
   test.beforeAll(async () => {
     // Generator re-key: under both switches projects live in Convex, so a link carries the Convex project ID.
     const linkedProjectId = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex"
       ? (await new ConvexHttpClient(TEST_CONVEX_URL).query(getPublicBySlug, { slug: LISTED.slug }))!.id
       : LISTED.id;
-    writeDoc(DOCS.linked, A.subject!, { linkedProjectId, linkedProjectSlug: LISTED.slug, linkedProjectTitle: LISTED.title });
     await releasePersona(A.subject!);
     await releasePersona(B.subject!);
+    accountA = await personaAccountId(A.subject!, "d11s-account-a");
+    writeDoc(DOCS.linked, accountA, { linkedProjectId, linkedProjectSlug: LISTED.slug, linkedProjectTitle: LISTED.title });
   });
   test.afterAll(async () => {
     fs.rmSync(path.join(OUTPUT, DOCS.linked), { recursive: true, force: true });
@@ -287,7 +305,7 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
     await releasePersona(B.subject!);
   });
 
-  /** Signs this page's browser in as a fresh Better Auth login on Clerk-era persona `subject`. */
+  /** Signs this page's browser in as a fresh Better Auth login on fixture persona `subject`. */
   async function signInPageAs(page: import("@playwright/test").Page, label: string, subject: string) {
     const email = await signIn(page.request, label, { origin: BASE_URL, "x-forwarded-for": freshClientIp() });
     await linkPersona(subject, (await authState(email))!.authUserId);
@@ -295,7 +313,7 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
 
   test("the owner sees the chapter and the Download All button", async ({ page }) => {
     await signInPageAs(page, "d11s-owner", A.subject!);
-    expect(await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json()).toMatchObject({ userId: A.subject, isOwner: true });
+    expect(await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json()).toMatchObject({ userId: accountA, isOwner: true });
     await page.goto(CHAPTER_URL);
     await expect(page.getByText("Synthetic chapter.")).toBeVisible();
     await expect(page.getByRole("button", { name: "Download All" })).toBeVisible();
@@ -307,7 +325,7 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
     await signInPageAs(page, "d11s-other", B.subject!);
     const meta = await (await page.request.get(`/api/docs/${DOCS.linked}/meta`)).json();
     expect(meta).toMatchObject({ userId: null, isOwner: false });
-    expect(JSON.stringify(meta)).not.toContain(A.subject!);
+    expect(JSON.stringify(meta)).not.toContain(accountA);
     expect((await page.request.get(`/api/docs/${DOCS.linked}/${CHAPTER}`)).status()).toBe(200);
     expect((await page.request.get(`/api/docs/${DOCS.linked}/download`)).status()).toBe(404);
     await page.goto(CHAPTER_URL);
@@ -340,7 +358,7 @@ test.describe.serial("generator re-key: linking to a Convex project (both switch
     const otherEmail = await signIn(other, "genrekey-link-other");
     await linkPersona(B.subject!, (await authState(otherEmail))!.authUserId);
     // A new doc of A's, keyed by A's account ID as the generator now writes it
-    writeDoc(DOCS.convexLink, await accountIdOf(ownerEmail, A.subject!), { legacyUserId: A.subject });
+    writeDoc(DOCS.convexLink, await accountIdOf(ownerEmail));
     // Convex project IDs, as the link picker and the community list see them
     for (const row of (await (await owner.get("/api/projects?limit=100")).json()).data) projectIds[row.slug] = row.id;
     for (const row of (await (await other.get("/api/projects?limit=100")).json()).data) projectIds[row.slug] = row.id;

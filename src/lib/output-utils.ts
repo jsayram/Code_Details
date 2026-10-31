@@ -28,8 +28,8 @@ export interface ChapterInfo {
 export interface ProjectMeta {
   projectSlug: string;
   userId: string;
-  // Generator re-key: the owner's Clerk-era subject, when `userId` is the
-  // account's Convex ID. Server-only; never in a response.
+  // Generator re-key: the owner's Clerk-era subject on docs re-keyed before
+  // E03. No longer written or used as a key; server-only, never in a response.
   legacyUserId?: string;
   repoUrl: string;
   repoOwner: string;

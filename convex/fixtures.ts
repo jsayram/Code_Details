@@ -6,7 +6,7 @@
 import { v } from "convex/values";
 import { createFunctionHandle } from "convex/server";
 import { components, internal } from "./_generated/api";
-import { internalAction, internalMutation, internalQuery } from "./_generated/server";
+import { internalAction, internalMutation, internalQuery, type MutationCtx } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { holdsOnlySignUpRows, removeSignUpAccount } from "./accounts";
 import { syncSearchText } from "./searchSync";
@@ -16,6 +16,21 @@ function assertFixturesAllowed() {
   if (process.env.CODEDETAILS_FIXTURES_ALLOWED !== "1") {
     throw new Error("fixtures are disabled on this deployment");
   }
+}
+
+// E03: the personas' Clerk-era auth links are gone. A persona is still found by
+// its synthetic subject (what the tests pass), through importMap under this
+// source table, the same "source key -> user" map the importer keeps. It is no
+// auth link and signs nobody in.
+const PERSONA_SOURCE = "fixtures.persona";
+async function personaUserId(ctx: { db: MutationCtx["db"] }, subject: string): Promise<Id<"users">> {
+  const hit = await ctx.db
+    .query("importMap")
+    .withIndex("by_source", (q) => q.eq("sourceTable", PERSONA_SOURCE).eq("sourceId", subject))
+    .first();
+  const userId = hit ? ctx.db.normalizeId("users", hit.targetId) : null;
+  if (!userId) throw new Error("no fixture persona with that subject");
+  return userId;
 }
 
 // D02r: favorites too, for the personal reads.
@@ -36,6 +51,10 @@ export const clear = internalMutation({
     // D08c: sign-up claims usernames; the loaded fixtures don't, so this table
     // stays out of TABLES (and of counts/snapshot) and is just emptied here.
     for (const doc of await ctx.db.query("usernames").collect()) await ctx.db.delete(doc._id);
+    // E03: the persona keys (importMap) and the run row they hang from.
+    for (const table of ["importMap", "importRuns"] as const) {
+      for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
+    }
     // D03: image rows (and their files) and tag suggestions added by the lifecycle tests.
     for (const doc of await ctx.db.query("projectImages").collect()) {
       if (await ctx.db.system.get(doc.storageId)) await ctx.storage.delete(doc.storageId);
@@ -129,12 +148,15 @@ export const load = internalMutation({
       if (await ctx.db.query(table).first()) throw new Error(`fixture load refused: ${table} is not empty`);
     }
     const users = new Map<string, Id<"users">>();
+    const runId = await ctx.db.insert("importRuns", {
+      sourceCapture: "fixtures", sourceFingerprint: "fixtures", startedAt: Date.now(), step: "fixtures", status: "complete", counts: {},
+    });
     for (const u of args.users) {
       const { key, subject, ...doc } = u;
       const userId = await ctx.db.insert("users", doc);
       users.set(key, userId);
-      // D01: the synthetic Clerk-era subject, so tests can sign in as this persona.
-      await ctx.db.insert("authLinks", { userId, provider: "clerk", subject, linkedAt: doc.createdAt });
+      // The persona's synthetic subject, so tests can link a Better Auth login to it (linkPersona).
+      await ctx.db.insert("importMap", { runId, sourceTable: PERSONA_SOURCE, sourceId: subject, targetTable: "users", targetId: userId, rowHash: "" });
     }
     for (const p of args.profiles) {
       const { userKey, avatarUrl, ...rest } = p;
@@ -299,48 +321,34 @@ export const setRole = internalMutation({
   },
 });
 
-// D11: undo linkPersona (below) for a Clerk-era persona, so a test that links
+// D11: undo linkPersona (below) for a fixture persona, so a test that links
 // it doesn't depend on test order or earlier runs. Removes the persona's
-// "better-auth" links only; its Clerk-era link and data stay.
+// "better-auth" links; its data stays.
 export const releasePersona = internalMutation({
   args: { clerkSubject: v.string() },
   handler: async (ctx, { clerkSubject }) => {
     assertFixturesAllowed();
-    const clerk = await ctx.db
-      .query("authLinks")
-      .withIndex("by_provider_subject", (q) => q.eq("provider", "clerk").eq("subject", clerkSubject))
-      .unique();
-    if (!clerk) throw new Error("no Clerk-era persona with that subject");
+    const userId = await personaUserId(ctx, clerkSubject);
     const links = await ctx.db
       .query("authLinks")
-      .withIndex("by_user", (q) => q.eq("userId", clerk.userId))
+      .withIndex("by_user", (q) => q.eq("userId", userId))
       .collect();
-    let removed = 0;
-    for (const link of links) {
-      if (link.provider === "better-auth") {
-        await ctx.db.delete(link._id);
-        removed++;
-      }
-    }
-    return removed;
+    for (const link of links) await ctx.db.delete(link._id);
+    return links.length;
   },
 });
 
 // D08g4b: the D08d handover is gone, so tests that need a Better Auth login
-// on a Clerk-era persona (D11's legacySubject) link it here instead. Same end
+// on a fixture persona link it here instead. Same end
 // state the handover left: the persona takes the login, and the account the
 // sign-up made goes away, only if it still holds nothing but sign-up rows.
 export const linkPersona = internalMutation({
   args: { clerkSubject: v.string(), authUserId: v.string() },
   handler: async (ctx, { clerkSubject, authUserId }) => {
     assertFixturesAllowed();
-    const clerk = await ctx.db
-      .query("authLinks")
-      .withIndex("by_provider_subject", (q) => q.eq("provider", "clerk").eq("subject", clerkSubject))
-      .unique();
-    if (!clerk) throw new Error("no Clerk-era persona with that subject");
-    for (const link of await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", clerk.userId)).collect()) {
-      if (link.provider === "better-auth") await ctx.db.delete(link._id);
+    const personaId = await personaUserId(ctx, clerkSubject);
+    for (const link of await ctx.db.query("authLinks").withIndex("by_user", (q) => q.eq("userId", personaId)).collect()) {
+      await ctx.db.delete(link._id);
     }
     const current = await ctx.db
       .query("authLinks")
@@ -350,8 +358,8 @@ export const linkPersona = internalMutation({
       if (!(await holdsOnlySignUpRows(ctx, current.userId))) throw new Error("that login's account holds more than sign-up rows");
       await removeSignUpAccount(ctx, current.userId);
     }
-    await ctx.db.insert("authLinks", { userId: clerk.userId, provider: "better-auth", subject: authUserId, linkedAt: Date.now() });
-    await ctx.db.patch(clerk.userId, { authUserId });
+    await ctx.db.insert("authLinks", { userId: personaId, provider: "better-auth", subject: authUserId, linkedAt: Date.now() });
+    await ctx.db.patch(personaId, { authUserId });
   },
 });
 

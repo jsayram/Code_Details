@@ -30,7 +30,8 @@ export default defineSchema({
   // users row; a mutation keeps (provider, subject) unique. Never linked by email.
   authLinks: defineTable({
     userId: v.id("users"),
-    provider: v.union(v.literal("clerk"), v.literal("better-auth")),
+    // E03: "better-auth" only; the Clerk-era "clerk" links are gone (3220 and 3240 held none).
+    provider: v.literal("better-auth"),
     subject: v.string(),
     linkedAt: v.number(),
   })

@@ -40,9 +40,9 @@ const CLERK_A = "user_fixture_genrekey_a";
 const CLERK_B = "user_fixture_genrekey_b";
 
 // The shapes routeDocOwner returns.
-const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null });
-const baLinked = (id: string, subject: string): DocOwner => ({ writeKey: id, keys: [id, subject], legacyUserId: subject });
-const clerk = (subject: string): DocOwner => ({ writeKey: subject, keys: [subject], legacyUserId: null });
+const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id] });
+const baLinked = (id: string, subject: string): DocOwner => ({ writeKey: id, keys: [id, subject] });
+const clerk = (subject: string): DocOwner => ({ writeKey: subject, keys: [subject] });
 
 const OUTPUT = docsOutputRoot();
 const CHAPTER = "01_intro.md";
@@ -135,11 +135,13 @@ describe("generator re-key: owner keys", () => {
     expect((await chapter(DOCS.newB)).status).toBe(404);
   });
 
-  it("with Clerk (the default) the owner keeps a re-keyed doc through legacyUserId, and another subject doesn't", async () => {
+  // E03: legacyUserId is no longer a key. A Clerk-era subject owns only the
+  // docs still keyed by it in userId (written before the re-key, never re-keyed).
+  it("a Clerk-era subject no longer owns a re-keyed doc through legacyUserId", async () => {
     session.owner = clerk(CLERK_A);
-    expect(await listed()).toEqual([DOCS.linkedA, DOCS.oldA, DOCS.rekeyedA].sort());
-    expect((await chapter(DOCS.rekeyedA)).status).toBe(200);
-    expect((await put(DOCS.rekeyedA)).status).toBe(200);
+    expect(await listed()).toEqual([DOCS.oldA]);
+    expect((await chapter(DOCS.rekeyedA)).status).toBe(404);
+    expect((await put(DOCS.rekeyedA)).status).toBe(403);
     session.owner = clerk(CLERK_B);
     expect(await listed()).toEqual([]);
     expect((await chapter(DOCS.rekeyedA)).status).toBe(404);
@@ -180,16 +182,16 @@ describe("generator re-key: linked docs", () => {
   // E03: a non-owner's read of a linked doc goes through the Convex public
   // projection only (gen-rekey-links.test.ts covers it); the Clerk-keyed
   // Supabase project lookup is gone. Without a local Convex, another user
-  // reads a linked doc as missing; the owner still reads it by either key.
-  it("without Convex another user reads a linked doc as missing; the owner reads it by either key", async () => {
+  // reads a linked doc as missing; the owner still reads it by its account ID.
+  it("without Convex another user reads a linked doc as missing; the owner reads it by its account ID", async () => {
     session.owner = baLinked(CONVEX_B, CLERK_B);
     expect((await chapter(DOCS.linkedA)).status).toBe(404);
     expect((await meta(DOCS.linkedA)).status).toBe(404);
     session.owner = baOnly(CONVEX_B);
     expect((await chapter(DOCS.linkedA)).status).toBe(404);
-    for (const owner of [baOnly(CONVEX_A), clerk(CLERK_A)]) {
-      session.owner = owner;
-      expect((await chapter(DOCS.linkedA)).status).toBe(200);
-    }
+    session.owner = baOnly(CONVEX_A);
+    expect((await chapter(DOCS.linkedA)).status).toBe(200);
+    session.owner = clerk(CLERK_A);
+    expect((await chapter(DOCS.linkedA)).status).toBe(404);
   });
 });

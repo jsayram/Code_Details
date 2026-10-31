@@ -57,7 +57,7 @@ const A = "k17genrekeylinksaaaaaaaaaaaaaaaa";
 const B = "k17genrekeylinksbbbbbbbbbbbbbbbb";
 const C = "k17genrekeylinkscccccccccccccccc";
 const CLERK_A = "user_fixture_genrekey_links_a";
-const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null });
+const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id] });
 
 // Convex project IDs (shape only).
 const A_PUBLIC = { id: "j97genrekeyprojectapublic0000000", slug: "genrekey-a-public", title: "A's public project" };

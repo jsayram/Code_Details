@@ -19,8 +19,9 @@ const LEGACY = /\brouteViewer\(|\brouteUserId\(|\blegacySubject\b|\blegacyUserId
 // E03: the Supabase fallback reads and their Clerk-era viewer (routeViewer,
 // routeUserId, DocOwner.projectViewer) are gone. What is left: generated docs
 // written before the re-key keep the Clerk subject (_meta.json userId or legacyUserId).
+// E03 (2c): docOwner's legacy key is gone and generate-docs no longer writes
+// it; these two only strip it from responses and type the old metadata field.
 const DOCS = [
-  "src/app/api/generate-docs/route.ts",
   "src/lib/docs-access.ts",
   "src/lib/output-utils.ts",
 ];

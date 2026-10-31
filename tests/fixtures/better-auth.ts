@@ -161,9 +161,9 @@ export interface AccountRows {
   usernames: { usernameKey: string; state: string }[];
 }
 
-/** D11: remove a Clerk-era persona's Better Auth links (undo linkPersona). */
+/** D11: remove a fixture persona's Better Auth links (undo linkPersona). */
 export const releasePersona = (clerkSubject: string) => adminClient().mutation(ref.releasePersona, { clerkSubject });
-/** D08g4b: give a Clerk-era persona a Better Auth login (what the removed D08d handover did). */
+/** D08g4b: give a fixture persona a Better Auth login (what the removed D08d handover did). */
 export const linkPersona = (clerkSubject: string, authUserId: string) => adminClient().mutation(ref.linkPersona, { clerkSubject, authUserId });
 /** D08g4c: remove a fresh login's app account, leaving a valid token that names nobody. */
 export const unlinkLogin = (authUserId: string) => adminClient().mutation(ref.unlinkLogin, { authUserId });

@@ -6,8 +6,9 @@
 // reads as a missing doc. `owner` must come from routeDocOwner(), never a request.
 //
 // Generator re-key: a doc is the caller's when its `userId` (the account's
-// Convex ID on new docs, a Clerk subject on older ones) or its `legacyUserId`
-// is one of the caller's own keys.
+// Convex ID) is one of the caller's own keys. E03: a Clerk-era `legacyUserId`
+// left in an older doc's metadata is never a key any more; it is still
+// stripped from the owner's responses (ownerMeta).
 import { getProjectReadBackend } from '@/backend/projects';
 import { personalReadsFromConvex } from '@/backend/projects/personal';
 import { getProjectMeta, type ProjectMeta } from '@/lib/output-utils';
@@ -16,10 +17,9 @@ import type { DocOwner } from '@/lib/auth-server';
 
 export type ReadableDoc = { meta: ProjectMeta; isOwner: boolean };
 
-export function isDocOwner(meta: Pick<ProjectMeta, 'userId' | 'legacyUserId'> | null | undefined, owner: DocOwner | null): boolean {
+export function isDocOwner(meta: Pick<ProjectMeta, 'userId'> | null | undefined, owner: DocOwner | null): boolean {
   if (!meta || !owner) return false;
-  const docKeys = [meta.userId, meta.legacyUserId].filter((k): k is string => typeof k === 'string' && k.length > 0);
-  return docKeys.some((k) => owner.keys.includes(k));
+  return typeof meta.userId === 'string' && meta.userId.length > 0 && owner.keys.includes(meta.userId);
 }
 
 export async function readableDoc(slug: string, owner: DocOwner | null): Promise<ReadableDoc | null> {

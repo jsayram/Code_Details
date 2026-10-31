@@ -152,11 +152,13 @@ describe("docs-rekey apply and restore", () => {
     expect(allHashes()).toEqual(after);
   });
 
-  it("the app finds the owner of a re-keyed doc in Clerk mode and under the switch, and nobody else", () => {
+  // E03: a re-keyed doc belongs to the account ID in userId only; the
+  // Clerk-era subject kept as legacyUserId is no longer a key.
+  it("the app finds the owner of a re-keyed doc by its account ID, and nobody else", () => {
     expect(run("--root", ROOT, "--map", MAP_FILE, "--apply", "--backup", backupDir("1")).code).toBe(0);
     const doc = readMeta(SLUGS.a1);
-    const owner = (keys: string[]): DocOwner => ({ writeKey: keys[0], keys, legacyUserId: null });
-    expect(isDocOwner(doc, owner([CLERK_A]))).toBe(true); // Clerk mode
+    const owner = (keys: string[]): DocOwner => ({ writeKey: keys[0], keys });
+    expect(isDocOwner(doc, owner([CLERK_A]))).toBe(false); // the old Clerk-era key
     expect(isDocOwner(doc, owner([ACC_A]))).toBe(true); // Better Auth, no Clerk link
     expect(isDocOwner(doc, owner([ACC_A, CLERK_A]))).toBe(true);
     expect(isDocOwner(doc, owner([CLERK_B]))).toBe(false);

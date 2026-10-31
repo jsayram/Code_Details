@@ -25,7 +25,7 @@ async function loginFor(subject: string): Promise<Login> {
     await linkPersona(subject, authUserId);
   } catch (e) {
     // Not a fixture persona: a valid login that names no account.
-    if (!String(e).includes("no Clerk-era persona")) throw e;
+    if (!String(e).includes("no fixture persona")) throw e;
     await unlinkLogin(authUserId);
   }
   const token = await convexToken(res.jar);
