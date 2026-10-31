@@ -10,6 +10,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { ACTIVE as slot } from "../support/slot.cjs";
+import { pushGuardProblems, takeExpectHead } from "./push-guard.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 // D00b: `--target import` pushes to the import backend instead
@@ -30,6 +31,21 @@ if (targetFlag !== -1) argv.splice(targetFlag, 2);
 // push from a worktree reaches the same deployment. It gets no fixtures,
 // import, purge or sweep flag, and no GitHub values.
 if (!["test", "import", "manual", "dev"].includes(target)) throw new Error(`unknown --target ${target}`);
+// SEC-D09-PUSHHEAD (tests/convex/push-guard.mjs): the dev and import backends hold
+// real data, so a push there names its commit and refuses on any mismatch.
+const expectHead = takeExpectHead(argv);
+{
+  const git = (args) => {
+    const r = spawnSync("git", args, { cwd: root, encoding: "utf8" });
+    if (r.status !== 0) throw new Error(`git ${args.join(" ")} failed: ${r.stderr}`);
+    return r.stdout;
+  };
+  const problems = pushGuardProblems({ target, expectHead, cwd: root, git, exists: fs.existsSync });
+  if (problems.length) {
+    console.error(`refusing to push to the ${target} backend:\n- ${problems.join("\n- ")}`);
+    process.exit(1);
+  }
+}
 const mainRoot = () =>
   path.dirname(path.resolve(root, spawnSync("git", ["rev-parse", "--git-common-dir"], { cwd: root, encoding: "utf8" }).stdout.trim()));
 const runtime = {
