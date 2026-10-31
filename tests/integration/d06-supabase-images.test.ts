@@ -1,10 +1,8 @@
-// D06-a: the default (Clerk + Supabase) image actions after the containment.
-// The real exported server actions, called as the client calls them, against
-// the isolated test database. Storage is stubbed: nothing here reaches a
-// bucket, and the stub records which paths the server would have deleted.
-// R11: a registration's path must be the caller's own upload for that project,
-// and the URL comes from the path. R12: reorder moves only that project's
-// images. R33: replacing a logo replaces the logo, never the cover.
+// D06-a: the image actions after the containment, against the isolated test
+// database. E03: the Supabase registration, client storage and reads are gone;
+// what is left checks that the old callable exports stay gone and that no
+// image is read from Supabase without Convex. R11, R12 and R33 are covered on
+// Convex (d06-convex-images).
 import type postgres from "postgres";
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
@@ -15,45 +13,19 @@ import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
 vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
-const deletedFromStorage = vi.hoisted(() => [] as string[]);
-vi.mock("@/lib/supabase-storage", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("../../src/lib/supabase-storage")>()),
-  deleteProjectImage: async (path: string) => {
-    deletedFromStorage.push(path);
-    return { success: true };
-  },
-}));
 
 const set = generateFixtures();
 const A = set.personas.a;
 const B = set.personas.b;
 const project = (c: string) => set.projects.find((p) => p.case === c)!;
 const listed = project("listed"); // A's, with the fixture images
-const ownedByB = project("ownedByB");
 const deletedRecent = project("deletedRecent"); // A's, soft-deleted
 
-const FILE = "0b9a3c2e-4f1d-4e8a-9c7b-2d5e6f708192-shot.png";
-const pathFor = (subject: string, projectId: string, file = FILE) => `${subject}/${projectId}/${file}`;
 const publicUrl = (path: string) => `${TEST_SUPABASE_URL}/storage/v1/object/public/project-images/${path}`;
 
 describe.skipIf(!testDbAvailable())("D06-a Supabase images", () => {
   let sql: postgres.Sql;
   let actions: typeof import("../../src/app/actions/project-images.js");
-
-  const upload = (over: Record<string, unknown> = {}) =>
-    actions.createProjectImageAction({
-      projectId: listed.id,
-      storagePath: pathFor(A.subject!, listed.id),
-      storageUrl: "ignored",
-      fileName: "shot.png",
-      fileSize: 1234,
-      mimeType: "image/png",
-      width: 800,
-      height: 600,
-      imageType: "screenshot",
-      aspectRatio: "16:9",
-      ...over,
-    } as Parameters<typeof actions.createProjectImageAction>[0]);
 
   const insertImage = async (projectId: string, key: string, order = 0) =>
     (
@@ -68,7 +40,6 @@ describe.skipIf(!testDbAvailable())("D06-a Supabase images", () => {
   });
   beforeEach(async () => {
     signInAs(null);
-    deletedFromStorage.length = 0;
     await cleanupFixtures(sql);
     await loadFixtures(sql, set);
   });
@@ -80,13 +51,9 @@ describe.skipIf(!testDbAvailable())("D06-a Supabase images", () => {
     await sql.end();
   });
 
-  it("R11: registering B's file and replacing it can't delete B's file", async () => {
-    signInAs(A.subject);
-    const victim = pathFor(B.subject!, ownedByB.id);
-    await upload({ storagePath: victim, imageType: "cover" });
-    await upload({ imageType: "cover" });
-    expect(deletedFromStorage).not.toContain(victim);
-  });
+  // R11 ("registering B's file and replacing it can't delete B's file") tested the
+  // Supabase registration path and its client-side storage delete, both gone in
+  // E03; d06-convex-images covers R11 on Convex (an attached file can't be taken over).
 
   it("the unvalidated update and the unused count read are no longer callable", () => {
     expect((actions as Record<string, unknown>).updateProjectImageAction).toBeUndefined();

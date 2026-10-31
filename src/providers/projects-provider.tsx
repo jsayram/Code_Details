@@ -60,7 +60,6 @@ export function useProjects() {
 
 interface ProjectsProviderProps {
   children: React.ReactNode;
-  token: string | null;
   userId: string | null;
   isLoading?: boolean;
   initialFilters?: Partial<ProjectFilters>;
@@ -94,10 +93,6 @@ function getProjectsCacheKey(
 
 export function ProjectsProvider({
   children,
-  // D08g4g: no longer read (it was the Clerk-era Supabase token); the pages
-  // still pass it until E03 removes the Supabase path.
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  token: _token,
   userId,
   isLoading,
   initialFilters = {},

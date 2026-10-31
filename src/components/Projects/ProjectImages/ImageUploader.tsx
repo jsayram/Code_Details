@@ -29,10 +29,6 @@ import {
   ASPECT_RATIOS,
   ASPECT_RATIO_INFO,
 } from "@/types/project-images";
-import {
-  uploadProjectImage,
-  generateStoragePath,
-} from "@/lib/supabase-storage";
 import { beginProjectImageUploadAction, createProjectImageAction } from "@/app/actions/project-images";
 import Image from "next/image";
 
@@ -189,33 +185,21 @@ export function ImageUploader({
         prev.map((p) => (p.id === pending.id ? { ...p, progress: 30 } : p))
       );
 
-      // D06-b: the server says where the bytes go. Supabase keeps its own
-      // upload; on Convex the server hands out a one-time upload URL.
+      // D06-b: the server hands out a one-time Convex upload URL (E03: the
+      // Supabase Storage upload is gone).
       const target = await beginProjectImageUploadAction(projectId, imageType);
       if (!target.success) {
         throw new Error(target.error || "Upload failed");
       }
 
-      let storage: { path: string; url: string; storageId?: string };
-      if (target.data.backend === "convex") {
-        const response = await fetch(target.data.uploadUrl, {
-          method: "POST",
-          headers: { "Content-Type": pending.file.type },
-          body: pending.file,
-        });
-        const uploaded = response.ok ? ((await response.json()) as { storageId?: string }) : null;
-        if (!uploaded?.storageId) {
-          throw new Error("Upload failed");
-        }
-        storage = { path: "", url: "", storageId: uploaded.storageId };
-      } else {
-        // Upload to Supabase Storage
-        const uploadResult = await uploadProjectImage(pending.file, userId, projectId);
-
-        if (!uploadResult.success || !uploadResult.url || !uploadResult.path) {
-          throw new Error(uploadResult.error || "Upload failed");
-        }
-        storage = { path: uploadResult.path, url: uploadResult.url };
+      const response = await fetch(target.data.uploadUrl, {
+        method: "POST",
+        headers: { "Content-Type": pending.file.type },
+        body: pending.file,
+      });
+      const uploaded = response.ok ? ((await response.json()) as { storageId?: string }) : null;
+      if (!uploaded?.storageId) {
+        throw new Error("Upload failed");
       }
 
       // Check if cancelled after upload
@@ -242,9 +226,7 @@ export function ImageUploader({
       // Create database record
       const result = await createProjectImageAction({
         projectId,
-        storagePath: storage.path,
-        storageUrl: storage.url,
-        storageId: storage.storageId,
+        storageId: uploaded.storageId,
         fileName: pending.file.name,
         fileSize: pending.file.size,
         mimeType: pending.file.type,

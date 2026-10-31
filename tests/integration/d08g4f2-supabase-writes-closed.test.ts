@@ -21,7 +21,6 @@ const project = (c: string) => set.projects.find((p) => p.case === c)!;
 const listed = project("listed"); // A's, with the fixture images
 const deletedRecent = project("deletedRecent"); // A's, soft-deleted
 const ownedByB = project("ownedByB");
-const FILE = "0b9a3c2e-4f1d-4e8a-9c7b-2d5e6f708192-shot.png";
 
 describe.skipIf(!testDbAvailable())("D08g4f2: Supabase writes refuse even the owner", () => {
   let sql: postgres.Sql;
@@ -79,7 +78,7 @@ describe.skipIf(!testDbAvailable())("D08g4f2: Supabase writes refuse even the ow
     expect(
       await images.createProjectImageAction({
         projectId: listed.id,
-        storagePath: `${A.subject}/${listed.id}/${FILE}`,
+        storageId: "kg2fixturestorageid",
         fileName: "shot.png",
         fileSize: 1234,
         mimeType: "image/png",
@@ -96,7 +95,6 @@ describe.skipIf(!testDbAvailable())("D08g4f2: Supabase writes refuse even the ow
   it("tag suggestions", async () => {
     const before = await snapshot();
     expect(await tags.submitNewTag("fixture-g4f2-tag", listed.id)).toEqual({ success: false, error: "You must be signed in to suggest tags" });
-    await tags.approveRejectedTagSubmission(listed.id, "fixture-g4f2-tag");
     expect(await snapshot()).toBe(before);
   });
 });

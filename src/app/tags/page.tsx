@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -18,9 +17,8 @@ import { useState, useEffect } from "react";
 import { HighlightText } from "@/components/HighlightText";
 
 export default function TagsIndexPage() {
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
-  const viewer = usePersonalPageViewer({ token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Better Auth).
+  const viewer = usePersonalPageViewer();
   const router = useRouter();
   const { tags: allTags, isLoading: tagsLoading } = useTags();
   const [searchQuery, setSearchQuery] = useState("");
@@ -60,7 +58,7 @@ export default function TagsIndexPage() {
   };
 
   return (
-    <ProjectsProvider token={viewer.token} userId={viewer.userId}>
+    <ProjectsProvider userId={viewer.userId}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

@@ -40,7 +40,6 @@ import {
   setProjectCoverImageAction,
   permanentlyDeleteProjectImageAction,
 } from "@/app/actions/project-images";
-import { deleteProjectImage as deleteFromStorage } from "@/lib/supabase-storage";
 
 interface ProjectImagesManagerProps {
   projectId: string;
@@ -116,12 +115,9 @@ export function ProjectImagesManager({
     // Delete all pending images from storage and database
     for (const image of pendingImages) {
       try {
+        // The server deletes the file too (Convex, D06-b).
         const result = await permanentlyDeleteProjectImageAction(image.id);
-        // An empty path means the server already deleted the file (Convex, D06-b).
-        if (result.success && result.data.storagePath) {
-          await deleteFromStorage(result.data.storagePath);
-          console.log("Deleted pending image:", image.id);
-        }
+        if (result.success) console.log("Deleted pending image:", image.id);
       } catch (err) {
         console.error("Error discarding image:", err);
       }
@@ -222,9 +218,7 @@ export function ProjectImagesManager({
       const result = await permanentlyDeleteProjectImageAction(imageToDelete.id);
       
       if (result.success) {
-        // Then delete from storage (an empty path: the server already did, D06-b)
-        if (result.data.storagePath) await deleteFromStorage(result.data.storagePath);
-        
+        // The server deleted the file too (Convex, D06-b).
         // Update local state
         setImages((prev) => prev.filter((img) => img.id !== imageToDelete.id));
         toast.success("Image deleted");

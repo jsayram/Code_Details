@@ -117,19 +117,6 @@ export async function rejectTagSubmission(submissionId: string, adminNotes: stri
   revalidateAfterModeration();
 }
 
-// After the owner saves a tag that came from a rejected suggestion's link,
-// this marked their own rejected Supabase suggestion approved. Convex keeps a
-// rejected suggestion as it was (the owner's save adds the tag), and D08g4f2
-// removed the Clerk-keyed Supabase update, so it does nothing. Kept so the
-// callers don't change; E03 can remove it with them.
-/* eslint-disable @typescript-eslint/no-unused-vars */
-export async function approveRejectedTagSubmission(
-  _projectId: string,
-  _tagName: string,
-  _submitterEmail?: string
-): Promise<void> {}
-/* eslint-enable @typescript-eslint/no-unused-vars */
-
 function revalidateAfterModeration() {
   revalidateTag(CACHE_TAGS.TAGS, {});
   revalidateTag(CACHE_TAGS.PROJECTS, {});

@@ -7,7 +7,6 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectCreateComponent } from "@/components/Projects/ProjectComponents/ProjectCreateComponent";
-import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
 import { SelectUserWithProject } from "@/db/schema/projects";
@@ -17,7 +16,6 @@ import { useDisplayUser } from "@/components/auth/useDisplayUser";
 export default function CreateProjectPage() {
   // D08g4e3: the signed-in user's display fields from the app's login.
   const { user } = useDisplayUser();
-  const { token } = useSupabaseToken();
   // D03: the page follows the Better Auth session; ProtectedPage below sends
   // a signed-out visitor to sign in, and the save goes to Convex, which takes
   // the creator from the session.
@@ -53,7 +51,7 @@ export default function CreateProjectPage() {
   };
 
   return (
-    <ProjectsProvider token={token} userId={ownerId || null} isLoading={false}>
+    <ProjectsProvider userId={ownerId || null} isLoading={false}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

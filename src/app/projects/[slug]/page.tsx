@@ -15,7 +15,6 @@ import {
 import { PageBanner } from "@/components/ui/page-banner";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { ProjectsProvider } from "@/providers/projects-provider";
-import { cookies } from "next/headers";
 import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import { currentSlugFor, ownProjectForEdit } from "@/backend/projects/owner-edit";
@@ -46,8 +45,6 @@ export default async function ProjectPage({
     ({ project, userProfile: user } = own
       ?? (publicProject ? toProjectContentProps(publicProject) : { project: null, userProfile: null }));
   }
-  const cookieStore = await cookies();
-  const token = cookieStore.get("__supabase_auth_token")?.value || null;
 
   if (!project) {
     // D02 (P08 R28): an old slug redirects to the current one (Convex read only).
@@ -87,7 +84,7 @@ export default async function ProjectPage({
             />
           </div>
         </SignedOut>
-        <ProjectsProvider token={token} userId={null} isLoading={false}>
+        <ProjectsProvider userId={null} isLoading={false}>
           <Suspense
             fallback={
               <div className="container mx-auto px-4 py-8">

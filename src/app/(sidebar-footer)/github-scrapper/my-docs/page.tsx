@@ -40,7 +40,6 @@ import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
 import { HeaderSection } from '@/components/layout/HeaderSection';
 import { FooterSection } from '@/components/layout/FooterSection';
 import { PageBanner } from '@/components/ui/page-banner';
-import { useSupabaseToken } from '@/hooks/use-supabase-token';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { AssignToProjectDialog } from '@/components/docs/AssignToProjectDialog';
 import {
@@ -494,10 +493,9 @@ function MyDocsContent() {
 export default function MyDocsPage() {
   // D08g4e3: the app's login (Clerk or Better Auth).
   const viewerId = useViewerId();
-  const { token } = useSupabaseToken();
 
   return (
-    <ProjectsProvider token={token} userId={viewerId ?? null}>
+    <ProjectsProvider userId={viewerId ?? null}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

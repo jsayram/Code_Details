@@ -33,12 +33,10 @@ import { Separator } from "@/components/ui/separator";
 import { SelectProject } from "@/db/schema/projects";
 import { validateUrlFormat } from "@/lib/url-validation";
 import { toast } from "sonner";
-import { useAccountSummary } from "@/components/auth/AccountButton";
 import { SignedOut, useViewerId } from "@/components/auth/AuthGate";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createProject, updateProject } from "@/app/actions/projects";
-import { approveRejectedTagSubmission } from "@/app/actions/tag-submissions";
 import { TagSelector } from "./TagSelectorComponent";
 import { TagInfo } from "@/db/operations/tag-operations";
 import { Input } from "@/components/ui/input";
@@ -94,8 +92,6 @@ export function ProjectContent({
   userProfile,
   create = false,
 }: ProjectContentProps): React.ReactElement {
-  // D08g4e2: the signed-in account's email (approves a rejected tag below).
-  const { email: accountEmail } = useAccountSummary();
   const router = useRouter();
   const searchParams = useSearchParams();
 
@@ -645,29 +641,6 @@ export function ProjectContent({
           
           // Clear pending images count - they are now saved (no need to discard)
           setPendingImageCount(0);
-
-          // Check if there was a tag from URL that was added
-          const tagFromUrl = searchParams?.get("tag");
-          if (tagFromUrl && accountEmail) {
-            // Check if the tag from URL is in the saved tags
-            const tagWasAdded = projectData.tags.some(
-              (tag) => tag.toLowerCase() === tagFromUrl.toLowerCase()
-            );
-            
-            if (tagWasAdded) {
-              // Approve the rejected tag submission
-              try {
-                await approveRejectedTagSubmission(
-                  project.id,
-                  tagFromUrl,
-                  accountEmail
-                );
-              } catch (error) {
-                console.error("Failed to approve rejected tag submission:", error);
-                // Don't throw - project was saved successfully
-              }
-            }
-          }
 
           // Reset form initialization state
           formInitializedRef.current = false;

@@ -37,12 +37,8 @@ import {
 
 export interface ImageUploadInput {
   projectId: string;
-  /** Supabase path; "" on the Convex path. */
-  storagePath: string;
-  /** Convex path only: the ID the upload URL returned. */
-  storageId?: string;
-  /** Ignored: the server derives the URL from the validated path (D06, R11). */
-  storageUrl?: string;
+  /** The ID the upload URL returned (E03: the Supabase path and URL fields are gone). */
+  storageId: string;
   fileName: string;
   fileSize?: number;
   mimeType?: string;
@@ -71,13 +67,12 @@ export interface ImageUploadInput {
 /**
  * Where the browser uploads the file: a one-time Convex upload URL after the
  * owner, privacy and limit checks (D06-b). D08g4f2: the Supabase flow is gone,
- * so off the Convex path this refuses (the result type keeps "supabase" so the
- * uploader doesn't change until E03).
+ * so off the Convex path this refuses.
  */
 export async function beginProjectImageUploadAction(
   projectId: string,
   imageType: ImageType
-): Promise<ActionResult<{ backend: "supabase" } | { backend: "convex"; uploadUrl: string }>> {
+): Promise<ActionResult<{ uploadUrl: string }>> {
   try {
     // D08g4f2: no Supabase upload any more (its registration needed a Clerk login).
     if (!imageWritesToConvex()) return unauthorizedError("Authentication required to upload images");
@@ -85,7 +80,7 @@ export async function beginProjectImageUploadAction(
       return validationError(`Invalid image type. Must be one of: ${IMAGE_TYPES.join(", ")}`);
     }
     const result = await imageUploadUrlOnConvex(projectId, imageType);
-    return "uploadUrl" in result ? actionSuccess({ backend: "convex" as const, uploadUrl: result.uploadUrl }) : result;
+    return "uploadUrl" in result ? actionSuccess({ uploadUrl: result.uploadUrl }) : result;
   } catch (error) {
     console.error("Error starting image upload:", error);
     return serverError(error, "Failed to start upload");
@@ -206,12 +201,12 @@ export async function deleteProjectImageAction(
  */
 export async function permanentlyDeleteProjectImageAction(
   imageId: string
-): Promise<ActionResult<{ storagePath: string }>> {
+): Promise<ActionResult<null>> {
   try {
-    // Convex deletes the file itself; the empty path tells the client there is nothing left to delete.
+    // Convex deletes the file itself; the client has nothing left to delete.
     if (imageWritesToConvex()) {
       const done = await deleteImageOnConvex(String(imageId), true);
-      return done === true ? actionSuccess({ storagePath: "" }) : done;
+      return done === true ? actionSuccess(null) : done;
     }
 
     return unauthorizedError("Authentication required to permanently delete images");

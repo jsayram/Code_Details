@@ -51,8 +51,9 @@ describe("Clerk is gone", () => {
       "src/components/auth/useSupabaseTokenSession.ts",
       "src/backend/auth/context.tsx",
       "tests/e2e/clerk-signed-out-stub.js",
+      // E03: the anonymous Supabase client that kept these exports company.
+      "src/services/supabase.ts",
     ]) expect(fs.existsSync(path.join(root, gone)), gone).toBe(false);
-    expect(read("src/services/supabase.ts")).not.toMatch(/export function (createClerkSupabaseClient|getAuthenticatedClient)\b/);
   });
 
   it("no Clerk env is required, and only the imported-avatar host stays in next.config", () => {

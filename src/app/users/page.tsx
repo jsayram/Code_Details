@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { HeaderSection } from "@/components/layout/HeaderSection";
@@ -13,12 +12,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { UserList } from "@/components/UserList";
 
 export default function UsersIndexPage() {
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
-  const viewer = usePersonalPageViewer({ token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Better Auth).
+  const viewer = usePersonalPageViewer();
 
   return (
-    <ProjectsProvider token={viewer.token} userId={viewer.userId}>
+    <ProjectsProvider userId={viewer.userId}>
       <SidebarProvider>
         <AppSidebar />
         <SidebarInset>

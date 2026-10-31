@@ -9,7 +9,6 @@ import React, { use, useMemo, useState } from "react";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 // Custom Hooks
-import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 
 // Application Components and Pages (Custom)
@@ -42,9 +41,8 @@ import { Code2 } from "lucide-react";
 import { PageBanner } from "@/components/ui/page-banner";
 
 export default function DashBoard() {
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  // D07x/D08g4e3: the app's login (Clerk or Better Auth) and, with Clerk, the Supabase token.
-  const viewer = usePersonalPageViewer({ token, tokenLoading });
+  // D07x/D08g4e3: the app's login (Better Auth).
+  const viewer = usePersonalPageViewer();
   const { userTier } = useUserTier(viewer.userId); // Fetch user tier (D04f: the session's viewer)
 
   // At the top of your component
@@ -75,7 +73,6 @@ export default function DashBoard() {
   return (
     <>
       <ProjectsProvider
-        token={viewer.token}
         userId={viewer.userId}
         isLoading={isLoading}
       >

@@ -2,7 +2,6 @@
 
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useSupabaseToken } from "@/hooks/use-supabase-token";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";
@@ -20,11 +19,10 @@ import { Skull } from "lucide-react";
 import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 
 export default function DeletedProjects() {
-  const { token, loading: tokenLoading } = useSupabaseToken();
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
   // D02r-c: Clerk's values by default; the Better Auth session under the switch.
-  const viewer = usePersonalPageViewer({ token, tokenLoading });
+  const viewer = usePersonalPageViewer();
   // D04f: keyed on the session's viewer (Clerk's ID, or the Better Auth
   // session's under the switch); the route reads the tier from the session.
   const { userTier } = useUserTier(viewer.userId);
@@ -57,7 +55,6 @@ export default function DeletedProjects() {
         </div>
       ) : (
         <ProjectsProvider
-          token={viewer.token}
           userId={viewer.userId}
           isLoading={isLoading}
         >
