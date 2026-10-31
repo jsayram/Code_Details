@@ -1,9 +1,7 @@
 // C16: the whole public project page, not just the first viewport, compared
 // pixel for pixel with one baseline. The baseline was captured with the
-// Supabase read and reviewed by eye; running the suite with
-// CODEDETAILS_E2E_READ_BACKEND=convex compares the Convex-served page
-// against the same file, so any visible difference between the two read
-// backends fails here. Same controls as B06 (visual.spec.ts). The Timeline's
+// Supabase read and reviewed by eye; the Convex-served page is compared
+// against the same file, so it still matches what the Supabase read showed. Same controls as B06 (visual.spec.ts). The Timeline's
 // relative dates ("9mo ago") follow the real clock, so they are masked; C13
 // compares the exact timestamps instead. A mask is as wide as its text, so
 // when the clock moved "9mo ago" to "10mo ago" every full-page comparison

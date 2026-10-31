@@ -8,7 +8,6 @@ import { generateFixtures } from "../fixtures/generate";
 import { expectedProfileStats } from "../support/profile-stats-spec";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const set = generateFixtures();
 const B = set.personas.b;
 
@@ -20,10 +19,10 @@ async function signIn(page: Page, label: string) {
   expect((await page.request.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
 }
 
-test.describe(`D04c profile stats (${convexRead ? "Convex" : "Supabase"} read)`, () => {
+test.describe("D04c profile stats", () => {
 
   test("the profile page shows B's active projects and only the favorites on active projects", async ({ page }) => {
-    const want = expectedProfileStats(set, "b", !convexRead);
+    const want = expectedProfileStats(set, "b", false);
     await signIn(page, "d04c-stats");
     const res = await page.request.get(`/api/profiles/lookup/${B.profile!.username}?includeStats=true`);
     expect((await res.json()).data.stats).toMatchObject({ activeProjects: want.activeProjects, projectsFavorited: want.projectsFavorited, totalLikes: want.totalLikes });

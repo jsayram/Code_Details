@@ -119,56 +119,7 @@ export const CACHE_TAGS = {
 
 ### Cache Revalidation Functions
 
-**File:** `src/lib/swr-fetchers.ts`
-
-```typescript
-/**
- * Revalidate project-related caches
- * Call after: create, update, delete, favorite, unfavorite
- */
-export async function revalidateProjectCache(): Promise<void> {
-  await revalidate([
-    CACHE_TAGS.PROJECTS,
-    CACHE_TAGS.PROJECT_DETAIL,
-    CACHE_TAGS.USER_PROJECTS,
-  ]);
-}
-
-/**
- * Revalidate tag-related caches
- * Call after: tag create, approve, reject, delete
- */
-export async function revalidateTagCache(): Promise<void> {
-  await revalidate([
-    CACHE_TAGS.TAGS,
-    CACHE_TAGS.PROJECTS, // Tags affect project display
-  ]);
-}
-
-/**
- * Revalidate admin dashboard caches
- * Call after: admin actions, analytics updates
- */
-export async function revalidateAdminCache(): Promise<void> {
-  await revalidate([
-    CACHE_TAGS.ADMIN_DASHBOARD,
-    CACHE_TAGS.TAG_SUBMISSIONS,
-    CACHE_TAGS.CONTRIBUTORS,
-  ]);
-}
-
-/**
- * Revalidate user profile caches
- * Call after: profile updates, tier changes
- */
-export async function revalidateUserProfileCache(): Promise<void> {
-  await revalidate([
-    CACHE_TAGS.USER_PROFILE,
-    CACHE_TAGS.USER_DASHBOARD,
-    CACHE_TAGS.USER_TIER,
-  ]);
-}
-```
+Removed in E03. These client helpers (`revalidateProjectCache`, `revalidateTagCache`, `revalidateAdminCache`, `revalidateUserProfileCache`) posted cache tags to `/api/revalidate`, which let any signed-in caller invalidate tags it chose (P08 R34). The route and the helpers are gone. Server actions now call `revalidateTag` themselves after a write, and client code only refreshes its SWR keys with `mutate`.
 
 ---
 
@@ -317,17 +268,10 @@ export function ProjectsProvider({ children, token, userId }: Props) {
     invalidateAllProjectsCache();
   }, [invalidateAllProjectsCache]);
 
+  // The server actions revalidate the server cache themselves (E03).
   const handleProjectDeleted = useCallback(async (projectId: string) => {
     invalidateAllProjectsCache();
-    await revalidateProjectCache(); // Also revalidate server cache
   }, [invalidateAllProjectsCache]);
-
-  const handleProjectUpdated = useCallback(async (updatedProject: Project) => {
-    invalidateAllProjectsCache();
-    if (filters.showFavorites && !updatedProject.isFavorite) {
-      await revalidateProjectCache();
-    }
-  }, [filters.showFavorites, invalidateAllProjectsCache]);
 }
 ```
 
@@ -361,12 +305,7 @@ mutate((key) => typeof key === 'string' && key.includes('/api/projects'));
 
 #### Server-Side Revalidation
 
-```typescript
-import { revalidateProjectCache } from '@/lib/swr-fetchers';
-
-// After mutations that need server cache invalidation
-await revalidateProjectCache();
-```
+Server actions call `revalidateTag` after their own writes (see section 2). Client code has no way to invalidate server tags since E03 removed `/api/revalidate`.
 
 #### Optimistic Updates
 
@@ -556,9 +495,7 @@ const handleCreateProject = async (data: ProjectData) => {
   if (result.success) {
     // Invalidate SWR cache
     mutate((key) => typeof key === 'string' && key.includes('/api/projects'));
-    
-    // Invalidate server cache
-    await revalidateProjectCache();
+    // createProject already called revalidateTag on the server.
   }
 };
 ```
@@ -569,9 +506,8 @@ const handleCreateProject = async (data: ProjectData) => {
 2. **Server action** → Database write + `revalidateTag(tag, {})`
 3. **Response** → Component receives success
 4. **SWR mutation** → `mutate()` invalidates client cache
-5. **Server revalidation** → `revalidateProjectCache()` invalidates server cache
-6. **Revalidation** → SWR fetches fresh data
-7. **UI update** → React re-renders with new data
+5. **Revalidation** → SWR fetches fresh data
+6. **UI update** → React re-renders with new data
 
 ---
 
@@ -642,5 +578,4 @@ mutate(() => true, undefined, { revalidate: true });
 | `src/hooks/use-tags.ts` | SWR-based tag hook |
 | `src/hooks/use-user-tier.ts` | SWR-based tier hook |
 | `src/providers/projects-provider.tsx` | Projects context with SWR |
-| `src/app/api/revalidate/route.ts` | Server-side cache invalidation endpoint |
 

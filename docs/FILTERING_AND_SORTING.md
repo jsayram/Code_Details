@@ -72,7 +72,7 @@ The filtering and sorting system allows users to:
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Database (Drizzle ORM)                       │
+│                  Data (Convex queries; Drizzle until E03)            │
 ├─────────────────────────────────────────────────────────────────────┤
 │  • Dynamic WHERE clause building                                     │
 │  • JOIN with favorites table for favorites view                      │

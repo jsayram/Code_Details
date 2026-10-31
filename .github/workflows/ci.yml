@@ -80,6 +80,6 @@ jobs:
           node-version: 26.3.0
           cache: npm
       - run: npm ci --ignore-scripts
-      # Synthetic env, a DATABASE_URL that reaches no database, socket guard
+      # Synthetic env with no database URL (E03), socket guard
       # preloaded; output in .next-test. No artifact is uploaded.
       - run: npm run build:isolated

@@ -31,12 +31,12 @@ if (!password) throw new Error("Browser tests need the isolated test database: r
 
 // Phase C added CODEDETAILS_E2E_READ_BACKEND=convex beside a Supabase-read
 // default. E03: the Supabase reads are gone, so there is one mode: the project
-// reads come from the task-owned local Convex backend. The specs still read
-// the variable, so the config sets it for them (and refuses any other value).
+// reads come from the task-owned local Convex backend. No spec reads the
+// variable any more; a leftover value other than convex is refused so a run
+// never looks like it tested a mode that no longer exists.
 if ((process.env.CODEDETAILS_E2E_READ_BACKEND ?? "convex") !== "convex") {
   throw new Error("CODEDETAILS_E2E_READ_BACKEND can only be convex: the Supabase-read mode was removed in E03");
 }
-process.env.CODEDETAILS_E2E_READ_BACKEND = "convex";
 if (!convexAvailable()) {
   throw new Error("Browser tests need the local Convex backend: run tests/convex/up.sh and tests/convex/push.mjs");
 }
@@ -69,7 +69,7 @@ const serverEnv = isolatedEnv(
     ...authBackendEnv,
     ...searchEnv,
   },
-  password,
+  undefined, // E03: the app has no database client, so the server gets no DATABASE_URL
   { devServer: true },
 );
 fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });

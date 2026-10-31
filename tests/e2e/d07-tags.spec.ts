@@ -10,7 +10,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, setRole, SYNTHET
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { b: B } = generateFixtures().personas;
 
 // A's project, not one the visual baselines capture.
@@ -33,7 +32,6 @@ async function newPage(browser: Browser): Promise<Page> {
 }
 
 test.describe.serial("D07 tag suggestions and moderation (Better Auth + Convex read)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

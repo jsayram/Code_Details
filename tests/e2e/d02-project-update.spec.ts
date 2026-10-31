@@ -8,7 +8,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
 // Not one of the visually compared projects (visual*.spec.ts): the edit changes its updated date.
@@ -33,7 +32,6 @@ async function saveEdit(page: Page, title: string, slug: string) {
 }
 
 test.describe.serial("D02 project update (Better Auth + Convex read)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(A.subject!);

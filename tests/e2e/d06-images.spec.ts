@@ -13,7 +13,6 @@ import { adminClient, CONVEX_URL } from "../fixtures/convex";
 import { generateFixtures, placeholderPng } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { b: B } = generateFixtures().personas;
 const SLUG = "fixture-bob-project";
 
@@ -35,7 +34,6 @@ async function signIn(page: Page, label: string): Promise<string> {
 const storedImages = (page: Page) => page.locator('img[src*="api%2Fstorage"], img[src*="/api/storage/"]');
 
 test.describe.serial("D06 images (Better Auth + Convex read)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

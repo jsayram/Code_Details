@@ -1,11 +1,10 @@
-// Phase C: the public project page for signed-out visitors, whichever read
-// backend serves it. Not-found must not reveal whether a project exists:
-// deleted and missing slugs give the same status and the same page.
-import { convexImportUsername, generateFixtures, supabasePublicUsername } from "../fixtures/generate";
+// Phase C: the public project page for signed-out visitors, served by the
+// Convex read (the only one since E03). Not-found must not reveal whether a
+// project exists: deleted and missing slugs give the same status and the same page.
+import { convexImportUsername, generateFixtures } from "../fixtures/generate";
 import { expect, test } from "./support";
 
 const set = generateFixtures();
-const backend = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" ? "convex" : "supabase";
 
 // Dev-mode HTML carries a per-request ID and dev-only debug-info rows whose
 // numbering varies run to run; both are stripped before comparing.
@@ -44,8 +43,8 @@ test.describe("public project read, signed out", () => {
     const p = set.projects.find((x) => x.case === "ownedByEmailUsername")!;
     const owner = set.personas[p.ownerKey];
     const address = owner.profile!.username;
-    // Supabase shows the local part, as the page did before Phase C; Convex the imported handle.
-    const shown = backend === "convex" ? convexImportUsername(owner.subject!, address) : supabasePublicUsername(address);
+    // Convex shows the imported handle, never the address.
+    const shown = convexImportUsername(owner.subject!, address);
     const res = await page.goto(`/projects/${p.slug}`);
     expect(res!.status()).toBe(200);
     await expect(page.getByRole("heading", { level: 1, name: p.title }).filter({ visible: true })).toBeVisible();
@@ -54,14 +53,14 @@ test.describe("public project read, signed out", () => {
     await expect(page.locator("body")).not.toContainText("@synthetic.invalid");
   });
 
-  test(`the page is served by the ${backend} read backend`, async ({ request }) => {
+  test("the page is served by the Convex read backend", async ({ request }) => {
     const listed = set.projects.find((p) => p.case === "listed")!;
     const html = await (await request.get(`/projects/${listed.slug}`)).text();
-    // The Supabase fixture UUID appears only when Supabase served the project.
-    expect(html.includes(listed.id)).toBe(backend === "supabase");
-    // The private fixture is private only where visibility exists (Convex).
+    // The Supabase fixture UUID would appear only if Supabase served the project.
+    expect(html.includes(listed.id)).toBe(false);
+    // The private fixture stays private.
     const priv = await request.get("/projects/fixture-private");
-    expect(priv.status()).toBe(backend === "convex" ? 404 : 200);
+    expect(priv.status()).toBe(404);
   });
 
   test("interactions: the owner avatar asks a signed-out visitor to sign in; the contents nav scrolls to a section", async ({ page }) => {

@@ -14,7 +14,6 @@ import { CONVEX_URL } from "../fixtures/convex";
 import { placeholderPng } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const headers = { origin: BASE_URL };
 const SLUG = "fixture-g4f2-fresh";
 const TITLE = "Fixture G4f2 Fresh";
@@ -39,7 +38,6 @@ const countsTotal = async (page: Page, query: string) => {
 const storedImages = (page: Page) => page.locator('img[src*="api%2Fstorage"], img[src*="/api/storage/"]');
 
 test.describe.serial("DEF-FLIP-FRESHACCT: a fresh Better Auth account (Convex default)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex (the data default)");
 
   test.beforeEach(async ({ context }) => {
     await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });

@@ -1,15 +1,13 @@
 // D02r-c: with the development Better Auth switch on, the personal pages (my
 // projects, favorites, graveyard) and their APIs show the signed-in
 // account's own data. A Better Auth login linked to persona A sees A's
-// lists; a fresh, unlinked login sees none. With CODEDETAILS_E2E_READ_BACKEND
-// =convex too, the lists come from the Convex personal queries; otherwise from
-// Supabase through routeViewer (D02r-a). The expectations are the same.
+// lists; a fresh, unlinked login sees none. The lists come
+// from the Convex personal queries (the Supabase reads went in E03).
 import type { Page } from "@playwright/test";
 import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
 const TITLES = {
@@ -38,7 +36,7 @@ const slugs = async (page: Page, query: string) => {
   return ((await res.json()).data as { slug: string }[]).map((p) => p.slug).sort();
 };
 
-test.describe.serial(`D02r personal reads (switch on, ${convexRead ? "Convex" : "Supabase"} read)`, () => {
+test.describe.serial(`D02r personal reads (switch on)`, () => {
 
   test.beforeAll(async () => {
     await releasePersona(A.subject!);

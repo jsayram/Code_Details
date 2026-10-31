@@ -1,14 +1,12 @@
 // D04b: the profile edit over HTTP with the development Better Auth switch.
 // Both switches: a fresh sign-up renames its generated handle through
 // PUT /api/profiles/[username] (Convex profiles:updateMine), the old handle
-// redirects, a refused name and a taken one change nothing. Better Auth with
-// the Supabase read: an unlinked login can't edit anyone's profile.
+// redirects, a refused name and a taken one change nothing.
 import type { Page } from "@playwright/test";
 import { accountRows, authState, freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A, b: B } = generateFixtures().personas;
 
 async function signIn(page: Page, label: string): Promise<string> {
@@ -23,10 +21,9 @@ async function signIn(page: Page, label: string): Promise<string> {
 const put = (page: Page, name: string, data: unknown) =>
   page.request.put(`/api/profiles/${encodeURIComponent(name)}`, { headers: { origin: BASE_URL }, data });
 
-test.describe(`D04b profile edit (${convexRead ? "Convex" : "Supabase"} read)`, () => {
+test.describe("D04b profile edit", () => {
 
   test("a new account renames its handle; the old one redirects; bad and taken names change nothing", async ({ page }) => {
-    test.skip(!convexRead, "the Convex edit runs only with both switches");
     const email = await signIn(page, "d04b-rename");
     const handle = (await accountRows((await authState(email))!.authUserId))!.profiles[0].username;
     const wanted = `e2e-${Date.now().toString(36)}`;

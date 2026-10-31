@@ -2,6 +2,8 @@
 
 This guide explains how to set up and run Supabase locally.
 
+> **The app no longer uses Supabase (E03).** Since E03 there is no Supabase client, Drizzle or `DATABASE_URL` in the app; data and login run on the local Convex backend with Better Auth. The `supabase/` folder and the `supabase` CLI stay for the local stack that holds the pre-migration data, and the isolated test harness still starts its own Postgres for the policy and fixture tests. Nothing below is needed to run the app. Treat it as a guide to that local stack.
+
 > **Clerk is retired (D08g4g).** The app no longer uses Clerk; Better Auth on the local Convex backend is the login. The Clerk sections below describe `supabase/config.toml`, which still carries the Clerk-era `[auth.third_party.clerk]` block and is left untouched on purpose. Treat them as history.
 
 ## Prerequisites
@@ -80,7 +82,7 @@ Started supabase local development setup.
 
 ## Environment Variables
 
-Ensure your `.env.local` file has the correct Supabase configuration:
+Historical (before E03): the app no longer reads these names, and `scripts/validateEnv.ts` no longer requires them. The Supabase CLI prints them on `npx supabase start` if a tool outside the app needs them. The old `.env.local` configuration was:
 
 ```env
 # Supabase LOCAL instance
@@ -188,7 +190,7 @@ npx supabase@2.58.5 stop --no-backup
 
 ## Production Setup
 
-For production, replace the local Supabase configuration with your hosted Supabase project:
+Historical (before E03; the app has no Supabase production setup now). For production, the local Supabase configuration was replaced with a hosted Supabase project:
 
 1. Create a project at https://supabase.com
 2. Update `.env.production` with your project URL and keys

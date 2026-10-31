@@ -291,9 +291,7 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
 
   test.beforeAll(async () => {
     // Generator re-key: under both switches projects live in Convex, so a link carries the Convex project ID.
-    const linkedProjectId = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex"
-      ? (await new ConvexHttpClient(TEST_CONVEX_URL).query(getPublicBySlug, { slug: LISTED.slug }))!.id
-      : LISTED.id;
+    const linkedProjectId = (await new ConvexHttpClient(TEST_CONVEX_URL).query(getPublicBySlug, { slug: LISTED.slug }))!.id;
     await releasePersona(A.subject!);
     await releasePersona(B.subject!);
     accountA = await personaAccountId(A.subject!, "d11s-account-a");
@@ -340,7 +338,6 @@ test.describe.serial("D11s linked doc on the viewer page (switch on)", () => {
 // link is checked against the owner's own projects when it is made, and
 // another user reads it while that project's public page shows it.
 test.describe.serial("generator re-key: linking to a Convex project (both switches)", () => {
-  test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND !== "convex", "needs CODEDETAILS_E2E_READ_BACKEND=convex");
   const PRIVATE = FIXTURES.projects.find((p) => p.slug === "fixture-private")!;
   const BOBS = FIXTURES.projects.find((p) => p.slug === "fixture-bob-project")!;
   let owner: APIRequestContext;

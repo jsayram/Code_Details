@@ -1,14 +1,12 @@
 // D04a (P08 R07): the profile page and the profile APIs a signed-in visitor
 // uses show no email, provider subject or tier. Signed-in pages need the
-// development Better Auth switch (Clerk can't be signed into here). With
-// CODEDETAILS_E2E_READ_BACKEND=convex the profile comes from
-// profiles:getPublicByUsername; otherwise from Supabase.
+// development Better Auth switch (Clerk can't be signed into here). The
+// profile comes from profiles:getPublicByUsername.
 import type { Page } from "@playwright/test";
 import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 const PRIVATE = [A.profile!.email, A.subject!, "email_address", "user_id", "\"tier\""];
 
@@ -20,7 +18,7 @@ async function signIn(page: Page, label: string) {
   expect((await page.request.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
 }
 
-test.describe(`D04a public profile (${convexRead ? "Convex" : "Supabase"} read)`, () => {
+test.describe("D04a public profile", () => {
 
   test("the profile APIs return public fields only, and the lookup ignores email addresses", async ({ page }) => {
     await signIn(page, "d04a-api");

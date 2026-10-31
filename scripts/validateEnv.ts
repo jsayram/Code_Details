@@ -4,16 +4,10 @@ import { setEnv } from "./setEnv";
 setEnv();
 
 // validateEnvs.ts - Ensures all required environment variables are set before the app runs.
-// MVP Environment Variables Only
-const requiredEnvVars = [
-  // MVP: Secret keys (DO NOT expose)
-  "SUPABASE_SERVICE_ROLE_KEY",  // Secret Supabase service role key (DO NOT expose)
-  "DATABASE_URL", // Database connection string (PostgreSQL)
-  
-  // MVP: Public keys 
-  "NEXT_PUBLIC_SUPABASE_URL", // Public Supabase API URL 
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY", // Public Supabase anonymous key 
-];
+// E03: the Supabase and DATABASE_URL names are gone; the app has no Supabase
+// client or database connection. Nothing else is required here yet: without
+// CODEDETAILS_CONVEX_URL the data layer fails closed on its own.
+const requiredEnvVars: string[] = [];
 
 // ❌ Future Features (Not MVP) - Uncomment when needed
 const futureEnvVars = [

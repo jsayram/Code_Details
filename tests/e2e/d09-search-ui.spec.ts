@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const searchOn = process.env.CODEDETAILS_E2E_SEARCH !== "off" && process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
+const searchOn = process.env.CODEDETAILS_E2E_SEARCH !== "off";
 const preview = process.env.CODEDETAILS_E2E_PREVIEW === "1";
 const PREVIEW_DIR = path.resolve(__dirname, "../../Agent Planning/phase-d09/preview");
 

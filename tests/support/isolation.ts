@@ -21,7 +21,7 @@ export const TEST_CONVEX_URL = `http://127.0.0.1:${TEST_CONVEX_PORT}`;
 /** Same backend's site port (HTTP actions): Better Auth's /api/auth routes (D08a). Slot 0: 3211. */
 export const TEST_CONVEX_SITE_PORT: number = ACTIVE.convexSitePort;
 export const TEST_CONVEX_SITE_URL = `http://127.0.0.1:${TEST_CONVEX_SITE_PORT}`;
-/** Nothing listens here; supabase-js calls fail fast instead of reaching a real API. */
+/** Nothing listens here. Only the synthetic fixtures build image URLs on it (no app code calls Supabase since E03). */
 export const TEST_SUPABASE_URL = "http://127.0.0.1:9";
 
 /** Development Supabase ports: API, DB, Studio, mail, plus the rest of its range. */
@@ -151,9 +151,6 @@ export function isolatedEnv(
     // Tells Next's env loader the env is already processed, so it reads no .env file.
     __NEXT_PROCESSED_ENV: "true",
     NEXT_TELEMETRY_DISABLED: "1",
-    NEXT_PUBLIC_SUPABASE_URL: TEST_SUPABASE_URL,
-    NEXT_PUBLIC_SUPABASE_ANON_KEY: `${SYNTHETIC}_anon_key`,
-    SUPABASE_SERVICE_ROLE_KEY: `${SYNTHETIC}_service_role_key`,
     ADMIN_DASHBOARD_MODERATOR: "admin@synthetic.invalid",
   });
   // Carried so child processes (and Vitest files loaded after the worker's env

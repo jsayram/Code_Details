@@ -17,7 +17,7 @@ export default async function globalTeardown() {
   const sql = await connectTestDb();
   try {
     await cleanupFixtures(sql);
-    if (process.env.CODEDETAILS_E2E_READ_BACKEND === "convex") await clearConvexFixtures();
+    await clearConvexFixtures();
   } finally {
     await sql.end();
   }

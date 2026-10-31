@@ -1,13 +1,12 @@
-// `next build` with the synthetic test environment (Phase B, B12). The build
-// gets a DATABASE_URL (src/db/server.ts throws at import without one) whose
-// password matches no database, so prerendering can't read or write data, and
+// `next build` with the synthetic test environment (Phase B, B12). Since E03
+// the app has no database client, so the build gets no DATABASE_URL at all, and
 // the socket guard refuses anything outside loopback. Output goes to
 // .next-test, never .next. Used by CI and runnable locally.
 import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { SYNTHETIC, isolatedEnv } from "../support/isolation.ts";
+import { isolatedEnv } from "../support/isolation.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -15,7 +14,7 @@ const env = isolatedEnv(
   {
     CODEDETAILS_TEST_DIST_DIR: ".next-test",
   },
-  `${SYNTHETIC}-no-such-database`,
+  undefined,
   { devServer: true },
 );
 env.NODE_ENV = "production";

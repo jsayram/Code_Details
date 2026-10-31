@@ -10,7 +10,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A, b: B } = generateFixtures().personas;
 
 // Owned by A; B (the signed-in persona) neither owns nor favorites it.
@@ -29,7 +28,6 @@ const card = (page: Page, title = TITLE) => page.locator(".project-card", { hasT
 const count = async (page: Page) => Number(await card(page).locator(".favorite-count").textContent());
 
 test.describe.serial("D07x public lists (Better Auth + Convex read)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(B.subject!);

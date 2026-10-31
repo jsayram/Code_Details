@@ -8,7 +8,6 @@ import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWO
 import { generateFixtures } from "../fixtures/generate";
 import { BASE_URL, expect, test } from "./support";
 
-const convexRead = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const { a: A } = generateFixtures().personas;
 
 const SLUG = "fixture-d03-lifecycle";
@@ -34,7 +33,6 @@ async function sendToGraveyard(page: Page) {
 }
 
 test.describe.serial("D03 project lifecycle (Better Auth + Convex read)", () => {
-  test.skip(!convexRead, "needs CODEDETAILS_E2E_READ_BACKEND=convex");
 
   test.beforeAll(async () => {
     await releasePersona(A.subject!);
