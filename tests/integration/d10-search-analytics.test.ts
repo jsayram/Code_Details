@@ -68,6 +68,11 @@ async function postEvents(events: Row[], headers: Record<string, string>) {
   return { status: res.status, body: text.startsWith("{") ? JSON.parse(text) : text || null };
 }
 const searchEvents = async () => (await state()).events.filter((e) => e.type === "search_executed" || e.type === "browse_executed");
+/** The route writes a receipt before answering; this only guards the test against a slow backend. */
+async function receiptStored(id: string) {
+  const receipts = await eventually(async () => (await state()).receipts, (rs) => rs.some((r) => r.receiptId === id), 5000);
+  expect(receipts.map((r) => r.receiptId), `receipt ${id}`).toContain(id);
+}
 
 describe.skipIf(!convexAvailable() || !SECRET)("D10 search analytics (synthetic)", () => {
   beforeAll(async () => {
@@ -98,6 +103,8 @@ describe.skipIf(!convexAvailable() || !SECRET)("D10 search analytics (synthetic)
     const h = { "x-search-visit": S1 };
     // a) three settled "fixture" searches with a visit, then one keystroke request.
     const a = await search("q=fixture&final=1", h);
+    // The receipt row exists by the time the response arrives (no waiting).
+    expect((await state()).receipts.map((r) => r.receiptId)).toContain(a.receipt!.id);
     const b = await search("q=fixture&final=1", h);
     const c = await search("q=fixture&final=1", h);
     const d = await search("q=fixture", h);
@@ -120,6 +127,8 @@ describe.skipIf(!convexAvailable() || !SECRET)("D10 search analytics (synthetic)
     expect(recorded.filter((ev) => ev.visit === undefined).length, "only the GPC search has no visit").toBe(1);
     expect((await state()).receipts.length, "a, b, c, d and f have receipts; e had no hits; g and h none").toBe(5);
 
+    // The receipts are written before each response, so they exist already.
+    for (const id of [a, b, c, d, f].map((r) => r.receipt!.id)) await receiptStored(id);
     // Client events: a presented and clicked, b presented, f presented and clicked.
     const target = a.hits.findIndex((x) => !x.route.endsWith("/fixture-listed") && !x.route.endsWith("/fixture-bob-project"));
     const ev = (n: string) => `evt-${n}-${"0".repeat(8)}`;
@@ -184,6 +193,7 @@ describe.skipIf(!convexAvailable() || !SECRET)("D10 search analytics (synthetic)
     on();
     const r = await search("q=fixture&final=1", { "x-search-visit": S1 });
     const id = r.receipt!.id;
+    await receiptStored(id);
     const before = (await state()).drops;
     const count = (drops: State["drops"], reason: string) => drops.filter((d) => d.reason === reason).reduce((n, d) => n + d.count, 0);
     const send = (visit: string, events: Row[]) => anonymousClient().mutation(recordEvents, { visit, events });
@@ -210,6 +220,8 @@ describe.skipIf(!convexAvailable() || !SECRET)("D10 search analytics (synthetic)
     const r = await search("q=fixture&final=1", { "x-search-visit": S1 });
     expect(r.status).toBe(200);
     expect(r.hits.length).toBeGreaterThan(0);
+    // The receipt write was refused, so the search answers without one.
+    expect(r.receipt).toBeNull();
     const drops = await eventually(async () => (await state()).drops.filter((d) => d.reason === "unauthorized"), (d) => d.length > 0);
     expect(drops.length).toBeGreaterThan(0);
     expect((await searchEvents()).length).toBe(before);

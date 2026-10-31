@@ -3,9 +3,12 @@
 // Convex query takes no identity. A 404 while CODEDETAILS_SEARCH=on isn't set
 // (development switch, off by default). Bad or unknown parameters are 400s,
 // never silently dropped; past the rate limit, 429 with Retry-After.
-// D10: with CODEDETAILS_SEARCH_ANALYTICS=on too, the search is recorded after
-// the response, and a receipt comes back when the visitor sent a visit token
-// (never under GPC/DNT). Recording can fail without touching the response.
+// D10: with CODEDETAILS_SEARCH_ANALYTICS=on too, the search is recorded. When
+// it earns a receipt (a visit token, never under GPC/DNT, and hits), the record
+// is written before responding, so the receipt exists by the time the browser
+// sends events about it; that write gets RECEIPT_WRITE_TIMEOUT_MS, and if it
+// fails or runs over the search still answers, just without a receipt. Every
+// other search is recorded after the response. Recording never blocks search.
 import { NextRequest, NextResponse } from "next/server";
 import { rateLimited, serverError, success, validationError } from "@/lib/api-errors";
 import { checkRequest, decodeCursor, effectiveSort, normalizeQuery, parseSearchParams, DEFAULT_PAGE_SIZE, type SearchArgs } from "@/backend/search/search-rules";
@@ -13,28 +16,41 @@ import { clientKey } from "@/backend/search/rate-limit";
 import { runSearch, searchBackendUrl, searchLimiter, withoutOk } from "@/backend/search/search-client";
 import { afterResponse, analyticsContext, analyticsOn, receiptFor, recordSearch, type SearchAnalyticsContext } from "@/backend/search/analytics-client";
 
-function record(url: string, ctx: SearchAnalyticsContext, args: SearchArgs, outcome: { status: "ok" | "error"; entityIds: string[]; hasMore: boolean }, started: number) {
+/** The most a receipt write may add to a search response. */
+const RECEIPT_WRITE_TIMEOUT_MS = 500;
+
+/** p's value, or null if it fails or takes longer than ms (p may still finish later; nothing waits for it). */
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T | null> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  try {
+    return await Promise.race([p, new Promise<null>((resolve) => (timer = setTimeout(() => resolve(null), ms)))]);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function recordArgs(ctx: SearchAnalyticsContext, args: SearchArgs, outcome: { status: "ok" | "error"; entityIds: string[]; hasMore: boolean }, started: number) {
   const page = args.cursor ? (decodeCursor(args.cursor, args)?.p ?? 0) : 0;
   const pageSize = args.pageSize ?? DEFAULT_PAGE_SIZE;
   const q = normalizeQuery(args.q);
-  afterResponse(() =>
-    recordSearch(url, {
-      receiptId: ctx.receiptId,
-      ...(ctx.visit ? { visit: ctx.visit } : {}),
-      ...(ctx.interactionId ? { interactionId: ctx.interactionId } : {}),
-      browse: !q,
-      product: ctx.product,
-      query: q,
-      scope: args.handle ? "creator" : "global",
-      sort: effectiveSort(args),
-      filterCount: (args.category ? 1 : 0) + (args.tags?.length ?? 0),
-      page,
-      status: outcome.status,
-      hits: outcome.entityIds.map((entityId, i) => ({ entityId, position: page * pageSize + i })),
-      hasMore: outcome.hasMore,
-      latencyMs: Date.now() - started,
-    }),
-  );
+  return {
+    receiptId: ctx.receiptId,
+    ...(ctx.visit ? { visit: ctx.visit } : {}),
+    ...(ctx.interactionId ? { interactionId: ctx.interactionId } : {}),
+    browse: !q,
+    product: ctx.product,
+    query: q,
+    scope: args.handle ? "creator" : "global",
+    sort: effectiveSort(args),
+    filterCount: (args.category ? 1 : 0) + (args.tags?.length ?? 0),
+    page,
+    status: outcome.status,
+    hits: outcome.entityIds.map((entityId, i) => ({ entityId, position: page * pageSize + i })),
+    hasMore: outcome.hasMore,
+    latencyMs: Date.now() - started,
+  };
 }
 
 export async function GET(request: NextRequest) {
@@ -51,11 +67,21 @@ export async function GET(request: NextRequest) {
     const result = await runSearch(url, args);
     if (!result.ok) return validationError(result.issues, result.code);
     const entityIds = result.hits.map((h) => h.entityId);
-    if (ctx) record(url, ctx, args, { status: "ok", entityIds, hasMore: !!result.nextCursor }, started);
-    const receipt = ctx && normalizeQuery(args.q) ? receiptFor(ctx, entityIds.length) : null;
+    let receipt: ReturnType<typeof receiptFor> = null;
+    if (ctx) {
+      const record = recordArgs(ctx, args, { status: "ok", entityIds, hasMore: !!result.nextCursor }, started);
+      const wantsReceipt = !!normalizeQuery(args.q) && receiptFor(ctx, entityIds.length) !== null;
+      if (wantsReceipt) {
+        const stored = await withTimeout(recordSearch(url, record), RECEIPT_WRITE_TIMEOUT_MS);
+        receipt = (stored as { receipt?: boolean } | null)?.receipt ? receiptFor(ctx, entityIds.length) : null;
+      } else afterResponse(() => recordSearch(url, record));
+    }
     return success({ ...withoutOk(result), receipt });
   } catch (error) {
-    if (ctx) record(url, ctx, args, { status: "error", entityIds: [], hasMore: false }, started);
+    if (ctx) {
+      const record = recordArgs(ctx, args, { status: "error", entityIds: [], hasMore: false }, started);
+      afterResponse(() => recordSearch(url, record));
+    }
     return serverError(error, "Search is unavailable right now");
   }
 }
