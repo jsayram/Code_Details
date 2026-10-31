@@ -46,7 +46,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   let projectsRoute: typeof import("../../src/app/api/projects/route.js");
   let countsRoute: typeof import("../../src/app/api/categories/counts/route.js");
   let profilesRoute: typeof import("../../src/app/api/profiles/route.js");
-  let byIdRoute: typeof import("../../src/app/api/profiles/by-id/[userId]/route.js");
   let schemas: typeof import("../../src/types/schemas/project.js");
 
   beforeAll(async () => {
@@ -58,7 +57,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
     projectsRoute = await import("../../src/app/api/projects/route.js");
     countsRoute = await import("../../src/app/api/categories/counts/route.js");
     profilesRoute = await import("../../src/app/api/profiles/route.js");
-    byIdRoute = await import("../../src/app/api/profiles/by-id/[userId]/route.js");
     schemas = await import("../../src/types/schemas/project.js");
   });
 
@@ -140,10 +138,11 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   });
 
   // Was "B renames A and swaps A's avatar; no history row is written"; fixed
-  // in D04b by removing the handler (Next answers 405 for a missing method).
-  describe("R05 (fixed, D04b) POST /api/profiles/by-id/[userId] is gone", () => {
-    it("[handler] the route exports no POST, and A's profile is untouched", async () => {
-      expect((byIdRoute as Record<string, unknown>).POST).toBeUndefined();
+  // in D04b by removing the handler; E03 removed the whole route
+  // (tests/unit/e03-dead-routes.test.ts checks it has no file and no caller).
+  describe("R05 (fixed, D04b; route gone at E03) POST /api/profiles/by-id/[userId] is gone", () => {
+    it("[handler] the route module is gone, and A's profile is untouched", async () => {
+      await expect(import("../../src/app/api/profiles/by-id/[userId]/route.js" as string)).rejects.toThrow();
       const [row] = await sql`select username from profiles where user_id = ${A.subject}`;
       expect(row.username).toBe(A.profile!.username);
     });
@@ -163,15 +162,8 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect(text).not.toContain(A.subject!);
     });
 
-    // Was "GET /api/profiles/by-id/[userId] returns the full row including email"; fixed in D04a.
-    it("[handler] (fixed, D04a) GET /api/profiles/by-id/[userId] returns no email, tier or subject", async () => {
-      const res = await byIdRoute.GET(url(`/api/profiles/by-id/${A.subject}`), { params: Promise.resolve({ userId: A.subject! }) });
-      const { profile } = (await body(res)).data;
-      expect(profile.username).toBe(A.profile!.username);
-      expect(profile).not.toHaveProperty("email_address");
-      expect(profile).not.toHaveProperty("tier");
-      expect(profile).not.toHaveProperty("user_id");
-    });
+    // Was "GET /api/profiles/by-id/[userId] returns the full row including email";
+    // fixed in D04a, and the route is gone at E03 (see the R05 case above).
 
     // Was "every project list row carries the owner's email"; fixed in D02r.
     it("[handler] (fixed, D02r) no project list row carries an email, signed in or not", async () => {

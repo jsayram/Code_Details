@@ -83,23 +83,4 @@ export const API_ROUTES = {
   TOAST: {
     TEST_PAGE: "/api/toasttest",
   },
-  CACHE: {
-    REVALIDATE: "/api/revalidate",
-    revalidateTags: (tags: string[]) => ({
-      url: "/api/revalidate",
-      config: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags }),
-      },
-    }),
-    revalidateTag: (tag: string) => ({
-      url: "/api/revalidate",
-      config: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag }),
-      },
-    }),
-  },
 } as const;

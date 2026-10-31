@@ -65,7 +65,7 @@ export const updateProfileSchema = z.object({
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 /**
- * Schema for creating a new profile (typically done via Clerk webhook)
+ * Schema for creating a new profile
  */
 export const createProfileSchema = z.object({
   user_id: z

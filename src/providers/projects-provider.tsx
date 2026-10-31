@@ -11,7 +11,6 @@ import useSWR, { mutate } from "swr";
 import { Project } from "@/types/models/project";
 import { API_ROUTES } from "@/constants/api-routes";
 import { ProjectCategory } from "@/constants/project-categories";
-import { revalidateProjectCache } from "@/lib/swr-fetchers";
 import { PROJECTS_PER_PAGE } from "@/components/navigation/Pagination/paginationConstants";
 import { projectsFetcher } from "@/lib/swr-fetchers";
 import { SortByValue, DEFAULT_SORT_BY } from "@/constants/sort-options";
@@ -214,15 +213,9 @@ export function ProjectsProvider({
   const handleProjectDeleted = useCallback(async (projectId: string) => {
     console.log("🗑️ Deleting project:", projectId);
     
-    // Invalidate cache (this clears localProjects and refetches)
+    // Invalidate cache (this clears localProjects and refetches). The delete
+    // action revalidates the server cache itself (E03: /api/revalidate is gone).
     invalidateAllProjectsCache();
-    
-    // Also revalidate server cache
-    try {
-      await revalidateProjectCache();
-    } catch (error) {
-      console.error("Error revalidating after deletion:", error);
-    }
   }, [invalidateAllProjectsCache]);
 
   // Handle project updated - invalidate cache to get fresh data
@@ -231,16 +224,7 @@ export function ProjectsProvider({
     
     // Invalidate cache (this clears localProjects and refetches)
     invalidateAllProjectsCache();
-    
-    // If unfavoriting on favorites page, also revalidate server cache
-    if (filters.showFavorites && !updatedProject.isFavorite) {
-      try {
-        await revalidateProjectCache();
-      } catch (error) {
-        console.error("Error revalidating after unfavorite:", error);
-      }
-    }
-  }, [filters.showFavorites, invalidateAllProjectsCache]);
+  }, [invalidateAllProjectsCache]);
 
   // Sort projects client-side
   const sortedProjects = useMemo(() => {

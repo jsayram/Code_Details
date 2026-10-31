@@ -61,3 +61,13 @@ export async function fetchAdminDashboardData(forceRefresh = false) {
     stats,
   };
 }
+
+// E03 (P08 R34): the admin "Clear cache" button. It used to POST client-chosen
+// tags to /api/revalidate, which any signed-in caller could call; now the admin
+// check runs first and the tag list is fixed (every server cache tag).
+export async function clearServerCaches(): Promise<{ cleared: number }> {
+  await requireAdminForAction();
+  const tags = Object.values(CACHE_TAGS);
+  for (const tag of tags) revalidateTag(tag, {});
+  return { cleared: tags.length };
+}

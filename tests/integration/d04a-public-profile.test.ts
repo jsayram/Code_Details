@@ -132,16 +132,7 @@ describe.skipIf(!testDbAvailable())("D04a public profile reads (Supabase)", () =
     });
   });
 
-  it("GET /api/profiles/by-id/[userId] returns the public projection", async () => {
-    const route = await import("../../src/app/api/profiles/by-id/[userId]/route.js");
-    const res = await route.GET(url(`/api/profiles/by-id/${A.subject}?includeStats=true`), params({ userId: A.subject! }));
-    const text = await res.text();
-    const data = JSON.parse(text).data;
-    expect(Object.keys(data.profile).sort()).toEqual([...PUBLIC_PROFILE_ROW_KEYS].sort());
-    expect(data.stats.activeProjects).toBeGreaterThan(0);
-    // The request names the subject; the answer must not echo it back.
-    expectNothingPrivate(text);
-  });
+  // GET /api/profiles/by-id/[userId] is gone (E03); the profile page reads the lookup route above.
 
   describe("project lists", () => {
     it("/api/shared-projects/[username] publishes a legacy owner's local part", async () => {

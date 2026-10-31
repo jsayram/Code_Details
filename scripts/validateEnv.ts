@@ -20,9 +20,6 @@ const futureEnvVars = [
   // "STRIPE_SECRET_KEY", // Payments - not MVP
   // "NEXT_PUBLIC_STRIPE_PUBLIC_KEY", // Payments - not MVP
   // "JWT_SECRET", // Custom JWT - not needed (Better Auth signs its own)
-  // "ALGOLIA_ADMIN_KEY", // Search - not MVP
-  // "NEXT_PUBLIC_ALGOLIA_APP_ID", // Search - not MVP
-  // "NEXT_PUBLIC_ALGOLIA_SEARCH_KEY", // Search - not MVP
 ];
 
 //Check which required environment variables are missing.

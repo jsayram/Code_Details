@@ -51,7 +51,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { ClientOnly } from "@/components/ClientOnly";
-import { fetchAdminDashboardData } from "@/app/actions/admin-dashboard";
+import { clearServerCaches, fetchAdminDashboardData } from "@/app/actions/admin-dashboard";
 import { fetchAllUsersAction, updateUserAction, checkIsSuperAdmin } from "@/app/actions/user-management";
 import { fetchTopContributors, fetchTagPipelineAnalytics, getTopContributors, getTagPipelineAnalytics } from "@/app/actions/advanced-analytics";
 import type { TopContributor, TagPipelineMetrics } from "@/app/actions/advanced-analytics";
@@ -1187,23 +1187,10 @@ function DashboardContent() {
 
     setIsClearingCache(true);
     try {
-      const cacheTags = ['projects', 'user-profile', 'tier', 'analytics', 'tags', 'categories'];
-      const response = await fetch('/api/revalidate', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tags: cacheTags }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok && data.success) {
-        toast.success('Cache cleared successfully! Data will be refreshed.');
-        // Reload data after cache clear
-        await Promise.all([loadData(), loadAnalytics()]);
-      } else {
-        const errorMessage = data.error?.detail || data.error?.title || 'Failed to clear cache. Please try again.';
-        toast.error(errorMessage);
-      }
+      await clearServerCaches();
+      toast.success('Cache cleared successfully! Data will be refreshed.');
+      // Reload data after cache clear
+      await Promise.all([loadData(), loadAnalytics()]);
     } catch (error) {
       console.error('Error clearing cache:', error);
       toast.error('An error occurred while clearing cache.');
