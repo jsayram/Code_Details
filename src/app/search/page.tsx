@@ -26,6 +26,7 @@ import { ChevronDown, ChevronUp, X } from "lucide-react";
 import { SearchContentSkeleton } from "./loading";
 import { HighlightText } from "@/components/HighlightText";
 import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
+import { ProjectSearchResults } from "@/components/search/ProjectSearchResults";
 
 function SearchContent() {
   const router = useRouter();
@@ -33,6 +34,7 @@ function SearchContent() {
   const { categoryCounts, isLoading: categoryCountsLoading } = useCategoryCounts();
   const { profiles, isLoading: profilesLoading } = useProfiles();
   const [searchQuery, setSearchQuery] = useState("");
+  const [projectCount, setProjectCount] = useState(0);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [loadingItem, setLoadingItem] = useState<string | null>(null);
   const [hasSearched, setHasSearched] = useState(false);
@@ -195,7 +197,8 @@ function SearchContent() {
   };
 
   const activeTags = filteredTags.filter((tag) => (tag.count ?? 0) > 0);
-  const totalResults = filteredCategories.length + filteredTags.length + activeUsers.length + inactiveUsers.length;
+  // D09 S02e: project results count too (0 while search is switched off).
+  const totalResults = projectCount + filteredCategories.length + filteredTags.length + activeUsers.length + inactiveUsers.length;
 
   const isSearching = debouncedSearchQuery !== searchQuery;
   const isLoadingData = tagsLoading || categoryCountsLoading || profilesLoading;
@@ -373,10 +376,18 @@ function SearchContent() {
             <SearchContentSkeleton />
           ) : (
             <>
+          {/* D09 S02e: project results, only while search is switched on */}
+          {debouncedSearchQuery && <ProjectSearchResults query={debouncedSearchQuery} onCount={setProjectCount} />}
+
           {/* Results Summary */}
           {debouncedSearchQuery && (
             <div className="flex justify-center items-center gap-2 text-sm text-muted-foreground mb-4">
               <span>Found {totalResults} results</span>
+              {projectCount > 0 && (
+                <Badge variant="secondary" className="font-mono">
+                  {projectCount} projects
+                </Badge>
+              )}
               <Badge variant="secondary" className="font-mono">
                 {filteredCategories.length} categories
               </Badge>
