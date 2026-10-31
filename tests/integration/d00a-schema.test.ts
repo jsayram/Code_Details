@@ -155,6 +155,26 @@ const P07: Record<string, { fields: string[]; indexes: Record<string, string[]> 
     fields: ["userId", "day", "startedAt", "provider", "model", "status", "latencyMs", "errorStatus"],
     indexes: { by_user_day: ["userId", "day"] },
   },
+  // D10 day one (§3.14, D09 S02d): search analytics, no user ID, email or IP.
+  searchReceipts: {
+    fields: ["receiptId", "visit", "query", "scope", "hits", "createdAt", "expiresAt"],
+    indexes: { by_receiptId: ["receiptId"], by_expires: ["expiresAt"] },
+  },
+  searchEvents: {
+    fields: [
+      "eventId", "type", "channel", "day", "acceptedAt", "clientAt", "skewed", "receiptId", "visit", "interactionId", "product",
+      "query", "scope", "sort", "filterCount", "page", "status", "hitCount", "zero", "low", "latencyMs", "entityId", "position", "positions",
+    ],
+    indexes: { by_eventId: ["eventId"], by_day: ["day"], by_accepted: ["acceptedAt"], by_receipt_type: ["receiptId", "type"] },
+  },
+  searchDaily: {
+    fields: ["day", "query", "scope", "channel", "searches", "requests", "zeroResults", "lowResults", "errors", "presented", "clickedSearches", "clicks", "favorites", "browses", "updatedAt"],
+    indexes: { by_day: ["day"] },
+  },
+  searchDrops: {
+    fields: ["day", "reason", "count"],
+    indexes: { by_day_reason: ["day", "reason"] },
+  },
 };
 
 /** Every validator node under a field, depth first. */

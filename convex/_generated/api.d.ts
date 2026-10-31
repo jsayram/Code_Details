@@ -30,6 +30,7 @@ import type * as projectLifecycle from "../projectLifecycle.js";
 import type * as projects from "../projects.js";
 import type * as roles from "../roles.js";
 import type * as search from "../search.js";
+import type * as searchAnalytics from "../searchAnalytics.js";
 import type * as searchSync from "../searchSync.js";
 import type * as tagWriter from "../tagWriter.js";
 import type * as tags from "../tags.js";
@@ -64,6 +65,7 @@ declare const fullApi: ApiFromModules<{
   projects: typeof projects;
   roles: typeof roles;
   search: typeof search;
+  searchAnalytics: typeof searchAnalytics;
   searchSync: typeof searchSync;
   tagWriter: typeof tagWriter;
   tags: typeof tags;

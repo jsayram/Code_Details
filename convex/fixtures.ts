@@ -46,8 +46,9 @@ export const clear = internalMutation({
     for (const table of ["projectSlugs", "projectTags", "contentChanges", "tagAliases"] as const) {
       for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
     }
-    // D08 /api/llm gate: usage counters and the call log the gate tests write.
-    for (const table of ["llmDailyUsage", "llmCalls"] as const) {
+    // D08 /api/llm gate: usage counters and the call log the gate tests write;
+    // D10: the search analytics tables.
+    for (const table of ["llmDailyUsage", "llmCalls", "searchReceipts", "searchEvents", "searchDaily", "searchDrops"] as const) {
       for (const doc of await ctx.db.query(table).collect()) await ctx.db.delete(doc._id);
     }
     // D08d wrote account.linked audit rows; emptied in case an old run left some.
@@ -863,5 +864,33 @@ export const searchProbe = internalQuery({
       .withSearchIndex("search_public", (s) => s.search("searchText", rewriteQuery(q, new Set()).q).eq("listed", true))
       .take(48);
     return rows.map((r) => r.slug);
+  },
+});
+
+// D10: the search analytics tables, and rows inserted as-is (old or expired
+// ones the retention and receipt checks need). Test helpers only.
+export const searchAnalyticsState = internalQuery({
+  args: {},
+  handler: async (ctx) => {
+    assertFixturesAllowed();
+    const strip = <T extends { _id: unknown; _creationTime: number }>({ _id, _creationTime, ...rest }: T) => (void _id, void _creationTime, rest);
+    return {
+      events: (await ctx.db.query("searchEvents").collect()).map(strip),
+      receipts: (await ctx.db.query("searchReceipts").collect()).map(strip),
+      daily: (await ctx.db.query("searchDaily").collect()).map(strip),
+      drops: (await ctx.db.query("searchDrops").collect()).map(strip),
+    };
+  },
+});
+
+export const insertSearchAnalyticsRows = internalMutation({
+  args: { receipts: v.optional(v.array(v.any())), events: v.optional(v.array(v.any())), daily: v.optional(v.array(v.any())), drops: v.optional(v.array(v.any())) },
+  handler: async (ctx, a) => {
+    assertFixturesAllowed();
+    for (const r of a.receipts ?? []) await ctx.db.insert("searchReceipts", r);
+    for (const e of a.events ?? []) await ctx.db.insert("searchEvents", e);
+    for (const d of a.daily ?? []) await ctx.db.insert("searchDaily", d);
+    for (const d of a.drops ?? []) await ctx.db.insert("searchDrops", d);
+    return null;
   },
 });

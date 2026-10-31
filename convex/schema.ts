@@ -264,6 +264,83 @@ export default defineSchema({
     .index("by_processed_created", ["processedAt", "createdAt"])
     .index("by_entity", ["entityType", "entityId"]),
 
+  // D10 day one (§3.14, S00.3 §6–§9): search analytics. Written only where
+  // the deployment sets CODEDETAILS_SEARCH_ANALYTICS_ALLOWED=1 (the test
+  // backends; real collection needs Jose's go). No user ID, email or IP in any
+  // of them; `visit` is a random per-site token the browser renews.
+  searchReceipts: defineTable({
+    receiptId: v.string(),
+    visit: v.string(),
+    query: v.string(),
+    scope: v.union(v.literal("global"), v.literal("creator")),
+    hits: v.array(v.object({ entityId: v.string(), position: v.number() })),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_receiptId", ["receiptId"])
+    .index("by_expires", ["expiresAt"]),
+
+  searchEvents: defineTable({
+    eventId: v.string(),
+    type: v.union(
+      v.literal("search_executed"),
+      v.literal("browse_executed"),
+      v.literal("results_presented"),
+      v.literal("result_clicked"),
+      v.literal("favorite_created"),
+    ),
+    channel: v.string(),
+    day: v.string(),
+    acceptedAt: v.number(),
+    clientAt: v.optional(v.number()),
+    skewed: v.optional(v.boolean()),
+    receiptId: v.optional(v.string()),
+    visit: v.optional(v.string()),
+    interactionId: v.optional(v.string()),
+    product: v.optional(v.boolean()),
+    query: v.optional(v.string()),
+    scope: v.optional(v.union(v.literal("global"), v.literal("creator"))),
+    sort: v.optional(v.string()),
+    filterCount: v.optional(v.number()),
+    page: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("ok"), v.literal("error"))),
+    hitCount: v.optional(v.number()),
+    zero: v.optional(v.boolean()),
+    low: v.optional(v.boolean()),
+    latencyMs: v.optional(v.number()),
+    entityId: v.optional(v.string()),
+    position: v.optional(v.number()),
+    positions: v.optional(v.array(v.number())),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_day", ["day"])
+    .index("by_accepted", ["acceptedAt"])
+    .index("by_receipt_type", ["receiptId", "type"]),
+
+  searchDaily: defineTable({
+    day: v.string(),
+    query: v.string(),
+    scope: v.union(v.literal("global"), v.literal("creator")),
+    channel: v.string(),
+    searches: v.number(),
+    requests: v.number(),
+    zeroResults: v.number(),
+    lowResults: v.number(),
+    errors: v.number(),
+    presented: v.number(),
+    clickedSearches: v.number(),
+    clicks: v.number(),
+    favorites: v.number(),
+    browses: v.number(),
+    updatedAt: v.number(),
+  }).index("by_day", ["day"]),
+
+  searchDrops: defineTable({
+    day: v.string(),
+    reason: v.string(),
+    count: v.number(),
+  }).index("by_day_reason", ["day", "reason"]),
+
   // §3.15 Import bookkeeping, local development deployment only. Emptied or
   // exported to the private archive before any production data exists (§10).
   importRuns: defineTable({

@@ -20,6 +20,7 @@ import { mutation, type MutationCtx } from "./_generated/server";
 import type { Doc } from "./_generated/dataModel";
 import { getViewer } from "./viewer";
 import { outbox } from "./projectLifecycle";
+import { attributeFavorite } from "./searchAnalytics";
 
 export type FavoriteResult = { ok: true; isFavorite: boolean; favoriteCount: number } | { ok: false; code: "not_found" };
 
@@ -39,8 +40,11 @@ async function countersChanged(ctx: MutationCtx, project: Doc<"projects">, delta
 }
 
 export const add = mutation({
-  args: { projectId: v.string() },
-  handler: async (ctx, { projectId }): Promise<FavoriteResult> => {
+  // D10: `search` names the search result the favorite came from (its receipt
+  // and the browser's random visit token, never a person). Optional; it only
+  // feeds analytics, and only after a validated click (attributeFavorite).
+  args: { projectId: v.string(), search: v.optional(v.object({ receiptId: v.string(), visit: v.string() })) },
+  handler: async (ctx, { projectId, search }): Promise<FavoriteResult> => {
     const viewer = await getViewer(ctx);
     const project = await loadProject(ctx, projectId);
     // Active, and listed unless it's the caller's own (private) project.
@@ -54,6 +58,7 @@ export const add = mutation({
     if (existing) return { ok: true, isFavorite: true, favoriteCount: project.favoriteCount };
     await ctx.db.insert("favorites", { userId: viewer.userId, projectId: project._id, createdAt: Date.now(), listed: project.listed });
     const favoriteCount = await countersChanged(ctx, project, 1, project.ownerId === viewer.userId);
+    if (search && project.listed) await attributeFavorite(ctx, search, project._id);
     return { ok: true, isFavorite: true, favoriteCount };
   },
 });

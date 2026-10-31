@@ -25,7 +25,7 @@ const PUBLIC_ROUTES = [
   route("/projects/users/[^/]+.*"),
   route("/api/shared-projects/.*"),
   // D09 S02b (Jose's decision 3): search returns listed projects only, to anyone.
-  route("/api/search(/facets)?"),
+  route("/api/search(/facets|/events)?"),
   // D09 S02c (decision 3 and the master's scope answer): the search page, the
   // tag list, the community list and the per-tag and per-category lists are
   // public. Their data routes answer the public variants to anyone and refuse

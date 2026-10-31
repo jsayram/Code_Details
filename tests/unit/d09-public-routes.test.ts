@@ -8,7 +8,7 @@ import { isPublicPath } from "@/backend/auth/proxy-rules";
 describe("public paths after S02c", () => {
   it.each([
     "/search", "/search/", "/tags", "/tags/Next.js", "/tags/c%23", "/categories", "/categories/web", "/projects",
-    "/api/projects", "/api/categories/counts", "/api/search", "/api/search/facets",
+    "/api/projects", "/api/categories/counts", "/api/search", "/api/search/facets", "/api/search/events",
   ])("%s is public", (p) => {
     expect(isPublicPath(p)).toBe(true);
   });
