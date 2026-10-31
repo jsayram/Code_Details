@@ -1,8 +1,7 @@
 "use server";
 
-import { TagInfo, searchTags } from "@/db/operations/tag-operations";
-import { unstable_cache } from 'next/cache';
-import { convexTagList, personalReadsFromConvex } from "@/backend/projects/personal";
+import type { TagInfo } from "@/db/operations/tag-operations";
+import { convexTagList, requireConvexData } from "@/backend/projects/personal";
 
 // D07 (P08 R04, R30): every export of a "use server" file is callable by
 // anyone. The tag writers that were here (addTagToProjectAction,
@@ -18,32 +17,22 @@ import { convexTagList, personalReadsFromConvex } from "@/backend/projects/perso
 export async function searchTagsAction(query: string): Promise<TagInfo[]> {
   try {
     const q = typeof query === "string" ? query : "";
-    // D07x: under both development switches, the active tags from Convex.
-    if (personalReadsFromConvex()) return await convexTagList(q);
-    return await searchTags(q);
+    // D07x: the active tags from Convex. E03: no Supabase fallback.
+    requireConvexData();
+    return await convexTagList(q);
   } catch (error) {
     console.error("Error searching tags:", error);
     return [];
   }
 }
 
-// Cache all tags for 10 minutes
-export const getCachedAllTags = unstable_cache(
-  async () => searchTags(),
-  ['all-tags'],
-  {
-    revalidate: 600, // 10 minutes
-    tags: ['tags']
-  }
-);
-
 /**
  * Fetch all tags
  */
 export async function getTags(): Promise<TagInfo[]> {
   try {
-    if (personalReadsFromConvex()) return await convexTagList("");
-    return await getCachedAllTags();
+    requireConvexData();
+    return await convexTagList("");
   } catch (error) {
     console.error('Error fetching tags:', error);
     throw new Error('Failed to fetch tags');

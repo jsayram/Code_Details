@@ -45,12 +45,6 @@ test.describe(`D04b profile edit (${convexRead ? "Convex" : "Supabase"} read)`, 
     expect((await old.json()).data).toMatchObject({ redirect: true, currentUsername: wanted });
   });
 
-  test("an unlinked login can't edit a Supabase profile", async ({ page }) => {
-    test.skip(convexRead, "Supabase read only");
-    await signIn(page, "d04b-unlinked");
-    const res = await put(page, A.profile!.username, { full_name: "Hijack" });
-    expect([401, 403]).toContain(res.status());
-    const after = await page.request.get(`/api/profiles/${A.profile!.username}`);
-    expect((await after.json()).data.profile.full_name).toBe("Alice Fixture");
-  });
+  // E03: "an unlinked login can't edit a Supabase profile" went with the Supabase edit;
+  // d04b-convex-profile-edit covers another user's handle (not_found, nothing written).
 });

@@ -6,11 +6,6 @@
  */
 
 import {
-  getProjectImages,
-  getProjectCoverImage,
-} from "@/db/operations/project-image-operations";
-import { getProjectById } from "@/app/actions/projects";
-import {
   SelectProjectImage,
   ImageType,
   IMAGE_TYPES,
@@ -65,18 +60,9 @@ export interface ImageUploadInput {
 
 // D06 (P08 R02/R11/R12/R33). Writes go to Convex (the caller from getViewer).
 // D08g4f2: the Clerk-keyed Supabase writes are gone, so anything else refuses,
-// as the project and favorite writes do. Reads go through getProjectById,
-// which hides a soft-deleted project from everyone but its owner and admins.
-
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-/**
- * The project when the viewer may see it (getProjectById's rule), else null.
- */
-async function visibleProject(projectId: string) {
-  if (typeof projectId !== "string" || !UUID_RE.test(projectId)) return null;
-  return getProjectById(projectId);
-}
+// as the project and favorite writes do. Reads come from Convex, which hides a
+// soft-deleted project's images from everyone but its owner; E03: with no
+// local Convex (no Supabase fallback) there are none.
 
 // =============================================================================
 // Server Actions
@@ -153,16 +139,9 @@ export async function getProjectImagesAction(
     if (imageType !== undefined && !IMAGE_TYPES.includes(imageType)) {
       return validationError(`Invalid image type. Must be one of: ${IMAGE_TYPES.join(", ")}`);
     }
-    if (imageReadsFromConvex()) {
-      const images = await listImagesOnConvex(String(projectId), imageType);
-      return images ? actionSuccess(images) : notFoundError("Project");
-    }
-    // Public projects need no sign-in; a deleted one only its owner or an admin
-    if (!(await visibleProject(projectId))) {
-      return notFoundError("Project");
-    }
-    const images = await getProjectImages(projectId, imageType);
-    return actionSuccess(images);
+    if (!imageReadsFromConvex()) return notFoundError("Project");
+    const images = await listImagesOnConvex(String(projectId), imageType);
+    return images ? actionSuccess(images) : notFoundError("Project");
   } catch (error) {
     console.error("Error fetching project images:", error);
     return serverError(error, "Failed to fetch images");
@@ -176,14 +155,8 @@ export async function getProjectCoverImageAction(
   projectId: string
 ): Promise<ActionResult<SelectProjectImage | null>> {
   try {
-    if (imageReadsFromConvex()) {
-      return actionSuccess(await coverImageOnConvex(String(projectId)));
-    }
-    if (!(await visibleProject(projectId))) {
-      return actionSuccess(null);
-    }
-    const coverImage = await getProjectCoverImage(projectId);
-    return actionSuccess(coverImage);
+    if (!imageReadsFromConvex()) return actionSuccess(null);
+    return actionSuccess(await coverImageOnConvex(String(projectId)));
   } catch (error) {
     console.error("Error fetching cover image:", error);
     return serverError(error, "Failed to fetch cover image");

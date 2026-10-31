@@ -169,7 +169,7 @@ interface DashboardStats {
       updated_at: Date | null;
       admin_notes: string | null;
       reviewed_at: Date | null;
-      project_title?: string;
+      project_title?: string | null;
     }>;
   }>;
 }
@@ -2107,21 +2107,6 @@ function DashboardContent() {
                   </span>
                 </Button>
               </a>
-
-              <Link href="/test-cache">
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Cache Performance</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test cache performance and efficiency
-                  </span>
-                </Button>
-              </Link>
 
               <Link href="/llm-test">
                 <Button

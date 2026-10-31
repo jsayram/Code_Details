@@ -42,10 +42,11 @@ describe.skipIf(!testDbAvailable())("SEC-D04-ANALYTICS", () => {
     await expect(getTagPipelineAnalytics()).rejects.toThrow(/Unauthorized/);
   });
 
-  it("the admin-checked versions still answer the admin", async () => {
+  // E03: the analytics are Convex-only (d07-convex-admin covers the admin's
+  // answers); without a local Convex the admin passes the check and is refused.
+  it("the admin-checked versions pass the admin check, then refuse without Convex", async () => {
     signInAs(set.personas.admin.subject, { email: set.personas.admin.profile!.email });
     const { fetchTopContributors } = await import("../../src/app/actions/advanced-analytics.js");
-    const rows = await fetchTopContributors(50);
-    expect(rows.length).toBeGreaterThan(0);
+    await expect(fetchTopContributors(50)).rejects.toThrow(/Project data is unavailable/);
   });
 });

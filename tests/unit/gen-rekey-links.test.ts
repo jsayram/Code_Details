@@ -57,7 +57,7 @@ const A = "k17genrekeylinksaaaaaaaaaaaaaaaa";
 const B = "k17genrekeylinksbbbbbbbbbbbbbbbb";
 const C = "k17genrekeylinkscccccccccccccccc";
 const CLERK_A = "user_fixture_genrekey_links_a";
-const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null, projectViewer: null });
+const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null });
 
 // Convex project IDs (shape only).
 const A_PUBLIC = { id: "j97genrekeyprojectapublic0000000", slug: "genrekey-a-public", title: "A's public project" };
@@ -222,32 +222,23 @@ describe("generator re-key links under the Convex read switch", () => {
   });
 });
 
-describe("generator re-key links on Supabase reads (unchanged rule)", () => {
-  it("an account with no Clerk-era login owns no Supabase project: link refused without a query", async () => {
+describe("generator re-key links without Convex (E03: no Supabase fallback)", () => {
+  it("the link is refused and nothing reads Supabase", async () => {
     state.convex = false;
-    state.owner = baOnly(A);
-    expect((await patch(DOCS.a, { projectId: "00000000-0000-4000-8000-0000000000a1", projectSlug: "genrekey-supabase", projectTitle: "x" })).status).toBe(404);
+    for (const owner of [baOnly(A), { writeKey: A, keys: [A, CLERK_A], legacyUserId: CLERK_A }]) {
+      state.owner = owner;
+      state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", title: "Supabase title", user_id: CLERK_A };
+      expect((await patch(DOCS.a, { projectId: "00000000-0000-4000-8000-0000000000a1", projectSlug: "genrekey-supabase", projectTitle: "x" })).status).toBe(404);
+    }
     expect(state.supabaseCalls).toBe(0);
   });
 
-  it("a Clerk-era owner links its Supabase project with the server's title", async () => {
-    state.convex = false;
-    state.owner = { writeKey: A, keys: [A, CLERK_A], legacyUserId: CLERK_A, projectViewer: { userId: CLERK_A, isAdmin: false } };
-    state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", title: "Supabase title", user_id: CLERK_A };
-    const res = await patch(DOCS.a, { projectId: "00000000-0000-4000-8000-0000000000a1", projectSlug: "genrekey-supabase", projectTitle: "Spoofed" });
-    expect(res.status).toBe(200);
-    expect(readMeta(DOCS.a)).toMatchObject({ linkedProjectId: "00000000-0000-4000-8000-0000000000a1", linkedProjectTitle: "Supabase title" });
-  });
-
-  it("the project page lists a linked doc only when the link is that project and it's the doc owner's", async () => {
+  it("the project page finds no project, so no linked doc", async () => {
     state.convex = false;
     cleanup();
     writeDoc(DOCS.a, A, { legacyUserId: CLERK_A, linkedProjectId: "00000000-0000-4000-8000-0000000000a1", linkedProjectSlug: "genrekey-supabase", linkedProjectTitle: "x" });
     state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", user_id: CLERK_A };
-    expect(await linkedDoc("genrekey-supabase")).toMatchObject({ hasLinkedDoc: true });
-    state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000ff", slug: "genrekey-supabase", user_id: CLERK_A };
-    expect(await linkedDoc("genrekey-supabase")).toMatchObject({ hasLinkedDoc: false });
-    state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", user_id: "user_fixture_someone_else" };
-    expect(await linkedDoc("genrekey-supabase")).toMatchObject({ hasLinkedDoc: false });
+    expect((await getLinkedDoc(req(), p("genrekey-supabase"))).status).toBe(404);
+    expect(state.supabaseCalls).toBe(0);
   });
 });

@@ -1,7 +1,8 @@
 // D11s (option B): a generated doc's chapters and metadata are readable by its
-// owner, and by other signed-in users only while it is linked to a project of
-// the owner's that the viewer can open on the project page (readProjectBySlug,
-// the page's own rule). Non-owners get a trimmed metadata view; the ZIP is
+// owner, and by other signed-in users only while it is linked to a project
+// that the viewer can open on the project page (its public projection; E03:
+// the Supabase readProjectBySlug path is gone, and the link's ownership is
+// checked when it is made, see gen-rekey-links.test.ts). Non-owners get a trimmed metadata view; the ZIP is
 // owner-only. Every refusal is the same 404 as a missing doc; signed out is 401.
 // Slugs and filenames that could leave the output root, or be stripped into
 // another doc's name, are refused. The session and the project lookup are
@@ -18,26 +19,23 @@ import { DELETE as deleteDoc } from "@/app/api/docs/[slug]/route";
 import { docDir, docsOutputRoot, isSafeChapterFilename, isSafeDocSlug } from "@/lib/docs-output-root";
 
 const viewer = vi.hoisted(() => ({ userId: null as string | null, isAdmin: false }));
-// What readProjectBySlug returns for the linked slug: the page's own visibility
-// rule already applied (null for a missing project, or a soft-deleted one the viewer can't see).
-const db = vi.hoisted(() => ({ project: null as null | { id: string; user_id: string }, calls: [] as unknown[][], fail: false }));
+// What the public project read returns for the linked slug (null for a
+// missing, private or soft-deleted project).
+const db = vi.hoisted(() => ({ project: null as null | { id: string }, calls: [] as unknown[][], fail: false }));
 
-// routeDocOwner as it answers with Clerk (the default): one key, Clerk's userId.
+// routeDocOwner for an account with one key.
 vi.mock("@/lib/auth-server", () => ({
-  routeDocOwner: async () =>
-    viewer.userId
-      ? { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null, projectViewer: { userId: viewer.userId, isAdmin: viewer.isAdmin } }
-      : null,
+  routeDocOwner: async () => (viewer.userId ? { writeKey: viewer.userId, keys: [viewer.userId], legacyUserId: null } : null),
 }));
-// The Supabase path (the D11s rule); the Convex path is in gen-rekey-links.test.ts.
-vi.mock("@/backend/projects/personal", () => ({ personalReadsFromConvex: () => false, convexPersonalList: async () => [] }));
-vi.mock("@/backend/projects", () => ({ getProjectReadBackend: () => ({ getPublicProjectBySlug: async () => null }) }));
-vi.mock("@/db/project-read", () => ({
-  readProjectBySlug: async (...args: unknown[]) => {
-    db.calls.push(args);
-    if (db.fail) throw new Error("database down");
-    return db.project;
-  },
+vi.mock("@/backend/projects/personal", () => ({ personalReadsFromConvex: () => true, convexPersonalList: async () => [] }));
+vi.mock("@/backend/projects", () => ({
+  getProjectReadBackend: () => ({
+    getPublicProjectBySlug: async (...args: unknown[]) => {
+      db.calls.push(args);
+      if (db.fail) throw new Error("backend down");
+      return db.project ? { ...db.project, slug: args[0] } : null;
+    },
+  }),
 }));
 
 const OWNER = "user_fixture_d11s_owner";
@@ -81,7 +79,7 @@ beforeEach(() => {
   db.calls = [];
   db.fail = false;
 });
-const LIVE_PROJECT = { id: LINK.linkedProjectId, user_id: OWNER };
+const LIVE_PROJECT = { id: LINK.linkedProjectId };
 
 describe("D11s doc reads: who may read", () => {
   it("signed out: 401 from every read of a linked or unlinked doc, nothing looked up", async () => {
@@ -122,14 +120,14 @@ describe("D11s doc reads: who may read", () => {
     expect(db.calls).toHaveLength(0);
   });
 
-  it("another user reads the chapters of a doc linked to a project they can open, checked with their own session", async () => {
+  it("another user reads the chapters of a doc linked to a project they can open (its public projection)", async () => {
     viewer.userId = OTHER;
     viewer.isAdmin = false;
     db.project = LIVE_PROJECT;
     const ch = await chapter(DOCS.linked);
     expect(ch.status).toBe(200);
     expect(await ch.text()).toContain("Synthetic chapter.");
-    expect(db.calls[0]).toEqual([LINK.linkedProjectSlug, { userId: OTHER, isAdmin: false }]);
+    expect(db.calls[0]).toEqual([LINK.linkedProjectSlug]);
   });
 
   it("another user gets only the page's metadata fields: no owner ID, cost, tokens or link fields", async () => {
@@ -159,12 +157,11 @@ describe("D11s doc reads: who may read", () => {
     expect(await res.json()).toEqual(await (await zip("d11s-unit-does-not-exist")).json());
   });
 
-  it("a link to a project the viewer can't open (gone, soft-deleted), re-pointed or someone else's, or a failed lookup, reads as missing", async () => {
+  it("a link to a project the viewer can't open (gone, private, soft-deleted), re-pointed, or a failed lookup, reads as missing", async () => {
     viewer.userId = OTHER;
     const cases: Array<[string, typeof db.project]> = [
       ["not visible to this viewer", null],
-      ["link points at another project id", { id: "00000000-0000-4000-8000-0000000000ff", user_id: OWNER }],
-      ["project belongs to someone else", { id: LINK.linkedProjectId, user_id: OTHER }],
+      ["link points at another project id", { id: "00000000-0000-4000-8000-0000000000ff" }],
     ];
     for (const [label, project] of cases) {
       db.project = project;

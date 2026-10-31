@@ -1,11 +1,7 @@
 import { NextRequest } from "next/server";
-import { executeQuery } from "@/db/server";
-import { tag_submissions } from "@/db/schema/tag_submissions";
-import { profiles } from "@/db/schema/profiles";
-import { eq, and } from "drizzle-orm";
-import { success, invalidInput, databaseError, unauthorized } from "@/lib/api-errors";
-import { betterAuthSignedIn, routeViewer } from "@/lib/auth-server";
-import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { success, invalidInput, databaseError, serverError, unauthorized } from "@/lib/api-errors";
+import { betterAuthSignedIn } from "@/lib/auth-server";
+import { DATA_UNAVAILABLE, personalReadsFromConvex } from "@/backend/projects/personal";
 import { mySuggestionsOnConvex } from "@/backend/projects/tags";
 
 const STATUSES = new Set(["pending", "approved", "rejected"]);
@@ -26,43 +22,11 @@ export async function GET(
     if (!STATUSES.has(status)) {
       return invalidInput("Invalid status");
     }
-    // D07-c: under both development switches, the viewer's own Convex suggestions.
-    if (projectWritesToConvex()) {
-      if (projectId.length > 64) return invalidInput("Invalid project ID");
-      // A Better Auth account needs no Clerk-era link here (routeViewer would).
-      if (!(await betterAuthSignedIn())) return unauthorized();
-      return success(await mySuggestionsOnConvex(projectId, status));
-    }
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(projectId)) {
-      return invalidInput("Invalid project ID");
-    }
-
-    const viewer = await routeViewer();
-    if (!viewer) {
-      return unauthorized();
-    }
-
-    const submissions = await executeQuery(async (db) => {
-      const [profile] = await db
-        .select({ email: profiles.email_address })
-        .from(profiles)
-        .where(eq(profiles.user_id, viewer.userId))
-        .limit(1);
-      if (!profile?.email) return [];
-      return db
-        .select()
-        .from(tag_submissions)
-        .where(
-          and(
-            eq(tag_submissions.project_id, projectId),
-            eq(tag_submissions.status, status),
-            eq(tag_submissions.submitter_email, profile.email)
-          )
-        )
-        .orderBy(tag_submissions.created_at);
-    });
-
-    return success(submissions);
+    // D07-c: the viewer's own Convex suggestions. E03: the Supabase read is gone.
+    if (!personalReadsFromConvex()) return serverError(undefined, DATA_UNAVAILABLE);
+    if (projectId.length > 64) return invalidInput("Invalid project ID");
+    if (!(await betterAuthSignedIn())) return unauthorized();
+    return success(await mySuggestionsOnConvex(projectId, status));
   } catch (error) {
     return databaseError(error, "Failed to fetch tag submissions");
   }

@@ -1,15 +1,15 @@
-// D08g4d: the data-default switch in the ON position, committed by the D08g4
-// flip-on (the OFF rollback is mocked in d08g4d-data-default.test.ts). Convex becomes the default for reads and, with the Better Auth login
-// on the same local Convex, writes. Everything outside local development stays
-// on Supabase, and naming Supabase still wins.
+// D08g4d made Convex the data default; E03 removed the Supabase fallback and
+// the data-default switch with it. Local development reads Convex and, with
+// the Better Auth login on the same local Convex, writes it. Anything else
+// gets no data backend at all (fail closed), including an old
+// CODEDETAILS_PROJECT_READ_BACKEND=supabase.
 import path from "node:path";
 import type { NextConfig } from "next";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { DATA_DEFAULT } from "@/backend/data-default";
 import { chooseProjectReadBackend } from "@/backend/projects";
 import { imageReadsFromConvex } from "@/backend/projects/images";
-import { personalReadsFromConvex } from "@/backend/projects/personal";
+import { DATA_UNAVAILABLE, personalReadsFromConvex, requireConvexData } from "@/backend/projects/personal";
 import { projectWritesToConvex } from "@/backend/projects/project-update";
 
 const localDev = {
@@ -18,9 +18,9 @@ const localDev = {
   CODEDETAILS_CONVEX_SITE_URL: "http://127.0.0.1:3211",
 };
 
-describe("data-default switch: on", () => {
-  it("is committed on", () => {
-    expect(DATA_DEFAULT).toBe("convex");
+describe("data backend: Convex only", () => {
+  it("the switch module is gone", async () => {
+    await expect(import("@/backend/data-default" as string)).rejects.toThrow();
   });
 
   it("with no backend named, local development reads and writes Convex", () => {
@@ -31,24 +31,30 @@ describe("data-default switch: on", () => {
     expect(imageReadsFromConvex(localDev)).toBe(true);
   });
 
-  it("naming Supabase keeps Supabase", () => {
+  it("naming Supabase gives no backend, not Supabase", () => {
     const named = { ...localDev, CODEDETAILS_PROJECT_READ_BACKEND: "supabase" };
-    expect(chooseProjectReadBackend(named)).toMatchObject({ backend: "supabase", reason: "CODEDETAILS_PROJECT_READ_BACKEND=supabase" });
+    expect(chooseProjectReadBackend(named)).toMatchObject({ backend: "none" });
     expect(projectWritesToConvex(named)).toBe(false);
+    expect(() => requireConvexData(named)).toThrow(DATA_UNAVAILABLE);
   });
 
-  it.each(["production", "test", undefined])("stays on Supabase with NODE_ENV=%s", (nodeEnv) => {
-    expect(chooseProjectReadBackend({ ...localDev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "supabase" });
+  it.each(["production", "test", undefined])("has no backend with NODE_ENV=%s", (nodeEnv) => {
+    expect(chooseProjectReadBackend({ ...localDev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "none" });
     expect(projectWritesToConvex({ ...localDev, NODE_ENV: nodeEnv })).toBe(false);
+    expect(() => requireConvexData({ ...localDev, NODE_ENV: nodeEnv })).toThrow(DATA_UNAVAILABLE);
   });
 
   it.each([
-    ["no Convex URLs (Jose's dev app today)", {}],
+    ["no Convex URLs", {}],
     ["a cloud deployment", { CODEDETAILS_CONVEX_URL: "https://happy-otter-123.convex.cloud" }],
-  ])("stays on Supabase with %s", (_name, urls) => {
+  ])("has no backend with %s", (_name, urls) => {
     const env = { NODE_ENV: "development", ...urls };
-    expect(chooseProjectReadBackend(env)).toMatchObject({ backend: "supabase" });
+    expect(chooseProjectReadBackend(env)).toMatchObject({ backend: "none" });
     expect(projectWritesToConvex(env)).toBe(false);
+  });
+
+  it("requireConvexData passes in local development with Better Auth", () => {
+    expect(() => requireConvexData(localDev)).not.toThrow();
   });
 
   it("writes need the Better Auth login on the same local Convex", () => {
@@ -62,7 +68,7 @@ type RemotePattern = Exclude<NonNullable<NonNullable<NextConfig["images"]>["remo
 const nextConfig = async (): Promise<NextConfig> =>
   ((await import(/* @vite-ignore */ path.resolve(__dirname, "../../next.config.ts"))) as { default: NextConfig }).default;
 
-describe("next.config with the switch on", () => {
+describe("next.config", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     vi.resetModules();
@@ -81,7 +87,7 @@ describe("next.config with the switch on", () => {
     expect(await storageHosts()).toEqual([expect.objectContaining({ hostname: "127.0.0.1", port: "3210" })]);
   });
 
-  it("not when Supabase is named, nor outside development", async () => {
+  it("not when another backend is named, nor outside development", async () => {
     vi.stubEnv("CODEDETAILS_CONVEX_URL", "http://127.0.0.1:3210");
     vi.stubEnv("NODE_ENV", "development");
     vi.stubEnv("CODEDETAILS_PROJECT_READ_BACKEND", "supabase");

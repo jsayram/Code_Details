@@ -18,7 +18,6 @@ vi.mock("next/cache", () => nextCacheDouble);
 const set = generateFixtures();
 const A = set.personas.a;
 const project = (c: string) => set.projects.find((p) => p.case === c)!;
-const listed = project("listed");
 const deletedRecent = project("deletedRecent");
 
 const newProject = (slug: string, extra: Record<string, unknown> = {}) =>
@@ -47,8 +46,6 @@ describe.skipIf(!testDbAvailable())("D03-a Supabase project lifecycle", () => {
 
   const bySlug = async (slug: string) => (await sql`select * from projects where slug = ${slug}`)[0];
   const state = async (id: string) => (await sql`select deleted_at from projects where id = ${id}`)[0];
-  const count = async (table: string, id: string) =>
-    Number((await sql`select count(*)::int as n from ${sql(table)} where project_id = ${id}`)[0].n);
 
   describe("create", () => {
 
@@ -117,16 +114,6 @@ describe.skipIf(!testDbAvailable())("D03-a Supabase project lifecycle", () => {
     });
   });
 
-  describe("SEC-D03-SQLI getProjectTagCounts", () => {
-    it("counts tags for real IDs", async () => {
-      expect(await actions.getProjectTagCounts([listed.id])).toEqual({ [listed.id]: 2 });
-    });
-
-    it("an injected ID is dropped, not run", async () => {
-      const injected = `${listed.id}') or 1=1; delete from project_tags where project_id = '${listed.id}' --`;
-      const counts = await actions.getProjectTagCounts([injected, "') union select 1 --"]);
-      expect(counts).toEqual({});
-      expect(await count("project_tags", listed.id)).toBe(2);
-    });
-  });
+  // SEC-D03-SQLI: getProjectTagCounts (the Supabase tag counts) is gone in E03;
+  // tests/unit/e03-supabase-fallback.test.ts checks it stays gone.
 });

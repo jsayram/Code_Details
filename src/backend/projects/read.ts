@@ -5,7 +5,7 @@
 import type { PublicProject } from "./public-project";
 
 export interface ProjectReadBackend {
-  readonly name: "supabase" | "convex";
+  readonly name: "convex" | "none";
   /**
    * The public projection of a listed project, or null. Private, deleted,
    * purged and missing projects all return null, so callers can't tell them

@@ -40,9 +40,9 @@ const CLERK_A = "user_fixture_genrekey_a";
 const CLERK_B = "user_fixture_genrekey_b";
 
 // The shapes routeDocOwner returns.
-const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null, projectViewer: null });
-const baLinked = (id: string, subject: string): DocOwner => ({ writeKey: id, keys: [id, subject], legacyUserId: subject, projectViewer: { userId: subject, isAdmin: false } });
-const clerk = (subject: string): DocOwner => ({ writeKey: subject, keys: [subject], legacyUserId: null, projectViewer: { userId: subject, isAdmin: false } });
+const baOnly = (id: string): DocOwner => ({ writeKey: id, keys: [id], legacyUserId: null });
+const baLinked = (id: string, subject: string): DocOwner => ({ writeKey: id, keys: [id, subject], legacyUserId: subject });
+const clerk = (subject: string): DocOwner => ({ writeKey: subject, keys: [subject], legacyUserId: null });
 
 const OUTPUT = docsOutputRoot();
 const CHAPTER = "01_intro.md";
@@ -177,31 +177,19 @@ describe("generator re-key: owner keys", () => {
 });
 
 describe("generator re-key: linked docs", () => {
-  it("another user reads a re-keyed linked doc while the Clerk-keyed project is the owner's, looked up with their own session", async () => {
+  // E03: a non-owner's read of a linked doc goes through the Convex public
+  // projection only (gen-rekey-links.test.ts covers it); the Clerk-keyed
+  // Supabase project lookup is gone. Without a local Convex, another user
+  // reads a linked doc as missing; the owner still reads it by either key.
+  it("without Convex another user reads a linked doc as missing; the owner reads it by either key", async () => {
     session.owner = baLinked(CONVEX_B, CLERK_B);
-    db.project = { id: LINK.linkedProjectId, user_id: CLERK_A };
-    expect((await chapter(DOCS.linkedA)).status).toBe(200);
-    const m = await (await meta(DOCS.linkedA)).json();
-    expect(m).toMatchObject({ isOwner: false, userId: null });
-    expect(JSON.stringify(m)).not.toContain(CLERK_A);
-    expect(JSON.stringify(m)).not.toContain(CONVEX_A);
-    expect(db.calls[0]).toEqual([LINK.linkedProjectSlug, { userId: CLERK_B, isAdmin: false }]);
-    expect((await zip(DOCS.linkedA)).status).toBe(404);
-  });
-
-  it("an account with no Clerk-era login looks the project up as a signed-out viewer would", async () => {
+    expect((await chapter(DOCS.linkedA)).status).toBe(404);
+    expect((await meta(DOCS.linkedA)).status).toBe(404);
     session.owner = baOnly(CONVEX_B);
-    db.project = { id: LINK.linkedProjectId, user_id: CLERK_A };
-    expect((await chapter(DOCS.linkedA)).status).toBe(200);
-    expect(db.calls[0]).toEqual([LINK.linkedProjectSlug, null]);
-  });
-
-  it("a project that belongs to neither of the doc's keys reads as missing", async () => {
-    session.owner = baLinked(CONVEX_B, CLERK_B);
-    for (const owner of [CLERK_B, CONVEX_B, "user_fixture_genrekey_c"]) {
-      db.project = { id: LINK.linkedProjectId, user_id: owner };
-      expect((await chapter(DOCS.linkedA)).status, owner).toBe(404);
-      expect((await meta(DOCS.linkedA)).status, owner).toBe(404);
+    expect((await chapter(DOCS.linkedA)).status).toBe(404);
+    for (const owner of [baOnly(CONVEX_A), clerk(CLERK_A)]) {
+      session.owner = owner;
+      expect((await chapter(DOCS.linkedA)).status).toBe(200);
     }
   });
 });

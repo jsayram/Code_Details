@@ -155,7 +155,7 @@ describe("docs-rekey apply and restore", () => {
   it("the app finds the owner of a re-keyed doc in Clerk mode and under the switch, and nobody else", () => {
     expect(run("--root", ROOT, "--map", MAP_FILE, "--apply", "--backup", backupDir("1")).code).toBe(0);
     const doc = readMeta(SLUGS.a1);
-    const owner = (keys: string[]): DocOwner => ({ writeKey: keys[0], keys, legacyUserId: null, projectViewer: null });
+    const owner = (keys: string[]): DocOwner => ({ writeKey: keys[0], keys, legacyUserId: null });
     expect(isDocOwner(doc, owner([CLERK_A]))).toBe(true); // Clerk mode
     expect(isDocOwner(doc, owner([ACC_A]))).toBe(true); // Better Auth, no Clerk link
     expect(isDocOwner(doc, owner([ACC_A, CLERK_A]))).toBe(true);

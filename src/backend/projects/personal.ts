@@ -1,18 +1,14 @@
 // D02r-c: the personal lists (my projects, my graveyard, my favorites) and
-// their category counts from Convex, behind the development switches. Used
-// only when the project read switch is "convex" AND the login switch is
-// "better-auth", both pointing at the same local backend: the Convex queries
-// learn the caller from the Better Auth session (getViewer), and Clerk has no
-// way to sign a Convex token. Otherwise the routes keep the Supabase read,
-// which takes the user from the session too (routeViewer, D02r-a).
+// their category counts from Convex. Used only when the project read switch is
+// "convex" AND the login switch is "better-auth", both pointing at the same
+// local backend: the Convex queries learn the caller from the Better Auth
+// session (getViewer). E03: there is no Supabase fallback any more; without
+// both switches the routes refuse (requireConvexData).
 //
 // The queries return small bounded card lists; this module filters, sorts and
-// pages them the way /api/projects does on Supabase, and maps them onto the
+// pages them the way /api/projects used to on Supabase, and maps them onto the
 // row shape the client already reads. Rows from here never carry an owner
-// ID. user_id is "", which matches no signed-in ID, so the cards' owner
-// controls (which write to Supabase with Clerk's ID) stay hidden until the
-// writes move (D02/D03). Null would not do: the cards compare it with Clerk's
-// userId, which is null under the Better Auth switch.
+// ID: user_id is "", which matches no signed-in ID.
 import { makeFunctionReference, type FunctionReference } from "convex/server";
 import { fetchQuery } from "convex/nextjs";
 import { chooseAuthBackend } from "@/backend/auth";
@@ -52,6 +48,17 @@ export function personalReadsFromConvex(env: Record<string, string | undefined> 
   const read = chooseProjectReadBackend(env);
   const login = chooseAuthBackend(env);
   return read.backend === "convex" && login.backend === "better-auth" && read.url === login.convexUrl;
+}
+
+/** E03: the message every data path gives when there is no local Convex with Better Auth. */
+export const DATA_UNAVAILABLE = "Project data is unavailable: it needs the local Convex backend with the Better Auth login (development only)";
+
+/**
+ * E03: the guard for the paths that had a Supabase fallback. With the
+ * fallback gone, no Convex means no data, so they refuse (fail closed).
+ */
+export function requireConvexData(env: Record<string, string | undefined> = process.env): void {
+  if (!personalReadsFromConvex(env)) throw new Error(DATA_UNAVAILABLE);
 }
 
 export async function convexPersonalList(view: PersonalView): Promise<PersonalProjectCard[]> {

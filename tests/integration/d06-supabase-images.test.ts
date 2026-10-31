@@ -31,7 +31,6 @@ const project = (c: string) => set.projects.find((p) => p.case === c)!;
 const listed = project("listed"); // A's, with the fixture images
 const ownedByB = project("ownedByB");
 const deletedRecent = project("deletedRecent"); // A's, soft-deleted
-const image = (key: string) => set.images.find((i) => i.storagePath === `fixtures/${key}.png`)!;
 
 const FILE = "0b9a3c2e-4f1d-4e8a-9c7b-2d5e6f708192-shot.png";
 const pathFor = (subject: string, projectId: string, file = FILE) => `${subject}/${projectId}/${file}`;
@@ -94,25 +93,19 @@ describe.skipIf(!testDbAvailable())("D06-a Supabase images", () => {
     expect((actions as Record<string, unknown>).getImageCountAction).toBeUndefined();
   });
 
-  it("a deleted project's images are hidden from everyone but the owner", async () => {
+  // E03: image reads are Convex-only (d06-convex-images: a listed project's
+  // images for anyone, a deleted project's only for its owner). Without a
+  // local Convex nobody gets a Supabase image row, the owner included.
+  it("without Convex no image is read from Supabase, for anyone", async () => {
     const hidden = await insertImage(deletedRecent.id, "deleted-project-shot");
     await sql`update project_images set image_type = 'cover' where id = ${hidden}`;
-    for (const who of [null, B.subject!]) {
+    for (const who of [null, B.subject!, A.subject!]) {
       signInAs(who);
-      expect(await actions.getProjectImagesAction(deletedRecent.id)).toMatchObject({ success: false, code: "RESOURCE_NOT_FOUND" });
-      expect(await actions.getProjectCoverImageAction(deletedRecent.id)).toEqual({ success: true, data: null });
+      for (const id of [deletedRecent.id, listed.id]) {
+        expect(await actions.getProjectImagesAction(id)).toMatchObject({ success: false, code: "RESOURCE_NOT_FOUND" });
+        expect(await actions.getProjectCoverImageAction(id)).toEqual({ success: true, data: null });
+      }
     }
-    signInAs(A.subject);
-    const own = await actions.getProjectImagesAction(deletedRecent.id);
-    expect(own.success && own.data.map((i) => i.id)).toEqual([hidden]);
-  });
-
-  it("a public project's images stay readable signed out, as before", async () => {
-    const all = await actions.getProjectImagesAction(listed.id);
-    expect(all.success && all.data.length).toBe(4);
-    const cover = await actions.getProjectCoverImageAction(listed.id);
-    expect(cover.success && cover.data?.id).toBe(image("cover").id);
-    expect(await actions.getProjectImagesAction("not-a-uuid")).toMatchObject({ success: false, code: "RESOURCE_NOT_FOUND" });
   });
 
 });

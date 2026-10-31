@@ -2,10 +2,10 @@
 
 import { z } from "zod";
 import { requireAdminForAction, viewerIsAdmin } from "@/lib/admin-action";
-import { getAllUsers, updateUserProfile, type UpdateProfileData, type SortOption, type TierFilter } from "@/db/operations/userManagementOperations";
+import type { UpdateProfileData, SortOption, TierFilter } from "@/db/operations/userManagementOperations";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
-import { projectWritesToConvex } from "@/backend/projects/project-update";
+import { requireConvexData } from "@/backend/projects/personal";
 import { listUsersOnConvex, updateUserOnConvex } from "@/backend/admin";
 
 // D07: the admin check is src/lib/admin-action.ts (no Clerk reads here), and
@@ -21,8 +21,8 @@ const fetchUsersSchema = z.object({
 // Only these columns: updates used to go straight into .set(), so any profile
 // column (user_id, id, ...) was writable.
 const updateUserSchema = z.object({
-  // A UUID on Supabase, a Convex ID under the switches (checked by Convex).
-  profileId: z.string().refine((id) => (projectWritesToConvex() ? id.length > 0 && id.length <= 64 : z.string().uuid().safeParse(id).success), "Invalid profile ID"),
+  // A Convex ID (checked by Convex).
+  profileId: z.string().min(1, "Invalid profile ID").max(64, "Invalid profile ID"),
   updates: z.object({
     username: z.string().optional(),
     full_name: z.string().max(200).optional(),
@@ -49,13 +49,9 @@ export async function fetchAllUsersAction(
   }
   const args = parsed.data;
 
-  // D07-d: under both development switches, Convex's admin:listUsers.
-  if (projectWritesToConvex()) return listUsersOnConvex(args.search, args.page, args.sortBy, args.tierFilter);
-
-  // Fetch users with sort option and tier filter
-  const result = await getAllUsers(args.search, args.page, 100, args.sortBy, args.tierFilter);
-
-  return result;
+  // D07-d: Convex's admin:listUsers. E03: no Supabase fallback.
+  requireConvexData();
+  return listUsersOnConvex(args.search, args.page, args.sortBy, args.tierFilter);
 }
 
 /**
@@ -72,14 +68,11 @@ export async function updateUserAction(
     throw new Error(parsed.error.issues[0].message);
   }
 
-  // Usernames: the shared rules run inside updateUserProfile (D04b), and only
-  // when the name actually changes.
-
-  // Update the profile. D07-d: under both development switches, Convex's
-  // admin:updateUser (a closed patch, audited; the profile ID is a Convex ID).
-  const updatedProfile = projectWritesToConvex()
-    ? await updateUserOnConvex(profileId, parsed.data.updates)
-    : await updateUserProfile(parsed.data.profileId, parsed.data.updates);
+  // Update the profile. D07-d: Convex's admin:updateUser (a closed patch,
+  // audited, the username rules applied; the profile ID is a Convex ID).
+  // E03: no Supabase fallback.
+  requireConvexData();
+  const updatedProfile = await updateUserOnConvex(parsed.data.profileId, parsed.data.updates);
 
   // Revalidate caches
   revalidateTag(CACHE_TAGS.ADMIN_DASHBOARD, {});

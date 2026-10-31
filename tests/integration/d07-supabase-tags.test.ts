@@ -1,5 +1,7 @@
-// D07-a: the default (Clerk + Supabase) tag, suggestion and admin actions after
-// the containment (P08 R04, R30). The real exported server actions and route,
+// D07-a: the tag, suggestion and admin actions after the containment (P08 R04,
+// R30). E03: their Supabase paths are gone; with no local Convex here, the
+// checks that run first (session, admin, arguments) still answer, and the
+// rest refuse without touching the database. The real exported server actions and route,
 // called as the client calls them, against the isolated test database.
 // Suggestions come from the session's viewer with their own profile email;
 // only the owner attaches an existing tag, within the limit; approve and reject
@@ -13,6 +15,7 @@ import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-double
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 import { generateFixtures } from "../fixtures/generate";
 import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
+import { DATA_UNAVAILABLE } from "@/backend/projects/personal";
 
 vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
@@ -91,27 +94,25 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
   });
 
   describe("approve and reject are admin-only", () => {
-    it("approve: signed out throws, B is redirected, the admin's approval attaches the tag", async () => {
+    // E03: moderation is Convex-only (d07-convex-tags covers the admin's
+    // approval); without a local Convex even the admin is refused.
+    it("approve: signed out throws, B is redirected, the admin is refused without Convex; nothing changes", async () => {
       await expect(subs.approveTagSubmission(pending.id)).rejects.toThrow(/Unauthorized/);
       signInAs(B.subject);
       await expect(subs.approveTagSubmission(pending.id)).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
+      signInAdmin();
+      await expect(subs.approveTagSubmission(pending.id)).rejects.toThrow(DATA_UNAVAILABLE);
       expect((await sql`select status from tag_submissions where id = ${pending.id}`)[0].status).toBe("pending");
       expect(await hasTag(listed.id, pending.tagName)).toBe(false);
-      signInAdmin();
-      await subs.approveTagSubmission(pending.id);
-      expect((await sql`select status from tag_submissions where id = ${pending.id}`)[0].status).toBe("approved");
-      expect(await hasTag(listed.id, pending.tagName)).toBe(true);
     });
 
-    it("reject: B is redirected; the admin rejects; a malformed ID is refused", async () => {
+    it("reject: B is redirected; a malformed ID is refused; the admin is refused without Convex", async () => {
       signInAs(B.subject);
       await expect(subs.rejectTagSubmission(pending.id, "no")).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
       signInAdmin();
-      expect(await subs.rejectTagSubmission("not-a-uuid", "no")).toMatchObject({ success: false });
+      expect(await subs.rejectTagSubmission("", "no")).toMatchObject({ success: false });
+      await expect(subs.rejectTagSubmission(pending.id, "not a fit")).rejects.toThrow(DATA_UNAVAILABLE);
       expect((await sql`select status from tag_submissions where id = ${pending.id}`)[0].status).toBe("pending");
-      await subs.rejectTagSubmission(pending.id, "not a fit");
-      const [row] = await sql`select status, admin_notes from tag_submissions where id = ${pending.id}`;
-      expect(row).toMatchObject({ status: "rejected", admin_notes: "not a fit" });
     });
 
   });
@@ -124,34 +125,34 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       });
     };
 
-    it("signed out is refused; a bad status is refused", async () => {
-      expect((await get(`?email=${encodeURIComponent(B.profile!.email)}`)).status).toBe(401);
+    // E03: the suggestions come from Convex only (d07-convex-tags: the
+    // viewer's own only; d09-public-access: the routes over HTTP).
+    it("a bad status is refused; without Convex every read is refused, signed in or not", async () => {
       signInAs(A.subject);
       expect((await get("?status=anything")).status).toBe(400);
-    });
-
-    it("A naming B's email gets only A's own suggestions; B gets B's", async () => {
-      signInAs(A.subject);
-      const asA = JSON.parse(await (await get(`?status=pending&email=${encodeURIComponent(B.profile!.email)}`)).text());
-      expect(asA.data).toEqual([]);
-      signInAs(B.subject);
-      const asB = JSON.parse(await (await get(`?status=pending&email=x@synthetic.invalid`)).text());
-      expect(asB.data.map((r: { id: string }) => r.id)).toEqual([pending.id]);
+      const res = await get(`?status=pending&email=${encodeURIComponent(B.profile!.email)}`);
+      expect(res.status).toBe(500);
+      expect(await res.text()).toContain(DATA_UNAVAILABLE);
+      signInAs(null);
+      expect((await get("?status=pending")).status).toBe(500);
     });
   });
 
   describe("admin user management", () => {
-    it("updateUserAction writes only its four columns; a non-admin is redirected", async () => {
+    // E03: the admin update is Convex-only (d07-convex-admin: a closed,
+    // audited patch); the arguments are still checked first.
+    it("updateUserAction: a non-admin is redirected, bad arguments are refused, and without Convex nothing is written", async () => {
       const um = await import("../../src/app/actions/user-management.js");
       const [{ id: profileId }] = await sql`select id from profiles where user_id = ${B.subject}`;
       signInAs(B.subject);
       await expect(um.updateUserAction(profileId, { full_name: "Hacked" })).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
       signInAdmin();
-      await um.updateUserAction(profileId, { full_name: "Bob Renamed", user_id: A.subject } as never);
-      const [row] = await sql`select full_name, user_id from profiles where id = ${profileId}`;
-      expect(row).toEqual({ full_name: "Bob Renamed", user_id: B.subject });
-      await expect(um.updateUserAction("not-a-uuid", { full_name: "x" })).rejects.toThrow(/Invalid profile ID/);
+      await expect(um.updateUserAction("", { full_name: "x" })).rejects.toThrow(/Invalid profile ID/);
       await expect(um.updateUserAction(profileId, { tier: "platinum" })).rejects.toThrow(/Invalid tier/);
+      await expect(um.updateUserAction(profileId, { full_name: "Bob Renamed" })).rejects.toThrow(DATA_UNAVAILABLE);
+      const [row] = await sql`select full_name, user_id from profiles where id = ${profileId}`;
+      expect(row.user_id).toBe(B.subject);
+      expect(row.full_name).not.toBe("Bob Renamed");
     });
 
     it("checkIsSuperAdmin: signed out and B false, the admin true", async () => {
@@ -163,11 +164,13 @@ describe.skipIf(!testDbAvailable())("D07-a Supabase tags and moderation", () => 
       expect(await um.checkIsSuperAdmin()).toBe(true);
     });
 
-    it("fetchAdminDashboardData gives the admin the pending list from outside the session check", async () => {
+    it("fetchAdminDashboardData: the admin check runs first; without Convex the admin is refused", async () => {
       const { fetchAdminDashboardData } = await import("../../src/app/actions/admin-dashboard.js");
+      await expect(fetchAdminDashboardData()).rejects.toThrow(/Unauthorized/);
+      signInAs(B.subject);
+      await expect(fetchAdminDashboardData()).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
       signInAdmin();
-      const { submissions } = await fetchAdminDashboardData();
-      expect(submissions.flatMap((g) => g.submissions.map((s) => s.id))).toContain(pending.id);
+      await expect(fetchAdminDashboardData()).rejects.toThrow(DATA_UNAVAILABLE);
     });
 
     it("D07-c: the admin page checks on the server: signed out and B are redirected, the admin renders", async () => {

@@ -3,20 +3,13 @@
 // the viewer comes from getViewer and only marks its own rows and favorites.
 // The last block compares the answers with the Supabase route on the same
 // fixtures, as D02r-b did for the personal lists.
-import { NextRequest } from "next/server";
-import type postgres from "postgres";
 import { makeFunctionReference } from "convex/server";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs } from "../fixtures/convex-auth";
-import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
-import { connectTestDb, testDbAvailable } from "../support/test-db";
-import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 import { LIST_SORTS } from "@/backend/projects/list-rules";
 
-vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
-vi.mock("next/cache", () => nextCacheDouble);
 
 type Card = {
   id: string;
@@ -127,81 +120,6 @@ describe.skipIf(!convexAvailable())("D07x Convex public lists", () => {
     }
   });
 
-  describe.skipIf(!testDbAvailable())("compared with the Supabase route", () => {
-    let sql: postgres.Sql;
-    let projectsRoute: typeof import("../../src/app/api/projects/route.js");
-
-    beforeAll(async () => {
-      sql = await connectTestDb();
-      await cleanupFixtures(sql);
-      await loadFixtures(sql, set);
-      projectsRoute = await import("../../src/app/api/projects/route.js");
-    });
-    afterAll(async () => {
-      signInAs(null);
-      await cleanupFixtures(sql);
-      await sql.end();
-    });
-
-    type Row = { slug: string; title: string; tags: string[]; total_favorites: string; created_at: string; updated_at: string; isFavorite: boolean; profile: { username: string | null } };
-    // Supabase has no visibility column, so its "private" fixture is an
-    // ordinary listed project there; it is left out of the comparison.
-    const supabaseRows = async (query: string) => {
-      const res = await projectsRoute.GET(new NextRequest(`http://localhost:3100/api/projects?showAll=true&limit=50&${query}`));
-      const body = JSON.parse(await res.text()) as { data: Row[] };
-      if (!body.data) throw new Error(`${query}: ${res.status} ${JSON.stringify(body)}`);
-      return body.data.filter((r) => r.slug !== "fixture-private");
-    };
-    const same = (r: { slug: string; tags: string[]; favorites: number; isFavorite: boolean; username: string | null }) => ({ ...r, tags: [...r.tags].sort() });
-    // The one known difference: the email-shaped legacy username shows its
-    // local part on Supabase (D04a) and was replaced by a generated handle on
-    // import (fix-email-username), so that owner is left out of the comparison.
-    const owner = (slug: string, username: string | null) => (slug === "fixture-legacy-owner" ? "(renamed on import)" : username);
-    const fromCard = (c: Card) => same({ slug: c.slug, tags: c.tags, favorites: c.favoriteCount, isFavorite: c.isFavorite, username: owner(c.slug, c.owner?.username ?? null) });
-    const fromRow = (r: Row) => same({ slug: r.slug, tags: r.tags, favorites: Number(r.total_favorites), isFavorite: r.isFavorite, username: owner(r.slug, r.profile.username) });
-    const bySlug = <T extends { slug: string }>(rows: T[]) => [...rows].sort((x, y) => x.slug.localeCompare(y.slug));
-
-    // What each sort orders by, read from both shapes; Supabase breaks ties
-    // arbitrarily, so the sequence of keys is compared, not the slugs.
-    const key: Record<string, { card: (c: Card) => unknown; row: (r: Row) => unknown }> = {
-      newest: { card: (c) => Date.parse(c.createdAt), row: (r) => Date.parse(r.created_at) },
-      oldest: { card: (c) => Date.parse(c.createdAt), row: (r) => Date.parse(r.created_at) },
-      "recently-edited": { card: (c) => Date.parse(c.updatedAt), row: (r) => Date.parse(r.updated_at) },
-      popular: { card: (c) => c.favoriteCount, row: (r) => Number(r.total_favorites) },
-      "least-favorited": { card: (c) => c.favoriteCount, row: (r) => Number(r.total_favorites) },
-      alphabetical: { card: (c) => c.title.toLowerCase(), row: (r) => r.title.toLowerCase() },
-      "alphabetical-desc": { card: (c) => c.title.toLowerCase(), row: (r) => r.title.toLowerCase() },
-      "most-tagged": { card: (c) => c.tags.length, row: (r) => r.tags.length },
-    };
-
-    for (const persona of [null, A, B]) {
-      it(`${persona ? `persona ${persona.key}` : "anonymous"}: same rows, tags, counts, owners and flags for each filter`, async () => {
-        signInAs(persona?.subject ?? null);
-        const client = persona ? clientAs(persona.subject!) : anonymousClient();
-        const cases: [Partial<Args>, string][] = [
-          [{}, ""],
-          [{ category: "web" }, "category=web"],
-          [{ tags: ["Rust"] }, "tags=Rust"],
-          [{ tags: ["Next.js", "Postgres"] }, "tags=Next.js&tags=Postgres"],
-          [{ tags: ["Next.js", "No Such Tag"] }, "tags=Next.js&tags=No%20Such%20Tag"],
-          [{ tags: ["No Such Tag"] }, "tags=No%20Such%20Tag"],
-          [{ handle: A.profile!.username }, `username=${A.profile!.username}`],
-          [{ handle: "fixture-nobody" }, "username=fixture-nobody"],
-        ];
-        for (const [args, query] of cases) {
-          const convex = (await client.query(listPublic, all(args))).cards.filter((c) => c.slug !== "fixture-private");
-          expect(bySlug(convex.map(fromCard)), query || "community").toEqual(bySlug((await supabaseRows(query)).map(fromRow)));
-        }
-      });
-    }
-
-    for (const sortBy of Object.keys(key)) {
-      it(`sort ${sortBy} orders by the same key as Supabase`, async () => {
-        signInAs(null);
-        const convex = (await anonymousClient().query(listPublic, all({ sortBy }))).cards;
-        const supabase = await supabaseRows(`sortBy=${sortBy}`);
-        expect(convex.map(key[sortBy].card)).toEqual(supabase.map(key[sortBy].row));
-      });
-    }
-  });
+  // E03: the parity check against the Supabase route went with that route.
+  // tests/integration/d09-public-access.test.ts calls the Convex routes over HTTP.
 });

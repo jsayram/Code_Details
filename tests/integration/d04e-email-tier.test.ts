@@ -55,6 +55,8 @@ describe.skipIf(!testDbAvailable())("D04e email and tier (Supabase/Clerk path)",
       expect(row).toEqual({ email_address: A.profile!.email, full_name: "Alice Fixture" });
     });
 
+    // E03: past validation the edit is Convex-only (d04b-convex-profile-edit);
+    // without a local Convex it is refused and nothing is written.
     it("the dashboard form's own keys (email, profileImage) still don't write anything", async () => {
       const route = await import("../../src/app/api/profiles/[username]/route.js");
       signInAs(A.subject);
@@ -62,7 +64,7 @@ describe.skipIf(!testDbAvailable())("D04e email and tier (Supabase/Clerk path)",
         req("/api/profiles/fixture-alice", { method: "PUT", body: JSON.stringify({ username: "fixture-alice", email: "x@synthetic.invalid", profileImage: "" }) }),
         { params: Promise.resolve({ username: "fixture-alice" }) },
       );
-      expect(res.status).toBe(200);
+      expect(res.status).toBe(500);
       expect((await sql`select email_address from profiles where user_id = ${A.subject}`)[0].email_address).toBe(A.profile!.email);
     });
   });
@@ -101,13 +103,14 @@ describe.skipIf(!testDbAvailable())("D04e email and tier (Supabase/Clerk path)",
       expect(adminDashboard.getCachedTagSubmissions).toBeUndefined();
     });
 
-    it("getPendingTagSubmissions: signed out throws, a non-admin is redirected, the admin gets the list", async () => {
+    it("getPendingTagSubmissions: signed out throws, a non-admin is redirected, the admin is refused without Convex", async () => {
       const { getPendingTagSubmissions } = await import("../../src/app/actions/tag-submissions.js");
       await expect(getPendingTagSubmissions()).rejects.toThrow(/Unauthorized/);
       signInAs(B.subject);
       await expect(getPendingTagSubmissions()).rejects.toThrow(/NEXT_REDIRECT \/dashboard/);
       signInAs(admin.subject, { email: admin.profile!.email });
-      expect(Array.isArray(await getPendingTagSubmissions())).toBe(true);
+      // E03: the list is Convex-only (d07-convex-tags covers the admin's list).
+      await expect(getPendingTagSubmissions()).rejects.toThrow(/Project data is unavailable/);
     });
 
     it("fetchAdminDashboardData still refuses a non-admin", async () => {

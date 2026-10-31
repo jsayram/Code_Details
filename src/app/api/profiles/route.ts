@@ -1,54 +1,17 @@
-import { executeQuery } from "@/db/server";
-import { profiles } from "@/db/schema/profiles";
-import { projects } from "@/db/schema/projects";
-import { desc, sql, eq, isNull } from "drizzle-orm";
-import { success, databaseError } from "@/lib/api-errors";
-import { toPublicProfileRow } from "@/backend/profiles/public-profile";
+import { success, databaseError, serverError } from "@/lib/api-errors";
 import { convexDirectory } from "@/backend/profiles/read";
+import { DATA_UNAVAILABLE } from "@/backend/projects/personal";
 
 // Next.js Route Segment Config - Cache for 5 minutes, revalidate in background
 export const revalidate = 300; // 5 minutes in seconds
 
 export async function GET() {
   try {
-    // D04c: from Convex under the read switch (listed projects' counters).
+    // D04c: from Convex (listed projects' counters); D04a (P08 R07): public
+    // columns only. E03: the Supabase directory is gone.
     const fromConvex = await convexDirectory();
-    if (fromConvex !== undefined) {
-      const response = success(fromConvex);
-      response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
-      return response;
-    }
-
-    const allProfiles = await executeQuery(async (db) =>
-      db
-        // D04a (P08 R07): public columns only. The list goes to every
-        // visitor with a public cache header, so no email, tier, provider
-        // subject or profile UUID.
-        .select({
-          username: profiles.username,
-          full_name: profiles.full_name,
-          profile_image_url: profiles.profile_image_url,
-          created_at: profiles.created_at,
-          updated_at: profiles.updated_at,
-          project_count: sql<number>`COUNT(CASE WHEN ${projects.deleted_at} IS NULL THEN ${projects.id} END)`,
-          total_favorites: sql<number>`COALESCE(SUM(CASE WHEN ${projects.deleted_at} IS NULL THEN ${projects.total_favorites}::numeric ELSE 0 END), 0)`,
-          last_activity_date: sql<Date | null>`MAX(CASE WHEN ${projects.deleted_at} IS NULL THEN GREATEST(${projects.updated_at}, ${projects.created_at}) END)`,
-        })
-        .from(profiles)
-        .leftJoin(projects, eq(profiles.user_id, projects.user_id))
-        .groupBy(profiles.id)
-        .orderBy(desc(profiles.created_at))
-    );
-
-    // Return with explicit cache headers for browser/CDN caching
-    const response = success(
-      allProfiles.map(({ project_count, total_favorites, last_activity_date, ...profile }) => ({
-        ...toPublicProfileRow(profile),
-        project_count,
-        total_favorites,
-        last_activity_date,
-      }))
-    );
+    if (fromConvex === undefined) return serverError(undefined, DATA_UNAVAILABLE);
+    const response = success(fromConvex);
     response.headers.set('Cache-Control', 'public, s-maxage=300, stale-while-revalidate=600');
     return response;
   } catch (error) {

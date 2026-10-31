@@ -150,32 +150,22 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
 
   // R06 (sync-user) moved out: D08g4f2 deleted the route; tests/e2e/b13-http.spec.ts checks it answers 404.
   describe("R07 email exposure", () => {
-    // Was "GET /api/profiles returns every email with a public cache header";
-    // fixed in D04a. The header stays: nothing private is left to cache.
-    it("[handler] (fixed, D04a) GET /api/profiles returns no email, tier or subject", async () => {
-      const res = await profilesRoute.GET();
-      const text = await res.text();
-      const rows = JSON.parse(text).data as Record<string, unknown>[];
-      expect(rows.length).toBeGreaterThan(0);
-      expect(rows.some((p) => "email_address" in p || "tier" in p || "user_id" in p)).toBe(false);
-      for (const email of [A.profile!.email, B.profile!.email, set.personas.admin.profile!.email]) expect(text).not.toContain(email);
-      expect(text).not.toContain(A.subject!);
-    });
-
-    // Was "GET /api/profiles/by-id/[userId] returns the full row including email";
-    // fixed in D04a, and the route is gone at E03 (see the R05 case above).
-
-    // Was "every project list row carries the owner's email"; fixed in D02r.
-    it("[handler] (fixed, D02r) no project list row carries an email, signed in or not", async () => {
+    // Was "GET /api/profiles returns every email with a public cache header"
+    // (fixed in D04a) and "every project list row carries the owner's email"
+    // (fixed in D02r). E03: both routes read Convex only (no email in
+    // d04a-convex-public-profile listPublic, d07x-convex-public-lists and
+    // d02r-convex-personal-reads rows). Without a local Convex they refuse
+    // and carry no fixture data at all.
+    it("[handler] (E03) without Convex the directory and the project list refuse, with no email or subject", async () => {
       for (const who of [null, B.subject]) {
         signInAs(who);
-        const res = await projectsRoute.GET(url("/api/projects?showAll=true&limit=50"));
-        const text = await res.text();
-        const rows = JSON.parse(text).data as { profile: { username: string | null; email_address: string | null } }[];
-        expect(rows.length).toBeGreaterThan(0);
-        expect(rows.some((r) => r.profile.username)).toBe(true);
-        expect(rows.every((r) => r.profile.email_address === null)).toBe(true);
-        for (const email of [A.profile!.email, B.profile!.email]) expect(text).not.toContain(email);
+        for (const res of [await profilesRoute.GET(), await projectsRoute.GET(url("/api/projects?showAll=true&limit=50"))]) {
+          expect(res.status).toBe(500);
+          const text = await res.text();
+          for (const email of [A.profile!.email, B.profile!.email, set.personas.admin.profile!.email]) expect(text).not.toContain(email);
+          expect(text).not.toContain(A.subject!);
+          expect(text).not.toContain("fixture-");
+        }
       }
     });
   });
@@ -184,30 +174,10 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   // naming A in the query string). Fixed in D02r: identity comes only from
   // the session; the query's userId is ignored.
   describe("R08 (fixed, D02r) /api/projects and /api/categories/counts take identity from the session", () => {
-    const slugs = async (res: Response) => ((await body(res)).data as { slug: string }[]).map((p) => p.slug).sort();
-
-    it("[handler] B naming A gets B's own graveyard, not A's", async () => {
-      signInAs(B.subject);
-      const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&showDeleted=true`));
-      expect(await slugs(res)).toEqual([]);
-      signInAs(A.subject);
-      const own = await projectsRoute.GET(url(`/api/projects?userId=${B.subject}&showDeleted=true`));
-      expect(await slugs(own)).toEqual(["fixture-deleted-long-ago", "fixture-deleted-recent"]);
-    });
-
-    it("[handler] B naming A gets B's own favorites, without A's deleted project", async () => {
-      signInAs(B.subject);
-      const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&showFavorites=true`));
-      // B's own favorites are fixture-listed and A's deleted fixture-deleted-recent;
-      // A's favorites (fixture-bob-project) never appear.
-      expect(await slugs(res)).toEqual(["fixture-listed"]);
-    });
-
-    it("[handler] B naming A in my projects gets B's own projects", async () => {
-      signInAs(B.subject);
-      const res = await projectsRoute.GET(url(`/api/projects?userId=${A.subject}&limit=50`));
-      expect(await slugs(res)).toEqual(["fixture-bob-project"]);
-    });
+    // E03: B naming A in the query (graveyard, favorites, my projects,
+    // isFavorite, counts) was checked here on Supabase. The Convex reads take
+    // no identity argument at all: d02r-convex-personal-reads (each caller's
+    // own rows and counts) and tests/unit/d01-no-identity-args.test.ts.
 
     // D09 S02c: /api/projects became a public route, so a signed-out personal
     // view is refused outright (401) instead of answering an empty list.
@@ -220,34 +190,17 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       }
     });
 
-    it("[handler] isFavorite follows the session, not the query", async () => {
-      signInAs(B.subject);
-      const res = await projectsRoute.GET(url(`/api/projects?showAll=true&userId=${A.subject}&limit=50`));
-      const rows = (await body(res)).data as { slug: string; isFavorite: boolean }[];
-      expect(rows.find((r) => r.slug === "fixture-listed")?.isFavorite).toBe(true);
-      expect(rows.find((r) => r.slug === "fixture-bob-project")?.isFavorite).toBe(false);
-    });
-
-    it("[handler] B naming A in /api/categories/counts gets B's own counts, privately cached", async () => {
-      signInAs(B.subject);
-      const res = await countsRoute.GET(url(`/api/categories/counts?userId=${A.subject}&deleted=true`));
-      expect(res.status).toBe(200);
-      expect((await body(res)).data).toEqual({});
-      expect(res.headers.get("cache-control")).toBe("private, no-store");
-      signInAs(A.subject);
-      const own = await countsRoute.GET(url(`/api/categories/counts?userId=${B.subject}&deleted=true`));
-      expect(JSON.stringify(await body(own))).toMatch(/"web"\s*:\s*2/);
-    });
-
-    // D09 S02c: the counts route is public now; a signed-out personal count is a 401.
-    it("[handler] personal counts signed out are a 401; community counts stay public", async () => {
+    // D09 S02c: the counts route is public now; a signed-out personal count is
+    // a 401 (checked before the backend). E03: the community counts are
+    // Convex-only (d09-public-access), so without Convex they refuse.
+    it("[handler] personal counts signed out are a 401; without Convex the community counts refuse", async () => {
       signInAs(null);
       const mine = await countsRoute.GET(url(`/api/categories/counts?userId=${A.subject}`));
       expect(mine.status).toBe(401);
       expect(JSON.stringify(await body(mine))).not.toMatch(/"web"/);
       const community = await countsRoute.GET(url("/api/categories/counts"));
-      expect(Object.keys((await body(community)).data).length).toBeGreaterThan(0);
-      expect(community.headers.get("cache-control")).toMatch(/^public/);
+      expect(community.status).toBe(500);
+      expect(JSON.stringify(await body(community))).not.toMatch(/"web"/);
     });
   });
 
@@ -260,63 +213,16 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect("getUserProjectsServer" in dbActions).toBe(false);
     });
 
-    it("[function] getProjectForViewer shows a deleted project only to the session's owner or admin", async () => {
-      const { getProjectForViewer } = await import("../../src/backend/projects/viewer-read.js");
-      signInAs(null);
-      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
-      signInAs(B.subject);
-      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
-      // The admin is recognized by the session's email claim (Clerk's rule
-      // until D07), never by an argument: without the claim, no access.
-      const admin = set.personas.admin;
-      signInAs(admin.subject);
-      expect(await getProjectForViewer(deletedRecent.slug)).toBeNull();
-      signInAs(admin.subject, { email: admin.profile!.email });
-      expect((await getProjectForViewer(deletedRecent.slug))?.project.id).toBe(deletedRecent.id);
-      signInAs(A.subject);
-      expect((await getProjectForViewer(deletedRecent.slug))?.project.id).toBe(deletedRecent.id);
-    });
-
-    it("[action] getProjectById and getProject hide a soft-deleted project from anyone but its owner", async () => {
-      signInAs(null);
-      expect(await actions.getProjectById(deletedRecent.id)).toBeNull();
-      expect((await actions.getProject(deletedRecent.slug)).success).toBe(false);
-      signInAs(B.subject);
-      expect(await actions.getProjectById(deletedRecent.id)).toBeNull();
-      signInAs(A.subject);
-      expect((await actions.getProjectById(deletedRecent.id))?.deleted_at).not.toBeNull();
-      expect((await actions.getProject(deletedRecent.slug)).success).toBe(true);
-    });
-
-    it("[handler] /api/projects?slug= hides a deleted project from a signed-out caller", async () => {
-      signInAs(null);
-      const res = await projectsRoute.GET(url(`/api/projects?slug=${deletedRecent.slug}`));
-      expect(res.status).toBe(404);
-    });
-
-    it("[action] getUserOwnProjects lists only the session's own projects", async () => {
-      signInAs(null);
-      expect((await actions.getUserOwnProjects()).success).toBe(false);
-      signInAs(B.subject);
-      const result = await actions.getUserOwnProjects();
-      expect(result.success).toBe(true);
-      expect((result as { data: { slug: string }[] }).data.map((p) => p.slug)).toEqual(["fixture-bob-project"]);
-    });
+    // E03: getProjectForViewer, getProjectById, getProject, getUserOwnProjects
+    // and the Supabase /api/projects?slug= read are gone. The deleted-project
+    // rule on Convex: c10-convex-public-read (the public projection hides it)
+    // and d03-convex-project-lifecycle (the owner's own read);
+    // tests/unit/e03-supabase-fallback.test.ts checks the actions stay gone.
   });
 
-  // Was the B13 reproduction (two tags made the route 500). Fixed in D07x
-  // (DEF-D07X-MULTITAG, the sql.join separator); tests/integration/d07x-multitag.test.ts covers it in full.
-  describe("R16 (fixed, D07x) multi-tag filter", () => {
-    it("[handler] one tag and two tags both work", async () => {
-      const one = await projectsRoute.GET(url("/api/projects?showAll=true&tags=Postgres"));
-      expect(one.status).toBe(200);
-      expect((await body(one)).data.map((p: { slug: string }) => p.slug)).toContain(listed.slug);
-
-      const two = await projectsRoute.GET(url("/api/projects?showAll=true&tags=Postgres&tags=Next.js"));
-      expect(two.status).toBe(200);
-      expect((await body(two)).data.map((p: { slug: string }) => p.slug)).toContain(listed.slug);
-    });
-  });
+  // Was the B13 reproduction (two tags made the route 500). Fixed in D07x;
+  // E03: the list is Convex-only, and d07x-convex-public-lists filters by
+  // one and by two tags.
 
   // Was the B13 reproduction ("false" coerced to true). Fixed in D02r.
   describe("R17 (fixed, D02r) boolean query params", () => {
@@ -330,11 +236,8 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       }
     });
 
-    it("[handler] showDeleted=false returns no deleted projects; a bad flag is a 400", async () => {
-      const res = await projectsRoute.GET(url("/api/projects?showAll=true&showDeleted=false&limit=50"));
-      const slugs = (await body(res)).data.map((p: { slug: string }) => p.slug);
-      expect(slugs).not.toContain("fixture-deleted-recent");
-      expect(slugs).toContain("fixture-listed");
+    // E03: the list itself is Convex-only; the flag is parsed before that.
+    it("[handler] a bad flag is a 400", async () => {
       const bad = await projectsRoute.GET(url("/api/projects?showDeleted=yes"));
       expect(bad.status).toBe(400);
     });

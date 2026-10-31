@@ -58,13 +58,14 @@ describe.skipIf(!testDbAvailable())("SEC-D03-EMAIL", () => {
     expect(emails(rows)).toEqual([]);
   });
 
-  it("the share action answers with the session's own username only", async () => {
+  // E03: the handle comes from Convex only (identity:whoami; covered in
+  // tests/unit/d08g4f2-fresh-account.test.ts). Without a local Convex it is
+  // null for everyone; the Supabase profile is never read.
+  it("the share action has no username without Convex, signed in or not", async () => {
     const { getMyShareUsername } = await import("../../src/app/actions/share.js");
-    signInAs(A.subject);
-    expect(await getMyShareUsername()).toBe(A.profile!.username);
-    signInAs(B.subject);
-    expect(await getMyShareUsername()).toBe(B.profile!.username);
-    signInAs(null);
-    expect(await getMyShareUsername()).toBeNull();
+    for (const who of [A.subject, B.subject, null]) {
+      signInAs(who);
+      expect(await getMyShareUsername()).toBeNull();
+    }
   });
 });

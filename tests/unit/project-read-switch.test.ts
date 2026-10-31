@@ -1,16 +1,15 @@
-// C14: the development-only project read switch. Supabase by default and
-// always outside development; Convex only for a local URL in development.
+// C14: the development-only project read switch. E03: Convex only for a local
+// URL in development; otherwise no backend at all (the Supabase fallback is gone).
 import { describe, expect, it } from "vitest";
 import { chooseProjectReadBackend } from "@/backend/projects";
 
 const dev = { NODE_ENV: "development", CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3210" };
 
 describe("project read backend switch", () => {
-  // D08g4 flip-on: the default is Convex now, but with nothing set the guards
-  // (development, loopback URL) still leave Supabase.
-  it("stays on Supabase with nothing set", () => {
-    expect(chooseProjectReadBackend({})).toMatchObject({ backend: "supabase" });
-    expect(chooseProjectReadBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "supabase" });
+  // With nothing set the guards (development, loopback URL) leave no backend.
+  it("has no backend with nothing set", () => {
+    expect(chooseProjectReadBackend({})).toMatchObject({ backend: "none" });
+    expect(chooseProjectReadBackend({ NODE_ENV: "development" })).toMatchObject({ backend: "none" });
   });
 
   it("uses Convex only in development with a local URL", () => {
@@ -19,7 +18,7 @@ describe("project read backend switch", () => {
   });
 
   it.each(["production", "test", undefined, "Development", "dev"])("can't be enabled with NODE_ENV=%s", (nodeEnv) => {
-    expect(chooseProjectReadBackend({ ...dev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "supabase" });
+    expect(chooseProjectReadBackend({ ...dev, NODE_ENV: nodeEnv })).toMatchObject({ backend: "none" });
   });
 
   it.each([
@@ -30,11 +29,11 @@ describe("project read backend switch", () => {
     ["no URL", ""],
     ["garbage", "not a url"],
   ])("refuses %s", (_name, url) => {
-    expect(chooseProjectReadBackend({ ...dev, CODEDETAILS_CONVEX_URL: url })).toMatchObject({ backend: "supabase" });
+    expect(chooseProjectReadBackend({ ...dev, CODEDETAILS_CONVEX_URL: url })).toMatchObject({ backend: "none" });
   });
 
   it.each(["CONVEX", "convex ", "true", "1"])("ignores the near-miss value %j", (value) => {
-    expect(chooseProjectReadBackend({ ...dev, CODEDETAILS_PROJECT_READ_BACKEND: value })).toMatchObject({ backend: "supabase" });
+    expect(chooseProjectReadBackend({ ...dev, CODEDETAILS_PROJECT_READ_BACKEND: value })).toMatchObject({ backend: "none" });
   });
 
   it("is used only by the anonymous page read: no Convex import in any write path", async () => {

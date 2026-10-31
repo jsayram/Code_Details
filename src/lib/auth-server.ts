@@ -142,33 +142,14 @@ export async function viewerForCookies(cookie: string | null): Promise<{ role: "
 const whoami = makeFunctionReference<"query", Record<string, never>, { username: string | null; role: string; tier: string } | null>("identity:whoami");
 
 /**
- * D07-c: the Better Auth viewer's users.role, for the admin checks. Unlike
- * routeViewer it needs no Clerk-era link, so an account that signed up with
- * Better Auth can be an admin. Null when signed out, on any error, or with
+ * D07-c: the Better Auth viewer's users.role, for the admin checks. It needs
+ * no Clerk-era link, so an account that signed up with Better Auth can be an
+ * admin. Null when signed out, on any error, or with
  * the switch off.
  */
 export async function betterAuthRole(): Promise<string | null> {
   try {
     return (await viewerQuery(whoami))?.result?.role ?? null;
-  } catch {
-    return null;
-  }
-}
-
-const legacySubject = makeFunctionReference<"query", Record<string, never>, string | null>("identity:legacySubject");
-
-/**
- * D11 (decision A): the user ID the docs and generator routes compare with
- * their data, which is still keyed by Clerk user IDs: the request's live
- * Better Auth session resolved to its account's own Clerk-era subject; null
- * when there is no session or the account has no Clerk-era link, so those
- * routes refuse exactly as they do for a signed-out user. D08g4f2: null with
- * Better Auth off (no login). Server-side only.
- */
-export async function routeUserId(): Promise<string | null> {
-  if (chooseAuthBackend().backend !== "better-auth") return null;
-  try {
-    return (await viewerQuery(legacySubject))?.result ?? null;
   } catch {
     return null;
   }
@@ -180,19 +161,17 @@ const docOwnerQuery = makeFunctionReference<"query", Record<string, never>, { us
  * Who the generated-docs code may treat as an owner (generator re-key).
  * `writeKey` is the key a new doc is written with; `keys` are every key the
  * caller owns docs under; `legacyUserId` is the caller's Clerk-era subject,
- * kept on new docs only because Supabase projects are still keyed by it.
- * They are the session's own Convex account ID, plus its
- * own Clerk-era subject while that link exists, so an account that never had
- * a Clerk login owns its docs too. `projectViewer` is what routeViewer()
- * would return, for the project lookups that still read Supabase. Null when
- * nobody is signed in, or with Better Auth off (D08g4f2). Identity comes only
- * from the session. Server-side only; never sent to the client.
+ * because docs written before the re-key are keyed by it. They are the
+ * session's own Convex account ID, plus its own Clerk-era subject while that
+ * link exists, so an account that never had a Clerk login owns its docs too.
+ * Null when nobody is signed in, or with Better Auth off (D08g4f2). Identity
+ * comes only from the session. Server-side only; never sent to the client.
+ * E03: `projectViewer` (for the Supabase project reads) is gone with them.
  */
 export type DocOwner = {
   writeKey: string;
   keys: string[];
   legacyUserId: string | null;
-  projectViewer: { userId: string; isAdmin: boolean } | null;
 };
 
 export async function routeDocOwner(): Promise<DocOwner | null> {
@@ -204,36 +183,9 @@ export async function routeDocOwner(): Promise<DocOwner | null> {
     owner = null;
   }
   if (!owner?.userId) return null;
-  // The admin flag matters only to the Supabase project read, which needs a Clerk-era subject.
-  let admin = false;
-  if (owner.legacySubject) {
-    try {
-      admin = (await viewerQuery(whoami))?.result?.role === "admin";
-    } catch {
-      admin = false;
-    }
-  }
   const keys = owner.legacySubject ? [owner.userId, owner.legacySubject] : [owner.userId];
-  const projectViewer = owner.legacySubject ? { userId: owner.legacySubject, isAdmin: admin } : null;
-  return { writeKey: owner.userId, keys, legacyUserId: owner.legacySubject, projectViewer };
+  return { writeKey: owner.userId, keys, legacyUserId: owner.legacySubject };
 }
 
-/**
- * D02r: the viewer for the personal reads that still query Supabase (my
- * projects, favorites, graveyard, category counts, the dashboard, deleted
- * projects by slug or ID). Identity comes only from the session, never from a
- * query string or an argument. `userId` is routeUserId()'s answer; `isAdmin`
- * is users.role, as the proxy does since D08g1. Null when nobody is signed
- * in, or with Better Auth off (D08g4f2: no login). Server-side only.
- */
-export async function routeViewer(): Promise<{ userId: string; isAdmin: boolean } | null> {
-  const userId = await routeUserId();
-  if (!userId) return null;
-  let admin = false;
-  try {
-    admin = (await viewerQuery(whoami))?.result?.role === "admin";
-  } catch {
-    admin = false;
-  }
-  return { userId, isAdmin: admin };
-}
+// E03: routeUserId and routeViewer (the Clerk-era viewer for the Supabase
+// reads) are gone with those reads.

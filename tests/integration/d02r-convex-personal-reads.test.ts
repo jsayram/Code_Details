@@ -4,20 +4,13 @@
 // synthetic issuer, and one Better Auth login is handed over to persona A the
 // way D11 does it. The last block compares the answers with the Supabase
 // handlers (D02r-a) on the same fixture set.
-import { NextRequest } from "next/server";
-import type postgres from "postgres";
 import { makeFunctionReference } from "convex/server";
-import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { generateFixtures } from "../fixtures/generate";
 import { anonymousClient, clearConvexFixtures, convexAvailable, loadConvexFixtures } from "../fixtures/convex";
 import { clientAs, type PersonaClient, forgetPersonaLogins } from "../fixtures/convex-auth";
 import { SYNTHETIC_PASSWORD, authState, clientWithToken, convexToken, linkPersona, signUp, syntheticEmail } from "../fixtures/better-auth";
-import { sessionDouble, nextCacheDouble, signInAs } from "../support/next-doubles";
-import { connectTestDb, testDbAvailable } from "../support/test-db";
-import { cleanupFixtures, loadFixtures } from "../fixtures/supabase";
 
-vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
-vi.mock("next/cache", () => nextCacheDouble);
 
 type Card = {
   id: string;
@@ -151,56 +144,6 @@ describe.skipIf(!convexAvailable())("D02r-b Convex personal reads", () => {
     expect(viaBetterAuth).toEqual(await lists(clientAs(A.subject!)));
   });
 
-  // D02r-a answers on Supabase vs these on Convex, same fixtures. Supabase has
-  // no visibility column, so its "private" fixture is an ordinary project; it
-  // belongs to A's own list on both sides.
-  describe.skipIf(!testDbAvailable())("compared with the Supabase handlers", () => {
-    let sql: postgres.Sql;
-    let projectsRoute: typeof import("../../src/app/api/projects/route.js");
-    let countsRoute: typeof import("../../src/app/api/categories/counts/route.js");
-
-    beforeAll(async () => {
-      sql = await connectTestDb();
-      await cleanupFixtures(sql);
-      await loadFixtures(sql, set);
-      projectsRoute = await import("../../src/app/api/projects/route.js");
-      countsRoute = await import("../../src/app/api/categories/counts/route.js");
-    });
-    afterAll(async () => {
-      signInAs(null);
-      await cleanupFixtures(sql);
-      await sql.end();
-    });
-
-    const supabaseRows = async (query: string) => {
-      const res = await projectsRoute.GET(new NextRequest(`http://localhost:3100/api/projects?${query}&limit=50`));
-      return (JSON.parse(await res.text()).data as { slug: string; tags: string[]; total_favorites: string; isFavorite: boolean }[]);
-    };
-    const supabaseCounts = async (query: string) => {
-      const res = await countsRoute.GET(new NextRequest(`http://localhost:3100/api/categories/counts?${query}`));
-      return JSON.parse(await res.text()).data as Record<string, number>;
-    };
-
-    for (const persona of [A, B]) {
-      it(`persona ${persona.key}: same projects, tags, favorite counts and flags in every view`, async () => {
-        signInAs(persona.subject);
-        const convex = await lists(clientAs(persona.subject!));
-        const supabase = {
-          mine: await supabaseRows(`userId=x`),
-          deleted: await supabaseRows(`userId=x&showDeleted=true`),
-          favorites: await supabaseRows(`userId=x&showFavorites=true`),
-        };
-        for (const view of ["mine", "deleted", "favorites"] as const) {
-          const norm = (rows: { slug: string; tags: string[]; favorites: number; isFavorite: boolean }[]) =>
-            rows.map((r) => ({ ...r, tags: [...r.tags].sort() })).sort((x, y) => x.slug.localeCompare(y.slug));
-          expect(norm(convex[view].map((c) => ({ slug: c.slug, tags: c.tags, favorites: c.favoriteCount, isFavorite: c.isFavorite }))), view).toEqual(
-            norm(supabase[view].map((r) => ({ slug: r.slug, tags: r.tags, favorites: Number(r.total_favorites), isFavorite: r.isFavorite }))),
-          );
-        }
-        expect(await clientAs(persona.subject!).query(myCategoryCounts, { view: "mine" })).toEqual(await supabaseCounts("userId=x"));
-        expect(await clientAs(persona.subject!).query(myCategoryCounts, { view: "deleted" })).toEqual(await supabaseCounts("userId=x&deleted=true"));
-        expect(await clientAs(persona.subject!).query(myCategoryCounts, { view: "favorites" })).toEqual(await supabaseCounts("userId=x&favorites=true"));
-      });
-    }
-  });
+  // E03: the parity check against the Supabase handlers went with those handlers.
+  // tests/integration/d09-public-access.test.ts calls the Convex routes over HTTP.
 });

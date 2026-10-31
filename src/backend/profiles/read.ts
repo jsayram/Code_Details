@@ -1,11 +1,43 @@
-// Which backend serves the public profile read (D04a). It follows the project
-// read switch (chooseProjectReadBackend): Convex only in development with a
-// loopback URL, Supabase otherwise. Server-side only.
+// The public profile read (D04a), from Convex. It follows the project read
+// switch (chooseProjectReadBackend): Convex only in development with a
+// loopback URL; otherwise each read returns undefined and the routes refuse
+// (E03: the Supabase fallback is gone). Server-side only.
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { chooseProjectReadBackend } from "@/backend/projects";
-import type { ProfileStats } from "@/db/profile-read";
 import { type PublicProfile, type PublicProfileRow, assertPublicProfile, rowFromPublicProfile } from "./public-profile";
+
+/**
+ * A profile's public statistics (D04c, P08 R26). Deleted projects never count
+ * (P07 §8: a deleted project isn't public). Every total comes from its own
+ * query on the maintained counters, never from a join that repeats a project
+ * row once per tag or favorite. Convex adds `capped` when a per-user
+ * range hit its bound.
+ */
+export interface ProfileStats {
+  totalProjects: number;
+  activeProjects: number;
+  communityProjects: number;
+  totalLikes: number;
+  totalTags: number;
+  projectsFavorited: number;
+  projectsReceivedFavorites: number;
+  joinedDate: Date | string | null;
+  mostLikedProject: { title: string; favorites: number } | null;
+  capped?: boolean;
+}
+
+export const emptyProfileStats = (joinedDate: Date | string | null): ProfileStats => ({
+  totalProjects: 0,
+  activeProjects: 0,
+  communityProjects: 0,
+  totalLikes: 0,
+  totalTags: 0,
+  projectsFavorited: 0,
+  projectsReceivedFavorites: 0,
+  joinedDate,
+  mostLikedProject: null,
+});
 
 type ConvexRead = { kind: "profile"; profile: PublicProfile } | { kind: "redirect"; currentUsername: string } | null;
 const getPublicByUsername = makeFunctionReference<"query", { handle: string }, ConvexRead>("profiles:getPublicByUsername");

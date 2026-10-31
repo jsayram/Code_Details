@@ -15,34 +15,15 @@ import { getProjectReadBackend } from '@/backend/projects';
 import { personalReadsFromConvex } from '@/backend/projects/personal';
 import { viewerQueryWithArgs } from '@/lib/auth-server';
 import { notFound, serverError, success } from '@/lib/api-errors';
-import { executeQuery } from '@/db/server';
-import { projects } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
 
 const getOwnBySlug = makeFunctionReference<"query", { slug: string }, { id: string; slug: string; status: string } | null>("projects:getOwnBySlug");
 
 /** Convex: the page's public projection, else the caller's own active project. No owner ID either way. */
-async function convexProject(slug: string): Promise<{ id: string; user_id?: string | null } | null> {
+async function convexProject(slug: string): Promise<{ id: string } | null> {
   const listed = await getProjectReadBackend().getPublicProjectBySlug(slug);
   if (listed) return { id: listed.id };
   const own = (await viewerQueryWithArgs(getOwnBySlug, { slug }))?.result ?? null;
   return own && own.status === 'active' ? { id: own.id } : null;
-}
-
-async function supabaseProject(slug: string): Promise<{ id: string; user_id?: string | null } | null> {
-  return executeQuery(async (db) => {
-    const result = await db
-      .select({ id: projects.id, slug: projects.slug, user_id: projects.user_id })
-      .from(projects)
-      .where(
-        and(
-          eq(projects.slug, slug),
-          isNull(projects.deleted_at)
-        )
-      )
-      .limit(1);
-    return result.length > 0 ? result[0] : null;
-  });
 }
 
 interface RouteParams {
@@ -55,10 +36,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
     const { slug } = await params;
 
-    // The project as its page would find it. Under both development switches
-    // projects live in Convex: the public projection, or the caller's own
-    // project (private included) from the session. Otherwise Supabase.
-    const project = personalReadsFromConvex() ? await convexProject(slug) : await supabaseProject(slug);
+    // The project as its page would find it, from Convex: the public
+    // projection, or the caller's own project (private included) from the
+    // session. E03: with no local Convex (no Supabase fallback) there is none.
+    const project = personalReadsFromConvex() ? await convexProject(slug) : null;
 
     if (!project) {
       return notFound('project', { identifier: slug });
@@ -66,15 +47,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 
     // Find documentation linked to this project. Generator re-key: the link
     // must point at this exact project (a stale link to an older project with
-    // the same slug doesn't count), and on Supabase the project must be the
-    // doc owner's, as the doc reads require (src/lib/docs-access.ts).
+    // the same slug doesn't count). Ownership was checked when the link was
+    // made (src/lib/docs-access.ts).
     const found = await findDocLinkedToProject(slug);
-    const linkedDoc =
-      found &&
-      found.linkedProjectId === project.id &&
-      (project.user_id === undefined || (!!project.user_id && (project.user_id === found.userId || project.user_id === found.legacyUserId)))
-        ? found
-        : null;
+    const linkedDoc = found && found.linkedProjectId === project.id ? found : null;
 
     if (!linkedDoc) {
       // Return success with null - no doc linked

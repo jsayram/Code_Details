@@ -28,33 +28,11 @@ import {
   success 
 } from '@/lib/api-errors';
 import { linkProjectSchema, formatZodErrors } from '@/lib/validations/docs';
-import { executeQuery } from '@/db/server';
-import { projects } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
 
 interface RouteParams {
   params: Promise<{
     slug: string;
   }>;
-}
-
-async function supabaseOwnProject(ownerId: string | undefined, projectId: string, projectSlug: string) {
-  if (!ownerId) return null;
-  return executeQuery(async (db) => {
-    const result = await db
-      .select()
-      .from(projects)
-      .where(
-        and(
-          eq(projects.id, projectId),
-          eq(projects.slug, projectSlug),
-          eq(projects.user_id, ownerId),
-          isNull(projects.deleted_at)
-        )
-      )
-      .limit(1);
-    return result.length > 0 ? result[0] : null;
-  });
 }
 
 /**
@@ -94,16 +72,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     const { projectId, projectSlug, replace } = validation.data;
 
-    // Verify the target project exists and the caller owns it. Under both
-    // development switches projects live in Convex, and the caller's own
-    // active projects come from the session (the same list the picker shows);
-    // this is where a link's ownership is checked, since the read side can't
-    // see a Convex project's owner. Otherwise Supabase via Drizzle, whose
-    // projects are keyed by the Clerk-era subject, so an account without one
-    // owns none there.
+    // Verify the target project exists and the caller owns it. Projects live
+    // in Convex, and the caller's own active projects come from the session
+    // (the same list the picker shows); this is where a link's ownership is
+    // checked, since the read side can't see a Convex project's owner. E03:
+    // with no local Convex (no Supabase fallback) the caller owns none.
     const targetProject = personalReadsFromConvex()
       ? (await convexPersonalList('mine')).find((p) => p.id === projectId && p.slug === projectSlug) ?? null
-      : await supabaseOwnProject(owner.projectViewer?.userId, projectId, projectSlug);
+      : null;
 
     if (!targetProject) {
       return notFound('project', { 

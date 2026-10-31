@@ -1,14 +1,13 @@
 import type { NextConfig } from "next";
-import { DATA_DEFAULT } from "./src/backend/data-default";
 
 const isolatedTestServer = process.env.CODEDETAILS_ENV_ISOLATED === "1" && !!process.env.CODEDETAILS_TEST_DIST_DIR;
 
 // D06-b: image files on the local Convex backend (/api/storage/<id>), only in
 // development with the project read switch on and a loopback http URL, the same
 // conditions as chooseProjectReadBackend. Never in a production build.
-// D08g4d: an unset or empty switch means the data default, as there.
+// D08g4d, E03: an unset or empty switch means Convex, as there.
 function localConvexStorage() {
-  const read = process.env.CODEDETAILS_PROJECT_READ_BACKEND || DATA_DEFAULT;
+  const read = process.env.CODEDETAILS_PROJECT_READ_BACKEND || "convex";
   if (process.env.NODE_ENV !== "development" || read !== "convex") return [];
   try {
     const url = new URL(process.env.CODEDETAILS_CONVEX_URL ?? "");

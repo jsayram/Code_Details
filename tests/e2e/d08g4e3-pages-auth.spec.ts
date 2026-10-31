@@ -35,30 +35,9 @@ test.describe.serial("D08g4e3 pages (Better Auth)", () => {
     await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
   });
 
-  test("/dashboard's Unfavorite sends the remove action", async ({ page }) => {
-    // D08g4f2: under the Convex read the dashboard's favorites are listed,
-    // active, public projects only (D02r-b), so there is no deleted-favorite
-    // card and no "Unfavorite" badge to press.
-    test.skip(process.env.CODEDETAILS_E2E_READ_BACKEND === "convex", "the deleted-favorite card is Supabase-read only");
-    await linkPersona(B.subject!, (await authState(await signIn(page, "g4e3-dashboard")))!.authUserId);
-    await page.goto("/dashboard");
-    const unfavorite = page.getByText("Unfavorite", { exact: true }).first();
-    await expect(unfavorite).toBeVisible({ timeout: 30_000 });
-
-    const actions: string[] = [];
-    await page.route("**/dashboard", async (route) => {
-      const request = route.request();
-      if (request.method() === "POST" && request.headers()["next-action"]) {
-        actions.push(request.postData() ?? "");
-        await route.abort();
-        return;
-      }
-      await route.continue();
-    });
-    await unfavorite.click();
-    await expect.poll(() => actions.length).toBeGreaterThan(0);
-    await expect(page.getByText("Failed to remove favorite")).toBeVisible();
-  });
+  // E03: "/dashboard's Unfavorite sends the remove action" needed the Supabase-read
+  // deleted-favorite card; the Convex dashboard lists active public favorites only
+  // (D02r-b), and tests/e2e/d05-favorites.spec.ts covers unfavoriting.
 
 
   test("/dashboard's profile editor saves under the session's handle (DEF-G4E3-HANDLE)", async ({ page }) => {

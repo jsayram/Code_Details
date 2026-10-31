@@ -29,19 +29,18 @@ const PORT = ACTIVE.nextPort;
 const password = readTestDbPassword();
 if (!password) throw new Error("Browser tests need the isolated test database: run tests/db/provision.sh");
 
-// Phase C: CODEDETAILS_E2E_READ_BACKEND=convex runs the same suite with the
-// anonymous project read served by the task-owned local Convex backend
-// (development-only switch, C14). Default: Supabase, as before.
-export const READ_BACKEND = process.env.CODEDETAILS_E2E_READ_BACKEND === "convex" ? "convex" : "supabase";
-if (READ_BACKEND === "convex" && !convexAvailable()) {
-  throw new Error("Convex browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
+// Phase C added CODEDETAILS_E2E_READ_BACKEND=convex beside a Supabase-read
+// default. E03: the Supabase reads are gone, so there is one mode: the project
+// reads come from the task-owned local Convex backend. The specs still read
+// the variable, so the config sets it for them (and refuses any other value).
+if ((process.env.CODEDETAILS_E2E_READ_BACKEND ?? "convex") !== "convex") {
+  throw new Error("CODEDETAILS_E2E_READ_BACKEND can only be convex: the Supabase-read mode was removed in E03");
 }
-// D08g4d: each mode names its backend, so a mode means the same whichever way
-// the data-default switch (src/backend/data-default.ts) is set.
-const readBackendEnv: Record<string, string> =
-  READ_BACKEND === "convex"
-    ? { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL }
-    : { CODEDETAILS_PROJECT_READ_BACKEND: "supabase" };
+process.env.CODEDETAILS_E2E_READ_BACKEND = "convex";
+if (!convexAvailable()) {
+  throw new Error("Browser tests need the local Convex backend: run tests/convex/up.sh and tests/convex/push.mjs");
+}
+const readBackendEnv: Record<string, string> = { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL };
 
 // D08b, D08g4a: Better Auth is the login (/api/auth/* and /api/dev/viewer
 // served through the local backend), the only login since D08g4f2.
