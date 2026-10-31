@@ -11,11 +11,6 @@ vi.mock("@/lib/auth-server", (importOriginal) => sessionDouble(importOriginal));
 vi.mock("next/cache", () => nextCacheDouble);
 
 const set = generateFixtures();
-// Every email field in an answer (owner_email_address, email_address, nested
-// profile). Legacy usernames that are email-shaped are a separate, known case.
-const emails = (value: unknown): string[] =>
-  JSON.stringify(value)
-    .match(/"(?:owner_)?email_address":"[^"]*"/g) ?? [];
 const A = set.personas.a;
 const B = set.personas.b;
 
@@ -35,27 +30,20 @@ describe.skipIf(!testDbAvailable())("SEC-D03-EMAIL", () => {
     await sql.end();
   });
 
-  it("the user-by-ID profile lookups are no longer \"use server\" exports", async () => {
-    const dbActions = (await import("../../src/db/actions.js")) as Record<string, unknown>;
-    expect(dbActions.getUserById).toBeUndefined();
-    expect(dbActions.getCachedUserById).toBeUndefined();
+  // E03: src/db (and its "use server" actions module) is gone altogether.
+  it("the user-by-ID profile lookups are gone with src/db", async () => {
+    await expect(import("../../src/db/actions.js" as string)).rejects.toThrow();
   });
 
   // D04a removed both callable exports (they also carried owner subjects and
   // tiers); d04a-public-profile.test.ts checks they're gone and that the
   // server-only replacement stays clean.
+  // E03: readAllActiveProjects went with src/db; the Convex public lists carry
+  // no email (d07x-convex-public-lists).
   it("the all-projects reads are no longer callable exports", async () => {
-    const dbActions = (await import("../../src/db/actions.js")) as Record<string, unknown>;
     const actions = (await import("../../src/app/actions/projects.js")) as Record<string, unknown>;
-    expect(dbActions.getAccessibleProjectsServer).toBeUndefined();
+    await expect(import("../../src/db/project-read.js" as string)).rejects.toThrow();
     expect(actions.getAllProjects).toBeUndefined();
-  });
-
-  it("readAllActiveProjects (server-only) returns no owner email", async () => {
-    const { readAllActiveProjects } = await import("../../src/db/project-read.js");
-    const rows = await readAllActiveProjects();
-    expect(rows.length).toBeGreaterThan(0);
-    expect(emails(rows)).toEqual([]);
   });
 
   // E03: the handle comes from Convex only (identity:whoami; covered in

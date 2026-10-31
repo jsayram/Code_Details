@@ -1,5 +1,4 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { TEST_DB_PORT } from "../support/isolation";
 import { connectTestDb, testDbAvailable } from "../support/test-db";
 
 // Needs the task-owned test database (tests/db/provision.sh). Skipped, not
@@ -17,12 +16,6 @@ describe.skipIf(!testDbAvailable())("isolated test database", () => {
     expect(row.collate).toBe("C.UTF-8");
   });
 
-  it("is what the app's own database client connects to", async () => {
-    expect(new URL(process.env.DATABASE_URL!).port).toBe(String(TEST_DB_PORT));
-    // Imported lazily: src/db/server.ts throws at import when DATABASE_URL is unset.
-    const { executeQuery } = await import("../../src/db/server.js");
-    const { tags } = await import("../../src/db/schema/tags.js");
-    const rows = await executeQuery((db) => db.select({ id: tags.id }).from(tags).limit(1));
-    expect(Array.isArray(rows)).toBe(true);
-  });
+  // E03: the app has no database client any more (src/db is gone); the test DB
+  // serves the Supabase fixtures and policy tests only.
 });

@@ -9,8 +9,8 @@
 // user-management,advanced-analytics}.ts call it.
 import { makeFunctionReference } from "convex/server";
 import { viewerMutation, viewerQueryWithArgs } from "@/lib/auth-server";
-import type { DashboardStats } from "@/db/operations/dashboardOperations";
-import type { PaginatedUsers, UpdateProfileData, UserProfile, SortOption, TierFilter } from "@/db/operations/userManagementOperations";
+import type { DashboardStats } from "@/types/rows";
+import type { PaginatedUsers, UpdateProfileData, UserProfile, SortOption, TierFilter } from "@/types/rows";
 import type { PublicTopContributor, TagPipelineMetrics, TopContributor } from "@/app/actions/advanced-analytics";
 
 type Tier = "free" | "pro" | "diamond";

@@ -74,17 +74,10 @@ describe.skipIf(!testDbAvailable())("D03-a Supabase project lifecycle", () => {
       expect(await bySlug("fixture-d03-half")).toBeUndefined();
     });
 
-    it("R03 denial: createProjectServer and addProject are no longer \"use server\" exports", async () => {
-      const dbActions = (await import("../../src/db/actions.js")) as Record<string, unknown>;
-      const operations = (await import("../../src/db/operations.js")) as Record<string, unknown>;
-      expect(dbActions.createProjectServer).toBeUndefined();
-      expect(operations.addProject).toBeUndefined();
-    });
-
-    it("R03 denial: src/db/operations.ts is no longer a \"use server\" module (its favorite writes and email-carrying lists aren't callable)", async () => {
-      const { readFileSync } = await import("node:fs");
-      const source = readFileSync(`${process.cwd()}/src/db/operations.ts`, "utf8");
-      expect(source).not.toMatch(/^\s*["']use server["']/m);
+    // E03: src/db, with both "use server" modules, is gone altogether.
+    it("R03 denial: createProjectServer, addProject and the src/db operations are gone", async () => {
+      await expect(import("../../src/db/actions.js" as string)).rejects.toThrow();
+      await expect(import("../../src/db/operations.js" as string)).rejects.toThrow();
     });
   });
 

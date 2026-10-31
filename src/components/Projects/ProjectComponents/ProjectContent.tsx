@@ -30,7 +30,7 @@ import {
 } from "lucide-react";
 import { FormattedDate } from "@/lib/FormattedDate";
 import { Separator } from "@/components/ui/separator";
-import { SelectProject } from "@/db/schema/projects";
+import { SelectProject } from "@/types/rows";
 import { validateUrlFormat } from "@/lib/url-validation";
 import { toast } from "sonner";
 import { SignedOut, useViewerId } from "@/components/auth/AuthGate";
@@ -38,7 +38,7 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { createProject, updateProject } from "@/app/actions/projects";
 import { TagSelector } from "./TagSelectorComponent";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
@@ -55,7 +55,7 @@ import { ProjectLinksManager } from "./ProjectLinksManager";
 import { ProjectLinksDisplay } from "./ProjectLinksDisplay";
 import { ProjectLink } from "@/types/project-links";
 import { UnsavedChangesConfirmationModal } from "./UnsavedChangesConfirmationModal";
-import { SelectProjectWithOwner } from "@/db/schema/projects";
+import { SelectProjectWithOwner } from "@/types/rows";
 import { ProjectImagesManager } from "@/components/Projects/ProjectImages";
 import { TableOfContents, DEFAULT_PROJECT_SECTIONS } from "./TableOfContents";
 import {

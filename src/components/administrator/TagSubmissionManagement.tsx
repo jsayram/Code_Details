@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import {
   approveTagSubmission,
   rejectTagSubmission,

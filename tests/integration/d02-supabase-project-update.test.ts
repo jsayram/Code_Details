@@ -49,10 +49,9 @@ describe.skipIf(!testDbAvailable())("D02-a Supabase project update", () => {
     expect(await row()).toEqual(before);
   });
 
-  it("R03 denial: the unguarded write exports are no longer exported from the \"use server\" module", async () => {
-    const dbActions = (await import("../../src/db/actions.js")) as Record<string, unknown>;
-    expect(dbActions.updateProjectServer).toBeUndefined();
-    expect(dbActions.isProjectOwner).toBeUndefined();
+  // E03: src/db (and its "use server" actions module) is gone altogether.
+  it("R03 denial: the unguarded write exports are gone with src/db", async () => {
+    await expect(import("../../src/db/actions.js" as string)).rejects.toThrow();
   });
 
   it("R27: a failed tag write leaves the project row unchanged (one transaction)", async () => {

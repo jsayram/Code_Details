@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import { useViewerId } from "@/components/auth/AuthGate";
 
 /**

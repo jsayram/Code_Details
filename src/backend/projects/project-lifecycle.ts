@@ -7,7 +7,7 @@
 import { makeFunctionReference } from "convex/server";
 import { viewerMutation } from "@/lib/auth-server";
 import { notOwnerError, unauthorizedError, validationError, type ActionError } from "@/lib/action-errors";
-import type { InsertProject } from "@/db/schema/projects";
+import type { InsertProject } from "@/types/rows";
 import type { Project } from "@/types/models/project";
 import type { Issue, ProjectPatch } from "./project-update-rules";
 import { editableToProject, toProjectPatch, type EditableProject } from "./project-update";

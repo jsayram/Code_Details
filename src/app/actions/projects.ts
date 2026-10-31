@@ -3,7 +3,7 @@
 import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
 import { changeLifecycleOnConvex, createProjectOnConvex } from "@/backend/projects/project-lifecycle";
 import { changeFavoriteOnConvex } from "@/backend/projects/favorites";
-import type { InsertProject } from "@/db/schema/projects";
+import type { InsertProject } from "@/types/rows";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { 

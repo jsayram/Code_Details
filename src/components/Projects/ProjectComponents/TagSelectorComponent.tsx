@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { TagInput } from "@/components/ui/tag-input";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { useTags } from "@/hooks/use-tags";
 import { TagSubmissionModal } from "./TagSubmissionModal";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useProjects } from "@/providers/projects-provider";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import { toast } from "sonner";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
 

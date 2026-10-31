@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getTags } from "@/app/actions/tags";
-import type { TagInfo } from "@/db/operations/tag-operations";
+import type { TagInfo } from "@/types/rows";
 import { GenericLoadingState } from "@/components/LoadingState/GenericLoadingState";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";

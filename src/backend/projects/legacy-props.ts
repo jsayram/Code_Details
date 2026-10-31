@@ -3,7 +3,7 @@
 // component. Only public fields are filled in: no owner email, provider
 // subject, profile UUID or tier reaches the client, and isOwner stays false
 // because userProfile carries no user_id (this path serves anonymous visitors).
-import type { SelectProjectWithOwner, SelectUserWithProject } from "@/db/schema/projects";
+import type { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
 import type { ProjectLink } from "@/types/project-links";
 import type { PublicProject } from "./public-project";
 

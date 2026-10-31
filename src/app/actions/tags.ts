@@ -1,6 +1,6 @@
 "use server";
 
-import type { TagInfo } from "@/db/operations/tag-operations";
+import type { TagInfo } from "@/types/rows";
 import { convexTagList, requireConvexData } from "@/backend/projects/personal";
 
 // D07 (P08 R04, R30): every export of a "use server" file is callable by

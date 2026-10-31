@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/tooltip";
 import { PROFANITY_LIST } from "@/constants/profanity-list";
 import { useRouter, useParams } from "next/navigation";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { HeaderSection } from "@/components/layout/HeaderSection";

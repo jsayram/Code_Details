@@ -41,7 +41,7 @@ import {
 import { ProjectLink } from "@/types/project-links";
 import { MAX_TAGS_ON_CARD_DESKTOP, MAX_TAGS_ON_CARD_MOBILE } from "@/constants/project-limits";
 import { getProjectCoverImageAction } from "@/app/actions/project-images";
-import { SelectProjectImage } from "@/db/schema/project_images";
+import { SelectProjectImage } from "@/types/project-images";
 
 interface ProjectCardProps {
   project: Project;

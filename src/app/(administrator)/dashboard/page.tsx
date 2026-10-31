@@ -62,7 +62,7 @@ import { Badge } from "@/components/ui/badge";
 import { PageBanner } from "@/components/ui/page-banner";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
 import { PROJECT_CATEGORIES, ProjectCategory } from "@/constants/project-categories";
-import { UserDashboardStats } from "@/db/operations/userDashboardOperations";
+import { UserDashboardStats } from "@/types/rows";
 import { toast } from "sonner";
 import UserDashboardLoading from "./loading";
 import { CreateFirstProjectPrompt } from "@/components/dashboard/CreateFirstProjectPrompt";

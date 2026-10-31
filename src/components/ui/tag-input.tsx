@@ -7,7 +7,7 @@ import React, {
 } from "react";
 import { Loader2 } from "lucide-react";
 import { Tag } from "./tag";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { cn } from "@/lib/utils";
 import { Input } from "./input";
 

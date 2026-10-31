@@ -3,7 +3,7 @@
 import useSWR from "swr";
 import { fetchUserDashboardData } from "@/app/actions/user-dashboard";
 import { SWR_KEYS } from "@/lib/swr-fetchers";
-import { UserDashboardStats } from "@/db/operations/userDashboardOperations";
+import { UserDashboardStats } from "@/types/rows";
 
 interface DashboardData {
   stats: UserDashboardStats;

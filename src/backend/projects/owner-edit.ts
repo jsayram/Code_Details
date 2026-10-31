@@ -12,7 +12,7 @@
 import { makeFunctionReference } from "convex/server";
 import { chooseAuthBackend } from "@/backend/auth";
 import { viewerQueryWithArgs } from "@/lib/auth-server";
-import type { SelectProjectWithOwner, SelectUserWithProject } from "@/db/schema/projects";
+import type { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
 import type { ProjectLink } from "@/types/project-links";
 import { chooseProjectReadBackend, getProjectReadBackend } from "./index";
 import { projectWritesToConvex, type EditableProject } from "./project-update";

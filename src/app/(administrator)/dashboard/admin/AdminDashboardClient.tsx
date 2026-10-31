@@ -57,7 +57,7 @@ import { fetchTopContributors, fetchTagPipelineAnalytics, getTopContributors, ge
 import type { TopContributor, TagPipelineMetrics } from "@/app/actions/advanced-analytics";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import type { UserProfile } from "@/db/operations/userManagementOperations";
+import type { UserProfile } from "@/types/rows";
 import { toast } from "sonner";
 import { TopContributorsCard } from "@/components/administrator/TopContributorsCard";
 import { TagPipelineCard, TopSubmittersCard, RecentSubmissionsCard } from "@/components/administrator/TagPipelineCard";

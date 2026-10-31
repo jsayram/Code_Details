@@ -1,7 +1,7 @@
 "use client";
 
 import useSWR, { mutate } from "swr";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { tagsFetcher, SWR_KEYS } from "@/lib/swr-fetchers";
 
 /**

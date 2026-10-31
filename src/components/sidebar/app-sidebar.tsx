@@ -37,7 +37,6 @@ import { Button } from "@/components/ui/button";
 import { Logo } from "../CodeDetailsLogoComponent";
 import { API_ROUTES } from "../../constants/api-routes";
 import { SignInButtonComponent } from "../auth/SignInButtonComponent";
-import { is } from "drizzle-orm";
 
 const data = {
   navMain: [

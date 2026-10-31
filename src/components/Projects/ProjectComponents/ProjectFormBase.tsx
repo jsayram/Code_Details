@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Project } from "@/types/models/project";
-import { InsertProject } from "@/db/schema/projects";
+import { InsertProject } from "@/types/rows";
 import { createProject, updateProject } from "@/app/actions/projects";
 import { toast } from "sonner";
 import { useProjects } from "@/providers/projects-provider";
@@ -13,7 +13,7 @@ import {
   ProjectFormErrors,
   ProjectCategory,
 } from "@/utils/formValidation";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { TagSelector } from "./TagSelectorComponent";
 import { slugify } from "@/utils/stringUtils";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";

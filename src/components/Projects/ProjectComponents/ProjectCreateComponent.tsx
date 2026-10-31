@@ -2,10 +2,7 @@
 
 import React from "react";
 import { useRouter } from "next/navigation";
-import {
-  SelectProjectWithOwner,
-  SelectUserWithProject,
-} from "@/db/schema/projects";
+import { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
 import { ProjectContent } from "./ProjectContent";
 
 interface ProjectCreateComponentProps {

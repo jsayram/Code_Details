@@ -19,7 +19,7 @@ import {
   validationError,
   type ActionError,
 } from "@/lib/action-errors";
-import type { ImageType, SelectProjectImage } from "@/db/schema/project_images";
+import type { ImageType, SelectProjectImage } from "@/types/project-images";
 import { chooseProjectReadBackend } from "./index";
 import { personalReadsFromConvex } from "./personal";
 import { projectWritesToConvex } from "./project-update";

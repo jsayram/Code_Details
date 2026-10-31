@@ -2,7 +2,7 @@
 
 import { z } from "zod";
 import { requireAdminForAction, viewerIsAdmin } from "@/lib/admin-action";
-import type { UpdateProfileData, SortOption, TierFilter } from "@/db/operations/userManagementOperations";
+import type { UpdateProfileData, SortOption, TierFilter } from "@/types/rows";
 import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { requireConvexData } from "@/backend/projects/personal";

@@ -17,7 +17,6 @@ import type { DocOwner } from "@/lib/auth-server";
 vi.mock("@/lib/auth-server", () => ({}));
 vi.mock("@/backend/projects/personal", () => ({ personalReadsFromConvex: () => false }));
 vi.mock("@/backend/projects", () => ({ getProjectReadBackend: () => ({}) }));
-vi.mock("@/db/project-read", () => ({ readProjectBySlug: async () => null }));
 
 const ROOT_DIR = path.resolve(__dirname, "../..");
 const SCRIPT = path.join(ROOT_DIR, "scripts", "docs-rekey.mjs");

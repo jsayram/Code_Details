@@ -5,12 +5,7 @@
  * RFC 7807 compliant server actions for managing project images
  */
 
-import {
-  SelectProjectImage,
-  ImageType,
-  IMAGE_TYPES,
-  AspectRatio,
-} from "@/db/schema/project_images";
+import { SelectProjectImage, ImageType, IMAGE_TYPES, AspectRatio } from "@/types/project-images";
 import {
   type ActionResult,
   actionSuccess,

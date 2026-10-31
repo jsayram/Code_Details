@@ -40,7 +40,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   let sql: postgres.Sql;
   // Loaded lazily: src/db/server.ts throws at import when there's no test DB.
   let actions: typeof import("../../src/app/actions/projects.js");
-  let dbActions: typeof import("../../src/db/actions.js");
   let tagSubmissions: typeof import("../../src/app/actions/tag-submissions.js");
   let tagActions: typeof import("../../src/app/actions/tags.js");
   let projectsRoute: typeof import("../../src/app/api/projects/route.js");
@@ -51,7 +50,6 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   beforeAll(async () => {
     sql = await connectTestDb();
     actions = await import("../../src/app/actions/projects.js");
-    dbActions = await import("../../src/db/actions.js");
     tagSubmissions = await import("../../src/app/actions/tag-submissions.js");
     tagActions = await import("../../src/app/actions/tags.js");
     projectsRoute = await import("../../src/app/api/projects/route.js");
@@ -100,8 +98,9 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   });
 
   describe("R03 unguarded \"use server\" write exports in src/db", () => {
-    it("[function] (fixed, D03) deleteProjectServer is no longer a \"use server\" export", async () => {
-      expect((dbActions as Record<string, unknown>).deleteProjectServer).toBeUndefined();
+    // E03: src/db, with its "use server" actions module, is gone altogether.
+    it("[function] (fixed, D03) deleteProjectServer is gone with src/db", async () => {
+      await expect(import("../../src/db/actions.js" as string)).rejects.toThrow();
       expect(await deletedAt(bobProject.id)).toBeNull();
     });
   });
@@ -208,9 +207,8 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
   // returned deleted projects to anyone). Fixed in D02r.
   describe("R09 (fixed, D02r) project lookups take the viewer from the session", () => {
     it("[function] the viewer-argument lookup is no longer a \"use server\" export", async () => {
-      expect("getProjectBySlugServer" in dbActions).toBe(false);
-      expect("getProjectUsersProfileBySlugServer" in dbActions).toBe(false);
-      expect("getUserProjectsServer" in dbActions).toBe(false);
+      // E03: gone with src/db.
+      await expect(import("../../src/db/actions.js" as string)).rejects.toThrow();
     });
 
     // E03: getProjectForViewer, getProjectById, getProject, getUserOwnProjects

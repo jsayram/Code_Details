@@ -9,7 +9,7 @@ import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectCreateComponent } from "@/components/Projects/ProjectComponents/ProjectCreateComponent";
 import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
-import { SelectUserWithProject } from "@/db/schema/projects";
+import { SelectUserWithProject } from "@/types/rows";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 

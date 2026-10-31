@@ -8,10 +8,7 @@ import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectC
 import { notFound, redirect } from "next/navigation";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
 import { LogIn } from "lucide-react";
-import {
-  SelectProjectWithOwner,
-  SelectUserWithProject,
-} from "@/db/schema/projects";
+import { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
 import { PageBanner } from "@/components/ui/page-banner";
 import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { ProjectsProvider } from "@/providers/projects-provider";

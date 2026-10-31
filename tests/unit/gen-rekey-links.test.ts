@@ -29,9 +29,6 @@ const state = vi.hoisted(() => ({
   publicBySlug: {} as Record<string, { id: string; slug: string } | undefined>,
   ownBySlug: {} as Record<string, { id: string; slug: string; status: string } | undefined>,
   // Supabase
-  supabaseRow: null as null | Record<string, unknown>,
-  readProject: null as null | { id: string; user_id: string },
-  supabaseCalls: 0,
 }));
 
 vi.mock("@/lib/auth-server", () => ({
@@ -45,13 +42,6 @@ vi.mock("@/backend/projects/personal", () => ({
 vi.mock("@/backend/projects", () => ({
   getProjectReadBackend: () => ({ getPublicProjectBySlug: async (slug: string) => state.publicBySlug[slug] ?? null }),
 }));
-vi.mock("@/db/server", () => ({
-  executeQuery: async () => {
-    state.supabaseCalls++;
-    return state.supabaseRow;
-  },
-}));
-vi.mock("@/db/project-read", () => ({ readProjectBySlug: async () => state.readProject }));
 
 const A = "k17genrekeylinksaaaaaaaaaaaaaaaa";
 const B = "k17genrekeylinksbbbbbbbbbbbbbbbb";
@@ -98,9 +88,6 @@ beforeEach(() => {
     mine: [],
     publicBySlug: { [A_PUBLIC.slug]: A_PUBLIC, [B_PUBLIC.slug]: B_PUBLIC },
     ownBySlug: {},
-    supabaseRow: null,
-    readProject: null,
-    supabaseCalls: 0,
   });
 });
 afterAll(cleanup);
@@ -112,7 +99,6 @@ describe("generator re-key links under the Convex read switch", () => {
     const res = await patch(DOCS.a, { projectId: A_PUBLIC.id, projectSlug: A_PUBLIC.slug, projectTitle: "<b>Spoofed</b>" });
     expect(res.status).toBe(200);
     expect(readMeta(DOCS.a)).toMatchObject({ ...link(A_PUBLIC), userId: A });
-    expect(state.supabaseCalls).toBe(0);
   });
 
   it("linking someone else's project is refused and the doc stays unlinked", async () => {
@@ -223,22 +209,18 @@ describe("generator re-key links under the Convex read switch", () => {
 });
 
 describe("generator re-key links without Convex (E03: no Supabase fallback)", () => {
-  it("the link is refused and nothing reads Supabase", async () => {
+  it("the link is refused", async () => {
     state.convex = false;
     for (const owner of [baOnly(A), { writeKey: A, keys: [A, CLERK_A], legacyUserId: CLERK_A }]) {
       state.owner = owner;
-      state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", title: "Supabase title", user_id: CLERK_A };
       expect((await patch(DOCS.a, { projectId: "00000000-0000-4000-8000-0000000000a1", projectSlug: "genrekey-supabase", projectTitle: "x" })).status).toBe(404);
     }
-    expect(state.supabaseCalls).toBe(0);
   });
 
   it("the project page finds no project, so no linked doc", async () => {
     state.convex = false;
     cleanup();
     writeDoc(DOCS.a, A, { legacyUserId: CLERK_A, linkedProjectId: "00000000-0000-4000-8000-0000000000a1", linkedProjectSlug: "genrekey-supabase", linkedProjectTitle: "x" });
-    state.supabaseRow = { id: "00000000-0000-4000-8000-0000000000a1", slug: "genrekey-supabase", user_id: CLERK_A };
     expect((await getLinkedDoc(req(), p("genrekey-supabase"))).status).toBe(404);
-    expect(state.supabaseCalls).toBe(0);
   });
 });

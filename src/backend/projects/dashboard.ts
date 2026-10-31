@@ -5,7 +5,7 @@
 // as the Supabase getUserDashboardStats; what Convex has no read for yet is
 // empty: the viewer's tag suggestions across projects and who favorited their
 // projects (recentAppreciation). Server-side only.
-import type { UserDashboardStats } from "@/db/operations/userDashboardOperations";
+import type { UserDashboardStats } from "@/types/rows";
 import { betterAuthSignedIn } from "@/lib/auth-server";
 import { convexPersonalList, type PersonalProjectCard } from "./personal";
 

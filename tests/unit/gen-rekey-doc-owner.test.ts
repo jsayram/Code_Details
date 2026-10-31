@@ -21,17 +21,8 @@ import { docsOutputRoot } from "@/lib/docs-output-root";
 import type { DocOwner } from "@/lib/auth-server";
 
 const session = vi.hoisted(() => ({ owner: null as DocOwner | null }));
-const db = vi.hoisted(() => ({ project: null as null | { id: string; user_id: string }, calls: [] as unknown[][] }));
 
 vi.mock("@/lib/auth-server", () => ({ routeDocOwner: async () => session.owner }));
-// The link route's Supabase client; unlinking never queries it.
-vi.mock("@/db/server", () => ({ executeQuery: async () => { throw new Error("no database in this test"); } }));
-vi.mock("@/db/project-read", () => ({
-  readProjectBySlug: async (...args: unknown[]) => {
-    db.calls.push(args);
-    return db.project;
-  },
-}));
 
 // Synthetic keys: Convex-style account IDs and Clerk-style subjects.
 const CONVEX_A = "k17genrekeyaccountaaaaaaaaaaaaaa";
@@ -93,8 +84,6 @@ async function listed(): Promise<string[]> {
 beforeEach(() => {
   writeAll();
   session.owner = null;
-  db.project = null;
-  db.calls = [];
 });
 afterAll(cleanup);
 
