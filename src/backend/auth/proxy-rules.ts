@@ -24,6 +24,8 @@ const PUBLIC_ROUTES = [
   route("/projects/[^/]+"),
   route("/projects/users/[^/]+.*"),
   route("/api/shared-projects/.*"),
+  // D09 S02b (Jose's decision 3): search returns listed projects only, to anyone.
+  route("/api/search(/facets)?"),
 ];
 // Better Auth's own endpoints and the dev viewer check: public only while Better Auth is on.
 const BETTER_AUTH_ROUTES = [route("/api/auth/.*"), route("/api/dev/viewer")];
