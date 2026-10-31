@@ -1,7 +1,8 @@
 // D09 S02b: the Next.js side of Code Details Search. GET /api/search and its
 // facets route call the public Convex search queries with no token (results
-// are the same for everyone), only while the development switch
-// CODEDETAILS_SEARCH=on is set and project reads come from Convex.
+// are the same for everyone) whenever project reads come from Convex. S02f
+// (approved under Jose's delegation): search is on by default;
+// CODEDETAILS_SEARCH=off turns it off (the rollback), and the routes answer 404.
 import { makeFunctionReference } from "convex/server";
 import { fetchQuery } from "convex/nextjs";
 import { chooseProjectReadBackend } from "@/backend/projects";
@@ -14,9 +15,9 @@ export type { FacetsResult, SearchResult };
 const projectsRef = makeFunctionReference<"query", Record<string, unknown>, SearchResult>("search:projects");
 const facetsRef = makeFunctionReference<"query", Record<string, unknown>, FacetsResult>("search:facets");
 
-/** The Convex URL to search, or null while the switch is off (the routes answer 404). */
+/** The Convex URL to search, or null when search is turned off or reads aren't on Convex (the routes answer 404). */
 export function searchBackendUrl(env: Record<string, string | undefined> = process.env): string | null {
-  if (env.CODEDETAILS_SEARCH !== "on") return null;
+  if (env.CODEDETAILS_SEARCH === "off") return null;
   const read = chooseProjectReadBackend(env);
   return read.backend === "convex" ? read.url : null;
 }

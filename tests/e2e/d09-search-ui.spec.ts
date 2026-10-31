@@ -1,7 +1,7 @@
-// D09 S02e: project results on /search. In the ordinary runs search is off and
-// the page must look as it ships: no project section. With
-// CODEDETAILS_E2E_SEARCH=on and the Convex read (the preview run), results
-// appear, never include a private project, and open the project page.
+// D09 S02e/S02f: project results on /search. Search is on by default (S02f):
+// with the Convex read, results appear, never include a private project, and
+// open the project page. With the Supabase read, or CODEDETAILS_E2E_SEARCH=off
+// (the rollback position), the page shows no project section.
 // CODEDETAILS_E2E_PREVIEW=1 also writes the before/after screenshots for
 // Jose's preview into Agent Planning/phase-d09/preview/.
 import fs from "node:fs";
@@ -10,7 +10,7 @@ import type { Page } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const searchOn = process.env.CODEDETAILS_E2E_SEARCH === "on" && process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
+const searchOn = process.env.CODEDETAILS_E2E_SEARCH !== "off" && process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const preview = process.env.CODEDETAILS_E2E_PREVIEW === "1";
 const PREVIEW_DIR = path.resolve(__dirname, "../../Agent Planning/phase-d09/preview");
 
@@ -71,7 +71,7 @@ test.describe("D09 /search project results", () => {
   });
 
   test("technology names: c# finds the C# projects only", async ({ page }) => {
-    test.skip(!searchOn, "needs CODEDETAILS_E2E_SEARCH=on with the Convex read");
+    test.skip(!searchOn, "needs the Convex read with search on (the default)");
     await searchFor(page, "c#");
     const results = page.getByTestId("project-search-results");
     await expect(results.getByText("Fixture One Tag")).toBeVisible();

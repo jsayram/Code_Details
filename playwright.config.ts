@@ -59,10 +59,9 @@ const authBackendEnv: Record<string, string> = {
   ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
 };
 
-// D09 S02e: CODEDETAILS_E2E_SEARCH=on runs the server with Code Details Search
-// switched on (CODEDETAILS_SEARCH=on), for the /search preview specs. Off by
-// default, so the ordinary runs see the page as it ships.
-const searchEnv: Record<string, string> = process.env.CODEDETAILS_E2E_SEARCH === "on" ? { CODEDETAILS_SEARCH: "on" } : {};
+// D09 S02f: search is on by default (as it ships); CODEDETAILS_E2E_SEARCH=off
+// runs the server with CODEDETAILS_SEARCH=off, to check the rollback position.
+const searchEnv: Record<string, string> = process.env.CODEDETAILS_E2E_SEARCH === "off" ? { CODEDETAILS_SEARCH: "off" } : {};
 
 const serverEnv = isolatedEnv(
   {

@@ -178,8 +178,15 @@ describe.skipIf(!convexAvailable())("D09 S02b Convex search", () => {
       return { status: res.status, retryAfter: res.headers.get("retry-after"), body: text.startsWith("{") ? JSON.parse(text) : text };
     };
 
-    it("404 while the switch is off, even with Convex reads on", async () => {
-      for (const [k, v] of Object.entries({ ...ON, CODEDETAILS_SEARCH: "" })) vi.stubEnv(k, v);
+    it("on by default: no CODEDETAILS_SEARCH at all serves search", async () => {
+      for (const [k, v] of Object.entries(ON)) if (k !== "CODEDETAILS_SEARCH") vi.stubEnv(k, v);
+      vi.stubEnv("CODEDETAILS_SEARCH", undefined as unknown as string);
+      searchLimiter.reset();
+      expect((await get("/api/search?q=fixture")).status).toBe(200);
+    });
+
+    it("404 with CODEDETAILS_SEARCH=off (the rollback), even with Convex reads on", async () => {
+      for (const [k, v] of Object.entries({ ...ON, CODEDETAILS_SEARCH: "off" })) vi.stubEnv(k, v);
       expect((await get("/api/search?q=fixture")).status).toBe(404);
       expect((await get("/api/search/facets?q=fixture")).status).toBe(404);
     });

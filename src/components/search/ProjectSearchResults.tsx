@@ -1,7 +1,7 @@
 "use client";
 
 // D09 S02e: project results on /search, from GET /api/search. Renders nothing
-// unless that route answers (CODEDETAILS_SEARCH=on), so the page is unchanged
+// unless that route answers (on by default; CODEDETAILS_SEARCH=off), so the page is unchanged
 // while the switch is off. Results come from the server in relevance order;
 // text is rendered as plain text (React escapes it), never as HTML.
 //

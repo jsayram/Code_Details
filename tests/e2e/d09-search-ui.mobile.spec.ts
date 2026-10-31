@@ -1,5 +1,6 @@
-// D09 S02e on a phone (Pixel 7 emulation): /search opens signed out, project
-// results only while search is on, and the results fit the screen. Screenshots
+// D09 S02e/S02f on a phone (Pixel 7 emulation): /search opens signed out,
+// project results with search on (the default; off with CODEDETAILS_E2E_SEARCH=off),
+// and the results fit the screen. Screenshots
 // for Jose's preview with CODEDETAILS_E2E_PREVIEW=1 (see d09-search-ui.spec.ts).
 import fs from "node:fs";
 import path from "node:path";
@@ -7,7 +8,7 @@ import type { Page } from "@playwright/test";
 import { SYNTHETIC_PASSWORD, freshClientIp, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, test } from "./support";
 
-const searchOn = process.env.CODEDETAILS_E2E_SEARCH === "on" && process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
+const searchOn = process.env.CODEDETAILS_E2E_SEARCH !== "off" && process.env.CODEDETAILS_E2E_READ_BACKEND === "convex";
 const preview = process.env.CODEDETAILS_E2E_PREVIEW === "1";
 const PREVIEW_DIR = path.resolve(__dirname, "../../Agent Planning/phase-d09/preview");
 

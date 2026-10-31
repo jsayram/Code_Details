@@ -17,6 +17,7 @@ import {
 } from "@/backend/search/search-rules";
 import { TokenBucketLimiter, clientKey } from "@/backend/search/rate-limit";
 import { isPublicPath } from "@/backend/auth/proxy-rules";
+import { searchBackendUrl } from "@/backend/search/search-client";
 
 describe("checkRequest", () => {
   it("accepts a plain search and a plain browse", () => {
@@ -120,5 +121,16 @@ describe("proxy", () => {
     expect(isPublicPath("/api/search/anything-else")).toBe(false);
     expect(isPublicPath("/users")).toBe(false);
     expect(isPublicPath("/api/profiles")).toBe(false);
+  });
+});
+
+describe("search switch (S02f: on by default)", () => {
+  const convex = { NODE_ENV: "development", CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: "http://127.0.0.1:3330" };
+  it("is on with nothing set, off only with CODEDETAILS_SEARCH=off, and never without the Convex read", () => {
+    expect(searchBackendUrl(convex)).toBe("http://127.0.0.1:3330");
+    expect(searchBackendUrl({ ...convex, CODEDETAILS_SEARCH: "on" })).toBe("http://127.0.0.1:3330");
+    expect(searchBackendUrl({ ...convex, CODEDETAILS_SEARCH: "off" })).toBeNull();
+    expect(searchBackendUrl({ ...convex, CODEDETAILS_PROJECT_READ_BACKEND: "supabase" })).toBeNull();
+    expect(searchBackendUrl({ ...convex, NODE_ENV: "production" })).toBeNull();
   });
 });
