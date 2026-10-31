@@ -34,6 +34,8 @@ const PUBLIC_ROUTES = [
   route("/search"),
   route("/tags"),
   route("/tags/[^/]+"),
+  // The categories index (master, under Jose's delegation): the same public counts.
+  route("/categories"),
   route("/categories/[^/]+"),
   route("/projects"),
   route("/api/projects"),

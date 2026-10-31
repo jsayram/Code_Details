@@ -7,7 +7,7 @@ import { isPublicPath } from "@/backend/auth/proxy-rules";
 
 describe("public paths after S02c", () => {
   it.each([
-    "/search", "/search/", "/tags", "/tags/Next.js", "/tags/c%23", "/categories/web", "/projects",
+    "/search", "/search/", "/tags", "/tags/Next.js", "/tags/c%23", "/categories", "/categories/web", "/projects",
     "/api/projects", "/api/categories/counts", "/api/search", "/api/search/facets",
   ])("%s is public", (p) => {
     expect(isPublicPath(p)).toBe(true);
@@ -15,7 +15,7 @@ describe("public paths after S02c", () => {
 
   it.each([
     "/users", "/users/fixture-alice", "/api/profiles", "/api/profiles/fixture-alice",
-    "/categories", "/tags/a/b", "/categories/web/extra", "/dashboard", "/github-scrapper",
+    "/categoriesx", "/tags/a/b", "/categories/web/extra", "/dashboard", "/github-scrapper",
     "/api/projects/test", "/api/projects/slug/x", "/api/categories/counts/extra",
   ])("%s still needs sign-in", (p) => {
     expect(isPublicPath(p)).toBe(false);
