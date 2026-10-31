@@ -4,8 +4,8 @@ import { projects } from "@/db/schema/projects";
 import { profiles } from "@/db/schema/profiles";
 import { favorites } from "@/db/schema/favorites";
 import { sql, isNull, isNotNull, eq, and, SQL } from "drizzle-orm";
-import { success, databaseError } from "@/lib/api-errors";
-import { routeViewer } from "@/lib/auth-server";
+import { success, databaseError, unauthorized } from "@/lib/api-errors";
+import { betterAuthSignedIn, routeViewer } from "@/lib/auth-server";
 import { convexPersonalCounts, convexPublicCategoryCounts, personalReadsFromConvex } from "@/backend/projects/personal";
 
 /**
@@ -27,6 +27,9 @@ export async function GET(request: NextRequest) {
   const showFavorites = searchParams.get("favorites") === "true";
   const showDeleted = searchParams.get("deleted") === "true";
   const personal = searchParams.has("userId") || showFavorites || showDeleted;
+
+  // D09 S02c: a public route now; personal counts need a live session.
+  if (personal && (await betterAuthSignedIn()) !== true) return unauthorized("Sign in to see your own counts");
 
   try {
     // D02r-c: behind the development switches, personal counts come from Convex.

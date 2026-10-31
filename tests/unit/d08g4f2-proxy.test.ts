@@ -106,7 +106,8 @@ describe("route classes (as Clerk's matcher)", () => {
 
   it("match the whole path", () => {
     expect(isPublicPath("/projects/a/b")).toBe(false); // /projects/:slug is one segment
-    expect(isPublicPath("/projects")).toBe(false);
+    expect(isPublicPath("/projects")).toBe(true); // D09 S02c: the community list is public now
+    expect(isPublicPath("/projectsx")).toBe(false);
     expect(isPublicPath("/sign-inx")).toBe(true); // "/sign-in(.*)", as before
     expect(isAdminPath("/dashboard")).toBe(false);
     expect(isAdminPath("/x/dashboard/admin")).toBe(false);

@@ -26,6 +26,18 @@ const PUBLIC_ROUTES = [
   route("/api/shared-projects/.*"),
   // D09 S02b (Jose's decision 3): search returns listed projects only, to anyone.
   route("/api/search(/facets)?"),
+  // D09 S02c (decision 3 and the master's scope answer): the search page, the
+  // tag list, the community list and the per-tag and per-category lists are
+  // public. Their data routes answer the public variants to anyone and refuse
+  // the personal ones (mine, favorites, deleted) without a session; the user
+  // directory (/users, /api/profiles) stays signed-in.
+  route("/search"),
+  route("/tags"),
+  route("/tags/[^/]+"),
+  route("/categories/[^/]+"),
+  route("/projects"),
+  route("/api/projects"),
+  route("/api/categories/counts"),
 ];
 // Better Auth's own endpoints and the dev viewer check: public only while Better Auth is on.
 const BETTER_AUTH_ROUTES = [route("/api/auth/.*"), route("/api/dev/viewer")];

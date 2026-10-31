@@ -217,12 +217,14 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect(await slugs(res)).toEqual(["fixture-bob-project"]);
     });
 
-    it("[handler] my projects, favorites and graveyard signed out give nothing, with or without a userId", async () => {
+    // D09 S02c: /api/projects became a public route, so a signed-out personal
+    // view is refused outright (401) instead of answering an empty list.
+    it("[handler] my projects, favorites and graveyard signed out are a 401, with or without a userId", async () => {
       signInAs(null);
       for (const q of ["showDeleted=true&showAll=true&limit=50", `showDeleted=true&userId=${A.subject}`, `showFavorites=true&userId=${A.subject}`, `userId=${A.subject}`, "limit=50"]) {
         const res = await projectsRoute.GET(url(`/api/projects?${q}`));
-        expect(res.status).toBe(200);
-        expect(await slugs(res)).toEqual([]);
+        expect(res.status, q).toBe(401);
+        expect(JSON.stringify(await body(res))).not.toContain("fixture-");
       }
     });
 
@@ -245,11 +247,12 @@ describe.skipIf(!testDbAvailable())("B13 High findings", () => {
       expect(JSON.stringify(await body(own))).toMatch(/"web"\s*:\s*2/);
     });
 
-    it("[handler] personal counts signed out are empty; community counts stay public", async () => {
+    // D09 S02c: the counts route is public now; a signed-out personal count is a 401.
+    it("[handler] personal counts signed out are a 401; community counts stay public", async () => {
       signInAs(null);
       const mine = await countsRoute.GET(url(`/api/categories/counts?userId=${A.subject}`));
-      expect((await body(mine)).data).toEqual({});
-      expect(mine.headers.get("cache-control")).toBe("private, no-store");
+      expect(mine.status).toBe(401);
+      expect(JSON.stringify(await body(mine))).not.toMatch(/"web"/);
       const community = await countsRoute.GET(url("/api/categories/counts"));
       expect(Object.keys((await body(community)).data).length).toBeGreaterThan(0);
       expect(community.headers.get("cache-control")).toMatch(/^public/);

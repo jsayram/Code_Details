@@ -3,7 +3,7 @@ import { eq, and, SQL, inArray, desc, sql } from "drizzle-orm";
 import { executeQuery, DrizzleClient } from "@/db/server";
 import { getProject } from "@/app/actions/projects";
 import { projects } from "@/db/schema/projects";
-import { serverError, notFound, success, invalidInput } from "@/lib/api-errors";
+import { serverError, notFound, success, invalidInput, unauthorized } from "@/lib/api-errors";
 import { tags as tagsTable } from "@/db/schema/tags";
 import { project_tags } from "@/db/schema/project_tags";
 import { profiles } from "@/db/schema/profiles";
@@ -12,7 +12,7 @@ import { favorites } from "@/db/schema/favorites";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
-import { routeViewer } from "@/lib/auth-server";
+import { betterAuthSignedIn, routeViewer } from "@/lib/auth-server";
 import { getProjectReadBackend } from "@/backend/projects";
 import { ownProjectForEdit } from "@/backend/projects/owner-edit";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
@@ -140,6 +140,12 @@ export async function GET(request: NextRequest) {
     // D08g4f3: under the Convex data default every branch below reads Convex
     // with the session itself, so the Supabase viewer (a Clerk-era subject,
     // which a fresh account doesn't have) isn't looked up at all.
+    // D09 S02c: /api/projects is a public route now. Its personal views
+    // (mine, favorites, deleted) need a live session; without one they are a
+    // 401, never an empty or public list.
+    const wantsPersonal = validatedParams.showFavorites || validatedParams.showDeleted || (!validatedParams.showAll && !validatedParams.username && !validatedParams.slug);
+    if (wantsPersonal && (await betterAuthSignedIn()) !== true) return unauthorized("Sign in to see your own projects");
+
     const fromConvex = personalReadsFromConvex();
     const viewer = fromConvex ? null : await routeViewer();
     const userId = viewer?.userId ?? null;

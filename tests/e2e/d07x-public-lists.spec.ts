@@ -67,10 +67,16 @@ test.describe.serial("D07x public lists (Better Auth + Convex read)", () => {
     await expect.poll(() => count(page)).toBe(before);
   });
 
-  test("an unlinked Better Auth user gets a public portfolio from Convex; signed out stays behind the proxy", async ({ page }) => {
+  test("an unlinked Better Auth user gets a public portfolio from Convex; signed out gets the same listed projects", async ({ page }) => {
     const url = `/api/projects?showAll=true&username=${A.profile!.username}&limit=50`;
-    // /api/projects is not a public route in either mode (src/proxy.ts); unchanged.
-    expect((await page.request.get(url)).status()).toBe(401);
+    // D09 S02c: /api/projects is a public route now (Jose's decision 3);
+    // signed out, the portfolio is listed projects only.
+    const signedOut = await page.request.get(url);
+    expect(signedOut.status()).toBe(200);
+    const outSlugs = ((await signedOut.json()) as { data: { slug: string }[] }).data.map((r) => r.slug);
+    expect(outSlugs).toContain("fixture-listed");
+    expect(outSlugs).not.toContain("fixture-private");
+    expect(outSlugs).not.toContain("fixture-deleted-recent");
 
     await signIn(page, "d07x-portfolio");
     const res = await page.request.get(url);

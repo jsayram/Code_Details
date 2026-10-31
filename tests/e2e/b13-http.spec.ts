@@ -48,11 +48,14 @@ test.describe("B13 over HTTP, signed out", () => {
   });
 
   test("controls: signed-in API routes redirect signed-out requests (D-6) instead of answering 401", async ({ request }) => {
-    // D08g1: the proxy answers 401 instead (D-6 fixed there).
-    for (const path of [`/api/projects?userId=${A.subject}&showDeleted=true`, `/api/profiles`, `/api/categories/counts`]) {
+    // D08g1: the proxy answers 401 instead (D-6 fixed there). D09 S02c:
+    // /api/projects and /api/categories/counts are public routes now, so their
+    // personal variants get the 401 from the route; the community counts are public.
+    for (const path of [`/api/projects?userId=${A.subject}&showDeleted=true`, `/api/profiles`, `/api/categories/counts?favorites=true`]) {
       const res = await request.get(path, { maxRedirects: 0 });
       expect(res.status(), path).toBe(401);
     }
+    expect((await request.get("/api/categories/counts", { maxRedirects: 0 })).status()).toBe(200);
   });
 
   test("D-1: /projects/new matches the public /projects/:slug pattern and answers 200 signed out", async ({ request }) => {
