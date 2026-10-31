@@ -6,6 +6,7 @@ import { v } from "convex/values";
 import { mutation, query, type MutationCtx, type QueryCtx } from "./_generated/server";
 import { getViewer, type Viewer } from "./viewer";
 import { setProjectTags } from "./tagWriter";
+import { syncSearchText } from "./searchSync";
 import type { Doc, Id } from "./_generated/dataModel";
 import {
   CATEGORY_FIELDS_VERSION,
@@ -592,6 +593,7 @@ export const update = mutation({
       createdAt: now,
       attempts: 0,
     });
+    await syncSearchText(ctx, project._id);
     const saved = (await ctx.db.get(project._id))!;
     return { ok: true, project: await toEditable(ctx, saved), previousSlug: slugChanges ? project.slug : null };
   },

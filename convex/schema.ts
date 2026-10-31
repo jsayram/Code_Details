@@ -6,7 +6,7 @@
 // are explicit ms-since-epoch numbers so imported dates survive; a tightening
 // on a table that already holds documents goes through .staged() first.
 // Better Auth's component tables arrive with D08. The search index
-// `search_public` and the search event tables are deferred to S01/S02.
+// `search_public` arrived with D09 S02a; the search event tables follow in S02d.
 import { defineSchema, defineTable } from "convex/server";
 import { v } from "convex/values";
 
@@ -97,7 +97,7 @@ export default defineSchema({
     rankingFavoriteCount: v.number(),
     contentVersion: v.number(),
     shuffleKey: v.number(),
-    // Only filled if S01 picks native search, so missing until then.
+    // D09: set on listed projects only, by convex/searchSync.ts (S01 picked native search).
     searchText: v.optional(v.string()),
     createdAt: v.number(),
     updatedAt: v.number(),
@@ -113,7 +113,10 @@ export default defineSchema({
     .index("by_listed_tagCount", ["listed", "tagCount"])
     .index("by_listed_shuffle", ["listed", "shuffleKey"])
     .index("by_listed_category_created", ["listed", "category", "createdAt"])
-    .index("by_listed_category_ranking", ["listed", "category", "rankingFavoriteCount"]),
+    .index("by_listed_category_ranking", ["listed", "category", "rankingFavoriteCount"])
+    // D09 S02a: the public search index (P07 §5.14). searchText is set only on
+    // listed projects (convex/searchSync.ts); `listed` is filtered as well.
+    .searchIndex("search_public", { searchField: "searchText", filterFields: ["listed", "category", "ownerId"] }),
 
   // §3.6 Slug history. Every slug, current or previous, stays reserved until purge.
   projectSlugs: defineTable({

@@ -11,6 +11,7 @@ import { type PublicProfile, assertPublicProfile, usernameKey } from "../src/bac
 import { USERNAME_RESERVATION_MS, USERNAME_TAKEN_MESSAGE, checkUsername } from "../src/backend/profiles/username-rules";
 import { MAX_NAME_LENGTH, seedAvatar } from "./accountRules";
 import { getViewer } from "./viewer";
+import { syncOwnerSearchText } from "./searchSync";
 
 const iso = (ms: number) => new Date(ms).toISOString();
 export const PROFILE_PROJECTION_VERSION = 1;
@@ -168,6 +169,7 @@ export const updateMine = mutation({
       createdAt: now,
       attempts: 0,
     });
+    await syncOwnerSearchText(ctx, profile.userId);
     const updated = (await ctx.db.get(profile._id))!;
     return { ok: true, profile: await toPublic(ctx, updated) };
   },

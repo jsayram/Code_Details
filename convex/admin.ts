@@ -17,6 +17,7 @@ import { v } from "convex/values";
 import { mutation, query, type QueryCtx } from "./_generated/server";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getViewer, type Viewer } from "./viewer";
+import { syncOwnerSearchText } from "./searchSync";
 import { PROFILE_PROJECTION_VERSION, avatarUrlOf, changeUsername, cleanName } from "./profiles";
 
 export const PROJECT_CAP = 2000;
@@ -245,6 +246,7 @@ export const updateUser = mutation({
         createdAt: now,
         attempts: 0,
       });
+      await syncOwnerSearchText(ctx, profile.userId);
     }
     const saved = (await ctx.db.get(profile._id))!;
     const savedUser = (await ctx.db.get(user._id))!;

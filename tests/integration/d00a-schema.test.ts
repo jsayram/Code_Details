@@ -187,10 +187,15 @@ describe("D00a schema matches P07 §3 and §6", () => {
     }
   });
 
-  it("keeps schema validation on and defers search and vector indexes", () => {
+  it("keeps schema validation on; the only search index is D09's search_public, and no vector or staged indexes", () => {
     expect(exported.schemaValidation).toBe(true);
-    for (const t of tables.values()) {
-      expect([t.searchIndexes, t.stagedSearchIndexes, t.vectorIndexes, t.stagedDbIndexes]).toEqual([[], [], [], []]);
+    for (const [name, t] of tables) {
+      expect([t.stagedSearchIndexes, t.vectorIndexes, t.stagedDbIndexes]).toEqual([[], [], []]);
+      expect(t.searchIndexes).toEqual(
+        name === "projects"
+          ? [{ indexDescriptor: "search_public", searchField: "searchText", filterFields: ["listed", "category", "ownerId"] }]
+          : [],
+      );
     }
   });
 

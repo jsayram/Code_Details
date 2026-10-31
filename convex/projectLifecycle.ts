@@ -35,6 +35,7 @@ import {
 } from "./projects";
 import { CATEGORY_FIELDS_VERSION, type Issue, normalizeProjectPatch, titleSortKey } from "../src/backend/projects/project-update-rules";
 import { PUBLIC_PROJECT_VERSION } from "../src/backend/projects/public-project";
+import { syncSearchText } from "./searchSync";
 import { FILE_DELETE_MAX_ATTEMPTS, LIFECYCLE_BATCH, fileDeleteRetryDelayMs } from "../src/backend/projects/lifecycle-rules";
 
 
@@ -57,6 +58,8 @@ export async function outbox(ctx: MutationCtx, projectId: Id<"projects">, change
     createdAt: now,
     attempts: 0,
   });
+  // D09 S02a: the search index reads searchText, so it moves with the outbox row.
+  await syncSearchText(ctx, projectId);
 }
 
 /** `actor` null: the account-deletion purge (D04d), a system action with no person behind it. */

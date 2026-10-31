@@ -16,6 +16,7 @@ import type { Doc, Id } from "./_generated/dataModel";
 import { getViewer, resolveAccount } from "./viewer";
 import { bumpListedCount } from "./projects";
 import { outbox, purgeProjectNow, syncListedCopies } from "./projectLifecycle";
+import { syncOwnerSearchText } from "./searchSync";
 import {
   ACCOUNT_DELETION_GRACE_MS,
   ACCOUNT_PROJECTS_PER_STEP,
@@ -44,6 +45,7 @@ async function profileOutbox(ctx: MutationCtx, userId: Id<"users">, change: "ups
     createdAt: now,
     attempts: 0,
   });
+  await syncOwnerSearchText(ctx, userId);
 }
 
 async function accountAudit(

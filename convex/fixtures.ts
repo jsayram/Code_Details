@@ -9,6 +9,8 @@ import { components, internal } from "./_generated/api";
 import { internalAction, internalMutation, internalQuery } from "./_generated/server";
 import type { Id } from "./_generated/dataModel";
 import { holdsOnlySignUpRows, removeSignUpAccount } from "./accounts";
+import { syncSearchText } from "./searchSync";
+import { rewriteQuery } from "../src/backend/search/vocabulary-layer";
 
 function assertFixturesAllowed() {
   if (process.env.CODEDETAILS_FIXTURES_ALLOWED !== "1") {
@@ -174,6 +176,8 @@ export const load = internalMutation({
       const listed = rest.status === "active" && rest.visibility === "public";
       for (const [position, tagId] of tagIds.entries()) await ctx.db.insert("projectTags", { projectId, tagId, position, listed });
     }
+    // D09 S02a: searchText as the write paths keep it (the importer leaves it to searchSync:backfillBatch).
+    for (const projectId of Object.values(projects)) await syncSearchText(ctx, projectId);
     for (const f of args.favorites ?? []) {
       const userId = users.get(f.userKey);
       const projectId = projects[f.projectSlug];
@@ -835,5 +839,29 @@ export const llmState = internalQuery({
       usage: (await ctx.db.query("llmDailyUsage").collect()).map(({ day, scope, count }) => ({ day, scope, count })),
       calls: (await ctx.db.query("llmCalls").collect()).map(({ _id, _creationTime, ...row }) => ({ id: _id, ...row })),
     };
+  },
+});
+
+// D09 S02a: a project's stored searchText, and what the search_public index
+// returns for a query run through the vocabulary layer (listed only, as the
+// S02b query will ask). Test helpers; the real search query comes in S02b.
+export const searchState = internalQuery({
+  args: { projectId: v.id("projects") },
+  handler: async (ctx, { projectId }) => {
+    assertFixturesAllowed();
+    const p = await ctx.db.get(projectId);
+    return p ? { searchText: p.searchText ?? null, listed: p.listed } : null;
+  },
+});
+
+export const searchProbe = internalQuery({
+  args: { q: v.string() },
+  handler: async (ctx, { q }) => {
+    assertFixturesAllowed();
+    const rows = await ctx.db
+      .query("projects")
+      .withSearchIndex("search_public", (s) => s.search("searchText", rewriteQuery(q, new Set()).q).eq("listed", true))
+      .take(48);
+    return rows.map((r) => r.slug);
   },
 });
