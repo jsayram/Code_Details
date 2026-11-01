@@ -413,7 +413,7 @@ export const CodeParticlesElement: React.FC<CodeParticlesProps> = ({
 
   return (
     <div
-      className={`absolute inset-0 z-0 overflow-hidden ${containerClassName}`}
+      className={`pointer-events-none absolute inset-0 z-0 overflow-hidden ${containerClassName}`}
       aria-hidden="true"
       data-decorative="code-particles"
     >

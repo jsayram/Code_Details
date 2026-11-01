@@ -36,12 +36,10 @@ test.describe("D08g4e1 client auth controls (Better Auth)", () => {
   test("/auth/sign-out signs out and goes home", async ({ page }) => {
     await signIn(page, "g4e1-auth-out");
     await page.goto("/auth/sign-out");
-    // The page's decorative particle layer sits over this button and takes
-    // pointer clicks (as it did before g4e1; noted for the UI work), so the
-    // test presses it from the keyboard.
+    // F01: the decorative particle layer used to sit over this button and
+    // take the click, so this is a real mouse click (no force, no keyboard).
     const button = page.getByRole("button", { name: "Sign out" }).filter({ visible: true }).last();
-    await button.focus();
-    await page.keyboard.press("Enter");
+    await button.click();
     await expect.poll(async () => (await viewer(page)).viewer).toBeNull();
     await expect(page).toHaveURL(`${BASE_URL}/`);
   });
