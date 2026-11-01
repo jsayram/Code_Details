@@ -1,6 +1,6 @@
 "use client";
 
-import React from "react";
+import React, { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
 import { ProjectContent } from "./ProjectContent";
@@ -14,8 +14,10 @@ export function ProjectCreateComponent({
 }: ProjectCreateComponentProps) {
   const router = useRouter();
 
-  // Create an empty project template with required properties
-  const emptyProject: SelectProjectWithOwner = {
+  // Create an empty project template with required properties. F01-15: kept
+  // stable across re-renders, because ProjectContent resets the form whenever
+  // its project prop changes, and the page re-renders on every session refresh.
+  const emptyProject = useMemo<SelectProjectWithOwner>(() => ({
     id: "",
     title: "",
     slug: "",
@@ -30,7 +32,7 @@ export function ProjectCreateComponent({
     url_links: null,
     category_data: null,
     field_order: null,
-  };
+  }), [userProfile.user_id]);
 
   return (
     <ProjectContent
