@@ -45,6 +45,7 @@ const data = {
       url: "/dashboard",
       icon: PieChart,
       isActive: true,
+      signedInOnly: true,
     },
     {
       title: "Search",
@@ -92,6 +93,7 @@ const data = {
       title: "GitHub Scrapper",
       url: "/github-scrapper",
       icon: FolderGit2,
+      signedInOnly: true,
       items: [
         {
           title: "Generate Docs",

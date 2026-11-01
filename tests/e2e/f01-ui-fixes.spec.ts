@@ -38,4 +38,29 @@ test.describe("F01 UI fixes", () => {
     await expect(page.locator("#slug")).toHaveValue("typed-early-slug");
     await expect(page.locator("#description")).toHaveValue("Typed before the page settled.");
   });
+
+  // F01-14: signed-out visitors don't see the "Administrator" label or the
+  // Dashboard and GitHub Scrapper entries (both need a sign-in); Search and
+  // Projects stay. The signed-in sidebar is unchanged.
+  const sidebarNav = (page: Page) => page.locator('[data-sidebar="content"]');
+
+  test("signed-out visitors don't see the sidebar's signed-in entries", async ({ page }) => {
+    await page.goto("/search");
+    const nav = sidebarNav(page);
+    await expect(nav.getByRole("button", { name: "Search", exact: true })).toBeVisible();
+    await expect(nav.getByRole("button", { name: "Projects", exact: true })).toBeVisible();
+    await expect(nav.getByText("Administrator", { exact: true })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "Dashboard", exact: true })).toHaveCount(0);
+    await expect(nav.getByRole("button", { name: "GitHub Scrapper", exact: true })).toHaveCount(0);
+  });
+
+  test("signed-in users still see the whole group", async ({ page }) => {
+    await signIn(page, "f01-sidebar");
+    await page.goto("/search");
+    const nav = sidebarNav(page);
+    await expect(nav.getByText("Administrator", { exact: true })).toBeVisible();
+    for (const name of ["Dashboard", "Search", "Projects", "GitHub Scrapper"]) {
+      await expect(nav.getByRole("button", { name, exact: true })).toBeVisible();
+    }
+  });
 });

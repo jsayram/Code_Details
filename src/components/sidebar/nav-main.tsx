@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
 import { useDocChapters } from "@/providers/doc-chapters-provider";
+import { useViewerId } from "@/components/auth/AuthGate";
 
 import {
   Collapsible,
@@ -31,6 +32,8 @@ export function NavMain({
     url: string;
     icon: LucideIcon;
     isActive?: boolean;
+    /** Hidden from signed-out visitors (F01-14). */
+    signedInOnly?: boolean;
     items?: {
       title: string;
       url: string;
@@ -41,6 +44,10 @@ export function NavMain({
   const router = useRouter();
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const { chapters, currentChapter, projectMeta, isDocPage } = useDocChapters();
+  // F01-14: once the viewer is known to be signed out (null, not still
+  // loading), drop the "Administrator" label and the signed-in-only entries.
+  const signedOut = useViewerId() === null;
+  const visibleItems = signedOut ? items.filter((item) => !item.signedInOnly) : items;
 
   const handleNavigation = (url: string) => {
     // Don't navigate or show loading if we're already on this page
@@ -75,9 +82,9 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      <SidebarGroupLabel>Administrator</SidebarGroupLabel>
+      {!signedOut && <SidebarGroupLabel>Administrator</SidebarGroupLabel>}
       <SidebarMenu>
-        {items.map((item) => {
+        {visibleItems.map((item) => {
           const dynamicItems = getItemsWithChapters(item);
           const hasActiveChild = dynamicItems?.some((subItem) =>
             pathname.startsWith(subItem.url) && subItem.url !== '#divider'
