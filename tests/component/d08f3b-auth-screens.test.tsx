@@ -166,6 +166,19 @@ describe("sign-up (switch on)", () => {
     expect((screen.getByLabelText("Email address") as HTMLInputElement).value).toBe("c@synthetic.invalid");
   });
 
+  it("'Check your inbox' shows the address lowercased, as it is stored (F01-8)", async () => {
+    on(<SignUpComponent />);
+    await fill("Name", "Synthetic Person");
+    await fill("Email address", "Mixed.Case@Synthetic.Invalid");
+    await fill("Password", "synthetic-Password-123");
+    await userEvent.click(screen.getByRole("button", { name: "Continue" }));
+    expect(calls).toContainEqual(expect.objectContaining({ path: "/sign-up/email", body: expect.objectContaining({ email: "Mixed.Case@Synthetic.Invalid" }) }));
+    expect(await screen.findByRole("heading", { name: "Check your inbox" })).toBeTruthy();
+    expect(screen.getByText("mixed.case@synthetic.invalid")).toBeTruthy();
+    expect(screen.queryByText("Mixed.Case@Synthetic.Invalid")).toBeNull();
+    expect((screen.getByLabelText("Email address") as HTMLInputElement).value).toBe("mixed.case@synthetic.invalid");
+  });
+
   it("a short password is refused before anything is sent", async () => {
     on(<SignUpComponent />);
     await fill("Name", "S");

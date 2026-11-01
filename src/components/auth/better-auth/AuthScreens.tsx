@@ -251,7 +251,8 @@ function SignUpScreen() {
           if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
           const res = await authPost("/sign-up/email", { name, email, password, callbackURL: VERIFIED_CALLBACK });
           // Better Auth answers 200 for an address that already has an account too.
-          if (res.status === 200) return setSentTo(email);
+          // It stores the address lowercased, so show it that way (F01-8).
+          if (res.status === 200) return setSentTo(email.toLowerCase());
           if (res.status === 429) return setMessage({ tone: "error", text: TOO_MANY });
           if (res.code === "PASSWORD_TOO_SHORT") return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
           if (res.code === "PASSWORD_TOO_LONG") return setMessage({ tone: "error", text: "That password is too long." });
