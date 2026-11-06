@@ -17,3 +17,10 @@ test("emulated phone: no sideways overflow and full-size touch targets", async (
   const input = page.locator("#foundations-title");
   await expect.poll(async () => (await input.boundingBox())!.height).toBeCloseTo(44, 0);
 });
+
+test("emulated phone: a pinch gesture really zooms the page", async ({ context, page }) => {
+  await page.goto("/");
+  const cdp = await context.newCDPSession(page);
+  await cdp.send("Input.synthesizePinchGesture", { x: 195, y: 300, scaleFactor: 2, gestureSourceType: "touch" });
+  await expect.poll(() => page.evaluate(() => window.visualViewport!.scale)).toBeGreaterThan(1.2);
+});

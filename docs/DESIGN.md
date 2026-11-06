@@ -58,7 +58,7 @@ Text pairs reach 4.5:1 and control borders and focus rings reach 3:1 in both the
 
 ## Controls and states
 
-- Focus is a solid 2px ring with a 2px offset on every control.
+- Focus is a solid 2px outline with a 2px offset on every control.
 - Disabled controls use a solid surface and stay readable, instead of dimming to half opacity.
 - Errors pair a red border with a text message linked by `aria-describedby`. Color is never the only signal.
 - Touch targets are at least 44px on touch devices.
