@@ -3,6 +3,7 @@
 import React, { useEffect, useState, useMemo } from "react";
 import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
+import { signInLocation } from "@/backend/auth/proxy-rules";
 import { isValidTier, getAccessibleTiers } from "@/services/tierServiceServer";
 import { useUserTier } from "@/hooks/use-user-tier";
 import Link from "next/link";
@@ -89,7 +90,9 @@ export default function ProtectedPage({
 
       // If user is not signed in, redirect to sign-in page
       if (!isSignedIn) {
-        router.replace("/auth/sign-in");
+        // F02: come back to this page afterwards. Read here rather than with
+        // useSearchParams, which would need a Suspense boundary on every page.
+        router.replace(signInLocation(window.location.pathname, window.location.search));
         return;
       }
 

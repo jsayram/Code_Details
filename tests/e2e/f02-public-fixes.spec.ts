@@ -168,3 +168,39 @@ test.describe("F02 public lists", () => {
     await expect(card(page, LISTED).getByRole("button", { name: /to favorites|from favorites/ })).toBeVisible();
   });
 });
+
+test.describe("F02 sign-in return", () => {
+  /** Signs up by API, so the browser still has no session, and fills in the real form. */
+  async function signInByForm(page: Page, label: string) {
+    const email = syntheticEmail(label);
+    expect((await page.request.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    await verifyEmail(email);
+    await page.getByLabel("Email address").fill(email);
+    await page.getByLabel("Password").fill(SYNTHETIC_PASSWORD);
+    await page.getByRole("button", { name: "Continue", exact: true }).click();
+  }
+
+  for (const path of ["/projects/new", "/projects/favorites", "/projects/deleted", "/projects/projects-portfolio"]) {
+    test(`${path} sends a signed-out visitor to sign in with the way back kept`, async ({ page }) => {
+      await page.goto(`${path}?from=f02`);
+      await expect(page).toHaveURL(/\/sign-in\?redirect_url=/);
+      expect(new URL(page.url()).searchParams.get("redirect_url")).toBe(`${path}?from=f02`);
+    });
+  }
+
+  test("signing in returns to the page the visitor came from", async ({ page }) => {
+    await page.goto("/projects/favorites");
+    await expect(page).toHaveURL(/redirect_url=%2Fprojects%2Ffavorites/);
+    await signInByForm(page, "f02-return");
+    await expect(page).toHaveURL(/\/projects\/favorites$/);
+  });
+
+  test("a crafted return address stays on the site", async ({ page }) => {
+    for (const bad of ["//evil.example/x", "/.//evil.example/x", "https://evil.example/x"]) {
+      await page.context().clearCookies();
+      await page.goto(`/sign-in?redirect_url=${encodeURIComponent(bad)}`);
+      await signInByForm(page, `f02-evil-${bad.length}`);
+      await expect(page).toHaveURL(`${BASE_URL}/`);
+    }
+  });
+});

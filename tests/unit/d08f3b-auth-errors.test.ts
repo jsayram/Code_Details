@@ -44,6 +44,13 @@ describe("safeRedirect (no window: server-side base)", () => {
     ["/\\evil.example/x", "/"],
     ["https://evil.example/x", "/"],
     ["javascript:alert(1)", "/"],
+    // F02: dot segments and tabs that normalize to another site.
+    ["/.//evil.example/x", "/"],
+    ["/x/..//evil.example/x", "/"],
+    ["/./\\evil.example/x", "/"],
+    ["/\t/evil.example/x", "/"],
+    ["/projects/new?tab=1", "/projects/new?tab=1"],
+    ["/projects/a//b", "/projects/a//b"],
   ])("%s → %s", (value, expected) => {
     expect(safeRedirect(value)).toBe(expected);
   });
