@@ -1089,10 +1089,13 @@ export function ProjectContent({
 
                   {/* Images Section */}
                   <section id="images">
-                    {project.id && viewerId && (
+                    {/* F02: signed-out visitors of a shared link see the images
+                        too. The server read decides who may (listed projects,
+                        else the owner); view mode never uses userId. */}
+                    {project.id && (
                       <ProjectImagesManager
                         projectId={project.id}
-                        userId={viewerId}
+                        userId={viewerId ?? ""}
                         isEditing={false}
                         isOwner={isOwner}
                         onEditClick={() => {
