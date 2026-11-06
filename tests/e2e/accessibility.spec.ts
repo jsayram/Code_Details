@@ -8,12 +8,10 @@ const WCAG = ["wcag2a", "wcag2aa", "wcag21a", "wcag21aa", "wcag22aa"];
 // Triaged findings that exist today (Phase B, B07). Each is deferred, not
 // fixed: the backend migration preserves the frontend. A new rule or extra node
 // fails the test; a fixed one fails too, so this list gets updated on purpose.
-//   meta-viewport: the viewport meta sets maximum-scale=1 and user-scalable=no,
-//   blocking zoom. The fix exists on the preflight branch (d767a4b), deferred
-//   to the UI work (B01).
+// UI03 removed the last one: meta-viewport blocked zoom until decision 10.
 const KNOWN: Record<string, Record<string, number>> = {
-  "/": { "meta-viewport": 1 },
-  [`/projects/${listed.slug}`]: { "meta-viewport": 1 },
+  "/": {},
+  [`/projects/${listed.slug}`]: {},
 };
 
 for (const [path, known] of Object.entries(KNOWN)) {
