@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { routeDocOwner } from "@/lib/auth-server";
+import { betterAuthRole, routeDocOwner } from "@/lib/auth-server";
 
 // =============================================================================
 // SUPPORTED PLATFORMS
@@ -796,16 +796,37 @@ function shuffleArray<T>(array: T[]): T[] {
 // PLATFORM API FUNCTIONS
 // =============================================================================
 
-async function fetchRepoTree(parsed: ParsedRepo, userToken?: string): Promise<string[]> {
+/**
+ * F02: which server token, if any, may be used for this repository. A person
+ * supplies their own for anything private. Without this check any signed-in
+ * account could learn about repositories only the server's token can read, and
+ * could send GITLAB_TOKEN or GITEA_TOKEN to a host they picked ("gitlab.evil.com").
+ * An admin may use them anywhere. Anyone else gets the GitHub token on public
+ * GitHub repositories only, so those keep the server's rate limit. When the
+ * check can't tell, there's no token.
+ */
+async function serverTokenFor(parsed: ParsedRepo): Promise<string | undefined> {
+  const token = process.env[PLATFORM_CONFIGS[parsed.platform].tokenEnvVar];
+  if (!token) return undefined;
+  if ((await betterAuthRole()) === "admin") return token;
+  if (parsed.platform !== "github") return undefined;
+  // The owner and repo come from the URL; a ".." would point the check, and the token, elsewhere.
+  if (![parsed.owner, parsed.repo].every((part) => /^[\w.-]+$/.test(part) && !/^\.+$/.test(part))) return undefined;
+  try {
+    const response = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
+    });
+    if (!response.ok) return undefined;
+    const repository = (await response.json()) as { private?: unknown };
+    return repository.private === false ? token : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+async function fetchRepoTree(parsed: ParsedRepo, token?: string): Promise<string[]> {
   const config = PLATFORM_CONFIGS[parsed.platform];
   const endpoint = config.treeEndpoint(parsed);
-  // User-provided token takes priority over environment variable
-  const token = userToken || process.env[config.tokenEnvVar];
-  
-  // Debug log in development only (never log actual token value)
-  if (process.env.NODE_ENV === "development") {
-    console.log(`[Repo Analyzer] Platform: ${parsed.platform}, Token source: ${userToken ? "user-provided" : token ? "env-var" : "none"}`);
-  }
   
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -847,11 +868,9 @@ async function fetchRepoTree(parsed: ParsedRepo, userToken?: string): Promise<st
   return config.parseTree(data);
 }
 
-async function fetchRawFile(parsed: ParsedRepo, path: string, userToken?: string): Promise<string | null> {
+async function fetchRawFile(parsed: ParsedRepo, path: string, token?: string): Promise<string | null> {
   const config = PLATFORM_CONFIGS[parsed.platform];
   const endpoint = config.rawFileEndpoint(parsed, path);
-  // User-provided token takes priority over environment variable
-  const token = userToken || process.env[config.tokenEnvVar];
   
   const headers: Record<string, string> = {};
   
@@ -878,8 +897,8 @@ async function fetchRawFile(parsed: ParsedRepo, path: string, userToken?: string
   }
 }
 
-async function fetchPackageJson(parsed: ParsedRepo, userToken?: string): Promise<Record<string, unknown> | null> {
-  const content = await fetchRawFile(parsed, "package.json", userToken);
+async function fetchPackageJson(parsed: ParsedRepo, token?: string): Promise<Record<string, unknown> | null> {
+  const content = await fetchRawFile(parsed, "package.json", token);
   if (!content) return null;
   try {
     return JSON.parse(content);
@@ -888,8 +907,8 @@ async function fetchPackageJson(parsed: ParsedRepo, userToken?: string): Promise
   }
 }
 
-async function fetchRequirementsTxt(parsed: ParsedRepo, userToken?: string): Promise<string[]> {
-  const content = await fetchRawFile(parsed, "requirements.txt", userToken);
+async function fetchRequirementsTxt(parsed: ParsedRepo, token?: string): Promise<string[]> {
+  const content = await fetchRawFile(parsed, "requirements.txt", token);
   if (!content) return [];
   return content
     .split("\n")
@@ -1023,10 +1042,13 @@ export async function POST(request: NextRequest) {
     
     const platformConfig = PLATFORM_CONFIGS[parsed.platform];
     
+    // User-provided token takes priority over the server's
+    const accessToken = userToken ?? (await serverTokenFor(parsed));
+    
     const [files, packageJson, pythonPackages] = await Promise.all([
-      fetchRepoTree(parsed, userToken),
-      fetchPackageJson(parsed, userToken),
-      fetchRequirementsTxt(parsed, userToken),
+      fetchRepoTree(parsed, accessToken),
+      fetchPackageJson(parsed, accessToken),
+      fetchRequirementsTxt(parsed, accessToken),
     ]);
     
     const techStack = detectTechStack(files, packageJson, pythonPackages);
