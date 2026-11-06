@@ -64,7 +64,7 @@ test.describe("preview page", () => {
     }
   });
 
-  test("keyboard: every control takes focus and shows a solid ring", async ({ page }) => {
+  test("keyboard: every control takes focus and shows a solid outline", async ({ page }) => {
     await openAsAdmin(page, "ui03-keyboard");
     const seen = new Set<string>();
     for (let i = 0; i < 60; i++) {

@@ -202,7 +202,7 @@ export function FoundationsGallery() {
           </div>
         </Section>
 
-        <Section title="Controls" intro="Actions are pills and normal controls still look like controls. Control borders reach 3:1, focus is always a solid 2px ring, and disabled controls stay readable.">
+        <Section title="Controls" intro="Actions are pills and normal controls still look like controls. Control borders reach 3:1, focus is always a solid 2px outline, and disabled controls stay readable.">
           <div className="cd-stack">
             <div className="cd-cluster">
               <Button>Primary</Button>
@@ -216,7 +216,7 @@ export function FoundationsGallery() {
               <Button disabled>Primary</Button>
               <Button disabled variant="outline">Outline</Button>
               <Button disabled variant="destructive">Delete</Button>
-              <Button className="cd-show-focus">Focus ring</Button>
+              <Button className="cd-show-focus">Focused</Button>
             </div>
             <div className="cd-grid">
               <div className="cd-stack-tight">
