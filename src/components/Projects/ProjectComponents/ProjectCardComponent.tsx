@@ -287,26 +287,7 @@ export const ProjectCard = React.memo(
       e.preventDefault();
       e.stopPropagation();
 
-      // D07x: the session decides (Clerk's userId by default), so a Better
-      // Auth user isn't told to sign in.
-      if (!userId) {
-        toast.dismiss();
-        toast.info(
-          <div className="relative flex flex-row items-center gap-2">
-            <Image
-              src="/images/mascot.png"
-              alt="Code Minion"
-              width={50}
-              height={50}
-              className="relative rounded-md"
-            />
-            <p>You have to sign in to browse projects by tags silly</p>
-          </div>
-        );
-        return;
-      }
 
-      // Rest of the existing tag click logic
       const currentPath = window.location.pathname;
       const tagPath = `/tags/${encodeURIComponent(tag)}`;
       if (currentPath === tagPath) {
@@ -346,24 +327,6 @@ export const ProjectCard = React.memo(
     const handleCategoryClick = async (e: React.MouseEvent) => {
       e.preventDefault();
       e.stopPropagation();
-      // D07x: the session decides (Clerk's userId by default), so a Better
-      // Auth user isn't told to sign in.
-      if (!userId) {
-        toast.dismiss();
-        toast.info(
-          <div className="relative flex flex-row items-center gap-2">
-            <Image
-              src="/images/mascot.png"
-              alt="Code Minion"
-              width={50}
-              height={50}
-              className="relative rounded-md"
-            />
-            <p>You have to sign in to browse projects by categories silly</p>
-          </div>
-        );
-        return;
-      }
       const currentPath = window.location.pathname;
       const categoryPath = `/categories/${encodeURIComponent(
         project.category

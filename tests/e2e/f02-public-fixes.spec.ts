@@ -101,3 +101,70 @@ test.describe.serial("F02 images on shared links", () => {
     await expect(page.getByRole("heading", { name: "Project Images" })).toHaveCount(0);
   });
 });
+
+test.describe("F02 public lists", () => {
+  const LISTED = "Fixture Listed Project";
+  const card = (page: Page, title: string) => page.locator(".project-card", { hasText: title }).first();
+  const hidden = ["Fixture Private Project", "Fixture Deleted Recently"];
+
+  async function expectPublicList(page: Page, title: string) {
+    await expect(card(page, title)).toBeVisible();
+    await expect(page.getByText("Please sign in to view projects")).toHaveCount(0);
+    for (const other of hidden) await expect(card(page, other)).toHaveCount(0);
+  }
+
+  test("/projects signed out: stays on the page, listed projects only, no personal actions", async ({ page }) => {
+    await page.goto("/projects");
+    await expectPublicList(page, LISTED);
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(page.getByRole("button", { name: "Create Project" })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /to favorites|from favorites/ })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /Update project|Delete project/ })).toHaveCount(0);
+  });
+
+  test("/projects table view signed out: the favorite count isn't a control", async ({ page }) => {
+    await page.goto("/projects");
+    await expect(card(page, LISTED)).toBeVisible();
+    await page.getByRole("button", { name: "Table" }).click();
+    await expect(page.getByRole("cell", { name: LISTED }).first()).toBeVisible();
+    await expect(page.getByRole("button", { name: /to favorites|from favorites/ })).toHaveCount(0);
+  });
+
+  test("/categories/<name> and /tags/<name> signed out", async ({ page }) => {
+    await page.goto("/categories/web");
+    await expectPublicList(page, LISTED);
+    await page.goto("/tags/rust");
+    await expectPublicList(page, "Fixture Bob's Project");
+    await expect(page.getByRole("button", { name: /to favorites|from favorites/ })).toHaveCount(0);
+  });
+
+  test("a tag on a signed-out card opens the public tag page", async ({ page }) => {
+    await page.goto("/projects");
+    const bob = card(page, "Fixture Bob's Project");
+    await expect(bob).toBeVisible();
+    await bob.getByText("Rust", { exact: false }).first().click();
+    await expect(page).toHaveURL(/\/tags\/rust$/i);
+    await expectPublicList(page, "Fixture Bob's Project");
+  });
+
+  test("signed out, no fetch of a personal list, and the API refuses them", async ({ page, request }) => {
+    for (const q of ["showFavorites=true", "showDeleted=true", "showAll=false"]) {
+      expect((await request.get(`/api/projects?${q}`)).status(), q).toBe(401);
+    }
+    const asked: string[] = [];
+    page.on("request", (r) => { if (r.url().includes("/api/projects?")) asked.push(r.url()); });
+    await page.goto("/projects/favorites");
+    await expect(page).toHaveURL(/\/sign-in/);
+    expect(asked.filter((u) => /showFavorites=true|showDeleted=true|showAll=false/.test(u))).toEqual([]);
+  });
+
+  test("signed in: the same pages keep their personal actions", async ({ page }) => {
+    await signIn(page, "f02-lists");
+    await page.goto("/projects");
+    await expect(card(page, LISTED)).toBeVisible();
+    await expect(page.getByRole("button", { name: "Create Project" })).toBeVisible();
+    await expect(card(page, LISTED).getByRole("button", { name: /to favorites|from favorites/ })).toBeVisible();
+    await page.goto("/categories/web");
+    await expect(card(page, LISTED).getByRole("button", { name: /to favorites|from favorites/ })).toBeVisible();
+  });
+});

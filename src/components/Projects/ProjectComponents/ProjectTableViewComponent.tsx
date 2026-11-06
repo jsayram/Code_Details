@@ -4,7 +4,7 @@ import React, { useState, useMemo } from "react";
 import { Project } from "@/types/models/project";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Edit, Trash2, Settings2, ChevronUp } from "lucide-react";
+import { Edit, Heart, Trash2, Settings2, ChevronUp } from "lucide-react";
 import { FormattedDate } from "@/lib/FormattedDate";
 import { PROJECT_CATEGORIES, ProjectCategory } from "@/constants/project-categories";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -78,20 +78,9 @@ export function ProjectTableView({
     }));
   };
 
-  const showSignInToast = () => {
-    toast.info(
-      <div className="relative flex flex-row items-center gap-2">
-        <Image src="/images/mascot.png" alt="Code Minion" width={50} height={50} className="relative rounded-md" />
-        <p>You have to sign in to browse projects by categories silly</p>
-      </div>
-    );
-  };
-
   const handleTagClick = async (e: React.MouseEvent, tag: string) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!userId) { showSignInToast(); return; }
 
     const tagPath = `/tags/${encodeURIComponent(tag)}`;
     if (window.location.pathname === tagPath) {
@@ -117,8 +106,6 @@ export function ProjectTableView({
   const handleCategoryClick = async (e: React.MouseEvent, category: string) => {
     e.preventDefault();
     e.stopPropagation();
-
-    if (!userId) { showSignInToast(); return; }
 
     const categoryPath = `/categories/${encodeURIComponent(category)}`;
     if (window.location.pathname === categoryPath) {
@@ -326,12 +313,22 @@ export function ProjectTableView({
 
                     <td className={`${ROW_HEIGHT} align-middle overflow-hidden`} style={{ opacity: cellOpacity }}>
                       <div className="flex items-center gap-2">
-                        <FavoriteButton
-                          isFavorite={!!project.isFavorite}
-                          count={Number(project.total_favorites) || 0}
-                          onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(project.id, !project.isFavorite); }}
-                          ariaLabel={project.isFavorite ? "Remove from favorites" : "Add to favorites"}
-                        />
+                        {/* F02: as on the card, signed-out visitors get the count, not the control. */}
+                        {userId ? (
+                          <FavoriteButton
+                            isFavorite={!!project.isFavorite}
+                            count={Number(project.total_favorites) || 0}
+                            onClick={(e) => { e.stopPropagation(); onToggleFavorite?.(project.id, !project.isFavorite); }}
+                            ariaLabel={project.isFavorite ? "Remove from favorites" : "Add to favorites"}
+                          />
+                        ) : (
+                          Number(project.total_favorites) > 0 && (
+                            <div className="flex items-center gap-1">
+                              <Heart size={20} fill="currentColor" className="text-red-500" />
+                              <span className="text-xs text-muted-foreground">{Number(project.total_favorites)}</span>
+                            </div>
+                          )
+                        )}
                         {isOwner && (
                           <>
                             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onUpdateProject?.(project); }}>

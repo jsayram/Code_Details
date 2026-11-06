@@ -45,6 +45,7 @@ export default function TagPage({ params }: PageProps) {
         <ProjectsProvider
           userId={viewer.userId}
           isLoading={isLoading}
+          allowAnonymousView
           initialFilters={{ tags: [decodedTag] }}
         >
           <SidebarProvider>
@@ -71,6 +72,7 @@ export default function TagPage({ params }: PageProps) {
                           currentPage={currentPage}
                           showSortingFilters={true}
                           onPageChange={setCurrentPage}
+                          allowAnonymousView
                         />
                       </div>
                     </div>

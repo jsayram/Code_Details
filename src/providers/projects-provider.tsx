@@ -63,6 +63,11 @@ interface ProjectsProviderProps {
   userId: string | null;
   isLoading?: boolean;
   initialFilters?: Partial<ProjectFilters>;
+  /**
+   * F02: a public list (/projects, /categories/<name>, /tags/<name>) loads
+   * signed out too. Personal lists never do, even with this set.
+   */
+  allowAnonymousView?: boolean;
 }
 
 /**
@@ -96,6 +101,7 @@ export function ProjectsProvider({
   userId,
   isLoading,
   initialFilters = {},
+  allowAnonymousView = false,
 }: ProjectsProviderProps) {
   // Local state for optimistic updates
   const [localProjects, setLocalProjects] = useState<Project[] | null>(null);
@@ -119,7 +125,9 @@ export function ProjectsProvider({
   const authReady = true;
 
   // Determine if we should fetch
-  const shouldFetch = authReady && !isLoading && (isAuthenticated || !!filters.username);
+  const isPersonalList = filters.showMyProjects || filters.showFavorites || filters.showDeleted;
+  const shouldFetch =
+    authReady && !isLoading && (isAuthenticated || !!filters.username || (allowAnonymousView && !isPersonalList));
 
   // Generate cache key for SWR
   const cacheKey = getProjectsCacheKey(filters, userId, shouldFetch);
@@ -147,7 +155,9 @@ export function ProjectsProvider({
 
   // Use local projects if set (for optimistic updates), otherwise use SWR data
   const projects = localProjects ?? swrProjects;
-  const loading = !cacheKey ? false : swrLoading;
+  // F02: while the session is still loading a public list stays on its
+  // skeleton, instead of flashing the empty message before the fetch starts.
+  const loading = !!isLoading || (!cacheKey ? false : swrLoading);
   const pagination = swrPagination;
 
   // Update filters with page bounds checking

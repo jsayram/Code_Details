@@ -38,6 +38,7 @@ export default function CategoryPage({ params }: PageProps) {
     <ProjectsProvider
       userId={viewer.userId}
       isLoading={isLoading}
+      allowAnonymousView
       initialFilters={{ category: validatedCategory }}
     >
       <SidebarProvider>
@@ -65,6 +66,7 @@ export default function CategoryPage({ params }: PageProps) {
                       showSortingFilters={true}
                       hideCategoryFilter={true}
                       onPageChange={setCurrentPage}
+                      allowAnonymousView
                     />
                   </div>
                 </div>
