@@ -393,6 +393,28 @@
   }
 }
 
+/* UI03 (decision 10): global reduced motion. A tiny duration rather than
+   "none", so fill-mode end states still apply and animationend still fires.
+   Spinners keep turning because they report status. Framer Motion and scripted
+   scrolling don't go through CSS: see providers/motion-provider.tsx and
+   lib/reduced-motion.ts. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
 /* DEBUG STYLES - Remove before deploying to production */
 /* *{
   outline: .05px dotted rgba(255, 0, 0, 0.2) !important;

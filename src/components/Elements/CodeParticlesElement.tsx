@@ -1,5 +1,5 @@
 import React, { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { useTheme } from "next-themes";
 import { useIsBrowser, ClientOnly } from "@/lib/ClientSideUtils";
 
@@ -37,6 +37,8 @@ export const CodeParticlesElement: React.FC<CodeParticlesProps> = ({
   const { resolvedTheme } = useTheme();
   // Check if we're in a browser environment
   const isBrowser = useIsBrowser();
+  // Reduced motion: particles stay in place and don't fade in and out.
+  const reduceMotion = useReducedMotion();
 
   // Determine if we're in light mode
   const isLightMode = useMemo(() => resolvedTheme === "light", [resolvedTheme]);
@@ -440,23 +442,35 @@ export const CodeParticlesElement: React.FC<CodeParticlesProps> = ({
                   ? "none"
                   : "blur(0.2px)",
               }}
-              animate={{
-                y: [0, particle.yMovement, 0],
-                x: [0, particle.xMovement, 0],
-                opacity: [
-                  currentOpacityRange[0],
-                  currentOpacityRange[1],
-                  currentOpacityRange[0],
-                ],
-                rotate: particle.rotate,
-                scale: particle.scale,
-              }}
-              transition={{
-                duration: particle.duration,
-                repeat: Infinity,
-                ease: "easeInOut",
-                delay: particle.delay,
-              }}
+              animate={
+                reduceMotion
+                  ? {
+                      opacity: currentOpacityRange[0],
+                      rotate: particle.rotate,
+                      scale: particle.scale,
+                    }
+                  : {
+                      y: [0, particle.yMovement, 0],
+                      x: [0, particle.xMovement, 0],
+                      opacity: [
+                        currentOpacityRange[0],
+                        currentOpacityRange[1],
+                        currentOpacityRange[0],
+                      ],
+                      rotate: particle.rotate,
+                      scale: particle.scale,
+                    }
+              }
+              transition={
+                reduceMotion
+                  ? { duration: 0 }
+                  : {
+                      duration: particle.duration,
+                      repeat: Infinity,
+                      ease: "easeInOut",
+                      delay: particle.delay,
+                    }
+              }
             >
               {symbol.symbol}
             </motion.div>

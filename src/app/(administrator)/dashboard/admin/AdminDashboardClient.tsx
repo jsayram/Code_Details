@@ -1,6 +1,7 @@
 "use client";
 
 import React from "react";
+import { scrollMotion } from "@/lib/reduced-motion";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -634,7 +635,7 @@ function EditUserDialog({
       setTimeout(() => {
         const userMgmtCard = document.getElementById('user-management');
         if (userMgmtCard) {
-          userMgmtCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          userMgmtCard.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
           setTimeout(() => {
             userMgmtCard.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
             setTimeout(() => {
@@ -1480,7 +1481,7 @@ function DashboardContent() {
           onClick={() => {
             const el = document.getElementById('user-management');
             if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
               setTimeout(() => {
                 el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
                 setTimeout(() => {
@@ -1502,7 +1503,7 @@ function DashboardContent() {
           onClick={() => {
             const el = document.getElementById('projects-no-favorites');
             if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
               setTimeout(() => {
                 el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
                 setTimeout(() => {
@@ -1524,7 +1525,7 @@ function DashboardContent() {
           onClick={() => {
             const el = document.getElementById('projects-needing-attention');
             if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
               setTimeout(() => {
                 el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
                 setTimeout(() => {
@@ -1546,7 +1547,7 @@ function DashboardContent() {
           onClick={() => {
             const el = document.getElementById('new-users-list');
             if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
               setTimeout(() => {
                 el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
                 setTimeout(() => {

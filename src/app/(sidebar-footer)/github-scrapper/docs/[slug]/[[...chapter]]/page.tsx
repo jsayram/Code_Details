@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { scrollMotion } from "@/lib/reduced-motion";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -170,7 +171,7 @@ export default function DocViewerPage() {
   const scrollToHeading = useCallback((id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
       setActiveHeading(id);
     }
   }, []);

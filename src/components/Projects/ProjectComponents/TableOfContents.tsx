@@ -7,6 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
+import { scrollMotion } from "@/lib/reduced-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -121,7 +122,7 @@ export function TableOfContents({
       const offsetTop = element.offsetTop - 100; // Account for sticky header
       window.scrollTo({
         top: offsetTop,
-        behavior: "smooth",
+        behavior: scrollMotion(),
       });
       setIsOpen(false); // Close mobile menu after navigation
     }

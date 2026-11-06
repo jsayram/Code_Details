@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { scrollMotion } from "@/lib/reduced-motion";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
@@ -1395,7 +1396,7 @@ function DashboardMain({
               stats.totalProjects > 0
                 ? (
                   <div className="space-y-1">
-                    <div>📂 You have shared <a href="#my-projects-card" className="font-semibold text-primary hover:underline cursor-pointer scroll-smooth" onClick={(e) => { e.preventDefault(); const el = document.getElementById('my-projects-card'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); const card = el.querySelector('.stat-card'); if (card) { setTimeout(() => card?.classList.add('highlight-flash'), 500); setTimeout(() => card?.classList.remove('highlight-flash'), 3000); } } }}>{stats.totalProjects}</a> project{stats.totalProjects > 1 ? "s" : ""} with the community</div>
+                    <div>📂 You have shared <a href="#my-projects-card" className="font-semibold text-primary hover:underline cursor-pointer scroll-smooth" onClick={(e) => { e.preventDefault(); const el = document.getElementById('my-projects-card'); if (el) { el.scrollIntoView({ behavior: scrollMotion(), block: 'start' }); const card = el.querySelector('.stat-card'); if (card) { setTimeout(() => card?.classList.add('highlight-flash'), 500); setTimeout(() => card?.classList.remove('highlight-flash'), 3000); } } }}>{stats.totalProjects}</a> project{stats.totalProjects > 1 ? "s" : ""} with the community</div>
                   </div>
                 )
                 : "Welcome back! Your creative journey starts here. Share your first project and inspire the community! This dashboard is only visible to you."

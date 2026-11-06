@@ -1,5 +1,6 @@
 "use client";
 import React, { useEffect, useState, useCallback, useRef } from "react";
+import { scrollMotion } from "@/lib/reduced-motion";
 import {
   Pagination,
   PaginationContent,
@@ -68,7 +69,7 @@ export function PaginationControls({
 
       if (!isInViewport) {
         paginationRef.current.scrollIntoView({
-          behavior: "smooth",
+          behavior: scrollMotion(),
           block: "center",
         });
       }

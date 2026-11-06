@@ -1,13 +1,14 @@
 "use client";
 
 import React from "react";
+import { scrollMotion } from "@/lib/reduced-motion";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { ArrowUp } from "lucide-react";
 
 export const FooterSection = () => {
   const scrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    window.scrollTo({ top: 0, behavior: scrollMotion() });
   };
 
   return (

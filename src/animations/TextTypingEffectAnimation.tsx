@@ -2,6 +2,7 @@
 
 import React, { useEffect, useRef, useState } from "react";
 import { TEXT_TYPING_SPEED_MS } from "@/constants/project-limits";
+import { prefersReducedMotion } from "@/lib/reduced-motion";
 
 export function TextTypingEffectAnimation({
   text,
@@ -23,6 +24,14 @@ export function TextTypingEffectAnimation({
     // Skip the animation if already completed and skipOnRerender is true
     if (skipOnRerender && hasCompletedRef.current) {
       setDisplayedText(text);
+      return;
+    }
+
+    // Reduced motion: the whole text straight away, so labels are never hidden.
+    if (prefersReducedMotion()) {
+      setDisplayedText(text);
+      hasCompletedRef.current = true;
+      onComplete?.();
       return;
     }
 
