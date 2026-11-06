@@ -29,28 +29,30 @@ test.describe.serial("F02 images on shared links", () => {
   const fn = {
     bySlug: makeFunctionReference<"query", { slug: string }, { id: string } | null>("projects:getPublicBySlug"),
     uploadUrl: makeFunctionReference<"mutation", { projectId: string; kind: string }, { ok: boolean; uploadUrl: string }>("projectImages:generateUploadUrl"),
-    attach: makeFunctionReference<"mutation", Record<string, unknown>, { ok: boolean; image: { id: string } }>("projectImages:attach"),
-    purge: makeFunctionReference<"mutation", { imageId: string }, { ok: boolean }>("projectImages:purge"),
+    attach: makeFunctionReference<"mutation", Record<string, unknown>, { ok: boolean }>("projectImages:attach"),
+    state: makeFunctionReference<"query", { projectId: string }, unknown[]>("fixtures:imageState"),
   };
-  let imageId = "";
+  let projectId = "";
   const stored = (page: Page) => page.locator('#images img[src*="api%2Fstorage"], #images img[src*="/api/storage/"]');
   const editControls = (page: Page) => page.getByRole("button", { name: "Edit Images" });
 
   test.beforeAll(async () => {
     const owner = clientAs(A.subject!);
-    const projectId = (await adminClient().query(fn.bySlug, { slug: SLUG }))!.id;
+    projectId = (await adminClient().query(fn.bySlug, { slug: SLUG }))!.id;
     const { uploadUrl } = await owner.mutation(fn.uploadUrl, { projectId, kind: "screenshot" });
     const res = await fetch(uploadUrl, { method: "POST", headers: { "Content-Type": "image/png" }, body: new Uint8Array(placeholderPng(64, 40)) });
     const { storageId } = (await res.json()) as { storageId: string };
-    imageId = (await owner.mutation(fn.attach, { projectId, storageId, kind: "screenshot", fileName: "f02.png" })).image.id;
+    await owner.mutation(fn.attach, { projectId, storageId, kind: "screenshot", fileName: "f02.png" });
   });
   test.afterAll(async () => {
-    await clientAs(A.subject!).mutation(fn.purge, { imageId });
     await releasePersona(A.subject!);
   });
 
   test("signed out: the image loads, no edit control, no owner fields in the response", async ({ page }) => {
-    const reply = page.waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"] && r.url().includes(SLUG));
+    // Read as it arrives: the body isn't available once Next reloads the page.
+    const reply = page
+      .waitForResponse((r) => r.request().method() === "POST" && !!r.request().headers()["next-action"] && r.url().includes(SLUG))
+      .then((r) => r.text());
     await page.goto(`/projects/${SLUG}`);
     await expect(page.getByRole("heading", { name: "Project Images" })).toBeVisible();
     const image = stored(page).first();
@@ -58,7 +60,7 @@ test.describe.serial("F02 images on shared links", () => {
     await expect.poll(() => image.evaluate((img: HTMLImageElement) => img.complete && img.naturalWidth)).toBeGreaterThan(0);
     await expect(editControls(page)).toHaveCount(0);
 
-    const body = await (await reply).text();
+    const body = await reply;
     expect(body).toContain(`"uploaded_by":""`);
     expect(body).toContain(`"storage_path":""`);
     expect(body).not.toContain(A.subject!);
@@ -80,13 +82,6 @@ test.describe.serial("F02 images on shared links", () => {
     await expect(editControls(page)).toHaveCount(0);
   });
 
-  test("the owner keeps the edit control", async ({ page }) => {
-    await linkPersona(A.subject!, (await authState(await signIn(page, "f02-owner")))!.authUserId);
-    await page.goto(`/projects/${SLUG}`);
-    await expect(stored(page).first()).toBeVisible();
-    await expect(editControls(page)).toBeVisible();
-  });
-
   test("signed out: private and deleted projects stay 404, with no image section", async ({ page }) => {
     for (const slug of ["fixture-private", "fixture-deleted-recent"]) {
       const response = await page.goto(`/projects/${slug}`);
@@ -99,6 +94,20 @@ test.describe.serial("F02 images on shared links", () => {
     await page.goto("/projects/fixture-no-description");
     await expect(page.locator("#images")).toBeAttached();
     await expect(page.getByRole("heading", { name: "Project Images" })).toHaveCount(0);
+  });
+
+  // Last, because it also cleans up: once a login is linked to A, the persona
+  // client can't act as A, so the owner deletes the image in the page.
+  test("the owner keeps the edit control, and deletes the image", async ({ page }) => {
+    await linkPersona(A.subject!, (await authState(await signIn(page, "f02-owner")))!.authUserId);
+    await page.goto(`/projects/${SLUG}`);
+    await expect(stored(page).first()).toBeVisible();
+    await expect(editControls(page)).toBeVisible();
+
+    await page.goto(`/projects/${SLUG}?edit=true`);
+    await page.locator("#images").getByTitle("Delete image").first().click();
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect.poll(async () => (await adminClient().query(fn.state, { projectId })).length).toBe(0);
   });
 });
 
