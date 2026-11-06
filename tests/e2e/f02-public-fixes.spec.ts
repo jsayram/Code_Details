@@ -169,7 +169,7 @@ test.describe("F02 public lists", () => {
   });
 });
 
-test.describe("F02 sign-in return", () => {
+test.describe("F02 sign-in return and the /projects/users rule", () => {
   /** Signs up by API, so the browser still has no session, and fills in the real form. */
   async function signInByForm(page: Page, label: string) {
     const email = syntheticEmail(label);
@@ -202,5 +202,24 @@ test.describe("F02 sign-in return", () => {
       await signInByForm(page, `f02-evil-${bad.length}`);
       await expect(page).toHaveURL(`${BASE_URL}/`);
     }
+  });
+
+  test("/projects/users/<name> is gated at the proxy, with the way back kept", async ({ page, request }) => {
+    const reply = await request.get("/projects/users/fixture-alice", { maxRedirects: 0 });
+    expect(reply.status()).toBe(307);
+    expect(reply.headers().location).toBe("/sign-in?redirect_url=%2Fprojects%2Fusers%2Ffixture-alice");
+
+    await page.goto("/projects/users/fixture-alice");
+    await expect(page).toHaveURL(/redirect_url=%2Fprojects%2Fusers%2Ffixture-alice/);
+    await signInByForm(page, "f02-user-page");
+    await expect(page).toHaveURL(/\/projects\/users\/fixture-alice$/);
+    await expect(page.getByText("Authentication Required")).toHaveCount(0);
+    await expect(page.locator(".project-card", { hasText: "Fixture Listed Project" }).first()).toBeVisible();
+  });
+
+  test("the public way to a person's projects still works signed out", async ({ page }) => {
+    await page.goto("/shared-projects/fixture-alice");
+    await expect(page.locator(".project-card", { hasText: "Fixture Listed Project" }).first()).toBeVisible();
+    await expect(page).toHaveURL(/\/shared-projects\/fixture-alice$/);
   });
 });

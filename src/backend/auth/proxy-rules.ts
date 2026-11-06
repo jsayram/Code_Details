@@ -22,7 +22,6 @@ const PUBLIC_ROUTES = [
   route("/sign-up.*"),
   route("/shared-projects/.*"),
   route("/projects/[^/]+"),
-  route("/projects/users/[^/]+.*"),
   route("/api/shared-projects/.*"),
   // D09 S02b (Jose's decision 3): search returns listed projects only, to anyone.
   route("/api/search(/facets|/events)?"),

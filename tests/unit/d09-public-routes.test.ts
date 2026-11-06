@@ -8,6 +8,7 @@ import { isPublicPath } from "@/backend/auth/proxy-rules";
 describe("public paths after S02c", () => {
   it.each([
     "/search", "/search/", "/tags", "/tags/Next.js", "/tags/c%23", "/categories", "/categories/web", "/projects",
+    "/projects/fixture-listed", "/projects/users", "/shared-projects/fixture-alice", "/api/shared-projects/fixture-alice",
     "/api/projects", "/api/categories/counts", "/api/search", "/api/search/facets", "/api/search/events",
   ])("%s is public", (p) => {
     expect(isPublicPath(p)).toBe(true);
@@ -17,6 +18,9 @@ describe("public paths after S02c", () => {
     "/users", "/users/fixture-alice", "/api/profiles", "/api/profiles/fixture-alice",
     "/categoriesx", "/tags/a/b", "/categories/web/extra", "/dashboard", "/github-scrapper",
     "/api/projects/test", "/api/projects/slug/x", "/api/categories/counts/extra",
+    // F02: a person's project page stays gated, so the rule matches the page.
+    "/projects/users/fixture-alice", "/projects/users/fixture-alice/", "/projects/users/fixture-alice/extra",
+    "/PROJECTS/USERS/fixture-alice", "/api/projects/users/fixture-alice",
   ])("%s still needs sign-in", (p) => {
     expect(isPublicPath(p)).toBe(false);
   });
