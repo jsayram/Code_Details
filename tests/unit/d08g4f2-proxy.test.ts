@@ -37,7 +37,7 @@ afterEach(() => {
 
 const PROTECTED_PAGES = ["/dashboard", "/projects/new/edit", "/projects/favorites/x", "/github-scrapper", "/settings"];
 const PROTECTED_APIS = ["/api/projects/x", "/api/profiles/me", "/api/llm", "/trpc/x"];
-const ADMIN = ["/dashboard/admin", "/dashboard/tag-submissions", "/api/projects/test", "/api/darkmodetest", "/api/toasttest"];
+const ADMIN = ["/dashboard/admin", "/dashboard/tag-submissions", "/api/projects/test", "/api/darkmodetest", "/api/toasttest", "/llm-test", "/scrapper-demo"];
 
 describe("with Better Auth off (no login)", () => {
   it.each([

@@ -3,7 +3,7 @@
 // fixture set as it found it.
 import type { Page } from "@playwright/test";
 import { makeFunctionReference } from "convex/server";
-import { authState, freshClientIp, linkPersona, releasePersona, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { authState, freshClientIp, linkPersona, releasePersona, setRole, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { adminClient } from "../fixtures/convex";
 import { clientAs } from "../fixtures/convex-auth";
 import { generateFixtures, placeholderPng } from "../fixtures/generate";
@@ -221,5 +221,38 @@ test.describe("F02 sign-in return and the /projects/users rule", () => {
     await page.goto("/shared-projects/fixture-alice");
     await expect(page.locator(".project-card", { hasText: "Fixture Listed Project" }).first()).toBeVisible();
     await expect(page).toHaveURL(/\/shared-projects\/fixture-alice$/);
+  });
+});
+
+test.describe("F02 admin tools", () => {
+  const PAGES = ["/llm-test", "/scrapper-demo"];
+  const crawl = { repoUrl: "https://github.com/synthetic/none" };
+
+  test("signed out: the pages go to sign-in and the crawl API answers 401", async ({ page, request }) => {
+    for (const path of PAGES) {
+      await page.goto(path);
+      await expect(page).toHaveURL(new RegExp(`/sign-in\\?redirect_url=${encodeURIComponent(path)}`));
+    }
+    expect((await request.post("/api/repo/crawl", { data: crawl })).status()).toBe(401);
+  });
+
+  test("a regular account goes to /dashboard and the crawl API answers 403", async ({ page }) => {
+    await signIn(page, "f02-regular");
+    for (const path of PAGES) {
+      await page.goto(path);
+      await expect(page).toHaveURL(/\/dashboard$/);
+    }
+    expect((await page.request.post("/api/repo/crawl", { headers, data: crawl })).status()).toBe(403);
+  });
+
+  test("an admin reaches both pages", async ({ page }) => {
+    const email = await signIn(page, "f02-admin");
+    await setRole((await authState(email))!.authUserId, "admin");
+    await page.goto("/llm-test");
+    await expect(page).toHaveURL(/\/llm-test$/);
+    await expect(page.getByRole("button", { name: /send|test|submit/i }).first()).toBeVisible();
+    await page.goto("/scrapper-demo");
+    await expect(page).toHaveURL(/\/scrapper-demo$/);
+    await expect(page.getByPlaceholder(/github/i).first()).toBeVisible();
   });
 });
