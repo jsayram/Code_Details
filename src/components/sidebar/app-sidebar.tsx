@@ -78,14 +78,17 @@ const data = {
         {
           title: "My Projects Portfolio",
           url: "/projects/projects-portfolio",
+          signedInOnly: true,
         },
         {
           title: "My Favorites",
           url: "/projects/favorites",
+          signedInOnly: true,
         },
         {
           title: "My Deleted",
           url: "/projects/deleted",
+          signedInOnly: true,
         },
       ],
     },

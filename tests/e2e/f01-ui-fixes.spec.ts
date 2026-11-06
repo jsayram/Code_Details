@@ -54,6 +54,21 @@ test.describe("F01 UI fixes", () => {
     await expect(nav.getByRole("button", { name: "GitHub Scrapper", exact: true })).toHaveCount(0);
   });
 
+  // F02: /projects is public, so its sidebar group is too, without the personal lists.
+  test("the signed-out Projects group has no personal lists; signed in it does", async ({ page }) => {
+    await page.goto("/projects");
+    const nav = sidebarNav(page);
+    await expect(nav.getByRole("button", { name: "Community Projects", exact: true })).toBeVisible();
+    for (const name of ["My Projects Portfolio", "My Favorites", "My Deleted"]) {
+      await expect(nav.getByText(name, { exact: true })).toHaveCount(0);
+    }
+    await signIn(page, "f02-sidebar");
+    await page.goto("/projects");
+    for (const name of ["My Projects Portfolio", "My Favorites", "My Deleted"]) {
+      await expect(nav.getByText(name, { exact: true })).toBeVisible();
+    }
+  });
+
   test("signed-in users still see the whole group", async ({ page }) => {
     await signIn(page, "f01-sidebar");
     await page.goto("/search");

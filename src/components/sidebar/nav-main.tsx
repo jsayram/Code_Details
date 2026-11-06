@@ -37,6 +37,8 @@ export function NavMain({
     items?: {
       title: string;
       url: string;
+      /** F02: a personal list, hidden from signed-out visitors. */
+      signedInOnly?: boolean;
     }[];
   }[];
 }) {
@@ -47,7 +49,11 @@ export function NavMain({
   // F01-14: once the viewer is known to be signed out (null, not still
   // loading), drop the "Administrator" label and the signed-in-only entries.
   const signedOut = useViewerId() === null;
-  const visibleItems = signedOut ? items.filter((item) => !item.signedInOnly) : items;
+  const visibleItems = signedOut
+    ? items
+        .filter((item) => !item.signedInOnly)
+        .map((item) => ({ ...item, items: item.items?.filter((subItem) => !subItem.signedInOnly) }))
+    : items;
 
   const handleNavigation = (url: string) => {
     // Don't navigate or show loading if we're already on this page
