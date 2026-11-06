@@ -1,0 +1,468 @@
+/*
+ * Code Details design foundations (UI03). Docs: docs/DESIGN.md.
+ *
+ * Everything here lives under .cd-foundations, and this file is imported only
+ * by the preview route, so no existing page gets these tokens yet. The legacy
+ * block below points the shadcn variables at the new tokens inside that scope,
+ * which lets an unchanged Button or Card pick up the new look. Adopting a
+ * screen means importing this file and adding the class to it (UI04 onward).
+ * Radix portals render outside the page, so their content needs the class too.
+ *
+ * Unlayered on purpose: unlayered rules beat Tailwind's layered utilities.
+ */
+
+.cd-foundations {
+  /* Type. One system family, the same stack Tailwind already gives every page. */
+  --cd-font-sans: ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+  --cd-font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+  --cd-text-caption: 0.75rem;
+  --cd-text-small: 0.875rem;
+  --cd-text-body: 1rem;
+  --cd-text-lead: 1.125rem;
+  --cd-text-subheading: 1.25rem;
+  --cd-text-heading: 1.5rem;
+  /* Fluid sizes keep a rem part so they still grow with browser zoom (WCAG 1.4.4). */
+  --cd-text-title: clamp(1.75rem, 1.5rem + 1.1vw, 2.25rem);
+  --cd-text-display: clamp(2.25rem, 1.5rem + 3.2vw, 4rem);
+  --cd-leading-tight: 1.15;
+  --cd-leading-snug: 1.35;
+  --cd-leading-body: 1.625;
+  --cd-weight-regular: 400;
+  --cd-weight-medium: 500;
+  --cd-weight-semibold: 600;
+
+  /* Spacing: a 4px base with wider steps as it grows. */
+  --cd-space-1: 0.25rem;
+  --cd-space-2: 0.5rem;
+  --cd-space-3: 0.75rem;
+  --cd-space-4: 1rem;
+  --cd-space-5: 1.5rem;
+  --cd-space-6: 2rem;
+  --cd-space-7: 3rem;
+  --cd-space-8: 4rem;
+  --cd-space-9: 6rem;
+
+  /* Layout and sizing. */
+  --cd-page-max: 72rem;
+  --cd-reading-max: 45rem;
+  --cd-measure: 68ch;
+  --cd-page-gutter: clamp(1rem, 0.5rem + 2vw, 2.5rem);
+  --cd-card-min: 18rem;
+  --cd-control-height: 2.75rem;
+  --cd-gap: var(--cd-space-5);
+
+  /* Geometry. */
+  --cd-radius-control: 0.625rem;
+  --cd-radius-surface: 1rem;
+  --cd-radius-surface-large: 1.25rem;
+  --cd-radius-pill: 999px;
+
+  /* Motion budget (U05). */
+  --cd-duration-press: 120ms;
+  --cd-duration-menu: 180ms;
+  --cd-duration-dialog: 240ms;
+  --cd-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Color, light. Hex here on purpose: tests/unit/ui03-foundations-tokens.test.ts checks every pair. */
+  --cd-bg: #f5f6f7;
+  --cd-surface: #ffffff;
+  --cd-raised: #eceef0;
+  --cd-text: #202326;
+  --cd-muted: #565d64;
+  --cd-border-subtle: #d9dde1;
+  --cd-border-control: #7c848c;
+  --cd-action: #005fb8;
+  --cd-action-hover: #004c94;
+  --cd-on-action: #ffffff;
+  --cd-selected: #e1eefb;
+  --cd-on-selected: #00478a;
+  --cd-focus: #005fb8;
+  --cd-disabled: #e6e8ea;
+  --cd-on-disabled: #6b7178;
+  --cd-success: #176a33;
+  --cd-success-soft: #e0f3e5;
+  --cd-warning: #7f5300;
+  --cd-warning-soft: #fbf0d5;
+  --cd-danger: #b3261e;
+  --cd-danger-soft: #fbe4e2;
+  --cd-on-danger: #ffffff;
+  --cd-chart-1: #005fb8;
+  --cd-chart-2: #0f7c8a;
+  --cd-chart-3: #7f5300;
+  --cd-chart-4: #176a33;
+  --cd-chart-5: #b3261e;
+
+  color-scheme: light;
+  color: var(--cd-text);
+  font-family: var(--cd-font-sans);
+  font-size: var(--cd-text-body);
+  line-height: var(--cd-leading-body);
+  font-weight: var(--cd-weight-regular);
+
+  /* Legacy shadcn variables, resolved to the new tokens inside this scope only. */
+  --background: var(--cd-bg);
+  --foreground: var(--cd-text);
+  --card: var(--cd-surface);
+  --card-foreground: var(--cd-text);
+  --popover: var(--cd-surface);
+  --popover-foreground: var(--cd-text);
+  --border: var(--cd-border-subtle);
+  --input: var(--cd-border-control);
+  --primary: var(--cd-action);
+  --primary-foreground: var(--cd-on-action);
+  --secondary: var(--cd-raised);
+  --secondary-foreground: var(--cd-text);
+  --accent: var(--cd-raised);
+  --accent-foreground: var(--cd-text);
+  --muted: var(--cd-raised);
+  --muted-foreground: var(--cd-muted);
+  --ring: var(--cd-focus);
+  --destructive: var(--cd-danger);
+  --destructive-foreground: var(--cd-on-danger);
+  --chart-1: var(--cd-chart-1);
+  --chart-2: var(--cd-chart-2);
+  --chart-3: var(--cd-chart-3);
+  --chart-4: var(--cd-chart-4);
+  --chart-5: var(--cd-chart-5);
+  --sidebar: var(--cd-surface);
+  --sidebar-foreground: var(--cd-text);
+  --sidebar-primary: var(--cd-action);
+  --sidebar-primary-foreground: var(--cd-on-action);
+  --sidebar-accent: var(--cd-raised);
+  --sidebar-accent-foreground: var(--cd-text);
+  --sidebar-border: var(--cd-border-subtle);
+  --sidebar-ring: var(--cd-focus);
+}
+
+.dark .cd-foundations {
+  --cd-bg: #171b1f;
+  --cd-surface: #1f2429;
+  --cd-raised: #2a3036;
+  --cd-text: #f0f3f5;
+  --cd-muted: #adb5bd;
+  --cd-border-subtle: #343b42;
+  --cd-border-control: #7f8892;
+  --cd-action: #92caff;
+  --cd-action-hover: #b5dcff;
+  --cd-on-action: #0c2238;
+  --cd-selected: #1e3a54;
+  --cd-on-selected: #c2e2ff;
+  --cd-focus: #92caff;
+  --cd-disabled: #262b30;
+  --cd-on-disabled: #868e96;
+  --cd-success: #7bd99a;
+  --cd-success-soft: #17352a;
+  --cd-warning: #f0c869;
+  --cd-warning-soft: #3a2f12;
+  --cd-danger: #ffa79e;
+  --cd-danger-soft: #431e1b;
+  --cd-on-danger: #3a0e0a;
+  --cd-chart-1: #92caff;
+  --cd-chart-2: #6fd3df;
+  --cd-chart-3: #f0c869;
+  --cd-chart-4: #7bd99a;
+  --cd-chart-5: #ffa79e;
+
+  color-scheme: dark;
+}
+
+.cd-foundations[data-density="compact"] {
+  --cd-control-height: 2.25rem;
+  --cd-gap: var(--cd-space-4);
+  --cd-card-min: 15rem;
+}
+
+/* Touch keeps full-size targets at either density. */
+@media (pointer: coarse) {
+  .cd-foundations[data-density="compact"] {
+    --cd-control-height: 2.75rem;
+  }
+}
+
+@media (prefers-contrast: more) {
+  .cd-foundations {
+    --cd-muted: #3f454b;
+    --cd-border-subtle: #7c848c;
+    --cd-border-control: #565d64;
+  }
+  .dark .cd-foundations {
+    --cd-muted: #d5dbe0;
+    --cd-border-subtle: #7f8892;
+    --cd-border-control: #adb5bd;
+  }
+}
+
+/* --- Page primitives --- */
+
+.cd-canvas {
+  min-height: 100dvh;
+  background: var(--cd-bg);
+}
+
+.cd-page {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--cd-page-max) + 2 * var(--cd-page-gutter));
+  margin-inline: auto;
+  padding: var(--cd-space-6) var(--cd-page-gutter) var(--cd-space-8);
+}
+
+.cd-section {
+  margin-block-start: var(--cd-space-8);
+  min-width: 0;
+}
+
+.cd-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-gap);
+  min-width: 0;
+}
+
+.cd-stack-tight {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  min-width: 0;
+}
+
+.cd-cluster {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-3);
+  min-width: 0;
+}
+
+.cd-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, var(--cd-card-min)), 1fr));
+  gap: var(--cd-gap);
+}
+
+.cd-surface {
+  box-sizing: border-box;
+  min-width: 0;
+  padding: var(--cd-space-5);
+  border: 1px solid var(--cd-border-subtle);
+  border-radius: var(--cd-radius-surface);
+  background: var(--cd-surface);
+}
+
+.cd-reading {
+  max-width: min(var(--cd-measure), 100%);
+}
+
+/* Long unbroken strings wrap instead of widening the page (UI02 defect 5). */
+.cd-wrap {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.cd-clamp {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+
+/* --- Type roles: one style per role --- */
+
+.cd-display {
+  font-size: var(--cd-text-display);
+  line-height: var(--cd-leading-tight);
+  font-weight: var(--cd-weight-semibold);
+  letter-spacing: -0.02em;
+}
+
+.cd-title {
+  font-size: var(--cd-text-title);
+  line-height: var(--cd-leading-tight);
+  font-weight: var(--cd-weight-semibold);
+  letter-spacing: -0.015em;
+}
+
+.cd-heading {
+  font-size: var(--cd-text-heading);
+  line-height: var(--cd-leading-snug);
+  font-weight: var(--cd-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.cd-subheading {
+  font-size: var(--cd-text-subheading);
+  line-height: var(--cd-leading-snug);
+  font-weight: var(--cd-weight-medium);
+}
+
+.cd-lead {
+  font-size: var(--cd-text-lead);
+  line-height: var(--cd-leading-body);
+}
+
+.cd-small {
+  font-size: var(--cd-text-small);
+  line-height: 1.5;
+}
+
+.cd-caption {
+  font-size: var(--cd-text-caption);
+  line-height: 1.4;
+  color: var(--cd-muted);
+}
+
+.cd-muted {
+  color: var(--cd-muted);
+}
+
+/* Monospace is for commands and code only. */
+.cd-code {
+  font-family: var(--cd-font-mono);
+  font-size: 0.9em;
+}
+
+.cd-number {
+  font-variant-numeric: tabular-nums;
+}
+
+.cd-link {
+  color: var(--cd-action);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.cd-tag {
+  display: inline-block;
+  box-sizing: border-box;
+  max-width: 100%;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-radius: var(--cd-radius-surface);
+  background: var(--cd-raised);
+  color: var(--cd-text);
+  font-size: var(--cd-text-small);
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.cd-status {
+  display: inline-block;
+  padding: var(--cd-space-1) var(--cd-space-3);
+  border-radius: var(--cd-radius-pill);
+  font-size: var(--cd-text-small);
+  font-weight: var(--cd-weight-medium);
+}
+
+.cd-status[data-tone="success"] { background: var(--cd-success-soft); color: var(--cd-success); }
+.cd-status[data-tone="warning"] { background: var(--cd-warning-soft); color: var(--cd-warning); }
+.cd-status[data-tone="danger"] { background: var(--cd-danger-soft); color: var(--cd-danger); }
+.cd-status[data-tone="selected"] { background: var(--cd-selected); color: var(--cd-on-selected); }
+
+.cd-error-text {
+  color: var(--cd-danger);
+  font-size: var(--cd-text-small);
+}
+
+/* --- Controls: shared shadcn parts, restyled by scope --- */
+
+.cd-foundations :focus-visible,
+.cd-show-focus {
+  outline: 2px solid var(--cd-focus);
+  outline-offset: 2px;
+  box-shadow: none;
+}
+
+.cd-foundations [data-slot="button"] {
+  min-height: var(--cd-control-height);
+  border-radius: var(--cd-radius-pill);
+  font-size: var(--cd-text-small);
+  transition: background-color var(--cd-duration-press) var(--cd-ease-out),
+    color var(--cd-duration-press) var(--cd-ease-out),
+    border-color var(--cd-duration-press) var(--cd-ease-out),
+    transform var(--cd-duration-press) var(--cd-ease-out);
+}
+
+.cd-foundations [data-slot="button"].bg-primary:hover:not(:disabled) {
+  background: var(--cd-action-hover);
+}
+
+.cd-foundations [data-slot="button"].border {
+  border-color: var(--cd-border-control);
+}
+
+/* shadcn dims these to 60% in dark mode, which fails contrast with white text. */
+.cd-foundations [data-slot="button"].bg-destructive {
+  background: var(--cd-danger);
+  color: var(--cd-on-danger);
+}
+
+.cd-foundations [data-slot="button"]:disabled,
+.cd-foundations [data-slot="button"].bg-destructive:disabled {
+  opacity: 1;
+  background: var(--cd-disabled);
+  color: var(--cd-on-disabled);
+  border-color: transparent;
+  box-shadow: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cd-foundations [data-slot="button"]:active:not(:disabled) {
+    transform: scale(0.97);
+  }
+}
+
+.cd-foundations [data-slot="input"],
+.cd-foundations [data-slot="textarea"],
+.cd-foundations [data-slot="select-trigger"] {
+  border-color: var(--cd-border-control);
+  border-radius: var(--cd-radius-control);
+  background: var(--cd-surface);
+  font-size: var(--cd-text-body);
+  box-shadow: none;
+}
+
+.cd-foundations [data-slot="input"],
+.cd-foundations [data-slot="select-trigger"] {
+  height: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+}
+
+.cd-foundations [data-slot="input"]:disabled,
+.cd-foundations [data-slot="textarea"]:disabled,
+.cd-foundations [data-slot="select-trigger"]:disabled {
+  opacity: 1;
+  border-color: var(--cd-border-subtle);
+  background: var(--cd-disabled);
+  color: var(--cd-on-disabled);
+}
+
+.cd-foundations [aria-invalid="true"] {
+  border-color: var(--cd-danger);
+}
+
+.cd-foundations [data-slot="checkbox"] {
+  border-color: var(--cd-border-control);
+}
+
+.cd-foundations [data-slot="card"] {
+  border-radius: var(--cd-radius-surface);
+  box-shadow: none;
+}
+
+.cd-foundations [data-slot="alert"] {
+  align-content: start;
+  border-radius: var(--cd-radius-surface);
+}
+
+/* The app's skeleton shimmers through muted text, which is too heavy here. */
+.cd-foundations .animate-pulse {
+  background-image: linear-gradient(90deg, var(--cd-raised) 25%, var(--cd-surface) 50%, var(--cd-raised) 75%);
+}
+
+/* A hairline stands in for shadows and backgrounds that forced colors removes. */
+@media (forced-colors: active) {
+  .cd-surface,
+  .cd-tag,
+  .cd-status {
+    border: 1px solid CanvasText;
+  }
+}
