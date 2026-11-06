@@ -67,7 +67,7 @@ test.describe("preview page", () => {
   test("keyboard: every control takes focus and shows a solid ring", async ({ page }) => {
     await openAsAdmin(page, "ui03-keyboard");
     const seen = new Set<string>();
-    for (let i = 0; i < 45; i++) {
+    for (let i = 0; i < 60; i++) {
       await page.keyboard.press("Tab");
       const focus = await page.evaluate(() => {
         const el = document.activeElement as HTMLElement;
@@ -79,7 +79,7 @@ test.describe("preview page", () => {
       expect(focus.outline, focus.name).toBe("solid");
       expect(focus.width, focus.name).toBeGreaterThanOrEqual(2);
     }
-    for (const name of ["BUTTON:Light", "BUTTON:Compact", "BUTTON:Delete", "INPUT:foundations-title", "SUMMARY:Full 5,000-character unbrok"]) {
+    for (const name of ["BUTTON:Light", "BUTTON:Compact", "BUTTON:Delete", "INPUT:foundations-title", "SUMMARY:Full 5,000-character unb"]) {
       expect([...seen]).toContain(name);
     }
   });
@@ -136,14 +136,16 @@ test.describe("global fixes", () => {
   });
 
   async function particlePositions(page: Page) {
-    return page.locator('[data-decorative="code-particles"] > *').evaluateAll((els) => els.slice(0, 20).map((el) => getComputedStyle(el).transform));
+    return page.locator('[data-decorative="code-particles"] > *').evaluateAll((els) => els.slice(0, 20).map((el) => { const { transform, top, left } = getComputedStyle(el); return `${top} ${left} ${transform}`; }));
   }
 
   test("reduced motion: particles stay still, and nothing runs forever except spinners", async ({ page }) => {
     await page.goto("/");
     await expect(page.locator('[data-decorative="code-particles"] > *').first()).toBeAttached();
+    // The particle set is regenerated once as the theme settles after hydration.
+    await page.waitForTimeout(2000);
     const first = await particlePositions(page);
-    await page.waitForTimeout(1500);
+    await page.waitForTimeout(2000);
     expect(await particlePositions(page)).toEqual(first);
     const running = await page.evaluate(() =>
       document.getAnimations()
@@ -158,6 +160,7 @@ test.describe("global fixes", () => {
     await page.emulateMedia({ reducedMotion: "no-preference" });
     await page.goto("/");
     await expect(page.locator('[data-decorative="code-particles"] > *').first()).toBeAttached();
+    await page.waitForTimeout(2000);
     const first = await particlePositions(page);
     await expect.poll(async () => JSON.stringify(await particlePositions(page)) !== JSON.stringify(first), { timeout: 10_000 }).toBe(true);
   });

@@ -147,7 +147,7 @@ export function FoundationsGallery() {
             <ProjectSample title="Fifteen tags and a long link" description="The longest tag is 50 characters with no spaces, and the link label is 100." tags={FIFTEEN_TAGS} label={LONG_LABEL} />
             <ProjectSample title={MIXED_SCRIPT} description={MIXED_SCRIPT} tags={["日本語", "العربية", "한국어"]} dir="auto" />
             <article className="cd-surface cd-stack">
-              <Image src="/images/mascot.png" alt="The Code Details mascot in its purple hood" width={160} height={160} loading="eager" style={{ width: "10rem", height: "auto" }} />
+              <Image src="/images/mascot.png" alt="The Code Details mascot in its purple hood" width={160} height={207} loading="eager" />
               <p className="cd-small cd-muted">The mascot keeps its original colors on the new surfaces.</p>
             </article>
             <article className="cd-surface cd-stack" aria-label="Loading sample">
