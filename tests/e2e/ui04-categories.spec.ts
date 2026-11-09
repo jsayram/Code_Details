@@ -29,8 +29,8 @@ test("one h1 and one main, inside the foundations scope", async ({ page }) => {
   await expect(page.locator("h1")).toHaveCount(1);
   await expect(page.locator("main")).toHaveCount(1);
   await expect(page.locator(".cd-foundations h1")).toHaveCount(1);
-  // The shared shell stays outside the scope until UI05.
-  await expect(page.locator(".cd-foundations header [data-sidebar]")).toHaveCount(0);
+  // UI05: the shared shell carries its own scope, beside the page's.
+  await expect(page.locator('header.cd-foundations[data-shell="header"]')).toHaveCount(1);
 });
 
 test("counts: a category with projects opens by keyboard; one without stays shut", async ({ page }) => {
