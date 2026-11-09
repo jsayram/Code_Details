@@ -16,7 +16,7 @@ import { resetSessionForTests } from "@/lib/auth-session";
 import { NAV_MAIN } from "@/components/sidebar/app-sidebar";
 
 const SYNTHETIC_USER = { id: "ba_user_ui05", name: "Synthetic Person", email: "ui05.person@synthetic.invalid", image: null };
-const SIGNED_IN_ONLY = ["Administrator", "Dashboard", "GitHub Scrapper", "My Projects Portfolio", "My Favorites", "My Deleted"];
+const SIGNED_IN_ONLY = ["Explore", "Dashboard", "GitHub Scraper", "My Projects Portfolio", "My Favorites", "Graveyard"];
 const PUBLIC = ["Search", "Projects", "Community Projects"];
 
 let sessionUser: typeof SYNTHETIC_USER | null = null;
@@ -83,7 +83,7 @@ describe("NavMain once the session is known", () => {
   it("shows every entry to a signed-in user", async () => {
     sessionUser = SYNTHETIC_USER;
     render(<Nav />);
-    expect(await screen.findByText("Administrator", { exact: true })).toBeTruthy();
+    expect(await screen.findByText("Explore", { exact: true })).toBeTruthy();
     for (const name of SIGNED_IN_ONLY) expect(visible(name)).toBe(true);
   });
 });

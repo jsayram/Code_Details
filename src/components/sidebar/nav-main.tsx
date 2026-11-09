@@ -52,7 +52,7 @@ export function NavMain({
 }) {
   const pathname = usePathname();
   const { chapters, currentChapter, projectMeta, isDocPage } = useDocChapters();
-  // F01-14, UI05: the "Administrator" label and the signed-in-only entries
+  // F01-14, UI05: the group label and the signed-in-only entries
   // appear only once the session confirms a user. "Still loading" counts as
   // signed out, so the server HTML and the first render never show them.
   const signedOut = typeof useViewerId() !== "string";
@@ -62,9 +62,11 @@ export function NavMain({
         .map((item) => ({ ...item, items: item.items?.filter((subItem) => !subItem.signedInOnly) }))
     : items;
 
-  // Build dynamic items for GitHub Scrapper when on doc page
+  // UI01 decision 9: "Explore", "GitHub Scraper" and "Graveyard" are text
+  // changes only; every URL is the same.
+  // Build dynamic items for GitHub Scraper when on doc page
   const getItemsWithChapters = (item: typeof items[0]) => {
-    if (item.title === "GitHub Scrapper" && isDocPage && chapters.length > 0 && projectMeta) {
+    if (item.url === "/github-scrapper" && isDocPage && chapters.length > 0 && projectMeta) {
       return [
         ...(item.items || []),
         // Separator-like entry
@@ -85,7 +87,7 @@ export function NavMain({
 
   return (
     <SidebarGroup>
-      {!signedOut && <SidebarGroupLabel>Administrator</SidebarGroupLabel>}
+      {!signedOut && <SidebarGroupLabel>Explore</SidebarGroupLabel>}
       <SidebarMenu>
         {visibleItems.map((item) => {
           const dynamicItems = getItemsWithChapters(item);
@@ -93,7 +95,7 @@ export function NavMain({
             pathname.startsWith(subItem.url) && subItem.url !== '#divider'
           );
           // Also check if we're on a doc page for GitHub Scrapper
-          const isOnDocPage = item.title === "GitHub Scrapper" && pathname.startsWith('/github-scrapper/docs');
+          const isOnDocPage = item.url === "/github-scrapper" && pathname.startsWith('/github-scrapper/docs');
           const isActive =
             pathname === item.url ||
             (hasActiveChild && pathname.startsWith(item.url)) ||

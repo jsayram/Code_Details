@@ -39,9 +39,11 @@ test.describe("F01 UI fixes", () => {
     await expect(page.locator("#description")).toHaveValue("Typed before the page settled.");
   });
 
-  // F01-14: signed-out visitors don't see the "Administrator" label or the
+  // F01-14: signed-out visitors don't see the "Explore" label or the
   // Dashboard and GitHub Scrapper entries (both need a sign-in); Search and
-  // Projects stay. The signed-in sidebar is unchanged. UI05: the entries are links.
+  // Projects stay. The signed-in sidebar is unchanged. UI05: the entries are
+  // links, and UI01 decision 9 renamed Administrator, GitHub Scrapper and My
+  // Deleted to Explore, GitHub Scraper and Graveyard.
   const sidebarNav = (page: Page) => page.locator('[data-sidebar="content"]');
 
   test("signed-out visitors don't see the sidebar's signed-in entries", async ({ page }) => {
@@ -49,9 +51,9 @@ test.describe("F01 UI fixes", () => {
     const nav = sidebarNav(page);
     await expect(nav.getByRole("link", { name: "Search", exact: true })).toBeVisible();
     await expect(nav.getByRole("link", { name: "Projects", exact: true })).toBeVisible();
-    await expect(nav.getByText("Administrator", { exact: true })).toHaveCount(0);
+    await expect(nav.getByText("Explore", { exact: true })).toHaveCount(0);
     await expect(nav.getByRole("link", { name: "Dashboard", exact: true })).toHaveCount(0);
-    await expect(nav.getByRole("link", { name: "GitHub Scrapper", exact: true })).toHaveCount(0);
+    await expect(nav.getByRole("link", { name: "GitHub Scraper", exact: true })).toHaveCount(0);
   });
 
   // F02: /projects is public, so its sidebar group is too, without the personal lists.
@@ -59,12 +61,12 @@ test.describe("F01 UI fixes", () => {
     await page.goto("/projects");
     const nav = sidebarNav(page);
     await expect(nav.getByRole("link", { name: "Community Projects", exact: true })).toBeVisible();
-    for (const name of ["My Projects Portfolio", "My Favorites", "My Deleted"]) {
+    for (const name of ["My Projects Portfolio", "My Favorites", "Graveyard"]) {
       await expect(nav.getByText(name, { exact: true })).toHaveCount(0);
     }
     await signIn(page, "f02-sidebar");
     await page.goto("/projects");
-    for (const name of ["My Projects Portfolio", "My Favorites", "My Deleted"]) {
+    for (const name of ["My Projects Portfolio", "My Favorites", "Graveyard"]) {
       await expect(nav.getByText(name, { exact: true })).toBeVisible();
     }
   });
@@ -73,8 +75,8 @@ test.describe("F01 UI fixes", () => {
     await signIn(page, "f01-sidebar");
     await page.goto("/search");
     const nav = sidebarNav(page);
-    await expect(nav.getByText("Administrator", { exact: true })).toBeVisible();
-    for (const name of ["Dashboard", "Search", "Projects", "GitHub Scrapper"]) {
+    await expect(nav.getByText("Explore", { exact: true })).toBeVisible();
+    for (const name of ["Dashboard", "Search", "Projects", "GitHub Scraper"]) {
       await expect(nav.getByRole("link", { name, exact: true })).toBeVisible();
     }
   });

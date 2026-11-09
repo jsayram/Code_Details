@@ -83,14 +83,14 @@ const data = {
           signedInOnly: true,
         },
         {
-          title: "My Deleted",
+          title: "Graveyard",
           url: "/projects/deleted",
           signedInOnly: true,
         },
       ],
     },
     {
-      title: "GitHub Scrapper",
+      title: "GitHub Scraper",
       url: "/github-scrapper",
       icon: FolderGit2,
       signedInOnly: true,
