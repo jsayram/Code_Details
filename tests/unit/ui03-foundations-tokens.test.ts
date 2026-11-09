@@ -98,7 +98,7 @@ it("loads no font file and no external asset", () => {
   expect(css).not.toMatch(/@font-face|@import|url\(/);
 });
 
-it("is imported only by the preview route until a screen adopts it", () => {
+it("is imported only by the preview route and the screens that adopted it", () => {
   const root = path.resolve(__dirname, "../../src");
   const importers: string[] = [];
   const walk = (dir: string) => {
@@ -112,5 +112,10 @@ it("is imported only by the preview route until a screen adopts it", () => {
     }
   };
   walk(root);
-  expect(importers).toEqual([path.join("app", "(administrator)", "dashboard", "admin", "design-foundations", "layout.tsx")]);
+  expect(importers.sort()).toEqual([
+    path.join("app", "(administrator)", "dashboard", "admin", "design-foundations", "layout.tsx"),
+    // UI04: the first adopted screen, its page and its loading screen.
+    path.join("app", "categories", "loading.tsx"),
+    path.join("app", "categories", "page.tsx"),
+  ].sort());
 });

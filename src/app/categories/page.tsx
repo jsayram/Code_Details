@@ -1,110 +1,123 @@
 "use client";
 
+// UI04: the first screen on the UI03 foundations. Only this page's content
+// takes the .cd-foundations scope; the shared header, sidebar and footer stay
+// as they are until UI05.
+import "@/styles/foundations.css";
 import { AppSidebar } from "@/components/sidebar/app-sidebar";
 import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { HeaderSection } from "@/components/layout/HeaderSection";
 import { FooterSection } from "@/components/layout/FooterSection";
-import { PageBanner } from "@/components/ui/page-banner";
-import { Folder } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card } from "@/components/ui/card";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useState } from "react";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
+import { cn } from "@/lib/utils";
+import { CategoriesIntro } from "./categories-intro";
+
+function Spinner() {
+  return <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
+}
 
 // Component that fetches and displays category counts
 function CategoriesContent() {
   const router = useRouter();
-  const { categoryCounts, isLoading: loading } = useCategoryCounts();
+  const { categoryCounts, isLoading, isValidating, error, refreshCounts } = useCategoryCounts();
   const [loadingCategories, setLoadingCategories] = useState<Record<string, boolean>>({});
+  // Without counts we can't tell an empty category from a failed request, so
+  // every category stays open and the page says the counts are missing.
+  const countsFailed = Boolean(error) && !isLoading;
 
-  const handleCategoryClick = (key: string, hasProjects: boolean) => {
-    if (!hasProjects) return;
+  const handleCategoryClick = (key: string, canOpen: boolean) => {
+    if (!canOpen) return;
     setLoadingCategories((prev) => ({ ...prev, [key]: true }));
     router.push(`/categories/${encodeURIComponent(key)}`);
   };
 
   return (
-    <div className="flex justify-center w-full mb-20">
-      <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
-        <div className="flex flex-col gap-6 mb-6 py-3">
-          <PageBanner
-            icon={<Folder className="h-8 w-8 text-primary" />}
-            bannerTitle="Browse All Categories"
-            description="Explore projects organized by category - from web applications to AI/ML and beyond"
-            isUserBanner={false}
-            gradientFrom="indigo-900"
-            gradientVia="blue-800"
-            gradientTo="purple-800"
-            borderColor="border-indigo-700/40"
-            textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
-          />
+    <div className="cd-foundations cd-canvas">
+      <div className="cd-page cd-stack">
+        <CategoriesIntro />
 
-          {/* Main Card with Title and Content */}
-          <Card>
-            <CardHeader className="text-center space-y-4 pb-4">
-              <CardTitle className="text-3xl font-bold">
-                All Project Categories
-              </CardTitle>
-              <p className="text-muted-foreground text-base">
-                Browse projects by all (<span className="text-secondary-foreground font-semibold">{Object.keys(PROJECT_CATEGORIES).length}</span>) available categories that host projects
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Object.entries(PROJECT_CATEGORIES).map(([key, category]) => {
-              const count = categoryCounts[key] || 0;
-              const hasProjects = count > 0;
-              const isLoading = loadingCategories[key];
+        <p role="status" className="sr-only">
+          {isLoading ? "Loading project counts" : ""}
+        </p>
 
-              return (
+        {countsFailed && (
+          <div role="alert" className="cd-surface flex flex-wrap items-center justify-between gap-4" style={{ borderColor: "var(--cd-danger)" }}>
+            <div className="cd-stack-tight cd-reading">
+              <p className="cd-subheading">Project counts didn&apos;t load</p>
+              <p className="cd-small cd-muted">You can still open any category. Try again to see how many projects each one has.</p>
+            </div>
+            <Button variant="outline" onClick={() => refreshCounts()} disabled={isValidating}>
+              {isValidating ? (
+                <>
+                  <Spinner />
+                  Trying again…
+                </>
+              ) : (
+                "Try again"
+              )}
+            </Button>
+          </div>
+        )}
+
+        <ul className="cd-grid" aria-busy={isLoading || undefined}>
+          {Object.entries(PROJECT_CATEGORIES).map(([key, category]) => {
+            const count = categoryCounts[key] || 0;
+            const hasProjects = count > 0;
+            const canOpen = countsFailed || (!isLoading && hasProjects);
+            const opening = loadingCategories[key];
+
+            return (
+              <li key={key} className="flex min-w-0">
                 <Card
-                  key={key}
-                  className={`category-card cursor-pointer ${!hasProjects ? "disabled" : ""}`}
-                  onClick={() => handleCategoryClick(key, hasProjects)}
+                  data-category={key}
+                  className={cn(
+                    "cd-wrap w-full gap-4 p-5 transition-colors",
+                    canOpen ? "cursor-pointer hover:border-[var(--cd-border-control)]" : "cursor-default",
+                  )}
+                  onClick={() => handleCategoryClick(key, canOpen)}
                 >
-                  <CardHeader className="flex flex-row justify-between items-center">
-                    <CardTitle>{category.label}</CardTitle>
-                    <Badge
-                      variant={hasProjects ? "secondary" : "outline"}
-                      className={`category-count ml-2 ${
-                        !hasProjects ? "opacity-50" : ""
-                      }`}
-                    >
-                      {count} {count === 1 ? "project" : "projects"}
-                    </Badge>
-                  </CardHeader>
-                  <CardContent className="space-y-4">
-                    <p className="text-sm text-muted-foreground">
-                      {category.description}
-                    </p>
-                    <Button
-                      variant={hasProjects ? "default" : "ghost"}
-                      className="category-button w-full hover:bg-accent hover:cursor-pointer"
-                      disabled={!hasProjects || isLoading}
-                    >
-                      {isLoading ? (
-                        <div className="flex items-center gap-2">
-                          <div className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                          <span>Loading...</span>
-                        </div>
-                      ) : hasProjects ? (
+                  <div className="flex items-start justify-between gap-3">
+                    <h2 className="cd-subheading min-w-0">{category.label}</h2>
+                    {isLoading ? (
+                      <Skeleton aria-hidden="true" className="h-7 w-24 shrink-0 rounded-full" />
+                    ) : countsFailed ? null : (
+                      <span
+                        className={cn("cd-status cd-number shrink-0 whitespace-nowrap", !hasProjects && "cd-muted")}
+                        data-tone={hasProjects ? "selected" : undefined}
+                        style={hasProjects ? undefined : { background: "var(--cd-raised)" }}
+                      >
+                        {count} {count === 1 ? "project" : "projects"}
+                      </span>
+                    )}
+                  </div>
+                  <p className="cd-small cd-muted flex-1">{category.description}</p>
+                  {isLoading ? (
+                    <Skeleton aria-hidden="true" className="h-11 w-full rounded-full" />
+                  ) : (
+                    <Button variant={canOpen ? "default" : "outline"} className="w-full" disabled={!canOpen || opening}>
+                      {opening ? (
+                        <>
+                          <Spinner />
+                          Loading...
+                        </>
+                      ) : canOpen ? (
                         `Browse ${category.label}`
                       ) : (
                         "No projects yet"
                       )}
                     </Button>
-                  </CardContent>
+                  )}
                 </Card>
-              );
-            })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
+              </li>
+            );
+          })}
+        </ul>
       </div>
     </div>
   );
