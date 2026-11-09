@@ -74,15 +74,17 @@ describe("DarkModeButton", () => {
     expect(toggle.getAttribute("aria-checked")).toBe("true");
   });
 
-  // Known accessibility gap, recorded rather than fixed: the switch is a div
-  // with no tabIndex, so keyboard users can't reach it. The fix lives on the
-  // preflight branch (d767a4b) and is deferred to the UI work; when it lands,
-  // this test fails and should be rewritten to assert Space/Enter toggling.
-  it("is not reachable with Tab today (known gap)", async () => {
+  // UI05: the switch is a real button now (the preflight branch's d767a4b,
+  // adapted), so Tab reaches it and Space and Enter flip it.
+  it("is reachable with Tab and flips with Space and Enter", async () => {
     const user = userEvent.setup();
     renderSwitch();
     const toggle = await screen.findByRole("switch", { name: "Toggle theme" });
     await user.tab();
-    expect(document.activeElement).not.toBe(toggle);
+    expect(document.activeElement).toBe(toggle);
+    await user.keyboard(" ");
+    expect(toggle.getAttribute("aria-checked")).toBe("true");
+    await user.keyboard("{Enter}");
+    expect(toggle.getAttribute("aria-checked")).toBe("false");
   });
 });

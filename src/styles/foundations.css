@@ -1,8 +1,8 @@
 /*
  * Code Details design foundations (UI03). Docs: docs/DESIGN.md.
  *
- * Everything here lives under .cd-foundations, and this file is imported only
- * by the preview route, so no existing page gets these tokens yet. The legacy
+ * Everything here lives under .cd-foundations. Adopted screens import this
+ * file, and so does the shared shell (UI05), which scopes only its own elements. The legacy
  * block below points the shadcn variables at the new tokens inside that scope,
  * which lets an unchanged Button or Card pick up the new look. Adopting a
  * screen means importing this file and adding the class to it (UI04 onward).
@@ -365,6 +365,7 @@
 /* --- Controls: shared shadcn parts, restyled by scope --- */
 
 .cd-foundations :focus-visible,
+.cd-foundations:focus-visible,
 .cd-show-focus {
   outline: 2px solid var(--cd-focus);
   outline-offset: 2px;
@@ -465,4 +466,60 @@
   .cd-status {
     border: 1px solid CanvasText;
   }
+}
+
+/* --- Shell (UI05): theme switch --- */
+
+.cd-theme-switch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: var(--cd-control-height);
+  height: var(--cd-control-height);
+  padding: 0 var(--cd-space-1);
+  border: 0;
+  border-radius: var(--cd-radius-pill);
+  background: transparent;
+  color: var(--cd-text);
+  cursor: pointer;
+}
+
+.cd-theme-switch-track {
+  position: relative;
+  display: block;
+  box-sizing: border-box;
+  width: 2.75rem;
+  height: 1.5rem;
+  border: 1px solid var(--cd-border-control);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-raised);
+  transition: background-color var(--cd-duration-menu) var(--cd-ease-out);
+}
+
+.cd-theme-switch-thumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  display: grid;
+  place-items: center;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-surface);
+  color: var(--cd-text);
+  box-shadow: 0 0 0 1px var(--cd-border-control);
+  transition: transform var(--cd-duration-menu) var(--cd-ease-out);
+}
+
+.cd-theme-switch[aria-checked="true"] .cd-theme-switch-track {
+  background: var(--cd-selected);
+}
+
+.cd-theme-switch[aria-checked="true"] .cd-theme-switch-thumb {
+  transform: translateX(1.25rem);
+}
+
+.cd-theme-switch:hover .cd-theme-switch-track {
+  border-color: var(--cd-text);
 }

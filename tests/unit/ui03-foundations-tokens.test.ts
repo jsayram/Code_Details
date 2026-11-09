@@ -117,5 +117,7 @@ it("is imported only by the preview route and the screens that adopted it", () =
     // UI04: the first adopted screen, its page and its loading screen.
     path.join("app", "categories", "loading.tsx"),
     path.join("app", "categories", "page.tsx"),
+    // UI05: the shared shell, through one module its components import.
+    path.join("styles", "shell-foundations.ts"),
   ].sort());
 });
