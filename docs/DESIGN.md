@@ -2,7 +2,7 @@
 
 The current visual system for the UI refresh, written from the accepted UI01 brief and tuned in UI03. It replaces the mix of old and new notes in `Agent Planning/design-reference/DESIGN.md`, which stays as history. The tokens themselves live in `src/styles/foundations.css`.
 
-**Status:** adopted screen by screen. `/categories` was the first (UI04): its content sits inside the scope, while the shared header, sidebar and footer wait for UI05. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
+**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
 
 ## Principles
 
@@ -77,9 +77,19 @@ No scroll hijacking, and content works before any animation ends.
 
 Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS animations and transitions straight away, spinners excepted, because a spinner reports status. `src/providers/motion-provider.tsx` stops Framer Motion's movement and keeps its fades. `src/lib/reduced-motion.ts` covers what CSS can't reach: scripted smooth scrolling and typed text.
 
+## The shared shell (UI05)
+
+- Each shell part carries `cd-foundations` on its own element: the `header`, the sidebar's desktop panel and phone sheet, the `footer`, the theme switch and the skip link. Nothing wraps the page content, so a page that hasn't adopted the foundations keeps its look inside the new shell.
+- Shell components import `src/styles/shell-foundations.ts`, which loads the stylesheet. That's the one importer for the shell.
+- The frame around the inset content sits outside the scope, so `.cd-shell-frame` repeats the two `--cd-bg` values. A unit test checks they match.
+- `AppShell` (`src/components/layout/AppShell.tsx`) renders the sidebar, header, page and footer in one place. `/categories`, `/tags` and `/users` use it; move a page onto it when its phase adopts the foundations.
+- The header is solid. Signed out, when the sidebar is a sheet (below 1024px), the header shows the logo and a menu button that opens that sheet; on wider screens the sidebar carries the only logo.
+- Sidebar entries are links with `aria-current`, 44px pills, blue "selected" for the current page. Signed-in entries and the Explore label appear only once the session confirms a user, never while it loads.
+- Skip to content comes first in the Tab order and lands past the sidebar and header (`#main-content`).
+
 ## Adopting the foundations on a screen
 
-1. Import `@/styles/foundations.css` in that route's layout.
+1. Import `@/styles/foundations.css` in that route's layout, and move the page onto `AppShell` if it assembles the shell by hand.
 2. Add `cd-foundations` to the screen's root element and `cd-canvas` for the background.
 3. Add `cd-foundations` to any portal content on that screen (Select, Dialog, Popover). Portals render outside the page.
 4. Replace page-level gradients and one-off sizes with the type roles and primitives.
@@ -92,5 +102,11 @@ Lessons from `/categories`:
 - A rule in the scope beats a Tailwind utility, so a one-off color on a `.cd-surface` needs an inline style.
 - Show placeholders while data loads and a message with Try again when it fails. Never show a failure as an empty list.
 - In tests, Next's route announcer also has `role="alert"`. Filter alerts by their text.
+
+Lessons from the shell (UI05):
+
+- `.cd-foundations :focus-visible` only reaches descendants. An element that is itself the scope (the theme switch) needs `.cd-foundations:focus-visible` too; both are in the rule now.
+- Some Tailwind utilities outrank an unlayered rule here (`has-…:bg-sidebar` did). Setting the variable the utility reads (`--sidebar`) is more reliable than fighting it.
+- A sheet opened by a plain button, not a Radix trigger, doesn't get focus back on close by itself. The sidebar sheet now remembers which button opened it.
 
 The block of legacy variables in `foundations.css` points shadcn's variables at the new tokens inside the scope, so `ui/button`, `ui/card` and the rest need no edits. Once every screen has adopted it, the tokens can move to `:root` and the scope class can go.
