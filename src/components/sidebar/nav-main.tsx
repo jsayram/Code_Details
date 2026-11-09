@@ -1,8 +1,7 @@
-import { ChevronRight, Home, FileText, type LucideIcon } from "lucide-react";
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { ChevronRight, type LucideIcon } from "lucide-react";
+import Link, { useLinkStatus } from "next/link";
+import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
 import { useDocChapters } from "@/providers/doc-chapters-provider";
 import { useViewerId } from "@/components/auth/AuthGate";
 
@@ -21,8 +20,17 @@ import {
   SidebarMenuSub,
   SidebarMenuSubButton,
   SidebarMenuSubItem,
-  SidebarLoaderSpinner,
 } from "@/components/ui/sidebar";
+
+/** UI05: the spinner a nav entry showed while its page loaded, now from the link's own status. */
+export function NavPending({ className = "ml-auto" }: { className?: string }) {
+  const { pending } = useLinkStatus();
+  return pending ? (
+    <span className={className} aria-hidden="true">
+      <span className="block h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />
+    </span>
+  ) : null;
+}
 
 export function NavMain({
   items,
@@ -43,8 +51,6 @@ export function NavMain({
   }[];
 }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const { chapters, currentChapter, projectMeta, isDocPage } = useDocChapters();
   // F01-14, UI05: the "Administrator" label and the signed-in-only entries
   // appear only once the session confirms a user. "Still loading" counts as
@@ -55,16 +61,6 @@ export function NavMain({
         .filter((item) => !item.signedInOnly)
         .map((item) => ({ ...item, items: item.items?.filter((subItem) => !subItem.signedInOnly) }))
     : items;
-
-  const handleNavigation = (url: string) => {
-    // Don't navigate or show loading if we're already on this page
-    if (pathname === url) {
-      setLoadingPath(null);
-      return;
-    }
-    setLoadingPath(url);
-    router.push(url);
-  };
 
   // Build dynamic items for GitHub Scrapper when on doc page
   const getItemsWithChapters = (item: typeof items[0]) => {
@@ -102,7 +98,6 @@ export function NavMain({
             pathname === item.url ||
             (hasActiveChild && pathname.startsWith(item.url)) ||
             isOnDocPage;
-          const isLoading = loadingPath === item.url;
 
           return (
             <Collapsible key={item.title} asChild defaultOpen={hasActiveChild || isOnDocPage}>
@@ -113,35 +108,24 @@ export function NavMain({
                   isActive={isActive}
                   size="default"
                   className={cn(
-                    "transition-colors cursor-pointer py-2.5 relative group hover:cursor-pointer",
+                    "transition-colors relative group",
                     hasActiveChild || isOnDocPage
                       ? "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
                       : ""
                   )}
                 >
-                  <button
-                    onClick={() => handleNavigation(item.url)}
-                    className={cn(
-                      "w-full flex items-center cursor-pointer gap-2",
-                      isLoading && "opacity-50"
-                    )}
-                    disabled={isLoading}
-                  >
-                    <item.icon className="size-5" />
+                  <Link href={item.url} aria-current={pathname === item.url ? "page" : undefined}>
+                    <item.icon className="size-5" aria-hidden="true" />
                     <span>{item.title}</span>
-                    {isLoading && (
-                      <div className="ml-auto">
-                        <div className="h-4 w-4 animate-spin rounded-full border-2 border-sidebar-foreground/20 border-t-sidebar-foreground" />
-                      </div>
-                    )}
-                  </button>
+                    <NavPending />
+                  </Link>
                 </SidebarMenuButton>
                 {dynamicItems?.length ? (
                   <>
                     <CollapsibleTrigger asChild>
                       <SidebarMenuAction className="data-[state=open]:rotate-90 transition-transform duration-200 cursor-pointer size-6 after:-inset-3">
                         <ChevronRight className="size-5" />
-                        <span className="sr-only">Toggle</span>
+                        <span className="sr-only">{`Show ${item.title} pages`}</span>
                       </SidebarMenuAction>
                     </CollapsibleTrigger>
                     <CollapsibleContent>
@@ -168,31 +152,21 @@ export function NavMain({
                                     !other.isDivider &&
                                     pathname.startsWith(other.url)
                                 ));
-                          const isSubItemLoading = loadingPath === subItem.url;
-
                           return (
                             <SidebarMenuSubItem key={subItem.title}>
                               <SidebarMenuSubButton
                                 asChild
                                 isActive={isSubItemActive}
                                 className={cn(
-                                  "cursor-pointer py-2 relative group",
+                                  "relative group",
                                   subItem.isChapter && "text-xs"
                                 )}
                                 size="md"
                               >
-                                <button
-                                  onClick={() => handleNavigation(subItem.url)}
-                                  className="cursor-pointer w-full flex items-center justify-between"
-                                  disabled={isSubItemLoading}
-                                >
+                                <Link href={subItem.url} aria-current={isSubItemActive ? "page" : undefined}>
                                   <span className="truncate">{subItem.title}</span>
-                                  {isSubItemLoading && (
-                                    <div className="absolute right-2 top-1/2 -translate-y-1/2">
-                                      <div className="h-4 w-4 animate-spin rounded-full border-2 border-sidebar-foreground/20 border-t-sidebar-foreground" />
-                                    </div>
-                                  )}
-                                </button>
+                                  <NavPending />
+                                </Link>
                               </SidebarMenuSubButton>
                             </SidebarMenuSubItem>
                           );
