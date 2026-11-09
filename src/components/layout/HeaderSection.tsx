@@ -34,8 +34,9 @@ interface HeaderSectionProps {
  *
  * Signed out, when the sidebar is a sheet (below 1024px), the header shows
  * the logo and a menu button that opens that same sheet: the signed-out
- * entries with Sign In in its footer (Jose, option A). On wider screens the
- * sidebar is visible and carries the only logo.
+ * entries with Sign In in its footer (Jose, option A). When the sidebar is a
+ * visible panel it carries the only logo; pages without one (the signed-out
+ * home) keep the header's logo.
  */
 export function HeaderSection({
   showDarkModeButton = true,
@@ -43,8 +44,10 @@ export function HeaderSection({
   showMobileMenu = true,
 }: HeaderSectionProps) {
   const sidebar = useSidebarOptional();
-  const sidebarIsSheet = sidebar?.isMobile ?? false;
-  const menuButton = showMobileMenu && sidebar && sidebarIsSheet;
+  // A sidebar is on the page and shown as a sheet (below 1024px), or as a panel.
+  const sheet = !!sidebar?.hasSidebar && sidebar.isMobile;
+  const panel = !!sidebar?.hasSidebar && !sidebar.isMobile;
+  const menuButton = showMobileMenu && sidebar && sheet;
 
   return (
     <>
@@ -62,7 +65,7 @@ export function HeaderSection({
         </SignedIn>
 
         <SignedOut>
-          {showLogo && (!sidebar || sidebarIsSheet) ? (
+          {showLogo && !panel ? (
             <Logo size="md" showTagline={false} href="/" />
           ) : null}
           <div className="cd-shell-actions">

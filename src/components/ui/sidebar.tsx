@@ -41,6 +41,9 @@ type SidebarContextProps = {
   setOpenMobile: (open: boolean) => void;
   isMobile: boolean;
   toggleSidebar: () => void;
+  /** UI05: whether a Sidebar is mounted in this provider (the signed-out home has none). */
+  hasSidebar: boolean;
+  setHasSidebar: (has: boolean) => void;
 };
 
 const SidebarContext = React.createContext<SidebarContextProps | null>(null);
@@ -74,6 +77,7 @@ function SidebarProvider({
 }) {
   const isMobile = useIsMobile();
   const [openMobile, setOpenMobile] = React.useState(false);
+  const [hasSidebar, setHasSidebar] = React.useState(false);
 
   // This is the internal state of the sidebar.
   // We use openProp and setOpenProp for control from outside the component.
@@ -128,8 +132,10 @@ function SidebarProvider({
       openMobile,
       setOpenMobile,
       toggleSidebar,
+      hasSidebar,
+      setHasSidebar,
     }),
-    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar]
+    [state, open, setOpen, isMobile, openMobile, setOpenMobile, toggleSidebar, hasSidebar]
   );
 
   return (
@@ -171,7 +177,11 @@ function Sidebar({
   variant?: "sidebar" | "floating" | "inset";
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
-  const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  const { isMobile, state, openMobile, setOpenMobile, setHasSidebar } = useSidebar();
+  React.useEffect(() => {
+    setHasSidebar(true);
+    return () => setHasSidebar(false);
+  }, [setHasSidebar]);
   // UI05: the sheet opens from different buttons (sidebar trigger, signed-out
   // menu button), so remember which one and put focus back there on close.
   const returnFocusTo = React.useRef<HTMLElement | null>(null);
