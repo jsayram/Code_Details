@@ -2,7 +2,7 @@
 
 The current visual system for the UI refresh, written from the accepted UI01 brief and tuned in UI03. It replaces the mix of old and new notes in `Agent Planning/design-reference/DESIGN.md`, which stays as history. The tokens themselves live in `src/styles/foundations.css`.
 
-**Status:** preview only. No existing page uses these tokens. To see them, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
+**Status:** adopted screen by screen. `/categories` was the first (UI04): its content sits inside the scope, while the shared header, sidebar and footer wait for UI05. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
 
 ## Principles
 
@@ -83,5 +83,14 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 2. Add `cd-foundations` to the screen's root element and `cd-canvas` for the background.
 3. Add `cd-foundations` to any portal content on that screen (Select, Dialog, Popover). Portals render outside the page.
 4. Replace page-level gradients and one-off sizes with the type roles and primitives.
+
+Then add the new importer to the list in `tests/unit/ui03-foundations-tokens.test.ts`, which fails on any file it doesn't expect.
+
+Lessons from `/categories`:
+
+- Import the stylesheet in the page and in its `loading.tsx`, not in a folder layout, so child routes such as `/categories/<name>` don't load it.
+- A rule in the scope beats a Tailwind utility, so a one-off color on a `.cd-surface` needs an inline style.
+- Show placeholders while data loads and a message with Try again when it fails. Never show a failure as an empty list.
+- In tests, Next's route announcer also has `role="alert"`. Filter alerts by their text.
 
 The block of legacy variables in `foundations.css` points shadcn's variables at the new tokens inside the scope, so `ui/button`, `ui/card` and the rest need no edits. Once every screen has adopted it, the tokens can move to `:root` and the scope class can go.
