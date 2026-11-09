@@ -235,6 +235,9 @@ const data = {
   // ],
 };
 
+/** The main navigation entries, exported for tests. */
+export const NAV_MAIN = data.navMain;
+
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   return (
     <Sidebar variant="inset" {...props}>

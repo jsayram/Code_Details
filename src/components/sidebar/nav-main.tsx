@@ -46,9 +46,10 @@ export function NavMain({
   const router = useRouter();
   const [loadingPath, setLoadingPath] = useState<string | null>(null);
   const { chapters, currentChapter, projectMeta, isDocPage } = useDocChapters();
-  // F01-14: once the viewer is known to be signed out (null, not still
-  // loading), drop the "Administrator" label and the signed-in-only entries.
-  const signedOut = useViewerId() === null;
+  // F01-14, UI05: the "Administrator" label and the signed-in-only entries
+  // appear only once the session confirms a user. "Still loading" counts as
+  // signed out, so the server HTML and the first render never show them.
+  const signedOut = typeof useViewerId() !== "string";
   const visibleItems = signedOut
     ? items
         .filter((item) => !item.signedInOnly)
