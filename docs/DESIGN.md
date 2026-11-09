@@ -88,7 +88,7 @@ Then add the new importer to the list in `tests/unit/ui03-foundations-tokens.tes
 
 Lessons from `/categories`:
 
-- Import the stylesheet in the page and in its `loading.tsx`, not in a folder layout, so child routes such as `/categories/<name>` don't load it.
+- Import the stylesheet in the page and in its `loading.tsx`. A segment's `loading.tsx` also covers its child routes, so `/categories/<name>` loads the sheet and briefly shows the index's skeleton while it opens. That's harmless, because nothing there has the class, but give a child route its own `loading.tsx` when it adopts the foundations.
 - A rule in the scope beats a Tailwind utility, so a one-off color on a `.cd-surface` needs an inline style.
 - Show placeholders while data loads and a message with Try again when it fails. Never show a failure as an empty list.
 - In tests, Next's route announcer also has `role="alert"`. Filter alerts by their text.
