@@ -523,3 +523,229 @@
 .cd-theme-switch:hover .cd-theme-switch-track {
   border-color: var(--cd-text);
 }
+
+/* --- Shell (UI05): frame, header, sidebar, footer --- */
+
+/*
+ * The frame around the inset content sits outside the scope, so page content
+ * keeps its own variables. It repeats the --cd-bg values; the token test
+ * checks they match.
+ */
+.cd-shell-frame {
+  background: #f5f6f7;
+  --sidebar: #f5f6f7;
+}
+
+.dark .cd-shell-frame {
+  background: #171b1f;
+  --sidebar: #171b1f;
+}
+
+.cd-skip-link {
+  position: fixed;
+  top: var(--cd-space-2);
+  left: var(--cd-space-2);
+  z-index: 100;
+  padding: var(--cd-space-2) var(--cd-space-4);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-action);
+  color: var(--cd-on-action);
+  font-size: var(--cd-text-small);
+  font-weight: var(--cd-weight-medium);
+  transform: translateY(-200%);
+}
+
+.cd-skip-link:focus,
+.cd-skip-link:focus-visible {
+  transform: none;
+}
+
+.cd-skip-target {
+  display: block;
+  height: 0;
+  outline: none;
+}
+
+.cd-shell-header {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--cd-space-3);
+  box-sizing: border-box;
+  min-height: 4rem;
+  padding: var(--cd-space-2) var(--cd-page-gutter);
+  border-bottom: 1px solid var(--cd-border-subtle);
+  background: var(--cd-surface);
+}
+
+@media (min-width: 640px) {
+  [data-slot="sidebar-inset"] > .cd-shell-header {
+    border-start-start-radius: 0.75rem;
+    border-start-end-radius: 0.75rem;
+  }
+}
+
+.cd-shell-divider {
+  width: 1px;
+  height: 1.5rem;
+  background: var(--cd-border-subtle);
+}
+
+.cd-shell-crumbs {
+  min-width: 0;
+  flex: 1 1 auto;
+  font-size: var(--cd-text-small);
+}
+
+.cd-shell-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  margin-inline-start: auto;
+}
+
+.cd-shell-logo {
+  min-height: var(--cd-control-height);
+  border-radius: var(--cd-radius-control);
+  color: var(--cd-text);
+  text-decoration: none;
+}
+
+.cd-shell-logo-button {
+  display: inline-flex;
+  align-items: center;
+  padding: 0;
+  border: 0;
+  border-radius: var(--cd-radius-control);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.cd-shell-icon-button,
+.cd-shell-pill-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+  box-sizing: border-box;
+  min-width: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+  border: 1px solid var(--cd-border-control);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-surface);
+  color: var(--cd-text);
+  font-size: var(--cd-text-small);
+  cursor: pointer;
+  transition: background-color var(--cd-duration-press) var(--cd-ease-out);
+}
+
+.cd-shell-pill-button {
+  padding-inline: var(--cd-space-4);
+}
+
+.cd-shell-icon-button:hover,
+.cd-shell-pill-button:hover {
+  background: var(--cd-raised);
+}
+
+.cd-shell-menu-panel {
+  display: flex;
+  flex-basis: 100%;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding-block: var(--cd-space-3);
+  border-top: 1px solid var(--cd-border-subtle);
+}
+
+.cd-shell-menu-panel[hidden] {
+  display: none;
+}
+
+/* The header's account card and sidebar trigger follow the control size. */
+.cd-shell-header [data-sidebar="trigger"] {
+  min-width: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+}
+
+.cd-shell-header [data-slot="dropdown-menu-trigger"] {
+  display: inline-grid;
+  place-items: center;
+  min-width: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+}
+
+.cd-shell-sidebar {
+  --sidebar: var(--cd-bg);
+}
+
+.cd-shell-sidebar-logo {
+  display: flex;
+  justify-content: center;
+  padding-block: var(--cd-space-3);
+}
+
+.cd-shell-sidebar [data-sidebar="group-label"] {
+  color: var(--cd-muted);
+  font-size: var(--cd-text-caption);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-button"],
+.cd-shell-sidebar [data-sidebar="menu-sub-button"] {
+  height: auto;
+  min-height: var(--cd-control-height);
+  padding-inline: var(--cd-space-3);
+  border-radius: var(--cd-radius-pill);
+  color: var(--cd-text);
+  font-size: var(--cd-text-small);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-sub-button"] {
+  translate: none;
+}
+
+.cd-shell-sidebar [data-sidebar="menu-button"]:hover,
+.cd-shell-sidebar [data-sidebar="menu-sub-button"]:hover {
+  background: var(--cd-raised);
+  color: var(--cd-text);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-button"][data-active="true"],
+.cd-shell-sidebar [data-sidebar="menu-sub-button"][data-active="true"] {
+  background: var(--cd-selected);
+  color: var(--cd-on-selected);
+  font-weight: var(--cd-weight-medium);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-action"] {
+  top: calc((var(--cd-control-height) - 2rem) / 2);
+  width: 2rem;
+  height: 2rem;
+  border-radius: var(--cd-radius-pill);
+  color: var(--cd-text);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-action"]:hover {
+  background: var(--cd-raised);
+}
+
+.cd-shell-sidebar [data-sidebar="menu-sub"] {
+  border-color: var(--cd-border-subtle);
+}
+
+.cd-shell-sidebar-footer [data-slot="button"] {
+  width: 100%;
+}
+
+.cd-shell-footer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-4);
+  padding: var(--cd-space-7) var(--cd-page-gutter) var(--cd-space-6);
+  text-align: center;
+}

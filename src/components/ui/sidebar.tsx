@@ -54,6 +54,11 @@ function useSidebar() {
   return context;
 }
 
+/** The sidebar context, or null outside a SidebarProvider (UI05: the shared header uses it). */
+function useSidebarOptional() {
+  return React.useContext(SidebarContext);
+}
+
 function SidebarProvider({
   defaultOpen = true,
   open: openProp,
@@ -140,7 +145,9 @@ function SidebarProvider({
             } as React.CSSProperties
           }
           className={cn(
-            "group/sidebar-wrapper has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
+            // UI05: cd-shell-frame paints the frame around the inset content
+            // with the foundations' page color wherever the shell stylesheet loads.
+            "group/sidebar-wrapper cd-shell-frame has-data-[variant=inset]:bg-sidebar flex min-h-svh w-full",
             className
           )}
           {...props}
@@ -165,6 +172,9 @@ function Sidebar({
   collapsible?: "offcanvas" | "icon" | "none";
 }) {
   const { isMobile, state, openMobile, setOpenMobile } = useSidebar();
+  // UI05: the sheet opens from different buttons (sidebar trigger, signed-out
+  // menu button), so remember which one and put focus back there on close.
+  const returnFocusTo = React.useRef<HTMLElement | null>(null);
 
   if (collapsible === "none") {
     return (
@@ -188,7 +198,16 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          className="bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden"
+          onOpenAutoFocus={() => {
+            returnFocusTo.current = document.activeElement as HTMLElement | null;
+          }}
+          onCloseAutoFocus={(event) => {
+            if (returnFocusTo.current?.isConnected) {
+              event.preventDefault();
+              returnFocusTo.current.focus();
+            }
+          }}
+          className={cn("bg-sidebar text-sidebar-foreground w-(--sidebar-width) p-0 [&>button]:hidden", className)}
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -259,7 +278,7 @@ function SidebarTrigger({
   onClick,
   ...props
 }: React.ComponentProps<typeof Button>) {
-  const { toggleSidebar, open, isMobile } = useSidebar();
+  const { toggleSidebar, open, isMobile, openMobile } = useSidebar();
   const [isScrolled, setIsScrolled] = React.useState(false);
 
   React.useEffect(() => {
@@ -275,6 +294,7 @@ function SidebarTrigger({
     <Button
       data-sidebar="trigger"
       data-slot="sidebar-trigger"
+      aria-expanded={isMobile ? openMobile : open}
       variant={isScrolled && !isMobile ? "outline" : "ghost"}
       size="icon"
       className={cn(
@@ -749,6 +769,7 @@ function SidebarLoaderSpinner({ className, ...props }: React.ComponentProps<"div
 }
 
 export {
+  useSidebarOptional,
   Sidebar,
   SidebarContent,
   SidebarFooter,

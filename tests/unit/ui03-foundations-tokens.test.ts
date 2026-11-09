@@ -121,3 +121,12 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("styles", "shell-foundations.ts"),
   ].sort());
 });
+
+it("paints the shell frame with the page color it stands in for (UI05)", () => {
+  const css = fs.readFileSync(path.resolve(__dirname, "../../src/styles/foundations.css"), "utf8");
+  const scope = (sel: string) => css.slice(css.indexOf(`${sel} {`)).split("}")[0];
+  const bg = (block: string) => /--cd-bg:\s*(#[0-9a-f]{6})/i.exec(block)![1];
+  const frame = (block: string) => /background:\s*(#[0-9a-f]{6})/i.exec(block)![1];
+  expect(frame(scope(".cd-shell-frame"))).toBe(bg(scope(".cd-foundations")));
+  expect(frame(scope(".dark .cd-shell-frame"))).toBe(bg(scope(".dark .cd-foundations")));
+});
