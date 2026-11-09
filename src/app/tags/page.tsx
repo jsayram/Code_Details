@@ -1,11 +1,7 @@
 "use client";
 
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { PageBanner } from "@/components/ui/page-banner";
 import { Hash, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,6 +11,7 @@ import { useRouter } from "next/navigation";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
 import { HighlightText } from "@/components/HighlightText";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function TagsIndexPage() {
   // D07x/D08g4e3: the app's login (Better Auth).
@@ -59,10 +56,7 @@ export default function TagsIndexPage() {
 
   return (
     <ProjectsProvider userId={viewer.userId}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+      <AppShell>
           <div className="flex justify-center w-full mb-20">
             <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
               <div className="flex flex-col gap-6 mb-6 py-3">
@@ -209,9 +203,7 @@ export default function TagsIndexPage() {
               </div>
             </div>
           </div>
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </AppShell>
     </ProjectsProvider>
   );
 }

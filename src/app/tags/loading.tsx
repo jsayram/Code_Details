@@ -1,10 +1,7 @@
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { PageBanner } from "@/components/ui/page-banner";
 import { Hash, Search } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { AppShell } from "@/components/layout/AppShell";
 
 export default function TagsLoading() {
   // Define fixed widths for skeletons to prevent hydration mismatches
@@ -12,10 +9,7 @@ export default function TagsLoading() {
   const inactiveTagWidths = [78, 72, 80, 80, 87, 88];
 
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <HeaderSection />
+    <AppShell>
         <div className="flex justify-center w-full mb-20">
           <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
             <div className="flex flex-col gap-6 mb-6 py-3">
@@ -102,8 +96,6 @@ export default function TagsLoading() {
             </div>
           </div>
         </div>
-        <FooterSection />
-      </SidebarInset>
-    </SidebarProvider>
+      </AppShell>
   );
 }

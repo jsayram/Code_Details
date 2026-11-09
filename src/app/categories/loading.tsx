@@ -1,20 +1,14 @@
 import "@/styles/foundations.css";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { Card } from "@/components/ui/card";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CategoriesIntro } from "./categories-intro";
+import { AppShell } from "@/components/layout/AppShell";
 
 // Same layout as the page, with the counts and buttons still to come.
 export default function CategoriesLoading() {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <HeaderSection />
+    <AppShell>
         <div className="cd-foundations cd-canvas">
           <div className="cd-page cd-stack">
             <CategoriesIntro />
@@ -37,8 +31,6 @@ export default function CategoriesLoading() {
             </ul>
           </div>
         </div>
-        <FooterSection />
-      </SidebarInset>
-    </SidebarProvider>
+      </AppShell>
   );
 }

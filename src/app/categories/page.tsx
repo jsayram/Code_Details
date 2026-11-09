@@ -1,13 +1,8 @@
 "use client";
 
-// UI04: the first screen on the UI03 foundations. Only this page's content
-// takes the .cd-foundations scope; the shared header, sidebar and footer stay
-// as they are until UI05.
+// UI04: the first screen on the UI03 foundations. UI05: the shared shell
+// around it (AppShell) is on the foundations too, so the old seam is gone.
 import "@/styles/foundations.css";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { Card } from "@/components/ui/card";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { useRouter } from "next/navigation";
@@ -17,6 +12,7 @@ import { useState } from "react";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
 import { cn } from "@/lib/utils";
 import { CategoriesIntro } from "./categories-intro";
+import { AppShell } from "@/components/layout/AppShell";
 
 function Spinner() {
   return <span aria-hidden="true" className="h-4 w-4 animate-spin rounded-full border-2 border-current border-t-transparent" />;
@@ -126,13 +122,8 @@ function CategoriesContent() {
 // Main page component
 export default function CategoriesIndexPage() {
   return (
-    <SidebarProvider>
-      <AppSidebar />
-      <SidebarInset>
-        <HeaderSection />
+    <AppShell>
         <CategoriesContent />
-        <FooterSection />
-      </SidebarInset>
-    </SidebarProvider>
+      </AppShell>
   );
 }
