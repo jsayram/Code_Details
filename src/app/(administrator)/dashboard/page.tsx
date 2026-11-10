@@ -985,6 +985,9 @@ function ProfileEditorCard() {
   // UI08.3: a failed save is shown in the form, not only in a toast, and
   // focus moves into the form on Edit and back to Edit Profile after it.
   const [saveError, setSaveError] = useState<string | null>(null);
+  // Only a rejected username (taken, or refused by validation) marks the
+  // field invalid; a network or server failure isn't the field's fault.
+  const [usernameRejected, setUsernameRejected] = useState(false);
   const editButtonRef = React.useRef<HTMLButtonElement>(null);
   const usernameRef = React.useRef<HTMLInputElement>(null);
   const focusAfterRef = React.useRef<"form" | "edit" | null>(null);
@@ -996,6 +999,7 @@ function ProfileEditorCard() {
   }, [isEditing]);
   const startEditing = () => {
     setSaveError(null);
+    setUsernameRejected(false);
     focusAfterRef.current = "form";
     setIsEditing(true);
   };
@@ -1019,6 +1023,7 @@ function ProfileEditorCard() {
   const handleSave = async () => {
     setIsSaving(true);
     setSaveError(null);
+    setUsernameRejected(false);
     try {
       if (!handle) throw new Error("Your profile isn't ready yet; try again in a moment");
       const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
@@ -1030,6 +1035,7 @@ function ProfileEditorCard() {
       const data = await response.json();
 
       if (!response.ok) {
+        if ([400, 409, 422].includes(response.status)) setUsernameRejected(true);
         const errorMessage = data.error?.detail || data.error?.title || "Failed to update profile";
         throw new Error(errorMessage);
       }
@@ -1060,6 +1066,7 @@ function ProfileEditorCard() {
       });
     }
     setSaveError(null);
+    setUsernameRejected(false);
     focusAfterRef.current = "edit";
     setIsEditing(false);
   };
@@ -1132,7 +1139,7 @@ function ProfileEditorCard() {
                     placeholder="Username"
                     autoComplete="username"
                     value={formData.username}
-                    aria-invalid={saveError ? true : undefined}
+                    aria-invalid={usernameRejected ? true : undefined}
                     aria-describedby={saveError ? "profile-save-error" : undefined}
                     onChange={(e) =>
                       setFormData((prev) => ({
