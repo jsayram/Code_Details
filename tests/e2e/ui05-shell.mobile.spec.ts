@@ -1,6 +1,6 @@
 // UI05: the shell's phone menu (Pixel 7 emulation in Chrome, not a real device).
 import type { Page } from "@playwright/test";
-import { authState, freshClientIp, setRole, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, overflowingContent, test } from "./support";
 
 async function signIn(page: Page, label: string) {
@@ -44,26 +44,6 @@ test("signed out: the menu button opens the sidebar sheet with Sign In; Escape c
   await open.click();
   await sheet.getByRole("link", { name: "Tags", exact: true }).click();
   await expect(page).toHaveURL(/\/tags$/);
-});
-
-test("the no-sidebar header's phone menu is hidden while closed and closes on Escape", async ({ page }) => {
-  // UI09 moved About, Support and Community into the shared shell; the admin
-  // theme-test pages are what's left on the sidebar-less header with this menu.
-  const email = await signIn(page, "ui05-panel");
-  await setRole((await authState(email))!.authUserId, "admin");
-  await page.goto("/api/toasttest");
-  const header = page.locator('[data-shell="header"]');
-  const open = header.getByRole("button", { name: "Open menu" });
-  await expect(open).toBeVisible();
-  // Closed: the panel's Sign Out isn't visible, so Tab can't land on it.
-  const signOut = header.getByRole("button", { name: "Sign Out" }).filter({ visible: true });
-  await expect(signOut).toHaveCount(0);
-  await open.click();
-  await expect(header.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
-  await expect(signOut).toHaveCount(1);
-  await page.keyboard.press("Escape");
-  await expect(signOut).toHaveCount(0);
-  await expect(header.getByRole("button", { name: "Open menu" })).toBeFocused();
 });
 
 test("signed in: the sidebar trigger opens the sheet with the signed-in entries and gets focus back", async ({ page }) => {

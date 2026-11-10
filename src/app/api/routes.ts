@@ -22,7 +22,6 @@ export const API_ROUTES = {
       const queryString = searchParams.toString();
       return `/api/projects${queryString ? `?${queryString}` : ""}`;
     },
-    TEST_PAGE: "/api/projects/test",
   },
   TIERS: {
     USER_TIER: "/api/tiers/user-tier",
@@ -32,11 +31,5 @@ export const API_ROUTES = {
   },
   TEST: {
     BASE: "/api/test",
-  },
-  THEME: {
-    TEST_PAGE: "/api/darkmodetest",
-  },
-  TOAST: {
-    TEST_PAGE: "/api/toasttest",
   },
 } as const;

@@ -19,7 +19,6 @@ import {
   Heart,
   ShieldCheck,
   Users,
-  Moon,
   AlertCircle,
   TrendingUp,
   Loader2,
@@ -2018,63 +2017,6 @@ function DashboardContent() {
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4">
-              <a
-                href="/api/projects/test"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Code className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Project API Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test project API endpoints and functionality
-                  </span>
-                </Button>
-              </a>
-
-              <a
-                href="/api/darkmodetest"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Moon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Dark Mode Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test dark mode theme components
-                  </span>
-                </Button>
-              </a>
-
-              <a
-                href="/api/toasttest"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Toast Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test toast notification system
-                  </span>
-                </Button>
-              </a>
-
               <Link href="/llm-test">
                 <Button
                   variant="outline"

@@ -43,7 +43,6 @@ export const API_ROUTES = {
       }
       return `/api/projects?${params.toString()}`;
     },
-    TEST_PAGE: "/api/projects/test",
     SHARED: (username: string, filters?: ProjectFilters) => {
       const baseUrl = `/api/shared-projects/${username}`;
       if (!filters) return baseUrl;
@@ -76,11 +75,5 @@ export const API_ROUTES = {
   },
   TEST: {
     BASE: "/api/test",
-  },
-  THEME: {
-    TEST_PAGE: "/api/darkmodetest",
-  },
-  TOAST: {
-    TEST_PAGE: "/api/toasttest",
   },
 } as const;
