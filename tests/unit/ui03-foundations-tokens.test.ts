@@ -153,6 +153,10 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("components", "layout", "DiscoveryHeader.tsx"),
     path.join("components", "Projects", "ProjectComponents", "ProjectListComponent.tsx"),
     path.join("components", "navigation", "Pagination", "PaginationControlComponent.tsx"),
+    // UI08: creator workflows. The dashboard, its loading screen and placeholder.
+    path.join("app", "(administrator)", "dashboard", "page.tsx"),
+    path.join("app", "(administrator)", "dashboard", "loading.tsx"),
+    path.join("components", "dashboard", "DashboardSkeleton.tsx"),
   ].sort());
 });
 
