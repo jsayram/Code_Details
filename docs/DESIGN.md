@@ -2,7 +2,7 @@
 
 The current visual system for the UI refresh, written from the accepted UI01 brief and tuned in UI03. It replaces the mix of old and new notes in `Agent Planning/design-reference/DESIGN.md`, which stays as history. The tokens themselves live in `src/styles/foundations.css`.
 
-**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. UI07 adopted discovery: `/search`, `/tags`, `/tags/<name>`, `/categories/<key>` and the project lists (`/projects`, portfolio, favorites, Graveyard, `/projects/users/<name>`) with their sort, category, view and page controls. UI08 adopted the creator screens: `/dashboard` (with the profile form), `/projects/new`, the project editor and its media controls. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
+**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. UI07 adopted discovery: `/search`, `/tags`, `/tags/<name>`, `/categories/<key>` and the project lists (`/projects`, portfolio, favorites, Graveyard, `/projects/users/<name>`) with their sort, category, view and page controls. UI08 adopted the creator screens: `/dashboard` (with the profile form), `/projects/new`, the project editor and its media controls. UI09 adopted the account and secondary screens: sign-in, sign-up, reset, the auth error and sign-out screens, the account menu, not-found and the route error screens, the admin dashboard and tag submissions, the admin tools (`/llm-test`, `/scrapper-demo`), About, Community, Support, the GitHub Scrapper pages, suggest-tags and `/users`. Home is the one page whose content is still outside the scope (UI10). The admin theme-test pages under `/api` stay as they are until UI11 decides on them. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
 
 ## Principles
 
@@ -123,6 +123,22 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 - Unsaved edits are guarded on Cancel, on any same-site link (a capture-phase click listener while the form is dirty) and on reload or close (`beforeunload`). In-page anchors and new-tab clicks pass. Back isn't guarded.
 - A dialog opened from state remembers its opener and returns focus through `onCloseAutoFocus`.
 - Media: the drop zone is a button; thumbnails in the editor are buttons that open the preview; per-image actions name the image ("Delete Screenshot 2"); a file that won't load shows "Image unavailable". There is no reorder control.
+
+## Account and secondary screens (UI09)
+
+- Sign-in, sign-up, reset, the auth error screens and sign-out share `AuthPageFrame`: the sidebar-less header, one `main` with a centered column, and the footer. The card's title is the page's one `h1`, so each screen is named for what it does ("Reset your password"); the friendly line above it ("Hopefully you are not lost.") is a paragraph. No particles.
+- An auth error names the fields it's about: they get `aria-invalid` and `aria-describedby` pointing at the message, and the first one takes focus when the request ends. With no field to blame (too many attempts, offline), focus returns to the submit button, because the disabled fieldset drops it to `<body>` while the request runs. Typing in a marked field clears its mark.
+- "Continue with GitHub" is the outline (secondary) button and Continue the primary one. Status lines use the danger and success tokens, never Tailwind's green.
+- The sign-in return (`redirect_url`) is unchanged: `safeRedirect` keeps only a same-site path, and an e2e test signs in with another site, a protocol-relative URL, a backslash URL and a script URL and lands on home each time.
+- Menus opened from the shell (the account menu) render in a portal, so `DropdownMenuContent` carries `cd-foundations` itself.
+- Not-found is inside `AppShell`, so it has the sidebar, header, one `main` and an `h1` ("Page not found"), with "404" as solid text. The mascot is a button that changes its message, and the five-press confetti stays. `app/error.tsx` catches a page that crashes, inside the shell, with Try again; `global-error.tsx` covers the root layout with its own document and inline styles. Neither shows the error's text.
+- Signed-in secondary pages (About, Community, Support, the GitHub Scrapper pages) are in `AppShell` like every other signed-in page; before, three of them used the sidebar-less header and had no `main`.
+
+Lessons from UI09:
+
+- A client page that imports a barrel (`@/repoScrapper`) bundles everything the barrel exports. After H1, the barrel included the server crawler and `node:dns`, and `/github-scrapper` answered 500 in development. Import the one client-safe module (`@/repoScrapper/crawler`).
+- Clickable cards that open a page and can't become real links without restructuring can at least be `role="link"` with `tabIndex={0}` and Enter (the `/users` cards). A real link is still better when the card is next rebuilt.
+- JSX keeps a literal `\n` typed into markup as text: the old admin loading screen rendered one.
 
 ## Adopting the foundations on a screen
 
