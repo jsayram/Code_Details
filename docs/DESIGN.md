@@ -58,7 +58,9 @@ Text pairs reach 4.5:1 and control borders and focus rings reach 3:1 in both the
 
 ### Category colors (UI06)
 
-Each of the 19 categories has three tokens per theme, `--cd-cat-<key>-bg`, `-fg` and `-border`, solid hex like every other token. A chip gets them with `class="cd-cat" data-category="<key>"`; an unknown key falls back to the neutral raised chip. The values come from the Tailwind colors the old `category-styles.css` used, flattened to solid colors in dark mode. Five categories sat in the purple range and moved: Mobile to gold, Data Engineering to slate, Integration to leaf green, Gaming & Graphics to olive, Multimedia to coral. Rose (AI and ML) keeps its look but its dark chip moved to hue 350. `tests/unit/ui06-category-tokens.test.ts` checks 4.5:1 text on every chip in both themes, a different text color per category, and the no-purple rule. To change one, edit `Agent Planning/phase-ui06/tools/category-palette.mjs` and paste its output.
+Categories keep a color each so people can tell them apart (Jose's call). Each category key has three tokens per theme, `--cd-cat-<key>-bg`, `-fg` and `-border`, solid hex like every other token. A chip gets them with `class="cd-cat" data-category="<key>"`; an unknown key falls back to the neutral raised chip.
+
+The palette covers 22 keys: today's 19 plus `ai-agents`, `generative-ai` and `libraries-frameworks`, which a later phase adds as categories. It's built from 11 hues spaced 24 degrees apart in OKLCH (18 to 258; violet and magenta are left out), each at two depths: soft (pale chip, mid-tone text) and deep (colored chip, dark text). Other is the only neutral. `tests/unit/ui06-category-tokens.test.ts` checks 4.5:1 text on every chip in both themes, the no-purple rule, a minimum OKLab distance between any two chips, and that Other is the only gray. To change one, edit the slot table in `Agent Planning/phase-ui06/tools/palette22.mjs`, run it, then `write-category-tokens.cjs`.
 
 The old `category-styles.css` still colors filter pills and badges on pages that haven't adopted the foundations; it goes in UI11.
 

@@ -4,8 +4,9 @@ import { describe, expect, it } from "vitest";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 
 // UI06: every category has its own chip color, as tokens in the foundations
-// stylesheet. Jose's rule: distinct hues, none purple, text at least 4.5:1 on
-// the chip in both themes.
+// stylesheet. Jose's rules: clearly distinct in both themes, none purple, text
+// at least 4.5:1 on the chip, Other the only neutral. Three keys belong to
+// categories a later phase adds; their tokens are here already.
 const css = fs.readFileSync(path.resolve(__dirname, "../../src/styles/foundations.css"), "utf8");
 const block = (selector: string) => {
   const start = css.indexOf(`\n${selector} {`);
@@ -36,7 +37,21 @@ const hueSat = (hex: string) => {
   const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return { hue: (h * 60 + 360) % 360, sat: d / (1 - Math.abs(max + min - 1)) };
 };
-const keys = Object.keys(PROJECT_CATEGORIES);
+const UPCOMING = ["ai-agents", "generative-ai", "libraries-frameworks"];
+const keys = [...Object.keys(PROJECT_CATEGORIES), ...UPCOMING];
+
+// OKLab distance, the measure the palette was built with.
+const oklab = (hex: string) => {
+  const [r, g, b] = rgb(hex).map((v) => (v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
+  const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b);
+  const m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b);
+  const s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+  return [0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s, 1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s, 0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s];
+};
+const dist = (a: string, b: string) => {
+  const [x, y] = [oklab(a), oklab(b)];
+  return Math.hypot(x[0] - y[0], x[1] - y[1], x[2] - y[2]);
+};
 
 describe.each([["light", light], ["dark", dark]] as const)("%s category chips", (_, t) => {
   it.each(keys)("%s: text reaches 4.5:1 on its chip", (key) => {
@@ -55,9 +70,20 @@ describe.each([["light", light], ["dark", dark]] as const)("%s category chips", 
     expect(purple).toEqual([]);
   });
 
-  it("gives each category its own text color", () => {
-    const fgs = keys.map((k) => t[`--cd-cat-${k}-fg`]);
-    expect(new Set(fgs).size).toBe(keys.length);
+  it("keeps every pair of chips apart (text and fill together)", () => {
+    const close: string[] = [];
+    for (let i = 0; i < keys.length; i++)
+      for (let j = i + 1; j < keys.length; j++) {
+        const [a, b] = [keys[i], keys[j]];
+        const d = (dist(t[`--cd-cat-${a}-fg`], t[`--cd-cat-${b}-fg`]) + dist(t[`--cd-cat-${a}-bg`], t[`--cd-cat-${b}-bg`])) / 2;
+        if (d < 0.024) close.push(`${a}/${b} ${d.toFixed(3)}`);
+      }
+    expect(close).toEqual([]);
+  });
+
+  it("has Other as the only neutral chip", () => {
+    const neutral = keys.filter((k) => hueSat(t[`--cd-cat-${k}-bg`]).sat < 0.1 && hueSat(t[`--cd-cat-${k}-fg`]).sat < 0.1);
+    expect(neutral).toEqual(["other"]);
   });
 });
 
