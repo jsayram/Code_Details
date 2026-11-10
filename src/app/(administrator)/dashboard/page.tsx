@@ -924,6 +924,8 @@ function DashboardError({
     setIsRefreshing(true);
     try {
       await refresh();
+    } catch {
+      // A second failure keeps this message on screen; nothing else to do.
     } finally {
       setIsRefreshing(false);
     }
