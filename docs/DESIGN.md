@@ -93,7 +93,10 @@ What runs, since UI10:
 - **Secondary pages** (About, Community, Support, the GitHub Scrapper pages): Framer Motion entries start at 0.8 opacity and 16px, last 300ms and stagger by 100ms at most.
 - **Not-found confetti** falls by transform and is skipped under reduced motion.
 - **Scripted jumps** (the project page's "On This Page", Back to top, the dashboard's "You have shared N" link, a doc's headings) call `moveFocusTo` from `src/lib/reduced-motion.ts` after scrolling, so the next Tab continues where the view went.
-- Spinners and loading skeletons keep running: they report status.
+- **Terminal cursor** blinks by opacity (`.cd-cursor-blink`), not the app's `animate-pulse` shimmer, which repainted every frame.
+- **Overlays** read the tokens through `--tw-duration` in `globals.css`: menus, selects, tooltips and hover cards 180ms (exit 144ms); dialogs, alert dialogs, sheets and the phone sidebar 240ms (exit 192ms). Dialog parts carry `data-slot` names for this.
+- The pause button's wrapper is the one piece of home on the foundations; it's marked `data-home-control` so the scope checks skip it.
+- Spinners, loading skeletons and the dashboard's live dot keep running: they report status.
 
 Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS animations and transitions straight away, spinners excepted, because a spinner reports status. `src/providers/motion-provider.tsx` stops Framer Motion's movement and keeps its fades. `src/lib/reduced-motion.ts` covers what CSS can't reach: scripted smooth scrolling and typed text.
 
