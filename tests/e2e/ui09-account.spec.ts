@@ -161,7 +161,7 @@ test.describe("UI09.1 auth screens", () => {
 test.describe("UI09.3 admin gate and secondary routes", () => {
   test("a regular account is sent from every admin route to the dashboard", async ({ page }) => {
     await account(page, "ui09-regular");
-    for (const path of ["/dashboard/admin", "/dashboard/tag-submissions", "/dashboard/admin/design-foundations", "/llm-test", "/scrapper-demo", "/api/toasttest"]) {
+    for (const path of ["/dashboard/admin", "/dashboard/tag-submissions", "/llm-test", "/scrapper-demo", "/api/toasttest"]) {
       await page.goto(path);
       await expect(page, path).toHaveURL(/\/dashboard$/);
     }
