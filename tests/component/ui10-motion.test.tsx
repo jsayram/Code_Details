@@ -90,6 +90,23 @@ describe("CodeParticlesElement", () => {
   });
 });
 
+describe("overlay durations", () => {
+  const css = fs.readFileSync(path.join(__dirname, "../../src/styles/globals.css"), "utf8");
+  // The first `--tw-duration` after the selector's line.
+  const durationFor = (selector: string) => {
+    const at = [`${selector}\n`, `${selector} {`].map((x) => css.indexOf(x)).find((x) => x >= 0) ?? -1;
+    if (at < 0) return NaN;
+    return Number(css.slice(at).match(/--tw-duration: (\d+)ms;/)?.[1]);
+  };
+  it("menus open in 180ms and dialogs and sheets in 240ms, exits about 20% shorter", () => {
+    expect(durationFor('[data-slot="dropdown-menu-content"],')).toBe(180);
+    expect(durationFor('[data-slot="dialog-content"],')).toBe(240);
+    expect(durationFor('[data-slot="tooltip-content"][data-state="closed"]')).toBe(144);
+    expect(durationFor('[data-slot="sheet-overlay"][data-state="closed"]')).toBe(192);
+    expect(css).toContain("animation: fade-in var(--tw-duration, 150ms) ease-out;");
+  });
+});
+
 describe("moveFocusTo", () => {
   it("focuses the target without scrolling, making it focusable if needed", () => {
     const section = document.createElement("section");

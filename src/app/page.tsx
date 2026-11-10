@@ -58,7 +58,7 @@ export default function Home() {
           )}
           {/* WCAG 2.2.2: moving decoration needs a way to stop it. Hidden
               under reduced motion, where the particles already stand still. */}
-          <div className="cd-foundations relative z-20 flex justify-end px-4 pb-2 motion-reduce:hidden">
+          <div className="cd-foundations relative z-20 flex justify-center px-4 pb-2 motion-reduce:hidden">
             <button
               type="button"
               className="cd-shell-pill-button"

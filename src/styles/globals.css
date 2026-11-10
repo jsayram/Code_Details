@@ -253,8 +253,46 @@
   opacity: 0;
 }
 
+/* This unlayered rule beats tw-animate's plain `animate-in` class (tooltips,
+   list fades, the phone table of contents). Menus, sheets and dialogs use the
+   `data-[state=open]:animate-in` variant, which tw-animate still drives. UI10:
+   both read --tw-duration (below) instead of a fixed 0.5s here. */
 .animate-in {
-  animation: fade-in 0.5s ease-out;
+  animation: fade-in var(--tw-duration, 150ms) ease-out;
+}
+
+/* UI10: the DESIGN.md motion budget for overlays (UI03 tokens: menus 180ms,
+   dialogs 240ms, exits about 20% shorter). Unlayered, so it wins over the
+   components' own duration-200 / duration-500 utilities. */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="select-content"],
+[data-slot="hover-card-content"],
+[data-slot="tooltip-content"] {
+  --tw-duration: 180ms;
+}
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-content"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-content"],
+[data-slot="sheet-overlay"] {
+  --tw-duration: 240ms;
+}
+[data-slot="dropdown-menu-content"][data-state="closed"],
+[data-slot="dropdown-menu-sub-content"][data-state="closed"],
+[data-slot="select-content"][data-state="closed"],
+[data-slot="hover-card-content"][data-state="closed"],
+[data-slot="tooltip-content"][data-state="closed"] {
+  --tw-duration: 144ms;
+}
+[data-slot="dialog-content"][data-state="closed"],
+[data-slot="dialog-overlay"][data-state="closed"],
+[data-slot="alert-dialog-content"][data-state="closed"],
+[data-slot="alert-dialog-overlay"][data-state="closed"],
+[data-slot="sheet-content"][data-state="closed"],
+[data-slot="sheet-overlay"][data-state="closed"] {
+  --tw-duration: 192ms;
 }
 
 @keyframes fade-in {
