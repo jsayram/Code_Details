@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { act, cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { prefersReducedMotion, scrollMotion } from "@/lib/reduced-motion";
 
@@ -39,12 +39,25 @@ describe("TextTypingEffectAnimation", () => {
     expect(onComplete).toHaveBeenCalledTimes(1);
   });
 
-  it("still types with reduced motion off", () => {
-    vi.useFakeTimers();
+  // UI10: the text is whole from the first render (a link has its name at
+  // once); a stepped CSS clip reveals it, capped at a second.
+  it("still types with reduced motion off, without hiding the text", () => {
     stubReducedMotion(false);
-    const { container } = render(<TextTypingEffectAnimation text="abc" speed={10} />);
-    expect(container.textContent).toBe("");
-    act(() => { vi.advanceTimersByTime(40); });
-    expect(container.textContent).toBe("abc");
+    const onComplete = vi.fn();
+    const { container } = render(<TextTypingEffectAnimation text="abc" speed={10} onComplete={onComplete} />);
+    const span = container.querySelector<HTMLElement>(".cd-typing")!;
+    expect(span.textContent).toBe("abc");
+    expect(span.style.getPropertyValue("--cd-type-steps")).toBe("3");
+    expect(span.style.animationDuration).toBe("30ms");
+    expect(onComplete).not.toHaveBeenCalled();
+    // jsdom has no AnimationEvent, so React listens for the prefixed name.
+    fireEvent(span, new Event(typeof AnimationEvent === "undefined" ? "webkitAnimationEnd" : "animationend", { bubbles: true }));
+    expect(onComplete).toHaveBeenCalledTimes(1);
+  });
+
+  it("caps a long label's reveal at a second", () => {
+    stubReducedMotion(false);
+    const { container } = render(<TextTypingEffectAnimation text="sudo --authenticate user" speed={120} />);
+    expect(container.querySelector<HTMLElement>(".cd-typing")!.style.animationDuration).toBe("1000ms");
   });
 });

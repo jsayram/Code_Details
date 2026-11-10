@@ -441,6 +441,42 @@
 /* Under reduced motion the inline duration/delay stay but nothing is named,
    so nothing runs. */
 
+/* Home's hero entry: from 16px lower and 0.8 opacity, once, so the text is
+   readable and the links work from the first frame (UI01 budget). */
+@keyframes cd-enter {
+  from {
+    opacity: 0.8;
+    transform: translateY(16px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-enter {
+    animation: cd-enter 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  .cd-enter-late {
+    animation-delay: 80ms;
+  }
+}
+
+/* UI10: typed terminal labels (animations/TextTypingEffectAnimation.tsx).
+   The text is all there; a stepped clip reveals it. */
+@keyframes cd-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-typing {
+    display: inline-block;
+    animation-name: cd-type;
+    animation-timing-function: steps(var(--cd-type-steps), end);
+    animation-fill-mode: both;
+  }
+}
+
 /* UI03 (decision 10): global reduced motion. A tiny duration rather than
    "none", so fill-mode end states still apply and animationend still fires.
    Spinners keep turning because they report status. Framer Motion and scripted

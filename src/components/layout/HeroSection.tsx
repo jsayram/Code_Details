@@ -1,7 +1,6 @@
 "use client";
 
 import React, { useRef, useState } from "react";
-import { AnimatePresence, motion } from "framer-motion";
 import Image from "next/image";
 import { capitalizeNames } from "@/utils/stringUtils";
 
@@ -43,31 +42,15 @@ export const HeroSection = () => {
   return (
     <div className="flex items-center justify-center px-3 h-full">
       <div className="flex flex-col items-center justify-center mx-auto">
-        <div
-          className="fixed h-[120%] w-[120%] inset-0 -left-[10%] -top-[10%]
-                           bg-gradient-to-br
-                           from-primary/20 to-secondary/20 
-                           rounded-full blur-2xl opacity-10 animate-pulse"
-          style={{ animationDuration: "10s" }}
-        />
-        {/* Mascot Image */}
+        {/* UI10: the full-screen blurred glow that pulsed behind the hero is
+            gone. It repainted a 120% blurred layer on every frame and sat on
+            top of the page without letting clicks through. */}
+        {/* Mascot Image. It enters once from 0.8 opacity (globals.css
+            .cd-enter), so it's visible from the first frame. The old hover lift
+            never ran: this wrapper ignores the pointer. */}
         <div className=" inset-0 z-10 pointer-events-none">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{
-              duration: 0.8,
-              ease: "easeOut",
-              delay: 0.3,
-              type: "spring",
-              stiffness: 100,
-            }}
-            className="flex items-col"
-          >
-            <motion.div
-              whileHover={{ y: -10, transition: { duration: 0.5 } }}
-              className="relative flex items-center justify-center"
-            >
+          <div className="flex items-col cd-enter cd-enter-late">
+            <div className="relative flex items-center justify-center">
               {/* Parent container with mask */}
               <div className="absolute z-10">
                 {/* The actual image - responsive sizing but large on desktop */}
@@ -90,8 +73,8 @@ export const HeroSection = () => {
                   }}
                 />
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         </div>
 
         {/* Header - "The magic is in the..." text section and you are signed in text after singed in */}
@@ -101,17 +84,9 @@ export const HeroSection = () => {
             ref={animationRef}
           >
             <SignedOut>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.7,
-                  ease: [0.25, 0.1, 0.25, 1.0],
-                }}
-                className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400 p-2"
-              >
+              <div className="cd-enter bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400 p-2">
                 ...Lets get into the
-              </motion.div>
+              </div>
             </SignedOut>
           </div>
 
@@ -121,32 +96,15 @@ export const HeroSection = () => {
             ref={animationRef}
           >
             <SignedIn>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{
-                  duration: 0.7,
-                  ease: [0.25, 0.1, 0.25, 1.0],
-                }}
-                // className="bg-clip-text text-transparent bg-gradient-to-r from-primary to-indigo-400 p-2"
-                className="p-2 bg-clip-text text-transparent bg-gradient-to-r
+              <div
+                className="cd-enter p-2 bg-clip-text text-transparent bg-gradient-to-r
                  from-primary to-fuchsia-500"
               >
                 The Journey Begins Here!
-              </motion.div>
+              </div>
             </SignedIn>
           </div>
-          <AnimatePresence>
-            <motion.div
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0 }}
-              transition={{
-                duration: 0.7,
-                delay: 0.3,
-                ease: [0.25, 0.1, 0.25, 1.0],
-              }}
-            >
+          <div className="cd-enter cd-enter-late">
               <SignedOut>
                 <h1
                   className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-medium text-center
@@ -156,8 +114,7 @@ export const HeroSection = () => {
                   {"{ Details }"}
                 </h1>
               </SignedOut>
-            </motion.div>
-          </AnimatePresence>
+          </div>
         </div>
 
         {/* Terminal Window Section */}
@@ -249,11 +206,7 @@ export const HeroSection = () => {
        ${welcomeTextClassName} `}
         >
           <div>
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, ease: "easeOut" }}
-            >
+            <div className="cd-enter">
               <SignedOut>
                 <div className="flex flex-col items-center justify-center">
                   <p className="pr-5">{"Welcome"}</p>
@@ -276,7 +229,7 @@ export const HeroSection = () => {
                   </p>
                 </div>
               </SignedIn>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>

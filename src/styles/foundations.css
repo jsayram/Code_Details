@@ -794,7 +794,7 @@
   padding-inline: var(--cd-space-4);
 }
 
-/* The home hero has a full-viewport decorative glow; the old button sat above it on z-50, so this one does too. */
+/* Kept above home's particle layer (z-11). UI10 removed the full-viewport glow this once had to clear. */
 .cd-shell-footer .cd-shell-pill-button {
   position: relative;
   z-index: 50;

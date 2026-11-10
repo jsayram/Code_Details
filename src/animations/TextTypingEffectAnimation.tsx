@@ -1,56 +1,48 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect } from "react";
 import { TEXT_TYPING_SPEED_MS } from "@/constants/project-limits";
 import { prefersReducedMotion } from "@/lib/reduced-motion";
 
+// UI10: the terminal's typed labels. The whole text is in the page from the
+// first render, so a link has its name and full size straight away; a CSS
+// `steps()` clip reveals it one character at a time (globals.css .cd-typing).
+// No timer or re-render per character. The reveal takes at most
+// `maxDurationMs`, so a label is readable within a second. With reduced
+// motion the text simply shows.
 export function TextTypingEffectAnimation({
   text,
   speed = TEXT_TYPING_SPEED_MS,
   className = "",
   onComplete,
-  skipOnRerender = false,
+  maxDurationMs = 1000,
 }: {
   text: string;
+  /** Milliseconds per character, before the cap. */
   speed?: number;
   className?: string;
   onComplete?: () => void; // for stuff to show up after typing
+  maxDurationMs?: number;
+  /** Kept for callers; the reveal already runs once per mount. */
   skipOnRerender?: boolean;
 }) {
-  const [displayedText, setDisplayedText] = useState("");
-  const hasCompletedRef = useRef(false); // Track completion state
+  const steps = Math.max(1, Array.from(text).length);
+  const duration = Math.min(steps * speed, maxDurationMs);
 
+  // With reduced motion no animation runs, so animationend never fires.
   useEffect(() => {
-    // Skip the animation if already completed and skipOnRerender is true
-    if (skipOnRerender && hasCompletedRef.current) {
-      setDisplayedText(text);
-      return;
-    }
+    if (prefersReducedMotion()) onComplete?.();
+  }, [text, onComplete]);
 
-    // Reduced motion: the whole text straight away, so labels are never hidden.
-    if (prefersReducedMotion()) {
-      setDisplayedText(text);
-      hasCompletedRef.current = true;
-      onComplete?.();
-      return;
-    }
-
-    let currentIndex = 0;
-    const interval = setInterval(() => {
-      if (currentIndex <= text.length) {
-        setDisplayedText(text.substring(0, currentIndex));
-        currentIndex++;
-      } else {
-        clearInterval(interval);
-        hasCompletedRef.current = true; // Mark as completed
-        if (onComplete) {
-          onComplete();
-        }
-      }
-    }, speed);
-
-    return () => clearInterval(interval);
-  }, [text, speed, onComplete, skipOnRerender]);
-
-  return <span className={className}>{displayedText}</span>;
+  return (
+    <span
+      className={`cd-typing ${className}`}
+      style={{ "--cd-type-steps": steps, animationDuration: `${duration}ms` } as React.CSSProperties}
+      onAnimationEnd={(e) => {
+        if (e.target === e.currentTarget) onComplete?.();
+      }}
+    >
+      {text}
+    </span>
+  );
 }
