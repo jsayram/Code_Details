@@ -140,7 +140,7 @@ export function TopSubmittersCard({ metrics }: TagPipelineCardProps) {
                 className="flex items-center gap-3 md:gap-4 p-2.5 md:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center" style={{ background: "var(--cd-selected)", color: "var(--cd-on-selected)" }}>
                     <span className="text-xs md:text-sm font-bold text-primary">#{index + 1}</span>
                   </div>
                   <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
