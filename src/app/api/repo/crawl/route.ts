@@ -4,7 +4,7 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { routeDocOwner } from '@/lib/auth-server';
+import { betterAuthRole, routeDocOwner } from '@/lib/auth-server';
 import { serverGithubCrawler } from '@/repoScrapper/server-crawler';
 import type { CrawlerOptions, CrawlerResult } from '@/repoScrapper';
 import { RepoError } from '@/repoScrapper/errors';
@@ -23,6 +23,19 @@ export async function POST(request: NextRequest) {
         error: 'Authentication required' 
       },
       { status: 401 }
+    );
+  }
+
+  // F02: this returns file contents, and the fallback below would let the
+  // caller read anything the server's GitHub token can reach, so it's admins
+  // only. /scrapper-demo, an admin page, is its only caller.
+  if ((await betterAuthRole()) !== 'admin') {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'The repository crawler is limited to administrators'
+      },
+      { status: 403 }
     );
   }
 

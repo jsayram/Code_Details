@@ -49,6 +49,10 @@ const ADMIN_ROUTES = [
   route("/api/projects/test.*"),
   route("/api/darkmodetest.*"),
   route("/api/toasttest.*"),
+  // F02: admin tools by intent, open to any signed-in account until now. Their
+  // data routes check for an admin themselves (/api/llm-test, /api/repo/crawl).
+  route("/llm-test"),
+  route("/scrapper-demo"),
 ];
 const matches = (routes: RegExp[], pathname: string) => routes.some((r) => r.test(pathname));
 export const isPublicPath = (pathname: string) => matches(PUBLIC_ROUTES, pathname);
