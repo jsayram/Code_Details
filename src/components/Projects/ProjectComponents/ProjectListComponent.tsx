@@ -79,6 +79,8 @@ export const ProjectList = React.memo(function ProjectList({
     setProjects,
     pagination,
     error,
+    staleAfterError,
+    refreshing,
     retry,
     retrying,
   } = useProjects();
@@ -542,13 +544,35 @@ export const ProjectList = React.memo(function ProjectList({
       <p className="cd-small cd-muted cd-number" role="status">
         {error
           ? ""
+          : refreshing
+          ? "Loading projects…"
           : pagination.total > 0
           ? `${pagination.total} ${pagination.total === 1 ? "project" : "projects"}${pagination.totalPages > 1 ? `, page ${pagination.currentPage} of ${pagination.totalPages}` : ""}`
           : ""}
       </p>
 
+      {/* UI07.3: the current page or filter failed while an older list is on screen. */}
+      {staleAfterError && (
+        <div role="alert" className="cd-surface flex flex-wrap items-center justify-between gap-4" style={{ borderColor: "var(--cd-danger)" }}>
+          <div className="cd-stack-tight cd-reading">
+            <p className="cd-subheading">Couldn&apos;t refresh the projects</p>
+            <p className="cd-small cd-muted">The list below is from before your last change. Try again to load the one you asked for.</p>
+          </div>
+          <Button variant="outline" onClick={() => retry?.()} disabled={retrying}>
+            {retrying ? (
+              <>
+                <span aria-hidden="true" className="cd-spinner animate-spin" />
+                Trying again…
+              </>
+            ) : (
+              "Try again"
+            )}
+          </Button>
+        </div>
+      )}
+
       {/* Projects Display */}
-      {error ? (
+      {error && !staleAfterError ? (
         <div role="alert" className="cd-surface cd-empty" style={{ borderColor: "var(--cd-danger)" }}>
           <p className="cd-subheading">Projects didn&apos;t load</p>
           <p className="cd-small cd-muted cd-reading">Something went wrong on our side. Your projects are safe; try again in a moment.</p>
@@ -575,7 +599,7 @@ export const ProjectList = React.memo(function ProjectList({
           )}
         </div>
       ) : (
-        <>
+        <div className="cd-stack" aria-busy={refreshing || undefined}>
           {viewMode === "card" || isMobile ? (
             <ProjectCardView
               projects={projects}
@@ -603,7 +627,7 @@ export const ProjectList = React.memo(function ProjectList({
               onPageChange={handlePageChange}
             />
           )}
-        </>
+        </div>
       )}
 
       {/* Modals */}
