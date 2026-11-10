@@ -43,7 +43,10 @@ import { HeaderSection } from '@/components/layout/HeaderSection';
 import { FooterSection } from '@/components/layout/FooterSection';
 import { PageBanner } from '@/components/ui/page-banner';
 import { ProjectsProvider } from '@/providers/projects-provider';
-import { isValidGitHubUrl } from '@/repoScrapper';
+// The crawler module, not the @/repoScrapper barrel: the barrel also exports the
+// server crawler, whose SSRF guard (H1) imports node:dns, which a client page
+// can't bundle. Through the barrel this page answered 500.
+import { isValidGitHubUrl } from '@/repoScrapper/crawler';
 
 interface LLMConfig {
   providerId: string;
