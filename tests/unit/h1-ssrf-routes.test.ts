@@ -3,6 +3,7 @@
 // vitest-setup.ts would turn any attempted connection into a failure.
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -70,12 +71,47 @@ describe("serverGithubCrawler path parts", () => {
 
 describe("no plain fetch for visitor-influenced URLs", () => {
   // The ui-refresh merge conflicts in analyze/route.ts; taking the wrong side
-  // would silently swap safeFetch back to fetch. This catches it.
+  // would silently swap safeFetch back to fetch. Parsed with the TypeScript
+  // compiler, so comments and strings can't hide or fake a call.
+  const BANNED_MODULES = /^(axios|got|undici|node-fetch|cross-fetch|isomorphic-fetch|ky)(\/|$)/;
+
+  function outboundCalls(source: string): string[] {
+    const file = ts.createSourceFile("x.ts", source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+    const found: string[] = [];
+    const visit = (node: ts.Node) => {
+      if (ts.isCallExpression(node)) {
+        const callee = node.expression;
+        if (ts.isIdentifier(callee) && callee.text === "fetch") found.push("fetch(");
+        if (ts.isPropertyAccessExpression(callee) && callee.name.text === "fetch") found.push(`${callee.getText()}(`);
+        if (ts.isElementAccessExpression(callee) && ts.isStringLiteralLike(callee.argumentExpression) && callee.argumentExpression.text === "fetch") found.push(`${callee.getText()}(`);
+        const arg = node.arguments[0];
+        if ((ts.isIdentifier(callee) && callee.text === "require") || callee.kind === ts.SyntaxKind.ImportKeyword) {
+          if (arg && ts.isStringLiteralLike(arg) && BANNED_MODULES.test(arg.text)) found.push(`import ${arg.text}`);
+        }
+      }
+      if (ts.isImportDeclaration(node) && ts.isStringLiteral(node.moduleSpecifier) && BANNED_MODULES.test(node.moduleSpecifier.text)) {
+        found.push(`import ${node.moduleSpecifier.text}`);
+      }
+      ts.forEachChild(node, visit);
+    };
+    visit(file);
+    return found;
+  }
+
+  it("the checker catches the forms it must", () => {
+    expect(outboundCalls("await fetch(u)")).toEqual(["fetch("]);
+    expect(outboundCalls("await globalThis.fetch(u)")).toEqual(["globalThis.fetch("]);
+    expect(outboundCalls('await window["fetch"](u)')).toEqual(['window["fetch"](']);
+    expect(outboundCalls('const u = "https://x//y"; await fetch(u)')).toEqual(["fetch("]);
+    expect(outboundCalls('import axios from "axios"; const g = require("got"); await import("undici")')).toEqual(["import axios", "import got", "import undici"]);
+    expect(outboundCalls('// fetch(u)\n/* fetch(u) */ const s = "fetch(u)"; await safeFetch(u)')).toEqual([]);
+  });
+
   it.each(["src/app/api/repo/analyze/route.ts", "src/app/api/validate-url/route.ts", "src/repoScrapper/server-crawler.ts"])(
     "%s only uses safeFetch",
     (file) => {
-      const src = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8").replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
-      expect(src.match(/(?<![\w.])fetch\s*\(/g) ?? []).toEqual([]);
+      const src = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8");
+      expect(outboundCalls(src)).toEqual([]);
       expect(src).toMatch(/\bsafeFetch\(/);
     },
   );
