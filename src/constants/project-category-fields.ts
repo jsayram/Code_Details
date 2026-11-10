@@ -1201,6 +1201,236 @@ const OTHER_FIELDS: CategoryFieldDefinition[] = [
   },
 ];
 
+// C01: fields for the three new categories. A few ids are shared on purpose
+// with ai-ml (modelArchitecture, inferenceLatency) and dev-tools
+// (packageManager, installCommand, weeklyDownloads): when a project moves
+// between those categories, the category-change flow keeps any field whose id
+// exists in the new category, so a later re-filing doesn't hide saved values.
+// Values are stored by id, so the ai-ml and dev-tools definitions stay as
+// they were and existing projects keep rendering their saved fields.
+const sharedField = (fields: CategoryFieldDefinition[], id: string, overrides: Partial<CategoryFieldDefinition> = {}): CategoryFieldDefinition => {
+  const field = fields.find((f) => f.id === id);
+  if (!field) throw new Error(`Unknown shared field: ${id}`);
+  return { ...field, ...overrides };
+};
+
+const MODELS_USED = sharedField(AI_ML_FIELDS, "modelArchitecture", {
+  label: "Models Used",
+  placeholder: "Claude, GPT-4o, Llama 3, a fine-tuned Mistral...",
+  description: "The models the project calls or runs",
+});
+
+const AI_AGENTS_FIELDS: CategoryFieldDefinition[] = [
+  {
+    id: "agentType",
+    label: "Agent Type",
+    type: "select",
+    isCommon: false,
+    description: "What kind of agent or assistant this is",
+    options: [
+      { value: "chatbot", label: "Chatbot / Conversational Assistant" },
+      { value: "coding-assistant", label: "Coding Assistant" },
+      { value: "mcp-server", label: "MCP Server" },
+      { value: "agent-framework", label: "Agent Framework" },
+      { value: "task-agent", label: "Task / Autonomous Agent" },
+      { value: "multi-agent", label: "Multi-Agent System" },
+      { value: "voice-assistant", label: "Voice Assistant" },
+      { value: "research-agent", label: "Research Agent" },
+    ],
+  },
+  MODELS_USED,
+  {
+    id: "agentFramework",
+    label: "Agent Framework",
+    type: "select",
+    isCommon: false,
+    description: "The framework or SDK the agent is built on",
+    options: [
+      { value: "custom", label: "Custom / None" },
+      { value: "claude-agent-sdk", label: "Claude Agent SDK" },
+      { value: "openai-agents-sdk", label: "OpenAI Agents SDK" },
+      { value: "langchain", label: "LangChain" },
+      { value: "langgraph", label: "LangGraph" },
+      { value: "llamaindex", label: "LlamaIndex" },
+      { value: "crewai", label: "CrewAI" },
+      { value: "autogen", label: "AutoGen" },
+      { value: "semantic-kernel", label: "Semantic Kernel" },
+      { value: "vercel-ai-sdk", label: "Vercel AI SDK" },
+      { value: "mastra", label: "Mastra" },
+    ],
+  },
+  {
+    id: "agentTools",
+    label: "Tools & Integrations",
+    type: "textarea",
+    placeholder: "Web search, GitHub API, a SQL database, the file system...",
+    maxLength: 1000,
+    isCommon: false,
+    description: "What the agent can call or act on",
+  },
+  {
+    id: "agentInterfaces",
+    label: "Where It Runs",
+    type: "multi-select",
+    isCommon: false,
+    description: "How people reach the agent",
+    options: [
+      { value: "web-chat", label: "Web Chat" },
+      { value: "cli", label: "Command Line" },
+      { value: "ide", label: "IDE / Editor" },
+      { value: "slack-discord", label: "Slack / Discord / Teams" },
+      { value: "mcp-client", label: "MCP Client" },
+      { value: "api", label: "API" },
+      { value: "voice", label: "Voice / Phone" },
+      { value: "mobile", label: "Mobile App" },
+    ],
+  },
+  {
+    id: "agentMemory",
+    label: "Memory & Context",
+    type: "text",
+    placeholder: "Conversation history, vector memory, a notes file...",
+    maxLength: 300,
+    isCommon: false,
+    description: "How the agent keeps state between steps or sessions",
+  },
+  {
+    id: "agentGuardrails",
+    label: "Safety & Guardrails",
+    type: "textarea",
+    placeholder: "Human approval for writes, sandboxing, evals, rate limits...",
+    maxLength: 1000,
+    isCommon: false,
+    description: "How the agent is kept on task and safe",
+  },
+];
+
+const GENERATIVE_AI_FIELDS: CategoryFieldDefinition[] = [
+  {
+    id: "generationType",
+    label: "What It Generates",
+    type: "multi-select",
+    isCommon: false,
+    description: "The kinds of output the app produces",
+    options: [
+      { value: "text", label: "Text" },
+      { value: "answers", label: "Answers / Q&A" },
+      { value: "code", label: "Code" },
+      { value: "image", label: "Images" },
+      { value: "video", label: "Video" },
+      { value: "audio", label: "Audio / Music" },
+      { value: "speech", label: "Speech" },
+      { value: "3d", label: "3D" },
+    ],
+  },
+  MODELS_USED,
+  {
+    id: "modelHosting",
+    label: "Model Hosting",
+    type: "select",
+    isCommon: false,
+    description: "Where the models run",
+    options: [
+      { value: "hosted-api", label: "Hosted API" },
+      { value: "self-hosted", label: "Self-hosted" },
+      { value: "on-device", label: "On-device" },
+      { value: "hybrid", label: "Hybrid" },
+    ],
+  },
+  {
+    id: "retrieval",
+    label: "Retrieval (RAG)",
+    type: "textarea",
+    placeholder: "Embeddings model, vector store, chunking, reranking...",
+    maxLength: 1000,
+    isCommon: false,
+    description: "How the app grounds answers in your own data, if it does",
+  },
+  {
+    id: "promptDesign",
+    label: "Prompting",
+    type: "textarea",
+    placeholder: "System prompts, few-shot examples, structured output...",
+    maxLength: 1000,
+    isCommon: false,
+    description: "How prompts are built and kept on track",
+  },
+  {
+    id: "outputQuality",
+    label: "Quality & Evaluation",
+    type: "text",
+    placeholder: "Eval set of 200 questions, 92% judged correct...",
+    maxLength: 200,
+    isCommon: false,
+    description: "How output quality is measured",
+  },
+  sharedField(AI_ML_FIELDS, "inferenceLatency", { label: "Response Time", description: "How long a typical generation takes" }),
+];
+
+const LIBRARIES_FRAMEWORKS_FIELDS: CategoryFieldDefinition[] = [
+  {
+    id: "libraryType",
+    label: "Package Type",
+    type: "select",
+    isCommon: false,
+    description: "What kind of package this is",
+    options: [
+      { value: "framework", label: "Framework" },
+      { value: "library", label: "Library" },
+      { value: "sdk", label: "SDK" },
+      { value: "api-client", label: "API Client / Wrapper" },
+      { value: "ui-components", label: "UI Component Library" },
+      { value: "plugin", label: "Plugin for Another Framework" },
+    ],
+  },
+  sharedField(DEV_TOOLS_FIELDS, "packageManager"),
+  sharedField(DEV_TOOLS_FIELDS, "installCommand", { placeholder: "npm install your-package" }),
+  {
+    id: "runtimes",
+    label: "Runtimes",
+    type: "multi-select",
+    isCommon: false,
+    description: "Where the package runs",
+    options: [
+      { value: "browser", label: "Browser" },
+      { value: "node", label: "Node.js" },
+      { value: "deno-bun", label: "Deno / Bun" },
+      { value: "python", label: "Python" },
+      { value: "jvm", label: "JVM" },
+      { value: "dotnet", label: ".NET" },
+      { value: "native", label: "Native (C, C++, Rust)" },
+      { value: "mobile", label: "iOS / Android" },
+    ],
+  },
+  {
+    id: "license",
+    label: "License",
+    type: "select",
+    isCommon: false,
+    description: "The package's license",
+    options: [
+      { value: "mit", label: "MIT" },
+      { value: "apache-2.0", label: "Apache 2.0" },
+      { value: "bsd", label: "BSD" },
+      { value: "isc", label: "ISC" },
+      { value: "mpl-2.0", label: "MPL 2.0" },
+      { value: "gpl", label: "GPL" },
+      { value: "lgpl", label: "LGPL" },
+      { value: "proprietary", label: "Proprietary" },
+    ],
+  },
+  {
+    id: "latestVersion",
+    label: "Latest Version",
+    type: "text",
+    placeholder: "2.4.1",
+    maxLength: 50,
+    isCommon: false,
+    description: "The current release",
+  },
+  sharedField(DEV_TOOLS_FIELDS, "weeklyDownloads"),
+];
+
 /**
  * Complete mapping of categories to their available fields
  * Each category gets common fields + category-specific fields
@@ -1213,7 +1443,10 @@ export const CATEGORY_FIELDS: Record<ProjectCategory, CategoryFieldDefinition[]>
   "cloud-devops": [...COMMON_FIELDS, ...CLOUD_DEVOPS_FIELDS],
   "data-engineering": [...COMMON_FIELDS, ...DATA_ENGINEERING_FIELDS],
   "ai-ml": [...COMMON_FIELDS, ...AI_ML_FIELDS],
+  "ai-agents": [...COMMON_FIELDS, ...AI_AGENTS_FIELDS],
+  "generative-ai": [...COMMON_FIELDS, ...GENERATIVE_AI_FIELDS],
   "dev-tools": [...COMMON_FIELDS, ...DEV_TOOLS_FIELDS],
+  "libraries-frameworks": [...COMMON_FIELDS, ...LIBRARIES_FRAMEWORKS_FIELDS],
   integration: [...COMMON_FIELDS, ...INTEGRATION_FIELDS],
   "embedded-iot": [...COMMON_FIELDS, ...EMBEDDED_IOT_FIELDS],
   "gaming-graphics": [...COMMON_FIELDS, ...GAMING_GRAPHICS_FIELDS],

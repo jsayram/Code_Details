@@ -6,8 +6,8 @@ import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 // UI06: every category has its own chip color, as tokens in the foundations
 // stylesheet. Jose's rules: clearly distinct in both themes, no purple or
 // violet (OKLCH hue 258-330; pink and rose are fine), text at least 4.5:1 on
-// the chip, Other the only neutral, and four pairs he named well apart. Three
-// keys belong to categories a later phase adds; their tokens are here already.
+// the chip, Other the only neutral, and four pairs he named well apart. C01
+// added the last three categories, so every token now has a category.
 const css = fs.readFileSync(path.resolve(__dirname, "../../src/styles/foundations.css"), "utf8");
 const block = (selector: string) => {
   const start = css.indexOf(`\n${selector} {`);
@@ -38,8 +38,13 @@ const hueSat = (hex: string) => {
   const h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
   return { hue: (h * 60 + 360) % 360, sat: d / (1 - Math.abs(max + min - 1)) };
 };
-const UPCOMING = ["ai-agents", "generative-ai", "libraries-frameworks"];
-const keys = [...Object.keys(PROJECT_CATEGORIES), ...UPCOMING];
+const keys = Object.keys(PROJECT_CATEGORIES);
+
+it("has a token set for exactly the 22 categories (C01)", () => {
+  expect(keys).toHaveLength(22);
+  const tokenKeys = new Set([...Object.keys(light)].map((n) => n.replace(/^--cd-cat-(.+)-(bg|fg|border)$/, "$1")));
+  expect([...tokenKeys].sort()).toEqual([...keys].sort());
+});
 
 // OKLab distance, the measure the palette was built with.
 const oklab = (hex: string) => {

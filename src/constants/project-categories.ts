@@ -6,7 +6,10 @@ export type ProjectCategory =
   | "cloud-devops"
   | "data-engineering"
   | "ai-ml"
+  | "ai-agents"
+  | "generative-ai"
   | "dev-tools"
+  | "libraries-frameworks"
   | "integration"
   | "embedded-iot"
   | "gaming-graphics"
@@ -19,6 +22,17 @@ export type ProjectCategory =
   | "testing-qa"
   | "other";
 
+// C01 (Jose, 2026-11-09): 22 categories. Keys never change, so stored projects
+// keep theirs; three keys got new labels (ai-ml, automation-scripting,
+// data-engineering) and three are new (ai-agents, generative-ai,
+// libraries-frameworks).
+//
+// The filing rule, repeated in the descriptions so people choose the same way:
+// file by how it's built, then by what it does. If AI is the core of the
+// product, use an AI category whatever the platform. If AI is one feature,
+// file by platform and tag it. Anything built in an automation platform (n8n,
+// Zapier, Make, Power Automate) goes in Automation & Workflows even with AI
+// steps, tagged `ai-agent`.
 export const PROJECT_CATEGORIES = {
   web: {
     label: "Web Applications",
@@ -37,7 +51,7 @@ export const PROJECT_CATEGORIES = {
   },
   backend: {
     label: "Backend Systems",
-    description: "Server-side applications and services",
+    description: "Server-side applications, APIs and services. Database engines go in Databases & Storage; pipelines and analysis in Data & Analytics",
     keywords: "api rest graphql node express fastify nestjs django flask spring microservices server backend service",
   },
   "cloud-devops": {
@@ -46,19 +60,34 @@ export const PROJECT_CATEGORIES = {
     keywords: "aws azure gcp kubernetes docker terraform ansible jenkins cicd pipeline deployment infrastructure cloud devops iac container orchestration",
   },
   "data-engineering": {
-    label: "Data Engineering",
-    description: "Data processing and analytics systems",
-    keywords: "etl pipeline spark hadoop kafka airflow databricks snowflake bigquery data warehouse analytics processing batch streaming",
+    label: "Data & Analytics",
+    description: "Data pipelines plus analysis: ETL, notebooks, dashboards and visualization. Database engines and storage go in Databases & Storage",
+    keywords: "etl pipeline spark hadoop kafka airflow dbt databricks snowflake bigquery data warehouse analytics processing batch streaming notebook jupyter pandas dashboard visualization bi tableau looker power-bi report statistics",
   },
   "ai-ml": {
-    label: "AI & Machine Learning",
-    description: "Artificial intelligence and ML applications",
-    keywords: "machine learning deep learning neural network tensorflow pytorch scikit-learn nlp computer vision ai ml model training inference llm gpt",
+    label: "ML Models & Research",
+    description: "The models themselves: training, fine-tuning, computer vision, speech, NLP and evaluations. Apps built on a model go in Generative AI Apps or AI Agents & Assistants",
+    keywords: "machine learning deep learning neural network tensorflow pytorch jax scikit-learn nlp computer vision speech model training fine-tuning inference evaluation benchmark dataset research",
+  },
+  "ai-agents": {
+    label: "AI Agents & Assistants",
+    description: "Agents and assistants written as software: chatbots, coding assistants, MCP servers and agent frameworks. Use it when AI is the core of the product; if it's one feature, file by platform and tag it",
+    keywords: "ai agent assistant chatbot copilot coding-assistant mcp model-context-protocol tool-calling function-calling langchain langgraph crewai autogen agent-framework multi-agent llm",
+  },
+  "generative-ai": {
+    label: "Generative AI Apps",
+    description: "Apps whose main job is producing content or answers from models: LLM apps, RAG, and image, video and audio generation. If AI is one feature, file by platform and tag it",
+    keywords: "generative ai genai llm gpt claude gemini rag retrieval embeddings vector prompt text-generation image-generation stable-diffusion diffusion video-generation audio-generation text-to-speech",
   },
   "dev-tools": {
     label: "Development Tools",
-    description: "Tools and utilities for developers",
-    keywords: "cli tool ide plugin extension vscode intellij debugging profiling linter formatter code-generator sdk library framework",
+    description: "Tools developers run while they work: CLIs, IDE extensions, linters, debuggers, generators. Installable packages go in Libraries & Frameworks; CI and test runners in Testing & QA",
+    keywords: "cli tool ide plugin extension vscode intellij debugging profiling linter formatter code-generator devtools developer-experience",
+  },
+  "libraries-frameworks": {
+    label: "Libraries & Frameworks",
+    description: "Reusable packages, SDKs and frameworks people install, as opposed to finished apps or tools you run",
+    keywords: "library framework sdk package module npm pypi crate gem nuget maven open-source component-library ui-kit api-client wrapper",
   },
   integration: {
     label: "Integration & Extensions",
@@ -72,7 +101,7 @@ export const PROJECT_CATEGORIES = {
   },
   "gaming-graphics": {
     label: "Gaming & Graphics",
-    description: "Games and graphics applications",
+    description: "Games, game engines and rendered graphics: 3D, shaders, simulations. Audio and video tools go in Multimedia & Streaming",
     keywords: "game unity unreal godot 3d 2d graphics rendering shader opengl vulkan webgl threejs gaming engine simulation physics",
   },
   security: {
@@ -92,23 +121,23 @@ export const PROJECT_CATEGORIES = {
   },
   multimedia: {
     label: "Multimedia & Streaming",
-    description: "Audio/video capture, editing, and streaming systems",
+    description: "Audio and video capture, editing, players and streaming. Games and real-time 3D go in Gaming & Graphics; AI that generates media in Generative AI Apps",
     keywords: "video audio streaming ffmpeg webrtc hls rtmp transcoding media player editor codec live-stream broadcast podcast recording",
   },
   "automation-scripting": {
-    label: "Automation & Scripting",
-    description: "Automation workflows, RPA, and developer scripts",
-    keywords: "automation script workflow rpa bot selenium puppeteer playwright cron scheduler task workflow-automation python bash shell powershell",
+    label: "Automation & Workflows",
+    description: "Scripts, bots and workflows, including anything built in n8n, Zapier, Make or Power Automate, even with AI steps (tag those ai-agent). Developer tools go in Development Tools; CI in Testing & QA",
+    keywords: "automation script workflow rpa bot n8n zapier make power-automate ifttt selenium puppeteer cron scheduler task workflow-automation python bash shell powershell no-code low-code",
   },
   "database-storage": {
     label: "Databases & Storage",
-    description: "Database engines, migration tools, and management dashboards",
+    description: "Database engines, storage and caching, migration tools and ORMs. Apps that use a database go under their platform; pipelines and analysis in Data & Analytics",
     keywords: "database sql nosql postgresql mysql mongodb redis elasticsearch cassandra migration orm prisma sequelize typeorm storage cache",
   },
   "testing-qa": {
     label: "Testing & QA",
-    description: "Quality-assurance frameworks, test runners, and coverage tools",
-    keywords: "testing jest mocha cypress playwright selenium unit-test integration-test e2e test-automation qa coverage tdd bdd quality-assurance",
+    description: "Test frameworks, test runners, CI test setups and coverage tools",
+    keywords: "testing jest mocha cypress playwright selenium unit-test integration-test e2e test-automation qa coverage tdd bdd quality-assurance ci",
   },
   other: {
     label: "Other",

@@ -57,16 +57,16 @@ function SearchContent() {
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
     const allCategories = Object.entries(PROJECT_CATEGORIES);
     
-    if (!searchLower) return allCategories.slice(0, 20);
-    
-    return allCategories
-      .filter(([key, category]) => {
-        return (
-          category.label.toLowerCase().includes(searchLower) ||
-          key.toLowerCase().includes(searchLower)
-        );
-      })
-      .slice(0, 20);
+    // C01: every category (22 now). This used to stop at 20, which would
+    // have hidden the last two.
+    if (!searchLower) return allCategories;
+
+    return allCategories.filter(([key, category]) => {
+      return (
+        category.label.toLowerCase().includes(searchLower) ||
+        key.toLowerCase().includes(searchLower)
+      );
+    });
   }, [debouncedSearchQuery]);
 
   // Filter tags
