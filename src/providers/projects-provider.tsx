@@ -44,6 +44,12 @@ interface ProjectsContextType {
     totalPages: number;
     currentPage: number;
   };
+  /** UI07.3: the last list request failed (and nothing loaded since), so a list can say so instead of looking empty. */
+  error?: boolean;
+  /** UI07.3: asks for the same list again. */
+  retry?: () => void;
+  /** UI07.3: a retry is in flight. */
+  retrying?: boolean;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(
@@ -133,7 +139,7 @@ export function ProjectsProvider({
   const cacheKey = getProjectsCacheKey(filters, userId, shouldFetch);
 
   // Use SWR for data fetching with built-in caching
-  const { data, isLoading: swrLoading } = useSWR(
+  const { data, error: swrError, isLoading: swrLoading, isValidating, mutate: revalidate } = useSWR(
     cacheKey,
     projectsFetcher,
     {
@@ -159,6 +165,11 @@ export function ProjectsProvider({
   // skeleton, instead of flashing the empty message before the fetch starts.
   const loading = !!isLoading || (!cacheKey ? false : swrLoading);
   const pagination = swrPagination;
+  // UI07.3: a failure shows as a failure only when there is nothing to show.
+  const error = !!cacheKey && !!swrError && !data;
+  const retry = useCallback(() => {
+    void revalidate();
+  }, [revalidate]);
 
   // Update filters with page bounds checking
   const updateFilters = useCallback((newFilters: Partial<ProjectFilters>) => {
@@ -314,6 +325,9 @@ export function ProjectsProvider({
       setFilters: updateFilters,
       setProjects: setLocalProjects,
       pagination,
+      error,
+      retry,
+      retrying: error && isValidating,
     }),
     [
       sortedProjects,
@@ -326,6 +340,9 @@ export function ProjectsProvider({
       filters,
       updateFilters,
       pagination,
+      error,
+      retry,
+      isValidating,
     ]
   );
 
