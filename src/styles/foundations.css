@@ -877,10 +877,11 @@
 
 /* --- Project card (UI06.1) --- */
 
-/* Cards share one grid: as many columns of at least 17rem as fit. */
+/* Cards share one grid: as many columns of at least 19rem as fit, so the
+   owner's name and the actions keep room beside each other. */
 .cd-card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 17rem), 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr));
   gap: var(--cd-space-4);
   align-items: stretch;
 }
@@ -941,8 +942,11 @@
   padding: var(--cd-space-4) var(--cd-space-4) var(--cd-space-3);
 }
 
+/* The chips and the actions share a row while they fit; the actions drop
+   below on a narrow card instead of squeezing the category. */
 .cd-project-card-meta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: var(--cd-space-2);
@@ -950,9 +954,18 @@
   min-width: 0;
 }
 
+.cd-project-card-meta > .cd-cluster {
+  flex: 1 1 auto;
+}
+
+.cd-project-card-meta .cd-cat {
+  white-space: nowrap;
+}
+
 .cd-project-card-actions {
   display: flex;
   flex-shrink: 0;
+  margin-inline-start: auto;
   align-items: center;
   gap: var(--cd-space-1);
 }

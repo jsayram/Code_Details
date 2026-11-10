@@ -84,7 +84,7 @@ export function ProjectCardView({
 
   return (
     <div className="cd-foundations w-full" style={{ minHeight: `${minHeight}px` }}>
-      {/* UI06.1: as many columns of at least 17rem as fit (.cd-card-grid). */}
+      {/* UI06.1: as many columns of at least 19rem as fit (.cd-card-grid). */}
       <div className="cd-card-grid">
         {validProjects.map((project) => (
           <ProjectCard
