@@ -1047,6 +1047,30 @@
   outline: none;
 }
 
+/* --- People cards on /users (UI11) ---
+   Same pattern as the project card: the name is the link and its ::after
+   covers the card, so the whole card opens the profile. */
+.cd-user-card:has(.cd-user-card-link:focus-visible) {
+  outline: 2px solid var(--cd-focus);
+  outline-offset: 2px;
+}
+
+.cd-user-card-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.cd-user-card-link::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+}
+
+.cd-user-card-link:focus-visible {
+  outline: none;
+}
+
 /* Everything else a person can use sits above that link. */
 .cd-project-card :is(a:not(.cd-project-card-link), button, [role="img"], .cd-project-card-favorites, .cd-status) {
   position: relative;

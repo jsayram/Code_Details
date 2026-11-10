@@ -202,14 +202,18 @@ test.describe("UI09.3 admin gate and secondary routes", () => {
     await expect(page).toHaveURL(/\/sign-in\?redirect_url=%2Fprojects%2Fui09-no-such-project$/);
   });
 
-  test("/users: the people cards are reached by Tab and open with Enter", async ({ page }) => {
+  test("/users: each people card holds a real link to the profile, reached by Tab and opened with Enter", async ({ page }) => {
     await account(page, "ui09-users");
     await page.goto("/users");
     await oneMainOneH1(page, "Browse by Users");
-    const card = page.locator('main [data-slot="card"][role="link"]').first();
-    await expect(card).toBeVisible();
-    await expect(card).toHaveAttribute("tabindex", "0");
-    await card.focus();
+    // UI11: a real anchor (open in new tab works), covering the card.
+    const link = page.locator('main [data-slot="card"].cd-user-card a.cd-user-card-link').first();
+    await expect(link).toBeVisible();
+    await expect(link).toHaveAttribute("href", /^\/users\/[^/]+$/);
+    await expect(page.locator('main [role="link"][tabindex="0"]')).toHaveCount(0);
+    await link.focus();
+    const ring = await link.evaluate((el) => getComputedStyle(el.closest(".cd-user-card")!).outlineStyle);
+    expect(ring).toBe("solid");
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/users\/[^/]+$/);
   });
