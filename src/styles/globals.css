@@ -477,6 +477,19 @@
   }
 }
 
+/* UI10: the terminal's blinking underscore. Opacity only, so the compositor
+   runs it; it holds still (visible) under reduced motion. */
+@keyframes cd-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-cursor-blink {
+    animation: cd-cursor-blink 1s steps(1, end) infinite;
+  }
+}
+
 /* UI03 (decision 10): global reduced motion. A tiny duration rather than
    "none", so fill-mode end states still apply and animationend still fires.
    Spinners keep turning because they report status. Framer Motion and scripted
