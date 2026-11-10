@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { betterAuthRole, routeDocOwner } from "@/lib/auth-server";
+import { safeFetch, UnsafeUrlError } from "@/backend/net/safe-fetch";
 
 // =============================================================================
 // SUPPORTED PLATFORMS
@@ -813,9 +814,9 @@ async function serverTokenFor(parsed: ParsedRepo): Promise<string | undefined> {
   // The owner and repo come from the URL; a ".." would point the check, and the token, elsewhere.
   if (![parsed.owner, parsed.repo].every((part) => /^[\w.-]+$/.test(part) && !/^\.+$/.test(part))) return undefined;
   try {
-    const response = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
-      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-    });
+    const response = await safeFetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}`, "User-Agent": "CodeDetails" },
+    }, { maxBytes: 1024 * 1024 });
     if (!response.ok) return undefined;
     const repository = (await response.json()) as { private?: unknown };
     return repository.private === false ? token : undefined;
@@ -846,7 +847,10 @@ async function fetchRepoTree(parsed: ParsedRepo, token?: string): Promise<string
     }
   }
   
-  const response = await fetch(endpoint, { headers });
+  // H1: user-named hosts (self-hosted GitLab/Gitea) go through the SSRF guard,
+  // with a deadline and a size cap; a full GitHub tree can be several MB.
+  headers["User-Agent"] = "CodeDetails";
+  const response = await safeFetch(endpoint, { headers }, { timeoutMs: 15_000, maxBytes: 20 * 1024 * 1024 });
   
   if (!response.ok) {
     if (response.status === 404) {
@@ -889,7 +893,8 @@ async function fetchRawFile(parsed: ParsedRepo, path: string, token?: string): P
   }
   
   try {
-    const response = await fetch(endpoint, { headers });
+    headers["User-Agent"] = "CodeDetails";
+    const response = await safeFetch(endpoint, { headers }, { timeoutMs: 10_000, maxBytes: 1024 * 1024 });
     if (!response.ok) return null;
     return await response.text();
   } catch {
@@ -1089,6 +1094,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof UnsafeUrlError) {
+      return NextResponse.json(
+        { type: "https://httpstatuses.com/400", title: "Bad Request", status: 400, detail: error.message },
+        { status: 400 }
+      );
+    }
     console.error("Repo analyze error:", error);
     
     const message = error instanceof Error ? error.message : "Failed to analyze repository";

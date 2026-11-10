@@ -6,6 +6,7 @@
 import { NextRequest } from 'next/server';
 import { urlValidationRequestSchema } from '@/types/schemas';
 import { serverError, validationError, success } from '@/lib/api-errors';
+import { safeFetch, UnsafeUrlError } from '@/backend/net/safe-fetch';
 
 export async function POST(request: NextRequest) {
   try {
@@ -31,33 +32,20 @@ export async function POST(request: NextRequest) {
     const timeoutMs = 5000;
 
     try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), timeoutMs);
-
-      // Try HEAD request first
+      // H1: the URL is the visitor's, so it goes through the SSRF guard
+      // (public addresses only, every redirect checked, one deadline). Only
+      // the status matters, so the body is never read.
+      const headers = { 'User-Agent': 'Mozilla/5.0 (compatible; URLChecker/1.0)' };
+      const opts = { timeoutMs, discardBody: true };
       let response: Response;
       try {
-        response = await fetch(url, {
-          method: 'HEAD',
-          signal: controller.signal,
-          redirect: 'follow',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; URLChecker/1.0)',
-          },
-        });
+        response = await safeFetch(url, { method: 'HEAD', headers }, opts);
       } catch (headError) {
+        if (headError instanceof UnsafeUrlError) throw headError;
         // If HEAD fails, try GET
-        response = await fetch(url, {
-          method: 'GET',
-          signal: controller.signal,
-          redirect: 'follow',
-          headers: {
-            'User-Agent': 'Mozilla/5.0 (compatible; URLChecker/1.0)',
-          },
-        });
+        response = await safeFetch(url, { method: 'GET', headers }, opts);
       }
 
-      clearTimeout(timeout);
       const responseTime = Date.now() - startTime;
 
       // Consider successful responses and redirects as reachable
@@ -75,8 +63,12 @@ export async function POST(request: NextRequest) {
     } catch (error) {
       const responseTime = Date.now() - startTime;
 
+      if (error instanceof UnsafeUrlError) {
+        return success({ reachable: false, error: error.message, responseTime });
+      }
+
       if (error instanceof Error) {
-        if (error.name === 'AbortError') {
+        if (error.name === 'AbortError' || error.message === 'Request timed out') {
           return success({
             reachable: false,
             error: `Request timed out after ${timeoutMs}ms`,

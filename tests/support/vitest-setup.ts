@@ -14,6 +14,9 @@ Object.assign(process.env, env);
 
 const ALLOWED_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 const ALLOWED_PORTS = new Set([TEST_DB_PORT, TEST_CONVEX_PORT, TEST_CONVEX_SITE_PORT]);
+// H1: a test may open its own throwaway server on loopback and add that port
+// here (tests/support/loopback-port.ts). Hosts stay loopback-only.
+const TEST_OWNED_PORTS: Set<number> = ((globalThis as Record<symbol, unknown>)[Symbol.for("codedetails.testOwnedPorts")] ??= new Set<number>()) as Set<number>;
 
 function target(args: unknown[]): { host?: string; port?: number; path?: string } {
   // net.connect() and fetch hand Socket#connect one already-normalized array
@@ -31,7 +34,7 @@ function target(args: unknown[]): { host?: string; port?: number; path?: string 
 const originalConnect = net.Socket.prototype.connect;
 net.Socket.prototype.connect = function guardedConnect(this: net.Socket, ...args: unknown[]) {
   const t = target(args);
-  if (t.path || !t.host || !ALLOWED_HOSTS.has(t.host) || !ALLOWED_PORTS.has(t.port!)) {
+  if (t.path || !t.host || !ALLOWED_HOSTS.has(t.host) || !(ALLOWED_PORTS.has(t.port!) || TEST_OWNED_PORTS.has(t.port!))) {
     const where = t.path ?? `${t.host}:${t.port}`;
     throw new IsolationError([`outbound connection to ${where} refused; only 127.0.0.1:${TEST_DB_PORT}, :${TEST_CONVEX_PORT} and :${TEST_CONVEX_SITE_PORT} are allowed`]);
   }

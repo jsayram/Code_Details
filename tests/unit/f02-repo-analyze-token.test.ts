@@ -10,6 +10,19 @@ vi.mock("@/lib/auth-server", () => ({
   routeDocOwner: async () => (h.account ? { writeKey: h.account } : null),
 }));
 
+// H1: the route now fetches through safeFetch. Keep its URL checks, but send
+// the request to the fetch stand-in below instead of DNS and a socket.
+vi.mock("@/backend/net/safe-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/backend/net/safe-fetch")>();
+  return {
+    ...actual,
+    safeFetch: async (input: string, init: RequestInit = {}) => {
+      actual.checkOutboundUrl(input);
+      return fetch(input, init);
+    },
+  };
+});
+
 import { POST } from "@/app/api/repo/analyze/route";
 
 const GITHUB = "synthetic-github-token";
