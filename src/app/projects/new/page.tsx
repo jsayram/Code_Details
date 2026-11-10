@@ -1,11 +1,8 @@
 "use client";
 
 import React from "react";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import { AppShell } from "@/components/layout/AppShell";
 import { ProjectsProvider } from "@/providers/projects-provider";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { ProjectCreateComponent } from "@/components/Projects/ProjectComponents/ProjectCreateComponent";
 import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
@@ -52,16 +49,12 @@ export default function CreateProjectPage() {
 
   return (
     <ProjectsProvider userId={ownerId || null} isLoading={false}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
-          <ProtectedPage allowedTiers={PROTECTED_PAGES_TIERS}>
-            <ProjectCreateComponent userProfile={userProfile} />
-          </ProtectedPage>
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+      {/* UI08.2: the shared shell (it renders the same parts). */}
+      <AppShell>
+        <ProtectedPage allowedTiers={PROTECTED_PAGES_TIERS}>
+          <ProjectCreateComponent userProfile={userProfile} />
+        </ProtectedPage>
+      </AppShell>
     </ProjectsProvider>
   );
 }
