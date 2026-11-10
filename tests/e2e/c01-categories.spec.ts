@@ -171,12 +171,65 @@ test.describe.serial("C01 categories", () => {
     await expect(page.locator("#category-fields")).toContainText("Claude Haiku");
   });
 
+  test("a change that removes data names the fields first, then saves without them", async ({ page }) => {
+    // Pre-existing bug fixed in C01 at Jose's request: the dialog said hidden
+    // values were preserved, the client sent them, and the server refused the
+    // save. Now the dialog names what goes and the save leaves it out.
+    await releasePersona(A.subject!);
+    await linkPersona(A.subject!, (await authState(await signIn(page, "c01-owner-loss")))!.authUserId);
+    const pick = async (label: string) => {
+      await page.getByRole("combobox").first().click();
+      await page.getByRole("option", { name: label, exact: true }).click();
+    };
+    await page.goto("/projects/fixture-c01-agent?edit=true");
+
+    // Cancel keeps everything.
+    await pick("Generative AI Apps");
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toContainText("Fields Removed When You Save");
+    await dialog.getByRole("button", { name: "Cancel" }).click();
+    await expect(page.getByRole("combobox").first()).toHaveText("AI Agents & Assistants");
+
+    // Agent Type isn't in Generative AI Apps: named before saving. Models Used is shared: kept.
+    await pick("Generative AI Apps");
+    await expect(dialog.getByRole("note")).toContainText("the values in Agent Type will be deleted");
+    await expect(dialog).toContainText("Fields Kept");
+    await expect(dialog).toContainText("Models Used");
+    // The dialog itself: no axe findings, and its buttons are reachable (not covered).
+    const axe = await new AxeBuilder({ page }).withTags(WCAG).include('[role="dialog"]').analyze();
+    expect(axe.violations.map((v) => `${v.id}: ${v.nodes.map((n) => n.target.join(" ")).join(", ")}`)).toEqual([]);
+    await dialog.getByRole("region", { name: "Fields affected by the change" }).focus();
+    await page.keyboard.press("Tab");
+    await expect(dialog.getByRole("button", { name: "Cancel" })).toBeFocused();
+    await dialog.getByRole("button", { name: "Change Category" }).click();
+    await expect(page.getByRole("textbox", { name: "Models Used" })).toHaveValue("Claude Sonnet");
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByText("Project updated successfully!").first()).toBeVisible();
+
+    await page.goto("/projects/fixture-c01-agent");
+    await chipUsesToken(page, "generative-ai");
+    const details = page.locator("#category-fields");
+    await expect(details).toContainText("Claude Sonnet");
+    await expect(details).not.toContainText("Agent Type");
+    await expect(details).not.toContainText("MCP Server");
+
+    // The removed value is really gone: switching back offers Agent Type empty, with no warning.
+    await page.goto("/projects/fixture-c01-agent?edit=true");
+    await pick("AI Agents & Assistants");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    await page.getByRole("button", { name: "Add Field" }).click();
+    await expect(page.getByRole("menuitem", { name: "Agent Type", exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: /Agent Type.*has data/ })).toHaveCount(0);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: "Cancel" }).click();
+  });
+
   test("/categories lists 22 with live counts, by keyboard", async ({ page }) => {
     await page.goto("/categories");
     await expect(page.getByText("22 categories")).toBeVisible();
     await expect(page.locator(".cd-grid > li")).toHaveCount(22);
-    // The legacy ai-ml project, one created per new category, and the re-filed one.
-    for (const [key, n] of [["ai-agents", "2 projects"], ["generative-ai", "1 project"], ["libraries-frameworks", "1 project"], ["ai-ml", "1 project"]]) {
+        // ai-agents: the re-filed project; generative-ai: its own plus the moved agent.
+    for (const [key, n] of [["ai-agents", "1 project"], ["generative-ai", "2 projects"], ["libraries-frameworks", "1 project"], ["ai-ml", "1 project"]]) {
       await expect(page.locator(`[data-category="${key}"]`)).toContainText(n);
     }
     for (const [key, { label }] of Object.entries(PROJECT_CATEGORIES)) {
@@ -186,7 +239,7 @@ test.describe.serial("C01 categories", () => {
     await browse.focus();
     await page.keyboard.press("Enter");
     await expect(page).toHaveURL(/\/categories\/ai-agents$/);
-    await expect(page.locator(".project-card", { hasText: "Fixture C01 Agent" })).toBeVisible();
+    await expect(page.locator(".project-card", { hasText: "Fixture C01 Refile" })).toBeVisible();
     await expect(page.locator(".project-card", { hasText: "Fixture C01 GenAI" })).toHaveCount(0);
   });
 

@@ -4,7 +4,6 @@ import * as React from "react";
 import { AlertTriangle, Check, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   Dialog,
   DialogContent,
@@ -67,7 +66,8 @@ function analyzeFieldMigration(
   categoryData: Record<string, unknown> | undefined | null
 ): {
   keptFields: FieldMigrationInfo[];
-  lostFields: FieldMigrationInfo[];
+  removedFields: FieldMigrationInfo[];
+  droppedFields: FieldMigrationInfo[];
   newFields: FieldMigrationInfo[];
 } {
   const fromFields = getCategoryFields(fromCategory);
@@ -76,7 +76,11 @@ function analyzeFieldMigration(
   const commonFieldIds = new Set(COMMON_FIELDS.map((f) => f.id));
 
   const keptFields: FieldMigrationInfo[] = [];
-  const lostFields: FieldMigrationInfo[] = [];
+  // C01 (Jose): filled-in fields the new category doesn't have. Their values
+  // are removed when the project is saved, so the dialog names them first.
+  const removedFields: FieldMigrationInfo[] = [];
+  // Shown but empty fields the new category doesn't have: nothing is lost.
+  const droppedFields: FieldMigrationInfo[] = [];
 
   // Safely handle undefined/null currentFieldOrder
   const safeFieldOrder = currentFieldOrder ?? [];
@@ -88,16 +92,20 @@ function analyzeFieldMigration(
     if (!field) return;
 
     const hasData = hasFieldData(fieldId, safeCategoryData);
-    const isCommon = commonFieldIds.has(fieldId);
-    const existsInNewCategory = toFieldIds.has(fieldId);
-
-    if (isCommon || existsInNewCategory) {
-      // Field exists in new category - kept
+    if (commonFieldIds.has(fieldId) || toFieldIds.has(fieldId)) {
       keptFields.push({ field, hasData, status: "kept" });
+    } else if (hasData) {
+      removedFields.push({ field, hasData, status: "lost" });
     } else {
-      // Field doesn't exist in new category - will be hidden (data preserved)
-      lostFields.push({ field, hasData, status: "lost" });
+      droppedFields.push({ field, hasData, status: "lost" });
     }
+  });
+
+  // Filled-in fields that were hidden earlier are removed too.
+  Object.keys(safeCategoryData).forEach((fieldId) => {
+    if (safeFieldOrder.includes(fieldId) || toFieldIds.has(fieldId) || !hasFieldData(fieldId, safeCategoryData)) return;
+    const field = fromFields.find((f) => f.id === fieldId) ?? { id: fieldId, label: fieldId, type: "text" as const, isCommon: false };
+    removedFields.push({ field, hasData: true, status: "lost" });
   });
 
   // Find new fields available in the target category
@@ -106,7 +114,17 @@ function analyzeFieldMigration(
     .slice(0, 3) // Show top 3 new suggestions
     .map((field) => ({ field, hasData: false, status: "new" as const }));
 
-  return { keptFields, lostFields, newFields };
+  return { keptFields, removedFields, droppedFields, newFields };
+}
+
+/** C01: true when changing to `toCategory` would remove a filled-in value on save. */
+export function categoryChangeRemovesData(
+  toCategory: ProjectCategory,
+  categoryData: Record<string, unknown> | undefined | null
+): boolean {
+  const toFieldIds = new Set(getCategoryFields(toCategory).map((f) => f.id));
+  const data = categoryData ?? {};
+  return Object.keys(data).some((fieldId) => !toFieldIds.has(fieldId) && hasFieldData(fieldId, data));
 }
 
 // =============================================================================
@@ -122,7 +140,7 @@ export function CategoryChangeConfirmationModal({
   categoryData,
   onConfirm,
 }: CategoryChangeConfirmationModalProps) {
-  const { keptFields, lostFields, newFields } = React.useMemo(
+  const { keptFields, removedFields, droppedFields, newFields } = React.useMemo(
     () =>
       analyzeFieldMigration(
         fromCategory,
@@ -133,7 +151,7 @@ export function CategoryChangeConfirmationModal({
     [fromCategory, toCategory, currentFieldOrder, categoryData]
   );
 
-  const hasDataToLose = lostFields.some((f) => f.hasData);
+  const hasDataToLose = removedFields.length > 0;
 
   const handleConfirm = () => {
     // Build new field order: keep common + fields that exist in new category
@@ -168,8 +186,16 @@ export function CategoryChangeConfirmationModal({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4">
-          <ScrollArea className="max-h-80 pr-4">
+        {/* C01: a plain scroll region. The ScrollArea here never limited its
+            height, so a long list ran over the buttons. Focusable so the
+            keyboard can scroll it. */}
+        <div className="py-2">
+          <div
+            className="max-h-[min(20rem,50vh)] overflow-y-auto pr-2"
+            tabIndex={0}
+            role="region"
+            aria-label="Fields affected by the change"
+          >
             <div className="space-y-4">
               {/* Fields that will be kept */}
               {keptFields.length > 0 && (
@@ -181,13 +207,23 @@ export function CategoryChangeConfirmationModal({
                 />
               )}
 
-              {/* Fields that will be hidden */}
-              {lostFields.length > 0 && (
+              {/* Filled-in fields the new category doesn't have */}
+              {removedFields.length > 0 && (
                 <FieldSection
-                  title="Fields Hidden"
-                  subtitle="These fields will be hidden but data is preserved"
-                  fields={lostFields}
+                  title="Fields Removed When You Save"
+                  subtitle={`${getCategoryLabel(toCategory)} doesn't have these fields, so their values are deleted when you save the project`}
+                  fields={removedFields}
                   variant="warning"
+                />
+              )}
+
+              {/* Empty fields the new category doesn't have */}
+              {droppedFields.length > 0 && (
+                <FieldSection
+                  title="Empty Fields Hidden"
+                  subtitle="Nothing is filled in here, so nothing is lost"
+                  fields={droppedFields}
+                  variant="info"
                 />
               )}
 
@@ -201,21 +237,21 @@ export function CategoryChangeConfirmationModal({
                 />
               )}
 
-              {/* Data preservation notice */}
+              {/* What happens to the removed values */}
               {hasDataToLose && (
-                <div className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
+                <div role="note" className="rounded-md bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 p-3">
                   <p className="text-sm text-amber-800 dark:text-amber-200">
-                    <strong>Note:</strong> Hidden field data is preserved indefinitely.
-                    You can recover it by switching back to{" "}
-                    <span className="font-medium">
-                      {getCategoryLabel(fromCategory)}
-                    </span>{" "}
-                    and re-adding the fields.
+                    <strong>Before you save:</strong> the values in{" "}
+                    {removedFields.map((f) => f.field.label).join(", ")} will be deleted.
+                    Fields both categories share keep their values. To keep everything,
+                    switch back to{" "}
+                    <span className="font-medium">{getCategoryLabel(fromCategory)}</span>{" "}
+                    or cancel the edit before saving.
                   </p>
                 </div>
               )}
             </div>
-          </ScrollArea>
+          </div>
         </div>
 
         <DialogFooter className="gap-2 sm:gap-0">
@@ -319,19 +355,13 @@ export function useCategoryChange({
       const safeFieldOrder = currentFieldOrder ?? [];
       const safeCategoryData = categoryData ?? {};
 
-      // Check if there are any category-specific fields with data
-      const fromFields = getCategoryFields(fromCategory);
       const commonFieldIds = new Set(COMMON_FIELDS.map((f) => f.id));
       const toFieldIds = new Set(getCategoryFields(toCategory).map((f) => f.id));
 
-      const willLoseVisibleFieldsWithData = safeFieldOrder.some((fieldId) => {
-        const isCommon = commonFieldIds.has(fieldId);
-        const existsInNew = toFieldIds.has(fieldId);
-        const hasData = hasFieldData(fieldId, safeCategoryData);
-        return !isCommon && !existsInNew && hasData;
-      });
+      // C01: any filled-in value the new category doesn't define, shown or hidden.
+      const willRemoveData = categoryChangeRemovesData(toCategory, safeCategoryData);
 
-      if (willLoseVisibleFieldsWithData) {
+      if (willRemoveData) {
         // Show confirmation modal
         setModalState({
           open: true,

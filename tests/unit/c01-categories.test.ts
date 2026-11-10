@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
-import { CATEGORY_FIELDS, COMMON_FIELDS, getCategoryFields, getCategorySpecificFields } from "@/constants/project-category-fields";
+import { CATEGORY_FIELDS, COMMON_FIELDS, categoryDataFor, getCategoryFields, getCategorySpecificFields } from "@/constants/project-category-fields";
 import { createProjectSchema, projectQuerySchema, updateProjectSchema } from "@/types/schemas/project";
 import { checkCategoryData, isKnownCategory, normalizeProjectPatch } from "@/backend/projects/project-update-rules";
 
@@ -113,5 +113,14 @@ describe("C01 field sets", () => {
     }
     expect(checkCategoryData(key, data, Object.keys(data), { strictKeys: true })).toEqual([]);
     expect(checkCategoryData(key, { browserSupport: ["chrome"] }, null, { strictKeys: true })).toEqual([{ field: "category_data", message: "Unknown field for this category: browserSupport" }]);
+  });
+
+  it("categoryDataFor keeps common and shared fields and drops the rest (the save path)", () => {
+    const data = { techStack: ["Node"], agentType: "mcp-server", modelArchitecture: "Claude" };
+    expect(categoryDataFor("generative-ai", data)).toEqual({ techStack: ["Node"], modelArchitecture: "Claude" });
+    expect(categoryDataFor("ai-agents", data)).toEqual(data);
+    // What it keeps always passes the server's strict check.
+    const kept = categoryDataFor("web", data);
+    expect(checkCategoryData("web", kept, Object.keys(kept), { strictKeys: true })).toEqual([]);
   });
 });

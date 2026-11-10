@@ -1461,6 +1461,17 @@ export const CATEGORY_FIELDS: Record<ProjectCategory, CategoryFieldDefinition[]>
 };
 
 /**
+ * C01 (Jose): the categoryData a project may save under `category`. Keys the
+ * category doesn't define are left out, because the server refuses them
+ * (strict keys since D02). Common fields and ids two categories share carry
+ * over. The category-change dialog lists the filled-in fields this removes.
+ */
+export function categoryDataFor<T>(category: ProjectCategory, data: Record<string, T>): Record<string, T> {
+  const ids = new Set(getCategoryFields(category).map((f) => f.id));
+  return Object.fromEntries(Object.entries(data).filter(([key]) => ids.has(key)));
+}
+
+/**
  * Get fields for a specific category
  */
 export function getCategoryFields(category: ProjectCategory): CategoryFieldDefinition[] {

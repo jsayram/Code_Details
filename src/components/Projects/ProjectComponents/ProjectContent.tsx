@@ -19,6 +19,7 @@ import {
   PROJECT_CATEGORIES,
   ProjectCategory,
 } from "@/constants/project-categories";
+import { categoryDataFor } from "@/constants/project-category-fields";
 import { PROJECT_TEXT_LIMITS } from "@/constants/project-limits";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -205,8 +206,9 @@ export function ProjectContent({
       const newCategory = value as ProjectCategory;
       const currentCategory = formData.category;
 
-      // If there's category data or field order, use the modal for confirmation
-      if (fieldOrder.length > 0 && currentCategory !== newCategory) {
+      // If there's category data or field order, use the modal for confirmation.
+      // C01: hidden fields with values count too, since saving removes them.
+      if ((fieldOrder.length > 0 || Object.keys(categoryData).length > 0) && currentCategory !== newCategory) {
         requestCategoryChange(
           currentCategory,
           newCategory,
@@ -608,7 +610,10 @@ export function ProjectContent({
         category: formData.category,
         tags: selectedTags.map((tag) => tag.name),
         url_links: validLinks,
-        category_data: categoryData,
+        // C01 (Jose): only the fields the saved category defines. The server
+        // refuses any other key, and the category-change dialog has already
+        // named the filled-in fields this removes.
+        category_data: categoryDataFor(formData.category, categoryData),
         field_order: fieldOrder,
       };
 
