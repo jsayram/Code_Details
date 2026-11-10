@@ -132,6 +132,7 @@ Lessons from the showcase (UI06):
 - A section that loads later (images, linked docs) should only exist once it has content, and the contents list watches the page for it, so the list never offers an empty section.
 - A dialog opened from state rather than a Radix trigger needs its opener remembered to put focus back.
 - When a button shows text (a count, "Image unavailable"), its name must contain that text. Prefer screen-reader text inside the button to `aria-label`.
+- Don't add a `loading.tsx` to a route that can call `notFound()` (the project page). The loading boundary streams the response, so the 200 status is sent before `notFound()` runs and private, deleted and unknown projects stop answering 404. Use a `Suspense` fallback inside the page instead.
 - A view that shares a component with an editor (the project page and its edit mode) can scope only the view: `isEditMode ? old classes : "cd-foundations cd-canvas"`, with `display: contents` on the inner wrapper so the editor doesn't move.
 
 The block of legacy variables in `foundations.css` points shadcn's variables at the new tokens inside the scope, so `ui/button`, `ui/card` and the rest need no edits. Once every screen has adopted it, the tokens can move to `:root` and the scope class can go.
