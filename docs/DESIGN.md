@@ -152,7 +152,7 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 Lessons from UI09:
 
 - A client page that imports a barrel (`@/repoScrapper`) bundles everything the barrel exports. After H1, the barrel included the server crawler and `node:dns`, and `/github-scrapper` answered 500 in development. Import the one client-safe module (`@/repoScrapper/crawler`).
-- Clickable cards that open a page and can't become real links without restructuring can at least be `role="link"` with `tabIndex={0}` and Enter (the `/users` cards). A real link is still better when the card is next rebuilt.
+- A clickable card that opens a page gets a real link: the card's name is the anchor and its `::after` covers the card, with the focus ring drawn on the card while the link has focus (`.cd-project-card-link`, and since UI11 `.cd-user-card-link` on `/users`). That keeps open in new tab and the link menu, which a `role="link"` div loses.
 - JSX keeps a literal `\n` typed into markup as text: the old admin loading screen rendered one.
 
 ## Adopting the foundations on a screen
