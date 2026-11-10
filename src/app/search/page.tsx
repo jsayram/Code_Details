@@ -180,7 +180,7 @@ function Group({ id, icon, title, count, children }: { id: string; icon: ReactNo
   );
 }
 
-function SearchContent() {
+function SearchContent({ signedIn }: { signedIn: boolean }) {
   const { tags: allTags, isLoading: tagsLoading, error: tagsError, refreshTags } = useTags();
   const { categoryCounts, isLoading: categoryCountsLoading, error: countsError, refreshCounts } = useCategoryCounts();
   const { profiles, isLoading: profilesLoading, error: profilesError, refreshProfiles } = useProfiles();
@@ -270,11 +270,14 @@ function SearchContent() {
   const showEmptyState = !hasSearched && !debouncedSearchQuery.trim();
   const q = debouncedSearchQuery;
   // A list that failed shows as a failure, not as "no results" (UI02 defect 4's pattern).
-  const failedLists = [tagsError && "tags", countsError && "category counts", profilesError && "people"].filter(Boolean) as string[];
+  // The people list needs a session (/api/profiles answers 401 signed out), so
+  // signed out it is simply absent, as before, and not reported as a failure.
+  const peopleFailed = signedIn && Boolean(profilesError);
+  const failedLists = [tagsError && "tags", countsError && "category counts", peopleFailed && "people"].filter(Boolean) as string[];
   const retryFailed = () => {
     if (tagsError) void refreshTags();
     if (countsError) void refreshCounts();
-    if (profilesError) void refreshProfiles();
+    if (peopleFailed) void refreshProfiles();
   };
 
   const open = (id: string) => () => setLoadingItem(id);
@@ -518,7 +521,7 @@ export default function SearchPage() {
   return (
     <ProjectsProvider userId={viewer.userId}>
       <AppShell>
-        <SearchContent />
+        <SearchContent signedIn={!!viewer.userId} />
       </AppShell>
     </ProjectsProvider>
   );
