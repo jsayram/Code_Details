@@ -63,6 +63,18 @@ export interface ImageView {
 
 export type ImageFailure = { ok: false; code: "not_found" | "private_project" | "limit" | "invalid"; message?: string };
 
+const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+
+/**
+ * H1 privacy: the name every caller sees for an image, built from its kind,
+ * id and type. The uploader's own file name ("passport-scan.png") is never
+ * returned; rows from before H1 may still hold one in storage (see
+ * scripts/h1-image-names-dry-run.ts).
+ */
+export function neutralFileName(kind: ImageKind, mimeType: string, id: string): string {
+  return `${kind}-${id.slice(-6)}.${EXTENSIONS[mimeType] ?? "img"}`;
+}
+
 async function toView(ctx: QueryCtx, image: Doc<"projectImages">): Promise<ImageView> {
   return {
     id: image._id,
@@ -70,7 +82,7 @@ async function toView(ctx: QueryCtx, image: Doc<"projectImages">): Promise<Image
     kind: image.kind,
     url: await ctx.storage.getUrl(image.storageId),
     displayOrder: image.displayOrder,
-    fileName: image.fileName,
+    fileName: neutralFileName(image.kind, image.mimeType, image._id),
     mimeType: image.mimeType,
     size: image.size,
     width: image.width ?? null,
@@ -180,6 +192,8 @@ export const attach = mutation({
       await ctx.storage.delete(storageId);
       return { ok: false, code: "invalid", message: `Images must be ${ALLOWED_IMAGE_TYPES.join(", ")} and at most 5MB` };
     }
+    // The client's name is still checked (old clients send it), but H1 stores
+    // only a neutral one: what the uploader called the file stays with them.
     const fileName = cleanFileName(args.fileName);
     if (
       !fileName ||
@@ -205,7 +219,7 @@ export const attach = mutation({
       storageId,
       kind: args.kind,
       displayOrder: args.kind === "cover" || args.kind === "logo" ? 0 : current.length,
-      fileName,
+      fileName: `${args.kind}.${EXTENSIONS[contentType] ?? "img"}`,
       mimeType: contentType,
       size: file.size,
       uploadedBy: viewer.userId,

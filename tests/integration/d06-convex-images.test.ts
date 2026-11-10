@@ -92,7 +92,9 @@ describe.skipIf(!convexAvailable())("D06-b Convex images", () => {
       expect(await attach(asA(), listed(), storageId, "screenshot", extra), JSON.stringify(extra).slice(0, 40)).toMatchObject({ ok: false, code: "invalid" });
     }
     expect((await attach(asA(), listed(), storageId, "screenshot", { fileName: "../../etc/passwd" })).ok).toBe(true);
-    expect((await asA().query(fn.list, { projectId: listed() }))![0].fileName).toBe(".._.._etc_passwd");
+    // H1: the uploader's name is never stored or shown, only a neutral one.
+    const [view] = (await asA().query(fn.list, { projectId: listed() }))!;
+    expect(view.fileName).toBe(`screenshot-${view.id.slice(-6)}.png`);
   });
 
   it("no images on a private project", async () => {
