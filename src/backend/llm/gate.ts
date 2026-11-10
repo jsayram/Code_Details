@@ -4,9 +4,10 @@
 // - Every provider call first takes one unit of the per-user and global daily
 //   caps in Convex (llmUsage:reserve; persistent, serializable), and is closed
 //   with its outcome (llmUsage:finish). Never the prompt or the answer.
-// - A caller-supplied base URL may only point at this machine (a local model
-//   server such as Ollama); anything else is refused, so the server can't be
-//   made to send requests (with its keys) to an arbitrary host.
+// - A caller-supplied base URL must be on CODEDETAILS_LLM_BASE_URL_ALLOWLIST,
+//   or (outside production only) point at this machine (a local model server
+//   such as Ollama); anything else is refused, so the server can't be made to
+//   send requests (with its keys) to an arbitrary host.
 // Anything that can't be checked is refused. Server-side only.
 import { makeFunctionReference } from "convex/server";
 import { betterAuthRole, routeDocOwner, viewerMutation } from "@/lib/auth-server";
@@ -59,7 +60,26 @@ export async function reserveLlmCall(provider: unknown, model: unknown): Promise
 
 const LOOPBACK = new Set(["127.0.0.1", "localhost", "[::1]"]);
 
-/** Null when the caller's base URL is absent or points at this machine; else why it is refused. */
+/** Origins listed in CODEDETAILS_LLM_BASE_URL_ALLOWLIST (comma-separated); bad entries are ignored. */
+function allowlistedOrigins(): Set<string> {
+  const origins = new Set<string>();
+  for (const entry of (process.env.CODEDETAILS_LLM_BASE_URL_ALLOWLIST ?? "").split(",")) {
+    try {
+      if (entry.trim()) origins.add(new URL(entry.trim()).origin);
+    } catch {
+      /* ignore */
+    }
+  }
+  return origins;
+}
+
+/**
+ * Null when the caller's base URL is absent or allowed; else why it is refused.
+ * Allowed (H1): an origin on CODEDETAILS_LLM_BASE_URL_ALLOWLIST, or, outside
+ * production only, a model server on this machine's loopback. A hosted server
+ * has no business calling its own loopback for a visitor, so production
+ * refuses it unless that exact origin is listed.
+ */
 export function baseUrlProblem(value: unknown): GateRefusal | null {
   if (value === undefined || value === null || value === "") return null;
   let url: URL;
@@ -68,10 +88,11 @@ export function baseUrlProblem(value: unknown): GateRefusal | null {
   } catch {
     return refuse(400, "validation-error", "Validation Error", "The base URL is not a valid URL");
   }
-  if ((url.protocol !== "http:" && url.protocol !== "https:") || !LOOPBACK.has(url.hostname) || url.username || url.password) {
-    return refuse(400, "validation-error", "Validation Error", "A custom base URL may only point at a local model server on this machine");
-  }
-  return null;
+  const refusal = refuse(400, "validation-error", "Validation Error", "This base URL is not on the server's list of allowed model servers");
+  if ((url.protocol !== "http:" && url.protocol !== "https:") || url.username || url.password) return refusal;
+  if (allowlistedOrigins().has(url.origin)) return null;
+  if (process.env.NODE_ENV !== "production" && LOOPBACK.has(url.hostname)) return null;
+  return refusal;
 }
 
 /** The thrown form of a refusal, for code that reports errors by throwing (the docs flow). */

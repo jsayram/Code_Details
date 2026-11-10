@@ -17,7 +17,11 @@ export default async function proxy(req: NextRequest) {
   const decision = betterAuthDecision({ pathname, search: req.nextUrl.search, isPublic, isAdmin: isAdminPath(pathname), viewer });
   if (decision.kind === "redirect") return NextResponse.redirect(new URL(decision.location, req.url));
   if (decision.kind === "unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "cache-control": "no-store" } });
-  return NextResponse.next();
+  const next = NextResponse.next();
+  // H1: an API answer behind sign-in is never for a shared cache (CDN, proxy).
+  // Public and auth routes set their own headers.
+  if (!isPublic && (pathname === "/api" || pathname.startsWith("/api/"))) next.headers.set("cache-control", "private, no-store");
+  return next;
 }
 
 export const config = {

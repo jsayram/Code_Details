@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { betterAuthRole, routeDocOwner } from "@/lib/auth-server";
+import { safeFetch, UnsafeUrlError } from "@/backend/net/safe-fetch";
 
 // =============================================================================
 // SUPPORTED PLATFORMS
@@ -801,21 +802,47 @@ function shuffleArray<T>(array: T[]): T[] {
  * supplies their own for anything private. Without this check any signed-in
  * account could learn about repositories only the server's token can read, and
  * could send GITLAB_TOKEN or GITEA_TOKEN to a host they picked ("gitlab.evil.com").
- * An admin may use them anywhere. Anyone else gets the GitHub token on public
+ * H1: no token, an admin's included, goes to a host outside tokenMayGoTo. Anyone else gets the GitHub token on public
  * GitHub repositories only, so those keep the server's rate limit. When the
  * check can't tell, there's no token.
  */
+/** Comma-separated host names from an env var, lowercased. */
+function hostList(name: string): string[] {
+  return (process.env[name] ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+}
+
+/**
+ * H1: the hosts each server token may be sent to, for everyone, admins too.
+ * GitHub's only to github.com; GitLab's to gitlab.com plus GITLAB_TOKEN_HOSTS;
+ * Gitea's only to GITEA_TOKEN_HOSTS (none by default). The other platforms
+ * have one fixed host, so their tokens can't be pointed anywhere else.
+ */
+function tokenMayGoTo(parsed: Pick<ParsedRepo, "platform" | "host">): boolean {
+  const host = parsed.host.toLowerCase();
+  switch (parsed.platform) {
+    case "github":
+      return host === "github.com";
+    case "gitlab":
+      return host === "gitlab.com" || hostList("GITLAB_TOKEN_HOSTS").includes(host);
+    case "gitea":
+      return hostList("GITEA_TOKEN_HOSTS").includes(host);
+    default:
+      return true;
+  }
+}
+
 async function serverTokenFor(parsed: ParsedRepo): Promise<string | undefined> {
   const token = process.env[PLATFORM_CONFIGS[parsed.platform].tokenEnvVar];
   if (!token) return undefined;
+  if (!tokenMayGoTo(parsed)) return undefined;
   if ((await betterAuthRole()) === "admin") return token;
   if (parsed.platform !== "github") return undefined;
   // The owner and repo come from the URL; a ".." would point the check, and the token, elsewhere.
   if (![parsed.owner, parsed.repo].every((part) => /^[\w.-]+$/.test(part) && !/^\.+$/.test(part))) return undefined;
   try {
-    const response = await fetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
-      headers: { Accept: "application/json", Authorization: `Bearer ${token}` },
-    });
+    const response = await safeFetch(`https://api.github.com/repos/${parsed.owner}/${parsed.repo}`, {
+      headers: { Accept: "application/json", Authorization: `Bearer ${token}`, "User-Agent": "CodeDetails" },
+    }, { maxBytes: 1024 * 1024 });
     if (!response.ok) return undefined;
     const repository = (await response.json()) as { private?: unknown };
     return repository.private === false ? token : undefined;
@@ -846,7 +873,10 @@ async function fetchRepoTree(parsed: ParsedRepo, token?: string): Promise<string
     }
   }
   
-  const response = await fetch(endpoint, { headers });
+  // H1: user-named hosts (self-hosted GitLab/Gitea) go through the SSRF guard,
+  // with a deadline and a size cap; a full GitHub tree can be several MB.
+  headers["User-Agent"] = "CodeDetails";
+  const response = await safeFetch(endpoint, { headers }, { timeoutMs: 15_000, maxBytes: 20 * 1024 * 1024 });
   
   if (!response.ok) {
     if (response.status === 404) {
@@ -889,7 +919,8 @@ async function fetchRawFile(parsed: ParsedRepo, path: string, token?: string): P
   }
   
   try {
-    const response = await fetch(endpoint, { headers });
+    headers["User-Agent"] = "CodeDetails";
+    const response = await safeFetch(endpoint, { headers }, { timeoutMs: 10_000, maxBytes: 1024 * 1024 });
     if (!response.ok) return null;
     return await response.text();
   } catch {
@@ -1089,6 +1120,12 @@ export async function POST(request: NextRequest) {
       },
     });
   } catch (error) {
+    if (error instanceof UnsafeUrlError) {
+      return NextResponse.json(
+        { type: "https://httpstatuses.com/400", title: "Bad Request", status: 400, detail: error.message },
+        { status: 400 }
+      );
+    }
     console.error("Repo analyze error:", error);
     
     const message = error instanceof Error ? error.message : "Failed to analyze repository";

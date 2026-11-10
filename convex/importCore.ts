@@ -11,6 +11,7 @@
 //     record an importReject and go on. Rows are never merged or reassigned.
 //   - otherwise insert and map.
 
+import { storedNeutralName } from "./imageNames";
 export const DAY_MS = 24 * 60 * 60 * 1000;
 /** §5.3: an imported previous username stays reserved for 90 days from the import. */
 export const USERNAME_RESERVATION_MS = 90 * DAY_MS;
@@ -268,10 +269,12 @@ async function importRow(store: ImportStore, run: { startedAt: number }, step: S
       // §3.10: private projects get no images until an access-checked route exists.
       if (p!.visibility !== "public") return "private_project_image";
       const meta = await store.storageMeta(file.id);
+      const mimeType = meta!.contentType ?? "application/octet-stream";
       const id = await store.insert("projectImages", {
         projectId: project.id, storageId: file.id, kind: r.kind, displayOrder: r.displayOrder, altText: r.altText, caption: r.caption,
-        width: r.width, height: r.height, aspectRatio: r.aspectRatio, fileName: r.fileName,
-        mimeType: meta!.contentType ?? "application/octet-stream", size: meta!.size, uploadedBy: uploader,
+        // H1 privacy: the source's file name is never stored, only kind.ext (as attach does).
+        width: r.width, height: r.height, aspectRatio: r.aspectRatio, fileName: storedNeutralName(r.kind, mimeType),
+        mimeType, size: meta!.size, uploadedBy: uploader,
         status: r.status, deletedAt: r.deletedAt, createdAt: r.createdAt,
       });
       await store.map("project_images", r.sourceId, "projectImages", id, r.rowHash);

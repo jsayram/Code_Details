@@ -21,6 +21,7 @@ import type * as favorites from "../favorites.js";
 import type * as fixtures from "../fixtures.js";
 import type * as http from "../http.js";
 import type * as identity from "../identity.js";
+import type * as imageNames from "../imageNames.js";
 import type * as importCore from "../importCore.js";
 import type * as importer from "../importer.js";
 import type * as llmUsage from "../llmUsage.js";
@@ -56,6 +57,7 @@ declare const fullApi: ApiFromModules<{
   fixtures: typeof fixtures;
   http: typeof http;
   identity: typeof identity;
+  imageNames: typeof imageNames;
   importCore: typeof importCore;
   importer: typeof importer;
   llmUsage: typeof llmUsage;

@@ -28,6 +28,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getViewer, type Viewer } from "./viewer";
 import { ORPHAN_MIN_AGE_MS, ORPHAN_SWEEP_BATCH, sweepAllowed } from "../src/backend/projects/image-sweep-rules";
+import { neutralFileName, storedNeutralName } from "./imageNames";
 
 export const IMAGE_KINDS = ["cover", "screenshot", "diagram", "logo"] as const;
 export type ImageKind = (typeof IMAGE_KINDS)[number];
@@ -70,7 +71,7 @@ async function toView(ctx: QueryCtx, image: Doc<"projectImages">): Promise<Image
     kind: image.kind,
     url: await ctx.storage.getUrl(image.storageId),
     displayOrder: image.displayOrder,
-    fileName: image.fileName,
+    fileName: neutralFileName(image.kind, image.mimeType, image._id),
     mimeType: image.mimeType,
     size: image.size,
     width: image.width ?? null,
@@ -180,6 +181,8 @@ export const attach = mutation({
       await ctx.storage.delete(storageId);
       return { ok: false, code: "invalid", message: `Images must be ${ALLOWED_IMAGE_TYPES.join(", ")} and at most 5MB` };
     }
+    // The client's name is still checked (old clients send it), but H1 stores
+    // only a neutral one: what the uploader called the file stays with them.
     const fileName = cleanFileName(args.fileName);
     if (
       !fileName ||
@@ -205,7 +208,7 @@ export const attach = mutation({
       storageId,
       kind: args.kind,
       displayOrder: args.kind === "cover" || args.kind === "logo" ? 0 : current.length,
-      fileName,
+      fileName: storedNeutralName(args.kind, contentType),
       mimeType: contentType,
       size: file.size,
       uploadedBy: viewer.userId,

@@ -14,6 +14,7 @@ import {
 } from './errors';
 import { parseGitHubUrl, DEFAULT_MAX_FILE_SIZE } from './crawler';
 import { minimatch } from 'minimatch';
+import { safeFetch } from '@/backend/net/safe-fetch';
 
 // ============================================================================
 // Types
@@ -131,6 +132,12 @@ export async function serverGithubCrawler(options: CrawlerOptions): Promise<Craw
   }
 
   const { owner, repo, branch } = parsed;
+  // H1: these go into api.github.com paths next to the server's token; a ".."
+  // or an odd character could point the request at another GitHub endpoint.
+  const segment = /^(?!\.+$)[\w.-]+$/;
+  if (!segment.test(owner) || !segment.test(repo) || (branch && (!/^[\w./-]+$/.test(branch) || branch.split('/').some((p) => !p || /^\.+$/.test(p))))) {
+    throw crawlerError(`Invalid GitHub URL: ${repoUrl}. Expected format: https://github.com/owner/repo or owner/repo`);
+  }
   console.log('[Server Crawler] Parsed:', { owner, repo, branch });
   console.log('[Server Crawler] Will fetch from:', `https://api.github.com/repos/${owner}/${repo}`);
 
@@ -170,9 +177,10 @@ export async function serverGithubCrawler(options: CrawlerOptions): Promise<Craw
     let targetBranch = branch;
     if (!targetBranch) {
       console.log('[Server Crawler] Fetching default branch...');
-      const repoResponse = await fetch(
+      const repoResponse = await safeFetch(
         `https://api.github.com/repos/${owner}/${repo}`,
-        { headers }
+        { headers },
+        { timeoutMs: 15_000, maxBytes: 1024 * 1024 }
       );
       stats.api_requests = (stats.api_requests || 0) + 1;
 
@@ -193,9 +201,10 @@ export async function serverGithubCrawler(options: CrawlerOptions): Promise<Craw
 
     // 2. Get the full tree recursively
     console.log('[Server Crawler] Fetching tree for branch:', targetBranch);
-    const treeResponse = await fetch(
+    const treeResponse = await safeFetch(
       `https://api.github.com/repos/${owner}/${repo}/git/trees/${targetBranch}?recursive=1`,
-      { headers }
+      { headers },
+      { timeoutMs: 30_000, maxBytes: 50 * 1024 * 1024 }
     );
     stats.api_requests = (stats.api_requests || 0) + 1;
 
@@ -262,9 +271,11 @@ export async function serverGithubCrawler(options: CrawlerOptions): Promise<Craw
       
       const batchPromises = batch.map(async (item) => {
         try {
-          const blobResponse = await fetch(
+          const blobResponse = await safeFetch(
             `https://api.github.com/repos/${owner}/${repo}/git/blobs/${item.sha}`,
-            { headers }
+            { headers },
+            // base64 is 4/3 of the file, plus the JSON around it
+            { timeoutMs: 20_000, maxBytes: Math.ceil(maxFileSize * 1.4) + 64 * 1024 }
           );
           stats.api_requests = (stats.api_requests || 0) + 1;
 
