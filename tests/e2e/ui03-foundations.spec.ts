@@ -108,20 +108,18 @@ test.describe("preview page", () => {
   });
 });
 
+// UI05: the shared shell now loads the stylesheet on every page, so the
+// isolation that matters is that page content outside the shell stays
+// unscoped until the page adopts the foundations.
 test.describe("isolation from existing pages", () => {
   for (const path of ["/", "/sign-in", "/search"]) {
-    test(`${path} loads no foundations styles`, async ({ page }) => {
+    test(`${path} keeps its content outside the foundations scope`, async ({ page }) => {
       await page.goto(path);
-      const found = await page.evaluate(() =>
-        [...document.styleSheets].some((sheet) => {
-          try {
-            return [...sheet.cssRules].some((rule) => rule.cssText.includes("cd-foundations"));
-          } catch {
-            return false;
-          }
-        }),
+      await expect(page.locator('[data-shell="header"].cd-foundations')).toHaveCount(1);
+      const scopedContent = await page.evaluate(() =>
+        [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch')).length,
       );
-      expect(found).toBe(false);
+      expect(scopedContent).toBe(0);
     });
   }
 });

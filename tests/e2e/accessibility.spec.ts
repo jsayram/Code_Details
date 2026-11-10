@@ -35,10 +35,10 @@ for (const [path, known] of Object.entries(KNOWN)) {
   });
 }
 
-// What axe can't prove: keyboard reachability. In a real browser, Tab from the
-// top of the homepage reaches Sign In but never the theme switch, which is a
-// div with role=switch and no tabIndex (known gap, see B03 and d767a4b).
-test("keyboard: Tab reaches Sign In but not the theme switch (known gap)", async ({ page }) => {
+// What axe can't prove: keyboard reachability. Tab from the top of the
+// homepage reaches the theme switch and Sign In. Before UI05 the switch was a
+// div with no tabIndex (B03's known gap); it's a real button now.
+test("keyboard: Tab reaches the theme switch and Sign In", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("heading", { level: 1, name: "{ Details }" })).toBeVisible();
 
@@ -55,5 +55,5 @@ test("keyboard: Tab reaches Sign In but not the theme switch (known gap)", async
   }
   test.info().annotations.push({ type: "tab-order", description: reached.join(" | ") });
   expect(reached.some((r) => /Sign In/.test(r))).toBe(true);
-  expect(reached.some((r) => r.startsWith("switch:"))).toBe(false);
+  expect(reached.some((r) => r.startsWith("switch:"))).toBe(true);
 });

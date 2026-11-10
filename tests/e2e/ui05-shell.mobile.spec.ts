@@ -1,6 +1,15 @@
 // UI05: the shell's phone menu (Pixel 7 emulation in Chrome, not a real device).
-import { freshClientIp, TEST_CLIENT_IP_HEADER } from "../fixtures/better-auth";
-import { expect, overflowingContent, test } from "./support";
+import type { Page } from "@playwright/test";
+import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { BASE_URL, expect, overflowingContent, test } from "./support";
+
+async function signIn(page: Page, label: string) {
+  const headers = { origin: BASE_URL };
+  const email = syntheticEmail(label);
+  expect((await page.request.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+  await verifyEmail(email);
+  expect((await page.request.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+}
 
 test.beforeEach(async ({ context }) => {
   await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
@@ -19,7 +28,8 @@ test("signed out: the menu button opens the sidebar sheet with Sign In; Escape c
   await page.keyboard.press("Enter");
   const sheet = page.locator('[data-mobile="true"]');
   await expect(sheet).toBeVisible();
-  await expect(open).toHaveAttribute("aria-expanded", "true");
+  // While the sheet is open, Radix hides the rest of the page from the accessibility tree.
+  await expect(header.locator('button[aria-haspopup="dialog"]')).toHaveAttribute("aria-expanded", "true");
   for (const name of ["Search", "Categories", "Tags", "Users", "Projects", "About Developer"]) {
     await expect(sheet.getByRole("link", { name, exact: true })).toBeVisible();
   }
@@ -35,18 +45,20 @@ test("signed out: the menu button opens the sidebar sheet with Sign In; Escape c
   await expect(page).toHaveURL(/\/tags$/);
 });
 
-test("the project page's phone menu is hidden while closed and closes on Escape", async ({ page }) => {
-  await page.goto("/projects/fixture-listed");
+test("the no-sidebar header's phone menu is hidden while closed and closes on Escape", async ({ page }) => {
+  // About, Support and Community use the menu; they're signed-in pages.
+  await signIn(page, "ui05-panel");
+  await page.goto("/community");
   const header = page.locator('[data-shell="header"]');
   const open = header.getByRole("button", { name: "Open menu" });
   await expect(open).toBeVisible();
-  // Closed: the panel's Sign In isn't visible, so Tab can't land on it.
-  const signIn = header.getByRole("button", { name: "Sign In" }).filter({ visible: true });
-  await expect(signIn).toHaveCount(0);
+  // Closed: the panel's Sign Out isn't visible, so Tab can't land on it.
+  const signOut = header.getByRole("button", { name: "Sign Out" }).filter({ visible: true });
+  await expect(signOut).toHaveCount(0);
   await open.click();
   await expect(header.getByRole("button", { name: "Close menu" })).toHaveAttribute("aria-expanded", "true");
-  await expect(signIn).toHaveCount(1);
+  await expect(signOut).toHaveCount(1);
   await page.keyboard.press("Escape");
-  await expect(signIn).toHaveCount(0);
+  await expect(signOut).toHaveCount(0);
   await expect(header.getByRole("button", { name: "Open menu" })).toBeFocused();
 });
