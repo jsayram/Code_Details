@@ -113,13 +113,14 @@ test.describe("preview page", () => {
 // unscoped until the page adopts the foundations.
 test.describe("isolation from existing pages", () => {
   // UI07 adopted /search and UI09 adopted /sign-in and /about; home is the
-  // one page left outside the scope (UI10 takes it on with the mascot).
+  // one page left outside the scope. UI10's particle pause button is the one
+  // home control on the foundations ([data-home-control]); the content isn't.
   for (const path of ["/"]) {
     test(`${path} keeps its content outside the foundations scope`, async ({ page }) => {
       await page.goto(path);
       await expect(page.locator('[data-shell="header"].cd-foundations')).toHaveCount(1);
       const scopedContent = await page.evaluate(() =>
-        [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch')).length,
+        [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch, [data-home-control]')).length,
       );
       expect(scopedContent).toBe(0);
     });

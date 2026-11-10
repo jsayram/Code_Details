@@ -38,9 +38,10 @@ test("the shell scopes only itself; unadopted page content stays outside", async
   await expect(page.locator('[data-slot="sidebar-container"].cd-foundations')).toHaveCount(1);
   await page.goto("/");
   await expect(page.locator('header.cd-foundations[data-shell="header"]')).toHaveCount(1);
-  // Home hasn't adopted the foundations: nothing outside the shell is scoped.
+  // Home hasn't adopted the foundations: nothing outside the shell is scoped,
+  // except UI10's particle pause button ([data-home-control]).
   const scopedContent = await page.evaluate(() =>
-    [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch')).length,
+    [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch, [data-home-control]')).length,
   );
   expect(scopedContent).toBe(0);
 });

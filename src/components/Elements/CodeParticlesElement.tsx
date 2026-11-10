@@ -40,7 +40,8 @@ function buildField(count: number): Particle[] {
   return Array.from({ length: count }, (_, i) => {
     const duration = 14 + rand() * 12; // seconds per drift cycle
     return {
-      symbol: SYMBOLS[Math.floor(rand() * SYMBOLS.length)],
+      // 11 and 28 share no factor, so the 18 symbols are all different.
+      symbol: SYMBOLS[(i * 11) % SYMBOLS.length],
       // A loose grid with jitter keeps symbols spread out instead of clumping.
       top: `${4 + ((i * 37) % 90) + rand() * 4}%`,
       left: `${3 + ((i * 53) % 92) + rand() * 3}%`,
