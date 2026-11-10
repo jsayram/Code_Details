@@ -102,7 +102,7 @@ describe("overlay durations", () => {
     expect(durationFor('[data-slot="dropdown-menu-content"],')).toBe(180);
     expect(durationFor('[data-slot="dialog-content"],')).toBe(240);
     expect(durationFor('[data-slot="tooltip-content"][data-state="closed"]')).toBe(144);
-    expect(durationFor('[data-slot="sheet-overlay"][data-state="closed"]')).toBe(192);
+    expect(durationFor('[data-slot="sidebar"][data-mobile="true"][data-state="closed"]')).toBe(192);
     expect(css).toContain("animation: fade-in var(--tw-duration, 150ms) ease-out;");
   });
 });
