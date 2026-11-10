@@ -107,6 +107,18 @@ test.describe("UI07.1 /search", () => {
     expect(overflow).toBeLessThanOrEqual(0);
   });
 
+  test("signing in without a reload asks for the people list again", async ({ page }) => {
+    await searchFor(page, "fixture");
+    await expect(page.getByRole("alert").filter({ hasText: "Some results didn't load" })).toHaveCount(0);
+    const asked = page.waitForRequest((r) => r.url().endsWith("/api/profiles"));
+    await signIn(page, "ui07-search-signin");
+    // The session check runs again on focus; a fresh one sees the sign-in.
+    await page.evaluate(() => window.dispatchEvent(new Event("focus")));
+    await page.evaluate(() => document.dispatchEvent(new Event("visibilitychange")));
+    await asked;
+    await expect(page.getByRole("alert").filter({ hasText: "Some results didn't load" })).toHaveCount(0);
+  });
+
   test("a list that fails to load is reported, with Try again", async ({ page }) => {
     // The people list needs a session; signed out its 401 is not a failure.
     await searchFor(page, "fixture");
@@ -153,6 +165,24 @@ test.describe("UI07 links: encoded hrefs and new-tab clicks", () => {
     await expect(page).toHaveURL(/\/tags$/);
     await expect(rust).not.toHaveAttribute("aria-busy", "true");
     await popup.close();
+
+    // /search: the explore shortcuts and result tiles leave a new-tab click to the browser too.
+    await page.goto("/search");
+    const tags = page.getByRole("link", { name: /^Tags/ });
+    const [shortcutTab] = await Promise.all([context.waitForEvent("page"), tags.click({ modifiers: [modifier] })]);
+    await shortcutTab.waitForLoadState("domcontentloaded");
+    expect(shortcutTab.url()).toMatch(/\/tags$/);
+    await expect(page).toHaveURL(/\/search$/);
+    await expect(tags).not.toHaveAttribute("aria-busy", "true");
+    await shortcutTab.close();
+    await searchFor(page, "web");
+    const web = page.getByRole("tabpanel").getByRole("link", { name: /^Web Applications/ });
+    const [tileTab] = await Promise.all([context.waitForEvent("page"), web.click({ modifiers: [modifier] })]);
+    await tileTab.waitForLoadState("domcontentloaded");
+    expect(tileTab.url()).toMatch(/\/categories\/web$/);
+    await expect(web).not.toHaveAttribute("aria-busy", "true");
+    await expect(web.getByText("Loading...")).toHaveCount(0);
+    await tileTab.close();
 
     await page.goto("/projects");
     await expect(page.locator("[data-project-card]").first()).toBeVisible();

@@ -14,7 +14,7 @@
 import "@/styles/foundations.css";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo, useEffect, type ReactNode } from "react";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
 import { Search, Hash, Folder, Users, X } from "lucide-react";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
@@ -271,6 +271,16 @@ function SearchContent({ signedIn }: { signedIn: boolean }) {
   const showEmptyState = !hasSearched && !debouncedSearchQuery.trim();
   const q = debouncedSearchQuery;
   // A list that failed shows as a failure, not as "no results" (UI02 defect 4's pattern).
+  // The people list is cached under one key whoever is viewing. When the
+  // viewer signs in or out without a reload, ask again, so a signed-out 401
+  // isn't shown as a failure to the signed-in viewer (or the reverse).
+  const lastSignedIn = useRef(signedIn);
+  useEffect(() => {
+    if (lastSignedIn.current === signedIn) return;
+    lastSignedIn.current = signedIn;
+    void refreshProfiles();
+  }, [signedIn, refreshProfiles]);
+
   // The people list needs a session (/api/profiles answers 401 signed out), so
   // signed out it is simply absent, as before, and not reported as a failure.
   const peopleFailed = signedIn && Boolean(profilesError);
