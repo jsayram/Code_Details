@@ -375,51 +375,58 @@ export function ImageUploader({
 
   return (
     <div className={cn("space-y-4", className)}>
-      {/* Drop Zone */}
-      <div
+      {/* The file field itself stays hidden; the drop zone opens it. Same
+          types, size limit and count as before. */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept={DEFAULT_IMAGE_UPLOAD_CONFIG.allowedTypes.join(",")}
+        multiple={imageType !== "cover" && imageType !== "logo"}
+        onChange={handleFileInputChange}
+        className="hidden"
+        disabled={disabled}
+        tabIndex={-1}
+        aria-hidden="true"
+      />
+
+      {/* Drop Zone. UI08.3: a real button, so the keyboard can open the file
+          picker (it was a click-only div). Dropping files still works. */}
+      <button
+        type="button"
         onClick={handleClick}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        disabled={disabled}
         className={cn(
-          "relative flex flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer",
+          "relative flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer",
           isDragOver
             ? "border-primary bg-primary/5"
-            : "border-muted-foreground/25 hover:border-primary/50 hover:bg-muted/50",
-          disabled && "opacity-50 cursor-not-allowed"
+            : "border-muted-foreground/40 hover:border-primary/50 hover:bg-muted/50",
+          disabled && "cursor-not-allowed"
         )}
       >
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={DEFAULT_IMAGE_UPLOAD_CONFIG.allowedTypes.join(",")}
-          multiple={imageType !== "cover" && imageType !== "logo"}
-          onChange={handleFileInputChange}
-          className="hidden"
-          disabled={disabled}
-        />
-
-        <div className="flex flex-col items-center gap-2 text-center">
-          <Upload className="h-10 w-10 text-muted-foreground" />
-          <div className="space-y-1">
-            <p className="text-sm font-medium">
+        <span className="flex flex-col items-center gap-2 text-center">
+          <Upload className="h-10 w-10 text-muted-foreground" aria-hidden="true" />
+          <span className="space-y-1 block">
+            <span className="block text-sm font-medium">
               {isDragOver
                 ? "Drop image here"
                 : `Upload ${typeInfo.label}`}
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </span>
+            <span className="block text-xs text-muted-foreground">
               {typeInfo.description}
-            </p>
-            <p className="text-xs text-muted-foreground">
+            </span>
+            <span className="block text-xs text-muted-foreground">
               Drag & drop or click to select • Max {DEFAULT_IMAGE_UPLOAD_CONFIG.maxSizeMB}MB
-            </p>
-          </div>
-        </div>
-      </div>
+            </span>
+          </span>
+        </span>
+      </button>
 
       {/* Pending Uploads with Per-Image Aspect Ratio */}
       {pendingUploads.length > 0 && (
-        <div className="space-y-3">
+        <div className="space-y-3" aria-live="polite">
           <p className="text-sm font-medium text-muted-foreground">
             {pendingUploads.some((p) => p.status === "uploading") ? "Uploading Images" : "Pending Images"}
           </p>
@@ -442,7 +449,7 @@ export function ImageUploader({
                 )}>
                   <Image
                     src={pending.previewUrl}
-                    alt={pending.file.name}
+                    alt=""
                     fill
                     className="object-cover"
                   />
@@ -470,7 +477,10 @@ export function ImageUploader({
                       }}
                       title={pending.status === "uploading" ? "Cancel upload" : "Remove"}
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4" aria-hidden="true" />
+                      <span className="sr-only">
+                        {pending.status === "uploading" ? `Cancel upload of ${pending.file.name}` : `Remove ${pending.file.name}`}
+                      </span>
                     </Button>
                   </div>
 
@@ -483,13 +493,13 @@ export function ImageUploader({
                       </span>
                     )}
                     {pending.status === "uploading" && (
-                      <span className="text-blue-600 flex items-center gap-1">
+                      <span className="flex items-center gap-1" style={{ color: "var(--cd-action)" }}>
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Uploading... {pending.progress}%
                       </span>
                     )}
                     {pending.status === "success" && (
-                      <span className="text-green-600 flex items-center gap-1">
+                      <span className="flex items-center gap-1" style={{ color: "var(--cd-success)" }}>
                         <CheckCircle className="h-3 w-3" />
                         Uploaded successfully
                       </span>
@@ -504,7 +514,7 @@ export function ImageUploader({
 
                   {/* Progress bar */}
                   {pending.status === "uploading" && (
-                    <Progress value={pending.progress} className="h-1.5" />
+                    <Progress value={pending.progress} className="h-1.5" aria-label={`Uploading ${pending.file.name}`} />
                   )}
                 </div>
               </div>
@@ -513,8 +523,8 @@ export function ImageUploader({
               {pending.status !== "success" && (
                 <div className="pt-2 border-t">
                   <div className="flex items-center justify-between gap-4">
-                    <span className="text-xs font-medium text-muted-foreground">Aspect Ratio:</span>
-                    <div className="flex flex-wrap gap-1.5">
+                    <span id={`ratio-${pending.id}`} className="text-xs font-medium text-muted-foreground">Aspect Ratio:</span>
+                    <div role="group" aria-labelledby={`ratio-${pending.id}`} className="flex flex-wrap gap-1.5">
                       {ASPECT_RATIOS.map((ratio) => (
                         <button
                           key={ratio}
@@ -525,8 +535,9 @@ export function ImageUploader({
                             updateAspectRatio(pending.id, ratio);
                           }}
                           disabled={pending.status === "uploading"}
+                          aria-pressed={pending.aspectRatio === ratio}
                           className={cn(
-                            "px-2.5 py-1 text-xs rounded-md border transition-all",
+                            "px-2.5 py-1 min-h-9 text-xs rounded-md border transition-all",
                             pending.aspectRatio === ratio
                               ? "bg-primary text-primary-foreground border-primary"
                               : "bg-background hover:bg-muted border-muted-foreground/20 hover:border-primary/50",

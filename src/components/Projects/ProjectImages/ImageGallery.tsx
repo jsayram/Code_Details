@@ -63,113 +63,35 @@ export function ImageGallery({
   const coverImage = images.find((img) => img.image_type === "cover");
   const otherImages = images.filter((img) => img.image_type !== "cover");
 
-  // For edit mode, use grid layout with visible action buttons
+  // For edit mode, use grid layout with visible action buttons. UI08.3: each
+  // thumbnail is a button that opens the preview (it was a click-only image),
+  // the action buttons name the image they act on, and a file that won't load
+  // shows "Image unavailable" instead of the browser's broken icon (UI02 #19).
   if (isEditing) {
+    const ordered = coverImage ? [coverImage, ...otherImages] : otherImages;
     return (
       <div className={cn("space-y-4", className)}>
         {/* Grid of all images - responsive: 1 col mobile, 2 col sm, 3 col md+ */}
-        <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto pr-1">
-          {/* Cover image first if exists */}
-          {coverImage && (
-            <div className="relative group">
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                <Image
-                  src={coverImage.storage_url}
-                  alt={coverImage.alt_text || "Cover image"}
-                  fill
-                  className="object-cover cursor-pointer"
-                  onClick={() => onImageClick?.(coverImage, 0)}
-                  sizes="(max-width: 640px) 50vw, 33vw"
-                />
-                
-                {/* Cover badge */}
-                <Badge className="absolute left-1.5 top-1.5 bg-primary/90 text-xs">
-                  <Star className="h-2.5 w-2.5 mr-0.5 fill-current" />
-                  Cover
-                </Badge>
-              </div>
-              
-              {/* Action buttons - always visible */}
-              <div className="absolute right-1.5 top-1.5 flex gap-1">
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="h-7 w-7 shadow-md"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onImageDelete?.(coverImage.id);
-                  }}
-                  title="Delete image"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
-          )}
-
-          {/* Other images */}
-          {otherImages.map((image, index) => (
-            <div key={image.id} className="relative group">
-              <div className="relative aspect-square overflow-hidden rounded-lg bg-muted">
-                <Image
-                  src={image.storage_url}
-                  alt={image.alt_text || `Screenshot ${index + 1}`}
-                  fill
-                  className="object-cover cursor-pointer"
-                  onClick={() => onImageClick?.(image, index + (coverImage ? 1 : 0))}
-                  sizes="(max-width: 640px) 50vw, 33vw"
-                />
-                
-                {/* Image type badge if not screenshot */}
-                {image.image_type !== "screenshot" && (
-                  <Badge
-                    variant="secondary"
-                    className="absolute left-1.5 top-1.5 text-xs"
-                  >
-                    {IMAGE_TYPE_INFO[image.image_type as keyof typeof IMAGE_TYPE_INFO]?.label || image.image_type}
-                  </Badge>
-                )}
-              </div>
-              
-              {/* Action buttons - always visible */}
-              <div className="absolute right-1.5 top-1.5 flex gap-1">
-                <Button
-                  type="button"
-                  variant="secondary"
-                  size="icon"
-                  className="h-7 w-7 bg-white/90 hover:bg-white shadow-md"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onSetCover?.(image.id);
-                  }}
-                  title="Set as cover"
-                >
-                  <Star className="h-3.5 w-3.5 text-amber-500" />
-                </Button>
-                <Button
-                  type="button"
-                  variant="destructive"
-                  size="icon"
-                  className="h-7 w-7 shadow-md"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onImageDelete?.(image.id);
-                  }}
-                  title="Delete image"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
-              </div>
-            </div>
+        <ul
+          tabIndex={0}
+          aria-label="Uploaded images"
+          className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 max-h-[400px] sm:max-h-[500px] overflow-y-auto pr-1"
+        >
+          {ordered.map((image, index) => (
+            <EditTile
+              key={image.id}
+              image={image}
+              index={index}
+              screenshotNumber={image.image_type === "cover" ? 0 : index - (coverImage ? 1 : 0) + 1}
+              onOpen={() => onImageClick?.(image, index)}
+              onDelete={onImageDelete ? () => onImageDelete(image.id) : undefined}
+              onSetCover={image.image_type !== "cover" && onSetCover ? () => onSetCover(image.id) : undefined}
+            />
           ))}
-        </div>
-        
+        </ul>
+
         {/* Image count */}
-        <p className="text-xs text-muted-foreground text-center">
+        <p className="cd-caption text-center">
           {images.length} {images.length === 1 ? "image" : "images"} • Click to preview
         </p>
       </div>
@@ -251,6 +173,105 @@ export function ImageGallery({
         </div>
       )}
     </div>
+  );
+}
+
+/** One thumbnail in the editor's grid: preview, set as cover, delete. */
+function EditTile({
+  image,
+  index,
+  screenshotNumber,
+  onOpen,
+  onDelete,
+  onSetCover,
+}: {
+  image: SelectProjectImage;
+  index: number;
+  screenshotNumber: number;
+  onOpen?: () => void;
+  onDelete?: () => void;
+  onSetCover?: () => void;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const isCover = image.image_type === "cover";
+  const description = image.alt_text || (isCover ? "Cover image" : `Screenshot ${screenshotNumber}`);
+  const typeLabel = !isCover && image.image_type !== "screenshot"
+    ? IMAGE_TYPE_INFO[image.image_type as keyof typeof IMAGE_TYPE_INFO]?.label || image.image_type
+    : null;
+  return (
+    <li className="relative min-w-0" data-image-index={index}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="relative block aspect-square w-full overflow-hidden rounded-lg bg-muted cursor-pointer"
+      >
+        <span className="sr-only">{`Preview ${description}`}</span>
+        {failed ? (
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center text-sm text-muted-foreground">
+            <ImageIcon className="h-6 w-6" aria-hidden="true" />
+            Image unavailable
+          </span>
+        ) : (
+          <Image
+            src={image.storage_url}
+            alt=""
+            fill
+            className="object-cover"
+            sizes="(max-width: 640px) 50vw, 33vw"
+            onError={() => setFailed(true)}
+          />
+        )}
+        {isCover && (
+          <Badge className="absolute left-1.5 top-1.5 text-xs" aria-hidden="true">
+            <Star className="h-2.5 w-2.5 mr-0.5 fill-current" aria-hidden="true" />
+            Cover
+          </Badge>
+        )}
+        {typeLabel && (
+          <Badge variant="secondary" className="absolute left-1.5 top-1.5 text-xs" aria-hidden="true">
+            {typeLabel}
+          </Badge>
+        )}
+      </button>
+
+      {/* Action buttons - always visible, named for the image they act on */}
+      <div className="absolute right-1.5 top-1.5 flex gap-1">
+        {onSetCover && (
+          <Button
+            type="button"
+            variant="secondary"
+            size="icon"
+            className="h-9 w-9 shadow-md"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onSetCover();
+            }}
+            title="Set as cover"
+          >
+            <Star className="h-4 w-4" aria-hidden="true" style={{ color: "var(--cd-warning)" }} />
+            <span className="sr-only">{`Set ${description} as cover`}</span>
+          </Button>
+        )}
+        {onDelete && (
+          <Button
+            type="button"
+            variant="destructive"
+            size="icon"
+            className="h-9 w-9 shadow-md"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onDelete();
+            }}
+            title="Delete image"
+          >
+            <Trash2 className="h-4 w-4" aria-hidden="true" />
+            <span className="sr-only">{`Delete ${description}`}</span>
+          </Button>
+        )}
+      </div>
+    </li>
   );
 }
 
