@@ -1,5 +1,12 @@
 "use client";
 
+// UI06.2: the public project page (view mode) is on the UI03 foundations.
+// UI08.2: so are edit and create mode. Fields say what's wrong next to them
+// (aria-invalid, aria-describedby), a failed save says so beside the Save
+// button, and unsaved edits are guarded on Cancel, on links anywhere on the
+// page and on reload or close.
+import "@/styles/foundations.css";
+
 import React, {
   useState,
   useCallback,
@@ -15,6 +22,7 @@ import {
   PROJECT_CATEGORIES,
   ProjectCategory,
 } from "@/constants/project-categories";
+import { categoryDataFor } from "@/constants/project-category-fields";
 import { PROJECT_TEXT_LIMITS } from "@/constants/project-limits";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import {
@@ -130,6 +138,12 @@ export function ProjectContent({
   const [originalCategoryData, setOriginalCategoryData] = useState<Record<string, unknown>>({});
   const [originalFieldOrder, setOriginalFieldOrder] = useState<string[]>([]);
   const [showUnsavedChangesModal, setShowUnsavedChangesModal] = useState(false);
+  // UI08.2: where a guarded link (or Cancel on create) was going, the control
+  // that opened the unsaved-changes dialog (focus goes back there, UI02
+  // defect 15), and the last failed save's message, shown beside Save.
+  const [pendingHref, setPendingHref] = useState<string | null>(null);
+  const unsavedOpenerRef = useRef<HTMLElement | null>(null);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   // Track pending image uploads (count of images uploaded during edit session)
   const [pendingImageCount, setPendingImageCount] = useState(0);
@@ -201,8 +215,9 @@ export function ProjectContent({
       const newCategory = value as ProjectCategory;
       const currentCategory = formData.category;
 
-      // If there's category data or field order, use the modal for confirmation
-      if (fieldOrder.length > 0 && currentCategory !== newCategory) {
+      // If there's category data or field order, use the modal for confirmation.
+      // C01: hidden fields with values count too, since saving removes them.
+      if ((fieldOrder.length > 0 || Object.keys(categoryData).length > 0) && currentCategory !== newCategory) {
         requestCategoryChange(
           currentCategory,
           newCategory,
@@ -360,12 +375,13 @@ export function ProjectContent({
   // Handler for confirming discard of unsaved changes
   const handleConfirmDiscardChanges = useCallback(async () => {
     setShowUnsavedChangesModal(false);
-    
+    unsavedOpenerRef.current = null;
+
     // Discard pending images via ref
     if (pendingImageCount > 0 && discardImagesRef.current) {
       await discardImagesRef.current();
     }
-    
+
     // Reset form data to original project values
     if (project) {
       setFormData({
@@ -401,6 +417,18 @@ export function ProjectContent({
     // Reset pending image count
     setPendingImageCount(0);
 
+    // UI08.2: a guarded link, or Cancel on create, goes where it was going.
+    // The form is already reset above, so nothing stale is left if the
+    // editor stays mounted; leavingRef only covers the moment until the
+    // route changes (the effect below clears it).
+    if (pendingHref) {
+      const href = pendingHref;
+      setPendingHref(null);
+      leavingRef.current = true;
+      router.push(href);
+      return;
+    }
+
     // Exit edit mode
     const url = new URL(window.location.href);
     url.searchParams.delete("edit");
@@ -408,7 +436,61 @@ export function ProjectContent({
     router.replace(url.pathname + url.search, {
       scroll: false,
     });
-  }, [project, router, pendingImageCount]);
+  }, [project, router, pendingImageCount, pendingHref]);
+
+  // "Continue Editing" or Escape: nothing happens, and focus goes back to
+  // what opened the dialog.
+  const handleKeepEditing = useCallback(() => {
+    setShowUnsavedChangesModal(false);
+    setPendingHref(null);
+  }, []);
+
+  // UI08.2 (UI02 defect 6): unsaved edits were lost silently through the
+  // sidebar, any other link, or a reload. While the editor has unsaved
+  // changes, a same-site link opens the unsaved-changes dialog first, and a
+  // reload or close gets the browser's own prompt. In-page anchors (the
+  // contents list), new-tab clicks and the browser's Back button are left
+  // alone: Back can't be held without rewriting history.
+  const leavingRef = useRef(false);
+  // Audit fix: a navigation that has happened (or a new edit session) ends
+  // "leaving" and "navigating after save", so the guard comes back on.
+  const routeKey = `${searchParams?.toString() ?? ""}|${project?.slug ?? ""}|${isEditMode}`;
+  useEffect(() => {
+    leavingRef.current = false;
+    setIsNavigatingAfterSave(false);
+  }, [routeKey]);
+  const dirtyRef = useRef(false);
+  dirtyRef.current =
+    isEditMode && !isUpdating && !isNavigatingAfterSave && !leavingRef.current && hasUnsavedChanges();
+  useEffect(() => {
+    if (!isEditMode) return;
+    const onBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!dirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    const onClick = (e: MouseEvent) => {
+      if (!dirtyRef.current || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as Element | null)?.closest?.("a[href]") as HTMLAnchorElement | null;
+      if (!anchor || (anchor.target && anchor.target !== "_self") || anchor.hasAttribute("download")) return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      // The same page (an in-page anchor, or a link to where we already are)
+      // doesn't navigate away, so nothing is lost.
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      e.preventDefault();
+      e.stopPropagation();
+      unsavedOpenerRef.current = anchor;
+      setPendingHref(url.pathname + url.search + url.hash);
+      setShowUnsavedChangesModal(true);
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    document.addEventListener("click", onClick, true);
+    return () => {
+      window.removeEventListener("beforeunload", onBeforeUnload);
+      document.removeEventListener("click", onClick, true);
+    };
+  }, [isEditMode]);
 
   const handleEditModeToggle = useCallback(() => {
     // Don't allow toggling out of edit mode in create mode
@@ -422,6 +504,7 @@ export function ProjectContent({
     } else {
       // Check for unsaved changes before canceling
       if (hasUnsavedChanges()) {
+        unsavedOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
         setShowUnsavedChangesModal(true);
         return; // Show modal, don't proceed yet
       }
@@ -490,6 +573,11 @@ export function ProjectContent({
     router.push(`/users/${encodeURIComponent(navigableUsername)}`);
   };
 
+  const focusFirstError = (errors: { title?: string; slug?: string; description?: string; category?: string }) => {
+    const first = (["title", "slug", "description", "category"] as const).find((f) => errors[f]);
+    if (first) window.requestAnimationFrame(() => document.getElementById(first)?.focus());
+  };
+
   const validateForm = (): boolean => {
     const errors: typeof formErrors = {};
 
@@ -509,6 +597,7 @@ export function ProjectContent({
     // Validate url_links - check for empty URLs and invalid formats
     const hasEmptyLinks = formData.url_links.some(link => !link.url || link.url.trim() === '' || link.url === 'https://');
     if (hasEmptyLinks) {
+      setSaveError("Please fill in all link URLs or remove empty links before saving.");
       toast.error("Please fill in all link URLs or remove empty links before saving");
       // Trigger highlighting of empty URL fields
       window.dispatchEvent(new Event('highlight-empty-links'));
@@ -523,6 +612,7 @@ export function ProjectContent({
     });
     
     if (invalidLinks.length > 0) {
+      setSaveError("Some links have invalid URL format. Fix the URL format or use the 'Fix URL' button before saving.");
       toast.error("Some links have invalid URL format", {
         description: "Please fix the URL format or use the 'Fix URL' button before saving",
         duration: 5000,
@@ -542,8 +632,9 @@ export function ProjectContent({
       });
     }
 
-    // Update errors state
+    // Update errors state. UI08.2: focus the first field that needs fixing.
     setFormErrors(errors);
+    focusFirstError(errors);
 
     // Return true if no errors
     return Object.keys(errors).length === 0;
@@ -551,6 +642,7 @@ export function ProjectContent({
 
   const handleSaveChanges = async () => {
     setIsUpdating(true);
+    setSaveError(null);
     try {
       if (!viewerId) throw new Error("You must be logged in to update a project");
 
@@ -562,6 +654,7 @@ export function ProjectContent({
       });
 
       if (hasInvalidUrls) {
+        setSaveError("Cannot save: some links have invalid URL format. Fix them or remove them before saving.");
         toast.error("Cannot save: Some links have invalid URL format", {
           description: "Please fix all URL formats or remove invalid links before saving",
           duration: 5000,
@@ -579,6 +672,7 @@ export function ProjectContent({
       // Validate category data for profanity
       const categoryDataValidation = validateCategoryData(categoryData, fieldOrder);
       if (!categoryDataValidation.isValid) {
+        setSaveError("Cannot save: project details contain inappropriate content. Review the Project Details fields.");
         toast.error("Cannot save: Project details contain inappropriate content", {
           description: "Please review and remove any inappropriate language from your project fields",
           duration: 5000,
@@ -604,7 +698,10 @@ export function ProjectContent({
         category: formData.category,
         tags: selectedTags.map((tag) => tag.name),
         url_links: validLinks,
-        category_data: categoryData,
+        // C01 (Jose): only the fields the saved category defines. The server
+        // refuses any other key, and the category-change dialog has already
+        // named the filled-in fields this removes.
+        category_data: categoryDataFor(formData.category, categoryData),
         field_order: fieldOrder,
       };
 
@@ -645,6 +742,16 @@ export function ProjectContent({
           // Reset form initialization state
           formInitializedRef.current = false;
 
+          // Audit fix: what was just saved is the new baseline, so the
+          // status line and the guard don't treat it as unsaved while the
+          // page refreshes and leaves edit mode.
+          const savedCategoryData = projectData.category_data as Record<string, unknown>;
+          setCategoryData(savedCategoryData);
+          setOriginalCategoryData(savedCategoryData);
+          setOriginalFormData({ ...formData });
+          setOriginalTags([...selectedTags]);
+          setOriginalFieldOrder([...fieldOrder]);
+
           // Exit edit mode
           const url = new URL(window.location.href);
           url.searchParams.delete("edit");
@@ -673,13 +780,17 @@ export function ProjectContent({
             if (err.field === 'slug') newFormErrors.slug = err.message;
           });
           setFormErrors(newFormErrors);
+          focusFirstError(newFormErrors);
         }
-        // Show error toast but don't throw - fail gracefully
+        // Show error toast but don't throw - fail gracefully. UI08.2: and
+        // beside the Save button, where it stays until the next attempt.
+        setSaveError(result.error || "Failed to save project");
         toast.error(result.error || "Failed to save project");
         return;
       }
     } catch (error) {
       console.error("Error saving project:", error);
+      setSaveError(error instanceof Error ? error.message : "Failed to save project");
       toast.error(
         error instanceof Error ? error.message : "Failed to save project"
       );
@@ -692,7 +803,14 @@ export function ProjectContent({
 
   const handleCancel = () => {
     if (create) {
-      // When in create mode, navigate back to projects page
+      // When in create mode, navigate back to projects page. UI08.2: after
+      // the unsaved-changes dialog if anything was typed.
+      if (hasUnsavedChanges()) {
+        unsavedOpenerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        setPendingHref("/projects");
+        setShowUnsavedChangesModal(true);
+        return;
+      }
       router.push("/projects");
     } else {
       // In edit mode, just toggle back to view mode
@@ -732,8 +850,13 @@ export function ProjectContent({
     project.owner_username?.split("@")[0] ||
     "Unknown User";
 
+  // UI06.2 put view mode on the foundations; UI08.2 adds edit and create.
+  const editDirty = isEditMode && hasUnsavedChanges();
+  const errorCount = Object.values(formErrors).filter(Boolean).length;
+  const describedBy = (...ids: (string | false | undefined)[]) => ids.filter(Boolean).join(" ") || undefined;
   const renderContent = () => (
-    <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-3 sm:px-4 md:px-6 2xl:px-8 3xl:px-12 py-4 sm:py-6 md:py-8">
+    <div className="cd-foundations cd-canvas">
+    <div className="cd-page cd-project-page">
       {/* Top action bar - stacks on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
       {!create && (
@@ -764,19 +887,24 @@ export function ProjectContent({
       )}
 
       <div className="flex items-center gap-3 sm:gap-5">
-        <Badge variant="secondary" className="capitalize text-xs sm:text-sm">
+        <Badge
+          variant="secondary"
+          className="cd-tag cd-cat rounded-full border"
+          data-category={project.category}
+        >
           {PROJECT_CATEGORIES[
             project.category as keyof typeof PROJECT_CATEGORIES
           ]?.label || project.category}
         </Badge>
         <div className="flex items-center gap-1 text-muted-foreground text-sm">
-          <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Heart className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
           <span>{project.total_favorites || 0}</span>
+          <span className="sr-only">{Number(project.total_favorites) === 1 ? " favorite" : " favorites"}</span>
         </div>
       </div>
       </div>
       {/* Profile Header Section - Mobile responsive */}
-      <div className="mb-4 sm:mb-6 bg-card rounded-lg p-4 sm:p-6 shadow-lg">
+      <div className="cd-surface mb-6">
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
           {!create && (
             <button
@@ -795,11 +923,11 @@ export function ProjectContent({
                     src={userProfile?.profile_image_url || project.owner_profile_image_url || ""}
                     alt={displayName}
                   />
-                ) : (
-                  <AvatarFallback className="text-xl sm:text-2xl">
-                    <User className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12" />
-                  </AvatarFallback>
-                )}
+                ) : null}
+                {/* UI06.2: also shown when the picture fails to load (an unreachable host). */}
+                <AvatarFallback className="text-xl sm:text-2xl">
+                  <User className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12" />
+                </AvatarFallback>
               </Avatar>
               {isNavigatingUser && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
@@ -811,7 +939,7 @@ export function ProjectContent({
           <div className="flex-1 text-center sm:text-left min-w-0">
             <div className="flex flex-col items-center sm:items-start">
               <div className="w-full">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold break-words">
+                <h1 className="cd-title cd-wrap">
                   {create ? "Create New Project" : project.title}
                 </h1>
                 {!create && (
@@ -819,7 +947,7 @@ export function ProjectContent({
                     <button
                       onClick={handleNavigateUser}
                       disabled={isNavigatingUser}
-                      className={`text-sm sm:text-base text-muted-foreground ${
+                      className={`text-sm sm:text-base text-muted-foreground cd-wrap mt-1 min-h-11 sm:min-h-0 ${
                         isNavigatingUser
                           ? "cursor-wait opacity-70"
                           : "hover:text-primary hover:underline cursor-pointer"
@@ -844,44 +972,50 @@ export function ProjectContent({
         {isEditMode ? (
           <>
             {/* Blog-style Edit Mode Layout - matches view mode structure */}
-            <div className="lg:grid lg:grid-cols-[1fr_250px] lg:gap-8">
+            <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8">
               {/* Main Content Column */}
-              <div className="space-y-4 sm:space-y-6 md:space-y-8">
+              <div className="space-y-6 md:space-y-8 min-w-0">
                 {/* Project Basics Section */}
                 <Card>
                   <CardHeader>
-                    <CardTitle>{create ? "Create New Project" : "Edit Project"}</CardTitle>
+                    <CardTitle role="heading" aria-level={2} className="cd-subheading">{create ? "Create New Project" : "Edit Project"}</CardTitle>
+                    <p className="cd-small cd-muted">
+                      Fields marked <span aria-hidden="true">*</span><span className="sr-only">required</span> are required.
+                    </p>
                     </CardHeader>
                     <CardContent className="space-y-6">
                       <div className="space-y-2">
-                        <label htmlFor="title" className="text-sm font-medium">
-                          Project Title <span className="text-red-500">*</span>
+                        <label htmlFor="title" className="cd-small font-medium">
+                          Project Title <span aria-hidden="true" style={{ color: "var(--cd-danger)" }}>*</span>
                         </label>
                         <Input
                           id="title"
                           value={formData.title}
                           onChange={(e) => handleFieldChange("title", e.target.value)}
                           maxLength={PROJECT_TEXT_LIMITS.MAX_TITLE_LENGTH}
-                          className={formErrors?.title ? "border-red-500" : ""}
+                          aria-required="true"
+                          aria-invalid={formErrors?.title ? true : undefined}
+                          aria-describedby={describedBy(formErrors?.title && "title-error", "title-count")}
                         />
-                        <div className="flex justify-between text-xs">
+                        <div className="flex justify-between gap-3 cd-caption">
                           {formErrors?.title ? (
-                            <p className="text-red-500">{formErrors.title}</p>
+                            <p id="title-error" className="cd-error-text">{formErrors.title}</p>
                           ) : (
                             <span />
                           )}
-                          <span className="text-muted-foreground">
+                          <span id="title-count" className="cd-number shrink-0">
                             {formData.title.length}/{PROJECT_TEXT_LIMITS.MAX_TITLE_LENGTH}
+                            <span className="sr-only"> characters</span>
                           </span>
                         </div>
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="slug" className="text-sm font-medium">
+                        <label htmlFor="slug" className="cd-small font-medium">
                           Slug (URL-friendly identifier){" "}
-                          <span className="text-red-500">*</span>
+                          <span aria-hidden="true" style={{ color: "var(--cd-danger)" }}>*</span>
                         </label>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <Input
                             id="slug"
                             value={formData.slug}
@@ -889,39 +1023,46 @@ export function ProjectContent({
                               handleFieldChange("slug", e.target.value)
                             }
                             maxLength={PROJECT_TEXT_LIMITS.MAX_SLUG_LENGTH}
-                            className={`flex-1 ${
-                              formErrors?.slug ? "border-red-500" : ""
-                            }`}
+                            className="flex-1 min-w-[12rem]"
+                            aria-required="true"
+                            aria-invalid={formErrors?.slug ? true : undefined}
+                            aria-describedby={describedBy(formErrors?.slug && "slug-error", "slug-help")}
                           />
                           <Button
                             type="button"
                             variant="outline"
                             onClick={generateSlug}
-                            title="Generate slug from title"
                           >
-                            <RefreshCcwIcon className="h-4 w-4 mr-1" />
-                            Generate
+                            <RefreshCcwIcon className="h-4 w-4 mr-1" aria-hidden="true" />
+                            Generate<span className="sr-only"> slug from title</span>
                           </Button>
                         </div>
                         {formErrors?.slug && (
-                          <p className="text-red-500 text-xs mt-1">
+                          <p id="slug-error" className="cd-error-text">
                             {formErrors.slug}
                           </p>
                         )}
+                        <p id="slug-help" className="cd-caption">
+                          Lowercase letters, numbers and hyphens. Your project&apos;s address is /projects/{formData.slug || "your-slug"}.
+                        </p>
                       </div>
 
                       <div className="space-y-2">
-                        <label htmlFor="category" className="text-sm font-medium">
+                        <label htmlFor="category" className="cd-small font-medium">
                           Project Category
                         </label>
                         <Select
                           value={formData.category}
                           onValueChange={handleCategoryChange}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger
+                            id="category"
+                            aria-invalid={formErrors?.category ? true : undefined}
+                            aria-describedby={describedBy(formErrors?.category && "category-error", "category-help")}
+                          >
                             <SelectValue placeholder="Select Category" />
                           </SelectTrigger>
-                          <SelectContent>
+                          <SelectContent className="cd-foundations">
                             {Object.entries(PROJECT_CATEGORIES).map(
                               ([value, { label }]) => (
                                 <SelectItem key={value} value={value}>
@@ -931,6 +1072,13 @@ export function ProjectContent({
                             )}
                           </SelectContent>
                         </Select>
+                        {/* UI07 (Jose): the full description with its tie-break wording, where people choose. */}
+                        {formErrors?.category && (
+                          <p id="category-error" className="cd-error-text">{formErrors.category}</p>
+                        )}
+                        <p id="category-help" className="cd-small cd-muted">
+                          {PROJECT_CATEGORIES[formData.category as keyof typeof PROJECT_CATEGORIES]?.description}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>
@@ -953,11 +1101,11 @@ export function ProjectContent({
                   <section id="about">
                     <Card>
                       <CardHeader>
-                        <CardTitle>About This Project</CardTitle>
+                        <CardTitle role="heading" aria-level={2} className="cd-subheading">About This Project</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <div className="space-y-2">
-                          <label htmlFor="description" className="text-sm font-medium">
+                          <label htmlFor="description" className="cd-small font-medium">
                             Description
                           </label>
                           <Textarea
@@ -968,10 +1116,20 @@ export function ProjectContent({
                             }
                             maxLength={PROJECT_TEXT_LIMITS.MAX_DESCRIPTION_LENGTH}
                             rows={5}
-                            className="resize-none"
+                            className="resize-y"
+                            aria-invalid={formErrors?.description ? true : undefined}
+                            aria-describedby={describedBy(formErrors?.description && "description-error", "description-count")}
                           />
-                          <div className="flex justify-end text-xs text-muted-foreground">
-                            {formData.description.length}/{PROJECT_TEXT_LIMITS.MAX_DESCRIPTION_LENGTH}
+                          <div className="flex justify-between gap-3 cd-caption">
+                            {formErrors?.description ? (
+                              <p id="description-error" className="cd-error-text">{formErrors.description}</p>
+                            ) : (
+                              <span />
+                            )}
+                            <span id="description-count" className="cd-number shrink-0">
+                              {formData.description.length}/{PROJECT_TEXT_LIMITS.MAX_DESCRIPTION_LENGTH}
+                              <span className="sr-only"> characters</span>
+                            </span>
                           </div>
                         </div>
                       </CardContent>
@@ -982,7 +1140,7 @@ export function ProjectContent({
                   <section id="links">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Links</CardTitle>
+                        <CardTitle role="heading" aria-level={2} className="cd-subheading">Links</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <ProjectLinksManager
@@ -998,7 +1156,7 @@ export function ProjectContent({
                   <section id="category-fields">
                     <Card>
                       <CardHeader>
-                        <CardTitle>Project Details</CardTitle>
+                        <CardTitle role="heading" aria-level={2} className="cd-subheading">Project Details</CardTitle>
                       </CardHeader>
                       <CardContent>
                         <CategoryFieldsEditor
@@ -1016,8 +1174,8 @@ export function ProjectContent({
                   <section id="tags">
                     <Card>
                       <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                          <Tags className="h-5 w-5" />
+                        <CardTitle role="heading" aria-level={2} className="cd-subheading flex items-center gap-2">
+                          <Tags className="h-5 w-5" aria-hidden="true" />
                           Tags
                         </CardTitle>
                       </CardHeader>
@@ -1033,28 +1191,61 @@ export function ProjectContent({
                     </Card>
                   </section>
 
-                  {/* Save/Cancel Actions */}
-                  <div className="flex justify-end gap-2 pt-4">
-                    <Button
-                      variant="outline"
-                      onClick={handleCancel}
-                      disabled={isUpdating}
-                      className="cursor-pointer"
-                    >
-                      Cancel
-                    </Button>
-                    <Button onClick={handleSaveChanges} disabled={isUpdating} className="cursor-pointer">
-                      {isUpdating ? (
-                        <div className="flex items-center gap-2">
-                          <div className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></div>
-                          {create ? "Creating..." : "Saving..."}
-                        </div>
-                      ) : create ? (
-                        "Create Project"
-                      ) : (
-                        "Save Changes"
-                      )}
-                    </Button>
+                  {/* Save/Cancel Actions. UI08.2: what blocks the save, and
+                      whether anything is unsaved, sit beside the buttons. */}
+                  <div className="cd-stack-tight pt-2">
+                    {(errorCount > 0 || saveError) && (
+                      <div role="alert" className="cd-surface cd-stack-tight" style={{ borderColor: "var(--cd-danger)" }}>
+                        <p className="cd-small font-semibold" style={{ color: "var(--cd-danger)" }}>
+                          {create ? "The project wasn't created" : "Your changes weren't saved"}
+                        </p>
+                        {saveError && <p className="cd-small cd-wrap">{saveError}</p>}
+                        {errorCount > 0 && (
+                          <ul className="cd-small list-disc pl-5">
+                            {(["title", "slug", "description", "category"] as const)
+                              .filter((f) => formErrors[f])
+                              .map((f) => (
+                                <li key={f}>
+                                  <a
+                                    href={`#${f}`}
+                                    className="cd-link"
+                                    onClick={(e) => {
+                                      e.preventDefault();
+                                      document.getElementById(f)?.focus();
+                                    }}
+                                  >
+                                    {formErrors[f]}
+                                  </a>
+                                </li>
+                              ))}
+                          </ul>
+                        )}
+                      </div>
+                    )}
+                    <div className="flex flex-wrap items-center justify-end gap-2">
+                      <p role="status" className="cd-small cd-muted mr-auto">
+                        {isUpdating ? (create ? "Creating your project…" : "Saving your changes…") : editDirty ? "Unsaved changes" : create ? "" : "No unsaved changes"}
+                      </p>
+                      <Button
+                        variant="outline"
+                        onClick={handleCancel}
+                        disabled={isUpdating}
+                      >
+                        Cancel
+                      </Button>
+                      <Button onClick={handleSaveChanges} disabled={isUpdating}>
+                        {isUpdating ? (
+                          <span className="flex items-center gap-2">
+                            <span aria-hidden="true" className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                            {create ? "Creating..." : "Saving..."}
+                          </span>
+                        ) : create ? (
+                          "Create Project"
+                        ) : (
+                          "Save Changes"
+                        )}
+                      </Button>
+                    </div>
                   </div>
                 </div>
 
@@ -1075,10 +1266,12 @@ export function ProjectContent({
             </>
           ) : (
             <>
-              {/* Blog-style View Mode Layout */}
-              <div className="lg:grid lg:grid-cols-[1fr_250px] lg:gap-8">
+              {/* Blog-style View Mode Layout. The main column may shrink below
+                  its content, so one long word can't widen the page (UI02
+                  defect 5). */}
+              <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8">
                 {/* Main Content Column */}
-                <div className="space-y-6 sm:space-y-8">
+                <div className="cd-project-sections min-w-0">
                   {/* Architecture Documentation Section - Featured at Top */}
                   {project.slug && (
                     <LinkedDocumentationSection
@@ -1087,12 +1280,15 @@ export function ProjectContent({
                     />
                   )}
 
-                  {/* Images Section */}
-                  <section id="images">
-                    {project.id && viewerId && (
+                  {/* Images Section (the manager draws the section when there are images) */}
+                  <div>
+                    {/* F02: signed-out visitors of a shared link see the images
+                        too. The server read decides who may (listed projects,
+                        else the owner); view mode never uses userId. */}
+                    {project.id && (
                       <ProjectImagesManager
                         projectId={project.id}
-                        userId={viewerId}
+                        userId={viewerId ?? ""}
                         isEditing={false}
                         isOwner={isOwner}
                         onEditClick={() => {
@@ -1102,30 +1298,28 @@ export function ProjectContent({
                         }}
                       />
                     )}
-                  </section>
+                  </div>
 
                   {/* About Section */}
-                  <section id="about">
-                    <div className="prose dark:prose-invert prose-sm sm:prose-base md:prose-lg max-w-none">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">About This Project</h2>
-                      <p className="text-base sm:text-lg leading-relaxed text-muted-foreground">
-                        {project.description || "No description provided"}
-                      </p>
-                    </div>
+                  <section id="about" aria-labelledby="about-heading">
+                    <h2 id="about-heading" className="cd-heading mb-3">About This Project</h2>
+                    <p className={`cd-lead cd-reading cd-wrap ${project.description ? "" : "cd-muted"}`}>
+                      {project.description || "No description provided"}
+                    </p>
                   </section>
 
                   {/* Links Section */}
                   {project.url_links && (project.url_links as ProjectLink[]).length > 0 && (
-                    <section id="links">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Links</h2>
+                    <section id="links" aria-labelledby="links-heading">
+                      <h2 id="links-heading" className="cd-heading mb-3">Links</h2>
                       <ProjectLinksDisplay links={project.url_links as ProjectLink[]} />
                     </section>
                   )}
 
                   {/* Category Fields Section */}
                   {project.category_data && Object.keys(project.category_data as Record<string, unknown>).length > 0 && (
-                    <section id="category-fields">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Project Details</h2>
+                    <section id="category-fields" aria-labelledby="details-heading" className="cd-wrap">
+                      <h2 id="details-heading" className="cd-heading mb-3">Project Details</h2>
                       <CategoryFieldsDisplay
                         category={project.category as ProjectCategory}
                         categoryData={project.category_data as Record<string, unknown>}
@@ -1136,10 +1330,10 @@ export function ProjectContent({
                   )}
 
                   {/* Tags Section */}
-                  <section id="tags" className="py-4 sm:py-6 border-t">
-                    <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <Tags className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <section id="tags" aria-labelledby="tags-heading" className="cd-project-divided">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <h2 id="tags-heading" className="cd-heading flex items-center gap-2">
+                        <Tags className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                         Tags
                       </h2>
                       {!isEditMode && !create && isOwner && (
@@ -1155,26 +1349,27 @@ export function ProjectContent({
                       )}
                     </div>
                     {project.tags && project.tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <ul className="flex flex-wrap gap-2" aria-label="Tags">
                         {project.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs sm:text-sm py-0.5 sm:py-1 px-2 sm:px-3">
+                          <li key={tag} className="cd-tag rounded-full">
                             #{tag}
-                          </Badge>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     ) : (
-                      <p className="text-sm sm:text-base text-muted-foreground">No tags added yet</p>
+                      <p className="cd-muted">No tags added yet</p>
                     )}
 
                     {/* Pending tag submissions */}
                     {pendingTags && pendingTags.length > 0 && (
-                      <div className="mt-3 sm:mt-4 rounded-md bg-muted/50 p-3 sm:p-4 space-y-2">
-                        <p className="text-xs sm:text-sm font-medium">Pending Tag Submissions:</p>
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <div className="cd-surface mt-4 space-y-2" style={{ background: "var(--cd-raised)" }}>
+                        <p className="cd-small font-medium">Pending Tag Submissions:</p>
+                        <div className="flex flex-wrap gap-2">
                           {pendingTags.map((submission) => (
                             <span
                               key={submission.id}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                              className="cd-status cd-wrap"
+                              data-tone="warning"
                             >
                               {submission.tag_name}
                             </span>
@@ -1188,10 +1383,10 @@ export function ProjectContent({
                   </section>
 
                   {/* Project Info Section */}
-                  <section id="project-info" className="py-4 sm:py-6 border-t">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Project Info</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="rounded-lg border bg-card p-3 sm:p-4">
+                  <section id="project-info" aria-labelledby="info-heading" className="cd-project-divided">
+                    <h2 id="info-heading" className="cd-heading mb-3">Project Info</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="cd-surface">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Category</p>
                         <p className="text-sm sm:text-base font-medium">
                           {PROJECT_CATEGORIES[
@@ -1204,10 +1399,10 @@ export function ProjectContent({
                           ]?.description}
                         </p>
                       </div>
-                      <div className="rounded-lg border bg-card p-3 sm:p-4">
+                      <div className="cd-surface">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Engagement</p>
                         <p className="text-sm sm:text-base font-medium flex items-center gap-2">
-                          <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                          <Heart className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: "var(--cd-danger)" }} aria-hidden="true" />
                           {project.total_favorites || 0} favorites
                         </p>
                       </div>
@@ -1215,15 +1410,15 @@ export function ProjectContent({
                   </section>
 
                   {/* Timeline Section */}
-                  <section id="timeline" className="py-4 sm:py-6 border-t">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4 flex items-center gap-2">
-                      <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <section id="timeline" aria-labelledby="timeline-heading" className="cd-project-divided">
+                    <h2 id="timeline-heading" className="cd-heading mb-3 flex items-center gap-2">
+                      <Clock className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                       Timeline
                     </h2>
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                        <div className="cd-timeline-dot h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+                          <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs sm:text-sm font-medium">Created</p>
@@ -1238,8 +1433,8 @@ export function ProjectContent({
                       </div>
                       {project.updated_at && (
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                          <div className="cd-timeline-dot h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+                            <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs sm:text-sm font-medium">Last Updated</p>
@@ -1270,15 +1465,18 @@ export function ProjectContent({
       {/* Unsaved Changes Confirmation Modal */}
       <UnsavedChangesConfirmationModal
         isOpen={showUnsavedChangesModal}
-        onClose={() => setShowUnsavedChangesModal(false)}
+        onClose={handleKeepEditing}
         onConfirm={handleConfirmDiscardChanges}
         pendingImageCount={pendingImageCount}
+        returnFocusRef={unsavedOpenerRef}
+        leaving={pendingHref !== null}
       />
 
       {/* Category Change Confirmation Modal */}
       {categoryChangeModalProps && (
         <CategoryChangeConfirmationModal {...categoryChangeModalProps} />
       )}
+    </div>
     </div>
   );
 

@@ -208,7 +208,7 @@ D08g4 specs).
   - Middleware redirects unauthenticated to /sign-in
   - Middleware redirects non-admin to /dashboard
   - Middleware uses ADMIN_DASHBOARD_MODERATOR env variable
-  - Test pages protected: /api/toasttest, /api/darkmodetest, /api/projects/test
+  - Test pages protected: /api/toasttest, /api/darkmodetest, /api/projects/test (pages removed in UI11; the proxy still gates the paths)
 
 - [ ] **E2E: Admin Dashboard Access**
   - Admin user can access /dashboard/admin

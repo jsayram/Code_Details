@@ -1,6 +1,6 @@
 // D08g1: the proxy's decisions while the Better Auth switch is on.
 import { describe, expect, it } from "vitest";
-import { betterAuthDecision, hasSessionCookie, isApiPath, signInLocation } from "@/backend/auth/proxy-rules";
+import { betterAuthDecision, hasSessionCookie, isAdminPath, isApiPath, signInLocation } from "@/backend/auth/proxy-rules";
 
 const user = { role: "user" as const };
 const admin = { role: "admin" as const };
@@ -32,6 +32,15 @@ describe("betterAuthDecision", () => {
     expect(decide("/dashboard/admin", { isAdmin: true, viewer: admin })).toEqual({ kind: "next" });
     expect(decide("/dashboard/admin", { isAdmin: true })).toEqual({ kind: "redirect", location: "/sign-in?redirect_url=%2Fdashboard%2Fadmin" });
     expect(decide("/api/projects/test", { isAdmin: true })).toEqual({ kind: "unauthorized" });
+  });
+
+  it("the removed test routes' rules don't catch a project id that starts with 'test'", () => {
+    expect(isAdminPath("/api/projects/testab12cd/tag-submissions")).toBe(false);
+    expect(isAdminPath("/api/darkmodetestx")).toBe(false);
+    expect(isAdminPath("/api/toasttestx")).toBe(false);
+    expect(isAdminPath("/api/projects/test")).toBe(true);
+    expect(isAdminPath("/api/projects/test/x")).toBe(true);
+    expect(isAdminPath("/api/darkmodetest")).toBe(true);
   });
 });
 

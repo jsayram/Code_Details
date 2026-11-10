@@ -61,6 +61,9 @@ export function safeRedirect(value: string | null | undefined): string {
     // Clerk-era links pass a full URL on this origin; keep only its path.
     const url = new URL(value, base);
     if (url.origin !== base) return "/";
+    // "/.//evil.com" stays on this origin here but normalizes to "//evil.com",
+    // which a browser reads as another site (F02).
+    if (url.pathname.startsWith("//")) return "/";
     return `${url.pathname}${url.search}${url.hash}`;
   } catch {
     return "/";

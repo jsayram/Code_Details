@@ -44,6 +44,16 @@ interface ProjectsContextType {
     totalPages: number;
     currentPage: number;
   };
+  /** UI07.3: the request for the current filters and page failed. */
+  error?: boolean;
+  /** UI07.3: it failed, but an earlier list is still on screen (SWR keeps previous data), so the list says it couldn't refresh. */
+  staleAfterError?: boolean;
+  /** UI07.3: a new page or filter is loading while the previous list stays on screen. */
+  refreshing?: boolean;
+  /** UI07.3: asks for the same list again. */
+  retry?: () => void;
+  /** UI07.3: a retry is in flight. */
+  retrying?: boolean;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(
@@ -63,6 +73,11 @@ interface ProjectsProviderProps {
   userId: string | null;
   isLoading?: boolean;
   initialFilters?: Partial<ProjectFilters>;
+  /**
+   * F02: a public list (/projects, /categories/<name>, /tags/<name>) loads
+   * signed out too. Personal lists never do, even with this set.
+   */
+  allowAnonymousView?: boolean;
 }
 
 /**
@@ -96,6 +111,7 @@ export function ProjectsProvider({
   userId,
   isLoading,
   initialFilters = {},
+  allowAnonymousView = false,
 }: ProjectsProviderProps) {
   // Local state for optimistic updates
   const [localProjects, setLocalProjects] = useState<Project[] | null>(null);
@@ -119,13 +135,15 @@ export function ProjectsProvider({
   const authReady = true;
 
   // Determine if we should fetch
-  const shouldFetch = authReady && !isLoading && (isAuthenticated || !!filters.username);
+  const isPersonalList = filters.showMyProjects || filters.showFavorites || filters.showDeleted;
+  const shouldFetch =
+    authReady && !isLoading && (isAuthenticated || !!filters.username || (allowAnonymousView && !isPersonalList));
 
   // Generate cache key for SWR
   const cacheKey = getProjectsCacheKey(filters, userId, shouldFetch);
 
   // Use SWR for data fetching with built-in caching
-  const { data, isLoading: swrLoading } = useSWR(
+  const { data, error: swrError, isLoading: swrLoading, isValidating, mutate: revalidate } = useSWR(
     cacheKey,
     projectsFetcher,
     {
@@ -147,8 +165,24 @@ export function ProjectsProvider({
 
   // Use local projects if set (for optimistic updates), otherwise use SWR data
   const projects = localProjects ?? swrProjects;
-  const loading = !cacheKey ? false : swrLoading;
+  // F02: while the session is still loading a public list stays on its
+  // skeleton, instead of flashing the empty message before the fetch starts.
+  // UI07.3: the skeleton is for the first load only. SWR's isLoading is true
+  // for any key it hasn't cached, even while keepPreviousData shows the last
+  // list, so a page change used to unmount the list and pager and drop focus
+  // to <body>. Now the previous list stays (marked as refreshing) until the
+  // new one arrives.
+  const loading = !!isLoading || (!cacheKey ? false : swrLoading && !data);
+  const refreshing = !!cacheKey && swrLoading && !!data;
   const pagination = swrPagination;
+  // UI07.3: SWR's error belongs to the current key. With keepPreviousData the
+  // data can still be the previous key's list, so a failed page or filter
+  // change must say so instead of passing the old list off as current.
+  const error = !!cacheKey && !!swrError;
+  const staleAfterError = error && !!data;
+  const retry = useCallback(() => {
+    void revalidate();
+  }, [revalidate]);
 
   // Update filters with page bounds checking
   const updateFilters = useCallback((newFilters: Partial<ProjectFilters>) => {
@@ -304,6 +338,11 @@ export function ProjectsProvider({
       setFilters: updateFilters,
       setProjects: setLocalProjects,
       pagination,
+      error,
+      staleAfterError,
+      refreshing,
+      retry,
+      retrying: error && isValidating,
     }),
     [
       sortedProjects,
@@ -316,6 +355,11 @@ export function ProjectsProvider({
       filters,
       updateFilters,
       pagination,
+      error,
+      staleAfterError,
+      refreshing,
+      retry,
+      isValidating,
     ]
   );
 

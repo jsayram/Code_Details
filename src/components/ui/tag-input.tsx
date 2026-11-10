@@ -18,6 +18,8 @@ interface TagInputProps extends React.HTMLAttributes<HTMLDivElement> {
   searchTags: (query: string) => Promise<TagInfo[]>;
   placeholder?: string;
   disabled?: boolean;
+  /** UI08.2: an id for the text field, so a visible label can name it. */
+  inputId?: string;
 }
 
 export function TagInput({
@@ -27,6 +29,7 @@ export function TagInput({
   searchTags,
   placeholder = "Add a tag...",
   disabled = false,
+  inputId,
   className,
   ...props
 }: TagInputProps) {
@@ -155,6 +158,7 @@ export function TagInput({
           <div className="relative flex-1">
             <Input
               ref={inputRef}
+              id={inputId}
               type="text"
               value={inputValue}
               onChange={handleInputChange}

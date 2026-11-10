@@ -9,13 +9,15 @@
 // more with final=1, so it counts as a search and not as typing (S00.3 §7);
 // when the response carries a receipt, "results shown" and clicks are sent to
 // /api/search/events. Analytics failures are ignored.
+//
+// UI07.1: drawn with the foundations (the page carries the scope). Results
+// are link tiles; the category shows its label in its own color.
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FolderSearch } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 import { HighlightText } from "@/components/HighlightText";
 import { visitToken } from "./visit-token";
 
@@ -145,57 +147,60 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
     : `${hits.length}${page?.nextCursor ? "+" : ""}`;
 
   return (
-    <Card className="mb-6" aria-labelledby="project-results-title" data-testid="project-search-results">
-      <CardHeader className="pb-3">
-        <CardTitle id="project-results-title" className="flex items-center gap-2 text-lg">
-          <FolderSearch className="h-5 w-5 text-primary" aria-hidden="true" />
+    <section className="cd-surface cd-stack" aria-labelledby="project-results-title" data-testid="project-search-results">
+      <div className="cd-stack-tight">
+        <h2 id="project-results-title" className="cd-heading flex items-center gap-2">
+          <FolderSearch className="h-5 w-5" aria-hidden="true" />
           Projects
-          {state === "ready" && <Badge variant="secondary" className="font-mono">{count}</Badge>}
-        </CardTitle>
+          {state === "ready" && <span className="cd-status cd-number" data-tone="selected">{count}</span>}
+        </h2>
         {page?.applied.correctedQuery && state === "ready" && (
-          <p className="text-sm text-muted-foreground">Showing results for “{page.applied.correctedQuery}”</p>
+          <p className="cd-small cd-muted">Showing results for “{page.applied.correctedQuery}”</p>
         )}
-      </CardHeader>
-      <CardContent>
-        {state === "loading" && <p className="text-sm text-muted-foreground" role="status">Searching projects…</p>}
-        {state === "error" && <p className="text-sm text-muted-foreground" role="status">Project search is unavailable right now.</p>}
-        {state === "ready" && hits.length === 0 && (
-          <p className="text-sm text-muted-foreground">No projects match “{q}”.</p>
-        )}
-        {state === "ready" && hits.length > 0 && (
-          <ul className="grid grid-cols-1 md:grid-cols-2 gap-3">
-            {hits.map((hit, i) => (
-              <li key={hit.entityId}>
-                <Link
-                  href={hit.route}
-                  onClick={() => onOpen(hit, i)}
-                  className="block h-full p-4 rounded-lg border transition-all hover:bg-accent hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-                >
-                  <h3 className="font-medium"><HighlightText text={hit.title} highlight={q} /></h3>
-                  {hit.owner && <p className="text-sm text-muted-foreground">by {hit.owner.fullName ?? hit.owner.username}</p>}
-                  {hit.description && (
-                    <p className="text-sm text-muted-foreground mt-1 line-clamp-2"><HighlightText text={hit.description} highlight={q} /></p>
+      </div>
+      {state === "loading" && (
+        <p className="cd-small cd-muted flex items-center gap-2" role="status">
+          <span aria-hidden="true" className="cd-spinner animate-spin" />
+          Searching projects…
+        </p>
+      )}
+      {state === "error" && <p className="cd-small cd-muted" role="status">Project search is unavailable right now.</p>}
+      {state === "ready" && hits.length === 0 && <p className="cd-small cd-muted">No projects match “{q}”.</p>}
+      {state === "ready" && hits.length > 0 && (
+        <ul className="cd-grid">
+          {hits.map((hit, i) => (
+            <li key={hit.entityId} className="min-w-0">
+              <Link href={hit.route} onClick={() => onOpen(hit, i)} className="cd-tile">
+                <h3 className="cd-subheading cd-wrap"><HighlightText text={hit.title} highlight={q} /></h3>
+                {hit.owner && <p className="cd-small cd-muted cd-wrap">by {hit.owner.fullName ?? hit.owner.username}</p>}
+                {hit.description && (
+                  <p className="cd-small cd-muted line-clamp-2 cd-wrap"><HighlightText text={hit.description} highlight={q} /></p>
+                )}
+                <div className="cd-cluster" style={{ gap: "var(--cd-space-2)" }}>
+                  <span className="cd-status cd-cat" data-category={hit.category}>
+                    {PROJECT_CATEGORIES[hit.category as keyof typeof PROJECT_CATEGORIES]?.label ?? hit.category}
+                  </span>
+                  {hit.tags.slice(0, 4).map((t) => (
+                    <span key={t.id} className="cd-tag cd-wrap">{t.name}</span>
+                  ))}
+                  {hit.favoriteCount > 0 && (
+                    <span className="cd-small cd-muted cd-number">
+                      <span aria-hidden="true">⭐</span> {hit.favoriteCount}<span className="sr-only"> favorites</span>
+                    </span>
                   )}
-                  <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                    <Badge variant="outline" className="text-xs">{hit.category}</Badge>
-                    {hit.tags.slice(0, 4).map((t) => (
-                      <Badge key={t.id} variant="secondary" className="text-xs">{t.name}</Badge>
-                    ))}
-                    {hit.favoriteCount > 0 && <span className="text-xs text-muted-foreground">⭐ {hit.favoriteCount}</span>}
-                  </div>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        )}
-        {state === "ready" && page?.nextCursor && (
-          <div className="flex justify-center mt-4">
-            <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
-              {loadingMore ? "Loading…" : "Show more projects"}
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
+                </div>
+              </Link>
+            </li>
+          ))}
+        </ul>
+      )}
+      {state === "ready" && page?.nextCursor && (
+        <div className="flex justify-center">
+          <Button variant="outline" onClick={loadMore} disabled={loadingMore}>
+            {loadingMore ? "Loading…" : "Show more projects"}
+          </Button>
+        </div>
+      )}
+    </section>
   );
 }

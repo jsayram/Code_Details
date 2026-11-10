@@ -36,7 +36,7 @@ export function TagPipelineCard({ metrics }: TagPipelineCardProps) {
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-sm font-medium">Tag Submission Pipeline</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+      <CardContent tabIndex={0} role="region" aria-label="Tag submission pipeline details" className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
         <div className="grid grid-cols-1 gap-4">
           {/* Total Tags */}
           <div className="p-3 md:p-4 bg-gradient-to-br from-primary/5 to-primary/10 rounded-lg border border-primary/20">
@@ -129,7 +129,7 @@ export function TopSubmittersCard({ metrics }: TagPipelineCardProps) {
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-sm font-medium">Top Tag Submitters</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+      <CardContent tabIndex={0} role="region" aria-label="Top tag submitters list" className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
         <div className="space-y-4">
           {metrics.topSubmitters.length === 0 ? (
             <p className="text-sm text-muted-foreground">No submitter data available</p>
@@ -140,7 +140,7 @@ export function TopSubmittersCard({ metrics }: TagPipelineCardProps) {
                 className="flex items-center gap-3 md:gap-4 p-2.5 md:p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
               >
                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                  <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                  <div className="flex-shrink-0 w-6 h-6 md:w-8 md:h-8 rounded-full flex items-center justify-center" style={{ background: "var(--cd-selected)", color: "var(--cd-on-selected)" }}>
                     <span className="text-xs md:text-sm font-bold text-primary">#{index + 1}</span>
                   </div>
                   <Avatar className="h-8 w-8 md:h-10 md:w-10 flex-shrink-0">
@@ -211,7 +211,7 @@ export function RecentSubmissionsCard({ metrics }: TagPipelineCardProps) {
       <CardHeader className="flex-shrink-0">
         <CardTitle className="text-sm font-medium">Recent Tag Submissions</CardTitle>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+      <CardContent tabIndex={0} role="region" aria-label="Recent tag submissions list" className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
         <div className="space-y-4">
           {metrics.recentSubmissions.length === 0 ? (
             <p className="text-sm text-muted-foreground">No recent submissions</p>

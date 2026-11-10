@@ -153,11 +153,11 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
                   animationSpeed={120}
                 />
                 {/* Flat blinking cursor (underscore style) - safe for SSR */}
+                {/* UI10: blinks by opacity (globals.css .cd-cursor-blink). The old
+                    animate-pulse here was the app's shimmer, which repainted
+                    a background every frame. */}
                 <ClientOnly>
-                  <span
-                    className="ml-1 inline-block h-[2px] w-[10px] bg-white/70 group-hover:bg-primary/90 mt-4 animate-pulse"
-                    style={{ animationDuration: "1s" }}
-                  ></span>
+                  <span className="cd-cursor-blink ml-1 inline-block h-[2px] w-[10px] bg-white/70 group-hover:bg-primary/90 mt-4"></span>
                 </ClientOnly>
               </div>
             </div>
@@ -211,10 +211,7 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
 
                       {/* Flat blinking cursor ONLY for clickable items */}
                       <ClientOnly>
-                        <span
-                          className="ml-1 inline-block h-[2px] w-[10px] bg-transparent group-hover:bg-green-400/70 mt-4 animate-pulse"
-                          style={{ animationDuration: "1s" }}
-                        ></span>
+                        <span className="cd-cursor-blink ml-1 inline-block h-[2px] w-[10px] bg-transparent group-hover:bg-green-400/70 mt-4"></span>
                       </ClientOnly>
                     </>
                   ) : (

@@ -22,7 +22,6 @@ const PUBLIC_ROUTES = [
   route("/sign-up.*"),
   route("/shared-projects/.*"),
   route("/projects/[^/]+"),
-  route("/projects/users/[^/]+.*"),
   route("/api/shared-projects/.*"),
   // D09 S02b (Jose's decision 3): search returns listed projects only, to anyone.
   route("/api/search(/facets|/events)?"),
@@ -46,9 +45,9 @@ const BETTER_AUTH_ROUTES = [route("/api/auth/.*"), route("/api/dev/viewer")];
 const ADMIN_ROUTES = [
   route("/dashboard/admin.*"),
   route("/dashboard/tag-submissions.*"), // D07 (P08 R04): its read was admin-checked; now the route is too
-  route("/api/projects/test.*"),
-  route("/api/darkmodetest.*"),
-  route("/api/toasttest.*"),
+  route("/api/projects/test(/.*)?"), // removed in UI11; anchored so project ids starting "test" don't match
+  route("/api/darkmodetest(/.*)?"),
+  route("/api/toasttest(/.*)?"),
   // F02: admin tools by intent, open to any signed-in account until now. Their
   // data routes check for an admin themselves (/api/llm-test, /api/repo/crawl).
   route("/llm-test"),

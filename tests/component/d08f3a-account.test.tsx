@@ -98,7 +98,8 @@ describe("account controls with the switch on", () => {
     render(withBackend("better-auth", <><AccountButton appearance={{ elements: { userButtonAvatarBox: "w-9 h-9" } }} /><Gates /></>));
     const trigger = await screen.findByRole("button", { name: "Open account menu" });
     expect(trigger.querySelector('[data-slot="avatar"]')?.className).toContain("w-9 h-9");
-    expect(trigger.textContent).toBe("SP");
+    // UI05: the name now comes from screen-reader text; the initials are what shows.
+    expect(trigger.querySelector('[data-slot="avatar"]')?.textContent).toBe("SP");
     await screen.findByText("menu");
     await user.click(trigger);
     expect(await screen.findByText("Synthetic Person")).toBeTruthy();

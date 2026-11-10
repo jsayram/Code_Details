@@ -1,25 +1,15 @@
+import "@/styles/foundations.css";
 import { Suspense } from "react";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
+import { AppShell } from "@/components/layout/AppShell";
 import { ProjectContent } from "@/components/Projects/ProjectComponents/ProjectContent";
 import { notFound, redirect } from "next/navigation";
-import { SignedIn, SignedOut } from "@/components/auth/AuthGateServer";
-import { LogIn } from "lucide-react";
+import { SignedOut } from "@/components/auth/AuthGateServer";
 import { SelectProjectWithOwner, SelectUserWithProject } from "@/types/rows";
-import { PageBanner } from "@/components/ui/page-banner";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { getProjectReadBackend } from "@/backend/projects";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
 import { currentSlugFor, ownProjectForEdit } from "@/backend/projects/owner-edit";
-
-type Props = {
-  params: Promise<{ slug: string }>;
-  searchParams: { [key: string]: string | string[] | undefined };
-};
+import { ProjectPageSkeleton } from "./project-page-skeleton";
 
 export default async function ProjectPage({
   params,
@@ -28,7 +18,7 @@ export default async function ProjectPage({
 }) {
   // Ensure params is handled as a Promise
   const resolvedParams = await Promise.resolve(params);
-  
+
   // D02: a Better Auth owner gets their own project with the version the save
   // needs; everyone else gets the C02 public projection (no owner email,
   // subject or tier in the page). D08g4i: the Clerk-era signed-in read
@@ -50,54 +40,31 @@ export default async function ProjectPage({
     notFound();
   }
 
+  const ownerName = project.owner_full_name || "This creator";
+
+  // UI06.2: on the shared AppShell for everyone. Signed out, the sidebar shows
+  // only its public entries (UI05), and a quiet note replaces the old banner.
   return (
-    <SidebarProvider>
-      <SignedIn>
-        <AppSidebar />
-      </SignedIn>
-      <SidebarInset>
-        <SignedOut>
-          <HeaderSectionNoSideBar showMobileMenu={false} />
-        </SignedOut>
-        <SignedIn>
-          <HeaderSection />
-        </SignedIn>
-        <SignedOut>
-          <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-4 2xl:px-8 3xl:px-12 mb-6 py-3">
-            <PageBanner
-              icon={<LogIn className="h-8 w-8 text-purple-500" />}
-              userName={project.owner_full_name || "This creator"}
-              bannerTitle={`You are viewing ${
-                  project.owner_full_name || "This creator"
-                }'s project.`}
-              description={`Sign in to explore more of their projects and free content.`}
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="indigo-800"
-              gradientTo="violet-800"
-              borderColor="border-purple-700/40"
-              tierBgColor="bg-purple-700/60"
-              textGradient="from-purple-400 via-indigo-400 to-violet-400"
-            />
+    <AppShell>
+      <SignedOut>
+        <div className="cd-foundations" style={{ background: "var(--cd-bg)" }}>
+          <div className="cd-page" style={{ paddingBlockEnd: 0 }}>
+            <p className="cd-surface cd-small cd-wrap" role="note">
+              <span className="font-medium">You are viewing {ownerName}&apos;s project.</span>{" "}
+              <span className="cd-muted">Sign in to explore more of their projects and free content.</span>
+            </p>
           </div>
-        </SignedOut>
-        <ProjectsProvider userId={null} isLoading={false}>
-          <Suspense
-            fallback={
-              <div className="container mx-auto px-4 py-8">
-                <ProjectListLoadingState />
-              </div>
-            }
-          >
-            <ProjectContent
-              project={project}
-              error={undefined}
-              userProfile={user}
-            />
-          </Suspense>
-        </ProjectsProvider>
-        <FooterSection />
-      </SidebarInset>
-    </SidebarProvider>
+        </div>
+      </SignedOut>
+      <ProjectsProvider userId={null} isLoading={false}>
+        <Suspense fallback={<ProjectPageSkeleton />}>
+          <ProjectContent
+            project={project}
+            error={undefined}
+            userProfile={user}
+          />
+        </Suspense>
+      </ProjectsProvider>
+    </AppShell>
   );
 }

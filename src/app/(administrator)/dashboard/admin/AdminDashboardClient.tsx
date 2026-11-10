@@ -1,11 +1,9 @@
 "use client";
 
 import React from "react";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SignedIn } from "@/components/auth/AuthGate";
+import { scrollMotion } from "@/lib/reduced-motion";
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
 import {
   Card,
   CardContent,
@@ -21,7 +19,6 @@ import {
   Heart,
   ShieldCheck,
   Users,
-  Moon,
   AlertCircle,
   TrendingUp,
   Loader2,
@@ -62,7 +59,7 @@ import { toast } from "sonner";
 import { TopContributorsCard } from "@/components/administrator/TopContributorsCard";
 import { TagPipelineCard, TopSubmittersCard, RecentSubmissionsCard } from "@/components/administrator/TagPipelineCard";
 import { HighlightText } from "@/components/HighlightText";
-import { PageBanner } from "@/components/ui/page-banner";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 
 // Type definitions
@@ -285,7 +282,7 @@ function ProjectNeedsAttentionItem({
         <p className="text-xs text-muted-foreground truncate">by {owner}</p>
         <div className="flex flex-wrap gap-1.5">
           {missingDescription && (
-            <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-700 dark:text-amber-400 border border-amber-500/20">
+            <span className="text-xs px-2 py-0.5 rounded bg-amber-500/10 text-amber-800 dark:text-amber-300 border border-amber-500/20">
               No description
             </span>
           )}
@@ -323,7 +320,7 @@ function MostLikedProjectItem({
       onClick={() => setIsNavigating(true)}
     >
       <div className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-        <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center" style={{ background: "var(--cd-selected)", color: "var(--cd-on-selected)" }}>
           <span className="text-sm font-bold text-primary">#{rank}</span>
         </div>
         <div className="flex-1 min-w-0">
@@ -634,7 +631,7 @@ function EditUserDialog({
       setTimeout(() => {
         const userMgmtCard = document.getElementById('user-management');
         if (userMgmtCard) {
-          userMgmtCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          userMgmtCard.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
           setTimeout(() => {
             userMgmtCard.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
             setTimeout(() => {
@@ -883,12 +880,15 @@ function EditableUserItem({
             variant="outline"
             onClick={() => onEdit(user)}
             className="flex-shrink-0 h-8 w-8 p-0"
+            aria-label={`Edit ${user.username || "user"}`}
           >
-            <Edit className="h-3 w-3" />
+            <Edit className="h-3 w-3" aria-hidden="true" />
           </Button>
         )}
       </div>
       <button
+        type="button"
+        aria-expanded={isExpanded}
         onClick={() => setIsExpanded(!isExpanded)}
         className="text-xs text-muted-foreground hover:text-primary transition-colors ml-2 whitespace-nowrap"
       >
@@ -896,7 +896,7 @@ function EditableUserItem({
       </button>
       {isExpanded && (
         <div className="w-full overflow-hidden">
-          <div className="ml-2 p-3 rounded-lg bg-muted/20 text-xs space-y-1 font-mono overflow-x-auto">
+          <div tabIndex={0} aria-label={`Database info for ${user.username || "user"}`} className="ml-2 p-3 rounded-lg bg-muted/20 text-xs space-y-1 font-mono overflow-x-auto">
             <div className="flex gap-2 min-w-0">
               <span className="text-muted-foreground min-w-[100px] flex-shrink-0">UUID:</span>
               <span className="text-foreground break-all min-w-0">{user.id}</span>
@@ -1018,7 +1018,7 @@ function AllUsersCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
         <CardHeader className="flex-shrink-0 space-y-3">
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm font-medium">
-              User Management {isSuperAdmin && <span className="text-xs text-amber-500 ml-2">(Super Admin)</span>}
+              User Management {isSuperAdmin && <span className="cd-status ml-2" data-tone="warning">Super Admin</span>}
             </CardTitle>
             <Users className="h-4 w-4 text-primary" />
           </div>
@@ -1026,6 +1026,7 @@ function AllUsersCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             <div className="relative flex-1 min-w-0">
               <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 sm:h-5 w-4 sm:w-5 text-muted-foreground transition-colors duration-200" />
               <Input
+                aria-label="Search users"
                 placeholder="Search by username, email, tier, or ID..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
@@ -1034,7 +1035,7 @@ function AllUsersCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
             </div>
             <div className="flex gap-2">
               <Select value={tierFilter} onValueChange={(value) => setTierFilter(value as typeof tierFilter)}>
-                <SelectTrigger className="w-[120px] sm:w-[140px] h-10 sm:h-12 text-sm">
+                <SelectTrigger aria-label="Tier" className="w-[120px] sm:w-[140px] h-10 sm:h-12 text-sm">
                   <SelectValue placeholder="All Tiers" />
                 </SelectTrigger>
                 <SelectContent>
@@ -1045,7 +1046,7 @@ function AllUsersCard({ isSuperAdmin }: { isSuperAdmin: boolean }) {
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={(value) => setSortBy(value as typeof sortBy)}>
-                <SelectTrigger className="w-[140px] sm:w-[180px] h-10 sm:h-12 text-sm">
+                <SelectTrigger aria-label="Sort users" className="w-[140px] sm:w-[180px] h-10 sm:h-12 text-sm">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -1384,62 +1385,75 @@ function DashboardContent() {
     return <DashboardLoading />;
   }
 
+  // UI09.3: the stat cards jump to their section; they were click-only, so
+  // they now take focus and answer Enter and Space like buttons.
+  const jumpTo = (id: string) => {
+    const go = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
+        // Move focus with the view so the next Tab continues in that section.
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+        el.focus({ preventScroll: true });
+        setTimeout(() => {
+          el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+          }, 1000);
+        }, 500);
+      }
+    };
+    return {
+      role: "button" as const,
+      tabIndex: 0,
+      onClick: go,
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          go();
+        }
+      },
+    };
+  };
+
   return (
     <div className="w-full min-w-0 px-4 2xl:px-8 3xl:px-12 py-8">
-      {/* Page Banner */}
-      <div className="mb-8">
-        <div className="mx-auto">
-          <PageBanner
-            icon={<ShieldCheck className="h-8 w-8 text-cyan-500" />}
-            userName={user?.fullName || user?.firstName || user?.email || "Administrator"}
-            bannerTitle="System Administration"
-            description="Platform-wide analytics, user management, and system controls. Monitor performance, manage users, and oversee tag submissions."
-            isUserBanner={false}
-            gradientFrom="cyan-900"
-            gradientVia="blue-800"
-            gradientTo="sky-800"
-            borderColor="border-cyan-700/40"
-            textGradient="from-cyan-400 via-blue-400 to-sky-400"
-          />
-        </div>
-      </div>
-
-      {/* Dashboard Header with Refresh Button */}
+      {/* UI09.3: the shared header (one h1) in place of the gradient banner and the second title. */}
       <div className="mb-6 md:mb-8">
-        <div className="flex items-center justify-between mb-2">
-          <div>
-            <h1 className="text-2xl md:text-3xl 3xl:text-4xl 4xl:text-5xl font-bold tracking-tight">Admin Dashboard</h1>
-            <p className="text-muted-foreground mt-1 md:mt-2 text-sm md:text-base 3xl:text-lg 4xl:text-xl">
-              Platform-wide analytics and administration
-            </p>
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleClearCache}
-              disabled={isClearingCache}
-              className="cursor-pointer"
-            >
-              <X
-                className={`h-4 w-4 mr-2 ${isClearingCache ? "animate-spin" : ""}`}
-              />
-              {isClearingCache ? "Clearing..." : "Clear Cache"}
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="cursor-pointer"
-            >
-              <RefreshCcw
-                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-        </div>
+        <DiscoveryHeader
+          eyebrow="System Administration"
+          title="Admin Dashboard"
+          icon={<ShieldCheck className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+          lead={`Platform-wide analytics, user management, and system controls${user?.fullName || user?.firstName ? ` for ${user?.fullName || user?.firstName}` : ""}. Monitor performance, manage users, and oversee tag submissions.`}
+          aside={
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleClearCache}
+                disabled={isClearingCache}
+                className="cursor-pointer"
+              >
+                <X
+                  className={`h-4 w-4 mr-2 ${isClearingCache ? "animate-spin" : ""}`}
+                />
+                {isClearingCache ? "Clearing..." : "Clear Cache"}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleRefresh}
+                disabled={isRefreshing}
+                className="cursor-pointer"
+              >
+                <RefreshCcw
+                  className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+                />
+                {isRefreshing ? "Refreshing..." : "Refresh"}
+              </Button>
+            </>
+          }
+        />
       </div>
 
       {/* Stats Cards Row */}
@@ -1476,21 +1490,7 @@ function DashboardContent() {
 
       {/* Additional Analytics Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
-        <div 
-          onClick={() => {
-            const el = document.getElementById('user-management');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("user-management")} className="block cursor-pointer">
           <StatsCard
             title="Total Users"
             value={stats.stats.userGrowth.totalUsers.toString()}
@@ -1498,21 +1498,7 @@ function DashboardContent() {
             icon={<Users className="h-4 w-4 text-emerald-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('projects-no-favorites');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("projects-no-favorites")} className="block cursor-pointer">
           <StatsCard
             title="Avg Favorites/Project"
             value={Math.round(stats.stats.engagementMetrics.avgFavoritesPerProject).toString()}
@@ -1520,21 +1506,7 @@ function DashboardContent() {
             icon={<TrendingUp className="h-4 w-4 text-blue-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('projects-needing-attention');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("projects-needing-attention")} className="block cursor-pointer">
           <StatsCard
             title="Avg Tags/Project"
             value={Math.round(stats.stats.engagementMetrics.avgTagsPerProject).toString()}
@@ -1542,21 +1514,7 @@ function DashboardContent() {
             icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('new-users-list');
-            if (el) {
-              el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("new-users-list")} className="block cursor-pointer">
           <StatsCard
             title="New Users (30d)"
             value={stats.stats.userGrowth.newUsersThisMonth.toString()}
@@ -1597,7 +1555,7 @@ function DashboardContent() {
               A comprehensive view of all projects and their favorites
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-2 sm:px-4 md:px-6 flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+          <CardContent tabIndex={0} role="region" aria-label="Projects overview" className="px-2 sm:px-4 md:px-6 flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             <Overview
               data={stats.stats.allProjects.map((p) => ({
                 name:
@@ -1630,6 +1588,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={refreshActivity}
+                aria-label="Refresh recent activity"
                 disabled={refreshingActivity}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingActivity ? 'animate-spin' : ''}`} />
@@ -1667,6 +1626,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={refreshAttention}
+                aria-label="Refresh projects needing attention"
                 disabled={refreshingAttention}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingAttention ? 'animate-spin' : ''}`} />
@@ -1710,6 +1670,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={refreshPopular}
+                aria-label="Refresh most liked projects"
                 disabled={refreshingPopular}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingPopular ? 'animate-spin' : ''}`} />
@@ -1754,6 +1715,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={refreshNoFavorites}
+                aria-label="Refresh projects with no favorites"
                 disabled={refreshingNoFavorites}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingNoFavorites ? 'animate-spin' : ''}`} />
@@ -1809,6 +1771,7 @@ function DashboardContent() {
                   size="icon"
                   className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                   onClick={refreshNewUsers}
+                aria-label="Refresh new users"
                   disabled={refreshingNewUsers}
                 >
                   <RefreshCcw className={`h-3.5 w-3.5 ${refreshingNewUsers ? 'animate-spin' : ''}`} />
@@ -1911,6 +1874,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer flex-shrink-0"
                 onClick={refreshTagSubmissions}
+                aria-label="Refresh tag submissions"
                 disabled={refreshingTagSubmissions}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingTagSubmissions ? 'animate-spin' : ''}`} />
@@ -1938,6 +1902,7 @@ function DashboardContent() {
                 size="icon"
                 className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
                 onClick={refreshTags}
+                aria-label="Refresh popular tags"
                 disabled={refreshingTags}
               >
                 <RefreshCcw className={`h-3.5 w-3.5 ${refreshingTags ? 'animate-spin' : ''}`} />
@@ -1970,6 +1935,7 @@ function DashboardContent() {
               size="icon"
               className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
               onClick={refreshTags}
+                aria-label="Refresh tag list"
               disabled={refreshingTags}
             >
               <RefreshCcw className={`h-3.5 w-3.5 ${refreshingTags ? 'animate-spin' : ''}`} />
@@ -2051,63 +2017,6 @@ function DashboardContent() {
           </CardHeader>
           <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             <div className="grid grid-cols-1 sm:grid-cols-2 2xl:grid-cols-3 gap-3 md:gap-4">
-              <a
-                href="/api/projects/test"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Code className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Project API Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test project API endpoints and functionality
-                  </span>
-                </Button>
-              </a>
-
-              <a
-                href="/api/darkmodetest"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <Moon className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Dark Mode Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test dark mode theme components
-                  </span>
-                </Button>
-              </a>
-
-              <a
-                href="/api/toasttest"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <Button
-                  variant="outline"
-                  className="w-full h-auto flex flex-col items-start p-3 md:p-4 cursor-pointer hover:bg-accent/50 transition-colors"
-                >
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="h-3.5 w-3.5 md:h-4 md:w-4 text-primary" />
-                    <span className="font-semibold text-xs md:text-sm">Toast Test</span>
-                  </div>
-                  <span className="text-[10px] md:text-xs text-muted-foreground text-left">
-                    Test toast notification system
-                  </span>
-                </Button>
-              </a>
-
               <Link href="/llm-test">
                 <Button
                   variant="outline"
@@ -2172,26 +2081,14 @@ function DashboardLoading() {
 }
 
 export default function AdminDashboardPage() {
+  // UI09.3: the shared shell, with the page content on the design foundations.
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <SidebarProvider>
-        <SignedIn>
-          <AppSidebar />
-        </SignedIn>
-        <SidebarInset className="min-w-0">
-          <HeaderSection
-            showLogo={false}
-            showDarkModeButton={true}
-            showMobileMenu={false}
-          />
-
-          <ErrorBoundary>
-            <DashboardContent />
-          </ErrorBoundary>
-
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
+        <ErrorBoundary>
+          <DashboardContent />
+        </ErrorBoundary>
+      </div>
+    </AppShell>
   );
 }

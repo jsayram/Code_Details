@@ -4,7 +4,6 @@
 @import "tailwindcss";
 @import "tw-animate-css";
 @import "./toast.css";
-@import "./cards.css";
 @import "./category-styles.css";
 @import "./table.css";
 
@@ -254,8 +253,49 @@
   opacity: 0;
 }
 
+/* This unlayered rule beats tw-animate's plain `animate-in` class (tooltips,
+   list fades, the phone table of contents). Menus, sheets and dialogs use the
+   `data-[state=open]:animate-in` variant, which tw-animate still drives. UI10:
+   both read --tw-duration (below) instead of a fixed 0.5s here. */
 .animate-in {
-  animation: fade-in 0.5s ease-out;
+  animation: fade-in var(--tw-duration, 150ms) ease-out;
+}
+
+/* UI10: the DESIGN.md motion budget for overlays (UI03 tokens: menus 180ms,
+   dialogs 240ms, exits about 20% shorter). The phone sidebar is a sheet
+   whose content says data-slot="sidebar" data-mobile="true". Unlayered, so it wins over the
+   components' own duration-200 / duration-500 utilities. */
+[data-slot="dropdown-menu-content"],
+[data-slot="dropdown-menu-sub-content"],
+[data-slot="select-content"],
+[data-slot="hover-card-content"],
+[data-slot="tooltip-content"] {
+  --tw-duration: 180ms;
+}
+[data-slot="dialog-content"],
+[data-slot="dialog-overlay"],
+[data-slot="alert-dialog-content"],
+[data-slot="alert-dialog-overlay"],
+[data-slot="sheet-content"],
+[data-slot="sheet-overlay"],
+[data-slot="sidebar"][data-mobile="true"] {
+  --tw-duration: 240ms;
+}
+[data-slot="dropdown-menu-content"][data-state="closed"],
+[data-slot="dropdown-menu-sub-content"][data-state="closed"],
+[data-slot="select-content"][data-state="closed"],
+[data-slot="hover-card-content"][data-state="closed"],
+[data-slot="tooltip-content"][data-state="closed"] {
+  --tw-duration: 144ms;
+}
+[data-slot="dialog-content"][data-state="closed"],
+[data-slot="dialog-overlay"][data-state="closed"],
+[data-slot="alert-dialog-content"][data-state="closed"],
+[data-slot="alert-dialog-overlay"][data-state="closed"],
+[data-slot="sheet-content"][data-state="closed"],
+[data-slot="sheet-overlay"][data-state="closed"],
+[data-slot="sidebar"][data-mobile="true"][data-state="closed"] {
+  --tw-duration: 192ms;
 }
 
 @keyframes fade-in {
@@ -390,6 +430,126 @@
   .highlight-flash {
     animation: highlight-flash 1.5s ease-in-out 2;
     border-radius: 0.5rem;
+  }
+}
+
+/* UI10: home's code particles (components/Elements/CodeParticlesElement.tsx).
+   Text color at low opacity, so they read as gray in both themes, transform and opacity only. They move only when the system
+   asks for no reduced motion; otherwise they stand still at a middle opacity.
+   Phones show the first 10 of the 18. */
+.cd-particle {
+  color: var(--foreground);
+  opacity: var(--cd-particle-rest);
+  line-height: 1;
+  white-space: nowrap;
+}
+.cd-particles {
+  --cd-particle-low: 0.08;
+  --cd-particle-high: 0.22;
+  --cd-particle-rest: 0.15;
+}
+.dark .cd-particles {
+  --cd-particle-low: 0.1;
+  --cd-particle-high: 0.24;
+  --cd-particle-rest: 0.16;
+}
+@media (max-width: 639.98px) {
+  .cd-particle:nth-child(n + 11) {
+    display: none;
+  }
+}
+@keyframes cd-particle-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: var(--cd-particle-low);
+  }
+  50% {
+    transform: translate(var(--cd-particle-dx), var(--cd-particle-dy)) rotate(var(--cd-particle-rot));
+    opacity: var(--cd-particle-high);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-particle {
+    animation-name: cd-particle-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+  .cd-particles[data-running="false"] .cd-particle {
+    animation-play-state: paused;
+  }
+}
+/* Under reduced motion the inline duration/delay stay but nothing is named,
+   so nothing runs. */
+
+/* Home's hero entry: from 16px lower and 0.8 opacity, once, so the text is
+   readable and the links work from the first frame (UI01 budget). */
+@keyframes cd-enter {
+  from {
+    opacity: 0.8;
+    transform: translateY(16px);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-enter {
+    animation: cd-enter 320ms cubic-bezier(0.2, 0, 0, 1) both;
+  }
+  .cd-enter-late {
+    animation-delay: 80ms;
+  }
+}
+
+/* UI10: typed terminal labels (animations/TextTypingEffectAnimation.tsx).
+   The text is all there; a stepped clip reveals it. */
+@keyframes cd-type {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-typing {
+    display: inline-block;
+    animation-name: cd-type;
+    animation-timing-function: steps(var(--cd-type-steps), end);
+    animation-fill-mode: both;
+  }
+}
+
+/* UI10: the terminal's blinking underscore. Opacity only, so the compositor
+   runs it; it holds still (visible) under reduced motion. */
+@keyframes cd-cursor-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-cursor-blink {
+    animation: cd-cursor-blink 1s steps(1, end) infinite;
+  }
+}
+
+/* UI03 (decision 10): global reduced motion. A tiny duration rather than
+   "none", so fill-mode end states still apply and animationend still fires.
+   Spinners keep turning because they report status. Framer Motion and scripted
+   scrolling don't go through CSS: see providers/motion-provider.tsx and
+   lib/reduced-motion.ts. */
+@media (prefers-reduced-motion: reduce) {
+  *:not(.animate-spin),
+  *:not(.animate-spin)::before,
+  *:not(.animate-spin)::after {
+    animation-delay: 0ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+  *,
+  *::before,
+  *::after {
+    transition-delay: 0ms !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 

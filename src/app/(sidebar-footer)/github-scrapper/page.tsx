@@ -36,14 +36,14 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { LLMProviderSelector } from '@/components/llm/LLMProviderSelector';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { ProjectsProvider } from '@/providers/projects-provider';
-import { isValidGitHubUrl } from '@/repoScrapper';
+// The crawler module, not the @/repoScrapper barrel: the barrel also exports the
+// server crawler, whose SSRF guard (H1) imports node:dns, which a client page
+// can't bundle. Through the barrel this page answered 500.
+import { isValidGitHubUrl } from '@/repoScrapper/crawler';
 
 interface LLMConfig {
   providerId: string;
@@ -198,40 +198,22 @@ function GitHubScrapperContent() {
     <div className="flex justify-center w-full mb-10">
       <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
         <div className="flex flex-col gap-6 mb-6 py-3">
-          {/* Page Banner */}
+          {/* UI09.3: the shared header in place of the gradient banner. */}
           <div className="mb-4">
-            <PageBanner
-              icon={<FolderGit2 className="h-8 w-8 text-fuchsia-500" />}
-              bannerTitle="GitHub Scrapper"
-              description="Generate architecture documentation for any GitHub repository using AI"
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="fuchsia-800"
-              gradientTo="pink-800"
-              borderColor="border-purple-700/40"
-              textGradient="from-purple-400 via-fuchsia-400 to-pink-400"
+            <DiscoveryHeader
+              eyebrow="AI documentation"
+              icon={<FolderGit2 className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+              title="GitHub Scrapper"
+              lead="Generate architecture documentation for any GitHub repository using AI"
             />
           </div>
 
-          {/* Code Particles Background */}
           <div className="relative">
-            <CodeParticlesElement
-              quantity="high"
-              speed="slow"
-              size="mixed"
-              includeEmojis={true}
-              includeKeywords={true}
-              includeSymbols={true}
-              syntaxHighlight="vscode"
-              depth="layered"
-              containerClassName="absolute inset-0 -z-5 pointer-events-none opacity-20"
-            />
-
             {/* Main Card */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="relative z-10"
             >
             <Card className="backdrop-blur-sm bg-card/80">
@@ -399,9 +381,9 @@ function GitHubScrapperContent() {
 
             {/* Info Section */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-8 relative z-10"
             >
               <Card className="backdrop-blur-sm bg-card/80">
@@ -482,14 +464,11 @@ export default function GitHubScrapperPage() {
 
   return (
     <ProjectsProvider userId={viewerId ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           <GitHubScrapperContent />
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

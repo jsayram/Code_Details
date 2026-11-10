@@ -151,12 +151,19 @@ export function ProjectImagesManager({
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
-  useEffect(() => {
-    fetchImages();
-  }, [fetchImages]);
 
   // Handle image click (open modal)
+  // UI06.2: the viewer opens without a Radix trigger, so remember the
+  // thumbnail that opened it and put focus back there on close.
+  const openerRef = React.useRef<HTMLElement | null>(null);
+  const closeModal = () => {
+    setModalOpen(false);
+    const opener = openerRef.current;
+    window.setTimeout(() => opener?.isConnected && opener.focus(), 0);
+  };
+
   const handleImageClick = (image: SelectProjectImage, _index: number) => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // Find the actual index of this image in the images array
     const actualIndex = images.findIndex((img) => img.id === image.id);
     setModalInitialIndex(actualIndex >= 0 ? actualIndex : 0);
@@ -219,8 +226,11 @@ export function ProjectImagesManager({
       
       if (result.success) {
         // The server deleted the file too (Convex, D06-b).
-        // Update local state
+        // Update local state. UI08.3: an image uploaded in this edit session
+        // and then deleted is no longer "pending" (it was still counted, and
+        // Cancel tried to delete it a second time).
         setImages((prev) => prev.filter((img) => img.id !== imageToDelete.id));
+        setPendingImages((prev) => prev.filter((img) => img.id !== imageToDelete.id));
         toast.success("Image deleted");
       } else {
         toast.error(result.error || "Failed to delete image");
@@ -242,8 +252,9 @@ export function ProjectImagesManager({
   // Loading state
   if (isLoading) {
     return (
-      <Card className={cn("animate-pulse", className)}>
-        <CardHeader>
+      <Card className={cn("animate-pulse", className)} aria-busy="true">
+        <p role="status" className="sr-only">Loading images</p>
+        <CardHeader aria-hidden="true">
           <div className="h-6 w-32 bg-muted rounded" />
           <div className="h-4 w-48 bg-muted rounded" />
         </CardHeader>
@@ -257,14 +268,14 @@ export function ProjectImagesManager({
   // Error state
   if (error) {
     return (
-      <Card className={cn("border-destructive", className)}>
+      <Card className={cn("border-destructive", className)} style={{ borderColor: "var(--cd-danger)" }}>
         <CardContent className="py-8">
-          <div className="flex flex-col items-center gap-3 text-center">
-            <AlertCircle className="h-10 w-10 text-destructive" />
-            <p className="text-sm text-destructive">{error}</p>
+          <div role="alert" className="flex flex-col items-center gap-3 text-center">
+            <AlertCircle className="h-10 w-10" aria-hidden="true" style={{ color: "var(--cd-danger)" }} />
+            <p className="cd-small" style={{ color: "var(--cd-danger)" }}>{error}</p>
             <Button variant="outline" size="sm" onClick={fetchImages}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Retry
+              <RefreshCw className="h-4 w-4 mr-2" aria-hidden="true" />
+              Try again
             </Button>
           </div>
         </CardContent>
@@ -280,12 +291,14 @@ export function ProjectImagesManager({
 
     return (
       <>
-        {/* Blog-style image section without Card wrapper */}
-        <div className={cn("space-y-4", className)}>
+        {/* Blog-style image section without Card wrapper. UI06.2: the section
+            (and its "images" anchor) exists only when there are images, so the
+            page's contents list doesn't offer an empty section. */}
+        <section id="images" aria-labelledby="project-images-heading" className={cn("space-y-4 scroll-mt-24", className)}>
           {/* Header with Edit button for owners */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <ImageIcon className="h-6 w-6" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="project-images-heading" className="cd-heading flex items-center gap-2">
+              <ImageIcon className="h-6 w-6" aria-hidden="true" />
               Project Images
             </h2>
             {isOwner && onEditClick && (
@@ -306,14 +319,14 @@ export function ProjectImagesManager({
             images={images}
             onImageClick={handleImageClick}
           />
-        </div>
+        </section>
 
         {/* Image Modal */}
         <ImageModal
           images={images}
           initialIndex={modalInitialIndex}
           isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+          onClose={closeModal}
           allowDownload={isOwner}
         />
       </>
@@ -325,8 +338,8 @@ export function ProjectImagesManager({
     <>
       <Card className={className}>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <ImageIcon className="h-5 w-5" />
+          <CardTitle role="heading" aria-level={2} className="cd-subheading flex items-center gap-2">
+            <ImageIcon className="h-5 w-5" aria-hidden="true" />
             Project Images
           </CardTitle>
           <CardDescription>
@@ -336,24 +349,24 @@ export function ProjectImagesManager({
         <CardContent className="space-y-6">
           {/* Image stats */}
           <div className="flex flex-wrap gap-2">
-            <Badge variant={coverImage ? "default" : "outline"}>
-              <Star className={cn("h-3 w-3 mr-1", coverImage && "fill-current")} />
+            <span className="cd-status cd-caption items-center" data-tone={coverImage ? "selected" : undefined} style={coverImage ? { display: "inline-flex" } : { display: "inline-flex", background: "var(--cd-raised)", color: "var(--cd-text)" }}>
+              <Star className={cn("h-3 w-3 mr-1", coverImage && "fill-current")} aria-hidden="true" />
               Cover: {coverImage ? "Set" : "None"}
-            </Badge>
-            <Badge variant="secondary">
+            </span>
+            <span className="cd-status cd-caption" style={{ background: "var(--cd-raised)", color: "var(--cd-text)" }}>
               Screenshots: {screenshotCount}/20
-            </Badge>
+            </span>
           </div>
 
           {/* Upload tabs */}
           <Tabs defaultValue="screenshots" className="w-full">
             <TabsList className="grid w-full grid-cols-2">
               <TabsTrigger value="cover">
-                <Star className="h-4 w-4 mr-2" />
+                <Star className="h-4 w-4 mr-2" aria-hidden="true" />
                 Cover Image
               </TabsTrigger>
               <TabsTrigger value="screenshots">
-                <Upload className="h-4 w-4 mr-2" />
+                <Upload className="h-4 w-4 mr-2" aria-hidden="true" />
                 Screenshots
               </TabsTrigger>
             </TabsList>
@@ -391,7 +404,7 @@ export function ProjectImagesManager({
           {/* Gallery */}
           {images.length > 0 && (
             <div className="pt-4 border-t">
-              <h4 className="text-sm font-medium mb-3">All Images</h4>
+              <h3 className="text-sm font-medium mb-3">All Images</h3>
               <ImageGallery
                 images={images}
                 isEditing={true}
@@ -409,7 +422,7 @@ export function ProjectImagesManager({
         images={images}
         initialIndex={modalInitialIndex}
         isOpen={modalOpen}
-        onClose={() => setModalOpen(false)}
+        onClose={closeModal}
         allowDownload={isOwner}
       />
 
@@ -423,13 +436,13 @@ export function ProjectImagesManager({
           }
         }
       }}>
-        <AlertDialogContent>
+        <AlertDialogContent className="cd-foundations">
           <AlertDialogHeader>
             <AlertDialogTitle>Delete Image</AlertDialogTitle>
             <AlertDialogDescription>
               Are you sure you want to delete this image? This action cannot be undone.
               {imageToDelete?.image_type === "cover" && (
-                <span className="block mt-2 text-amber-600">
+                <span className="block mt-2" style={{ color: "var(--cd-warning)" }}>
                   Note: This is your cover image. Your project will have no cover after deletion.
                 </span>
               )}

@@ -1,37 +1,190 @@
 "use client";
 
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// UI07.1: /search on AppShell and the foundations.
+// - Every result is a real link (categories, tags, people and the three
+//   explore shortcuts were divs or Badges with click handlers, out of keyboard
+//   reach). Items with nothing to open stay listed and are not links, as before.
+// - The mascot goes through next/image: the page used to ship the 3.4MB PNG
+//   (UI02 defect 9), and the full-screen particles are gone (DESIGN: particles
+//   on home only).
+// - The result count is announced, and a list that failed to load says so.
+// Unchanged: the query lives in component state (no URL), the 400ms debounce,
+// local filtering of categories, tags and people, the project results and
+// their ranking from /api/search, the tabs, and every limit and order.
+import "@/styles/foundations.css";
+import Image from "next/image";
+import Link from "next/link";
+import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
+import { Search, Hash, Folder, Users, X } from "lucide-react";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { PageBanner } from "@/components/ui/page-banner";
-import { Search, Hash, Folder, Users } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { useState, useMemo, useEffect } from "react";
-import { useRouter } from "next/navigation";
-import { PROJECT_CATEGORIES } from "@/constants/project-categories";
-import { getTagInfo } from "@/constants/tag-descriptions";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { PROJECT_CATEGORIES, categorySummary } from "@/constants/project-categories";
 import { useTags } from "@/hooks/use-tags";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
 import { useProfiles } from "@/hooks/use-profiles";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
-import { SearchContentSkeleton } from "./loading";
 import { HighlightText } from "@/components/HighlightText";
-import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 import { ProjectSearchResults } from "@/components/search/ProjectSearchResults";
+import { AppShell } from "@/components/layout/AppShell";
+import { SearchContentSkeleton } from "./loading";
+import { isPlainClick } from "@/lib/plain-click";
 
-function SearchContent() {
-  const router = useRouter();
-  const { tags: allTags, isLoading: tagsLoading } = useTags();
-  const { categoryCounts, isLoading: categoryCountsLoading } = useCategoryCounts();
-  const { profiles, isLoading: profilesLoading } = useProfiles();
+type UserRow = {
+  username: string;
+  profileImage: string | null;
+  fullName: string | null;
+  projectCount: number;
+  totalFavorites: number;
+  lastActivityDate: Date | null;
+  isActive: boolean;
+  score: number;
+  createdAt: Date | null;
+};
+
+function Spinner() {
+  return <span aria-hidden="true" className="cd-spinner animate-spin" />;
+}
+
+function Avatar({ user }: { user: UserRow }) {
+  const [broken, setBroken] = useState(false);
+  if (user.profileImage && !broken) {
+    // eslint-disable-next-line @next/next/no-img-element -- avatars come from several hosts; same element as before
+    return <img src={user.profileImage} alt="" className="cd-avatar" onError={() => setBroken(true)} loading="lazy" />;
+  }
+  return (
+    <span className="cd-avatar" aria-hidden="true">
+      {user.username[0]?.toUpperCase()}
+    </span>
+  );
+}
+
+/** One person: a link to their profile when they have projects, otherwise listed only. */
+function UserTile({ user, query, rank, opening, onOpen }: { user: UserRow; query: string; rank?: number; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
+  const medals = ["🥇", "🥈", "🥉"];
+  const places = ["1st Place", "2nd Place", "3rd Place"];
+  const body = (
+    <div className="flex items-start gap-3 min-w-0">
+      <span className="relative">
+        <Avatar user={user} />
+        {rank !== undefined && rank < 3 && (
+          <span className="absolute -top-2 -right-2 text-xl" role="img" aria-label={places[rank]} title={places[rank]}>
+            {medals[rank]}
+          </span>
+        )}
+      </span>
+      <div className="flex-1 min-w-0 cd-stack-tight" style={{ gap: "var(--cd-space-1)" }}>
+        <h3 className="cd-subheading cd-wrap">
+          <HighlightText text={user.username} highlight={query} />
+        </h3>
+        {user.fullName && <p className="cd-small cd-muted cd-wrap">{user.fullName}</p>}
+        <div className="cd-cluster" style={{ gap: "var(--cd-space-2)" }}>
+          {user.projectCount > 0 ? (
+            <span className="cd-status cd-number" data-tone="selected">
+              {user.projectCount} {user.projectCount === 1 ? "project" : "projects"}
+            </span>
+          ) : (
+            <span className="cd-status" style={{ background: "var(--cd-raised)" }}>No projects</span>
+          )}
+          {user.totalFavorites > 0 && (
+            <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>
+              <span aria-hidden="true">⭐</span> {user.totalFavorites}
+              <span className="sr-only"> favorites</span>
+            </span>
+          )}
+          {user.isActive && <span className="cd-status" data-tone="success">Active</span>}
+        </div>
+      </div>
+      {opening && <Spinner />}
+    </div>
+  );
+  if (user.projectCount === 0) {
+    return (
+      <div className="cd-tile" data-inactive="">
+        {body}
+      </div>
+    );
+  }
+  return (
+    <Link href={`/users/${encodeURIComponent(user.username)}`} className="cd-tile" onClick={onOpen} aria-busy={opening || undefined}>
+      {body}
+    </Link>
+  );
+}
+
+function TagPill({ tag, query, opening, onOpen }: { tag: { name: string; count?: number }; query: string; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
+  const isActive = (tag.count ?? 0) > 0;
+  const inner = (
+    <>
+      {opening ? <Spinner /> : <Hash className="h-4 w-4 shrink-0" aria-hidden="true" />}
+      <HighlightText text={tag.name} highlight={query} />
+      {isActive ? <span className="cd-pill-count">{tag.count}</span> : <span className="sr-only">, no projects yet</span>}
+    </>
+  );
+  return isActive ? (
+    <Link href={`/tags/${encodeURIComponent(tag.name)}`} className="cd-pill-link" onClick={onOpen} aria-busy={opening || undefined}>
+      {inner}
+    </Link>
+  ) : (
+    <span className="cd-pill-link" data-inactive="">
+      {inner}
+    </span>
+  );
+}
+
+function CategoryTile({ catKey, label, description, count, query, opening, onOpen }: { catKey: string; label: string; description: string; count: number; query: string; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
+  const body = (
+    <>
+      <div className="cd-tile-row">
+        <h3 className="cd-subheading cd-wrap flex items-start gap-2 min-w-0">
+          <span className="cd-cat cd-cat-dot" data-category={catKey} aria-hidden="true" />
+          <span className="min-w-0">
+            <HighlightText text={label} highlight={query} />
+          </span>
+        </h3>
+        <span className={`cd-status cd-number shrink-0${count > 0 ? "" : " cd-muted"}`} data-tone={count > 0 ? "selected" : undefined} style={count > 0 ? undefined : { background: "var(--cd-raised)" }}>
+          {count} <span className="sr-only">{count === 1 ? "project" : "projects"}</span>
+        </span>
+      </div>
+      <p className="cd-small cd-muted">{description}</p>
+      {opening && (
+        <span className="cd-small flex items-center gap-2">
+          <Spinner />
+          Loading...
+        </span>
+      )}
+    </>
+  );
+  // Empty categories don't open, as before.
+  return count > 0 ? (
+    <Link href={`/categories/${encodeURIComponent(catKey)}`} className="cd-tile" onClick={onOpen} aria-busy={opening || undefined}>
+      {body}
+    </Link>
+  ) : (
+    <div className="cd-tile" data-inactive="">
+      {body}
+    </div>
+  );
+}
+
+function Group({ id, icon, title, count, children }: { id: string; icon: ReactNode; title: string; count: number; children: ReactNode }) {
+  return (
+    <section className="cd-surface cd-stack" aria-labelledby={id}>
+      <h2 id={id} className="cd-heading flex items-center gap-2">
+        <span aria-hidden="true" className="inline-flex">{icon}</span>
+        {title}
+        <span className="cd-status cd-number" data-tone="selected">{count}</span>
+      </h2>
+      {children}
+    </section>
+  );
+}
+
+function SearchContent({ signedIn }: { signedIn: boolean }) {
+  const { tags: allTags, isLoading: tagsLoading, error: tagsError, refreshTags } = useTags();
+  const { categoryCounts, isLoading: categoryCountsLoading, error: countsError, refreshCounts } = useCategoryCounts();
+  const { profiles, isLoading: profilesLoading, error: profilesError, refreshProfiles } = useProfiles();
   const [searchQuery, setSearchQuery] = useState("");
   const [projectCount, setProjectCount] = useState(0);
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
@@ -42,95 +195,45 @@ function SearchContent() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
-      if (searchQuery.trim()) {
-        setHasSearched(true);
-      } else {
-        // Reset to initial state when search is cleared
-        setHasSearched(false);
-      }
+      // Reset to the initial state when the search is cleared
+      setHasSearched(Boolean(searchQuery.trim()));
     }, 400);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
   const filteredCategories = useMemo(() => {
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
     const allCategories = Object.entries(PROJECT_CATEGORIES);
-    
-    if (!searchLower) return allCategories.slice(0, 20);
-    
-    return allCategories
-      .filter(([key, category]) => {
-        return (
-          category.label.toLowerCase().includes(searchLower) ||
-          key.toLowerCase().includes(searchLower)
-        );
-      })
-      .slice(0, 20);
+    // C01: every category (22 now). This used to stop at 20.
+    if (!searchLower) return allCategories;
+    return allCategories.filter(([key, category]) => category.label.toLowerCase().includes(searchLower) || key.toLowerCase().includes(searchLower));
   }, [debouncedSearchQuery]);
 
-  // Filter tags
+  // Tags: up to 30, most used first, then tags with no projects A to Z.
   const filteredTags = useMemo(() => {
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
     const tags = allTags || [];
-    
-    // Separate tags with projects (active) and without (inactive)
-    const activeTags = tags.filter((tag) => (tag.count || 0) > 0);
-    const inactiveTags = tags.filter((tag) => !tag.count || tag.count === 0);
-    
-    // Sort active tags by count (most used first)
-    const sortedActiveTags = activeTags.sort((a, b) => (b.count || 0) - (a.count || 0));
-    
-    // Sort inactive tags alphabetically
-    const sortedInactiveTags = inactiveTags.sort((a, b) => a.name.localeCompare(b.name));
-    
-    if (!searchLower) {
-      // Return top 30 active tags first, then fill remaining with inactive tags
-      const top30Active = sortedActiveTags.slice(0, 30);
-      const remainingSlots = 30 - top30Active.length;
-      const additionalTags = remainingSlots > 0 ? sortedInactiveTags.slice(0, remainingSlots) : [];
-      return [...top30Active, ...additionalTags];
-    }
-    
-    // When searching, filter and then apply same logic
-    const filteredActive = sortedActiveTags.filter((tag) => {
-      const tagLower = tag.name.toLowerCase();
-      // Match anywhere in tag name
-      return tagLower.includes(searchLower);
-    });
-    const filteredInactive = sortedInactiveTags.filter((tag) => {
-      const tagLower = tag.name.toLowerCase();
-      // Match anywhere in tag name
-      return tagLower.includes(searchLower);
-    });
-    
-    const top30Active = filteredActive.slice(0, 30);
+    const sortedActiveTags = tags.filter((tag) => (tag.count || 0) > 0).sort((a, b) => (b.count || 0) - (a.count || 0));
+    const sortedInactiveTags = tags.filter((tag) => !tag.count || tag.count === 0).sort((a, b) => a.name.localeCompare(b.name));
+    const matches = (name: string) => !searchLower || name.toLowerCase().includes(searchLower);
+    const top30Active = sortedActiveTags.filter((t) => matches(t.name)).slice(0, 30);
     const remainingSlots = 30 - top30Active.length;
-    const additionalTags = remainingSlots > 0 ? filteredInactive.slice(0, remainingSlots) : [];
+    const additionalTags = remainingSlots > 0 ? sortedInactiveTags.filter((t) => matches(t.name)).slice(0, remainingSlots) : [];
     return [...top30Active, ...additionalTags];
   }, [allTags, debouncedSearchQuery]);
 
-  // Filter users using API-provided stats directly
+  // People, ranked by the API's stats: projects 100, favorites 50, active in the last 7 days 5.
   const { activeUsers, inactiveUsers, totalInactiveCount } = useMemo(() => {
-    // Filter out profiles without usernames
     const validProfiles = profiles.filter((p) => p.username);
-    
-    if (!validProfiles.length) {
-      return { activeUsers: [], inactiveUsers: [], totalInactiveCount: 0 };
-    }
+    if (!validProfiles.length) return { activeUsers: [] as UserRow[], inactiveUsers: [] as UserRow[], totalInactiveCount: 0 };
 
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-    // Map profiles to user objects using API-provided stats
-    const allUsers = validProfiles.map(profile => {
+    const allUsers: UserRow[] = validProfiles.map((profile) => {
       const lastActivity = profile.last_activity_date ? new Date(profile.last_activity_date) : null;
       const isActive = lastActivity ? lastActivity >= sevenDaysAgo : false;
-      // Heavy weight on projects and favorites, minimal weight on recent activity
-      // Projects: 100 points each, Favorites: 50 points each, Active: 5 points
-      const score = (profile.project_count * 100) + (profile.total_favorites * 50) + (isActive ? 5 : 0);
-
       return {
         username: profile.username!,
         profileImage: profile.profile_image_url || null,
@@ -139,863 +242,287 @@ function SearchContent() {
         totalFavorites: profile.total_favorites,
         lastActivityDate: lastActivity,
         isActive,
-        score,
+        score: profile.project_count * 100 + profile.total_favorites * 50 + (isActive ? 5 : 0),
         createdAt: profile.created_at ? new Date(profile.created_at) : null,
       };
     });
-    
-    // Separate active and inactive users
-    const active = allUsers.filter(user => user.projectCount > 0);
-    const inactive = allUsers.filter(user => user.projectCount === 0);
-    
-    // Sort active by score descending
-    const sortedActive = active.sort((a, b) => b.score - a.score);
-    
-    // Sort inactive by creation date (newest first)
-    const sortedInactive = inactive.sort((a, b) => {
-      if (!a.createdAt) return 1;
-      if (!b.createdAt) return -1;
-      return b.createdAt.getTime() - a.createdAt.getTime();
-    });
-    
-    // Apply search filter - only match on user info
-    const matchesSearch = (user: typeof allUsers[0]) => {
-      if (!searchLower) return true;
-      
-      // Username and full name (D04a: profiles carry no email any more)
-      return (
-        user.username.toLowerCase().includes(searchLower) ||
-        (user.fullName?.toLowerCase().includes(searchLower))
-      );
-    };
 
-    const filteredActive = sortedActive.filter(matchesSearch);
+    const sortedActive = allUsers.filter((u) => u.projectCount > 0).sort((a, b) => b.score - a.score);
+    // People with no projects, newest account first
+    const sortedInactive = allUsers
+      .filter((u) => u.projectCount === 0)
+      .sort((a, b) => {
+        if (!a.createdAt) return 1;
+        if (!b.createdAt) return -1;
+        return b.createdAt.getTime() - a.createdAt.getTime();
+      });
+    // Username and full name only (D04a: profiles carry no email any more)
+    const matchesSearch = (user: UserRow) => !searchLower || user.username.toLowerCase().includes(searchLower) || !!user.fullName?.toLowerCase().includes(searchLower);
     const filteredInactive = sortedInactive.filter(matchesSearch);
-    
-    return {
-      activeUsers: filteredActive.slice(0, 30),
-      inactiveUsers: filteredInactive,
-      totalInactiveCount: filteredInactive.length
-    };
+    return { activeUsers: sortedActive.filter(matchesSearch).slice(0, 30), inactiveUsers: filteredInactive, totalInactiveCount: filteredInactive.length };
   }, [profiles, debouncedSearchQuery]);
 
-  const handleCategoryClick = (key: string, count: number) => {
-    if (count === 0) return;
-    setLoadingItem(`category-${key}`);
-    router.push(`/categories/${encodeURIComponent(key)}`);
-  };
-
-  const handleTagClick = (tagName: string) => {
-    setLoadingItem(`tag-${tagName}`);
-    router.push(`/tags/${encodeURIComponent(tagName)}`);
-  };
-
-  const handleUserClick = (username: string) => {
-    setLoadingItem(`user-${username}`);
-    router.push(`/users/${encodeURIComponent(username)}`);
-  };
-
-  const activeTags = filteredTags.filter((tag) => (tag.count ?? 0) > 0);
   // D09 S02e: project results count too (0 while search is switched off).
   const totalResults = projectCount + filteredCategories.length + filteredTags.length + activeUsers.length + inactiveUsers.length;
+  const userCount = activeUsers.length + inactiveUsers.length;
 
   const isSearching = debouncedSearchQuery !== searchQuery;
   const isLoadingData = tagsLoading || categoryCountsLoading || profilesLoading;
   const showEmptyState = !hasSearched && !debouncedSearchQuery.trim();
+  const q = debouncedSearchQuery;
+  // A list that failed shows as a failure, not as "no results" (UI02 defect 4's pattern).
+  // The people list is cached under one key whoever is viewing. When the
+  // viewer signs in or out without a reload, ask again, so a signed-out 401
+  // isn't shown as a failure to the signed-in viewer (or the reverse).
+  const lastSignedIn = useRef(signedIn);
+  useEffect(() => {
+    if (lastSignedIn.current === signedIn) return;
+    lastSignedIn.current = signedIn;
+    void refreshProfiles();
+  }, [signedIn, refreshProfiles]);
+
+  // The people list needs a session (/api/profiles answers 401 signed out), so
+  // signed out it is simply absent, as before, and not reported as a failure.
+  const peopleFailed = signedIn && Boolean(profilesError);
+  const failedLists = [tagsError && "tags", countsError && "category counts", peopleFailed && "people"].filter(Boolean) as string[];
+  const retryFailed = () => {
+    if (tagsError) void refreshTags();
+    if (countsError) void refreshCounts();
+    if (peopleFailed) void refreshProfiles();
+  };
+
+  // The spinner is for a plain click that navigates here; a new-tab click leaves this tab as it is.
+  const open = (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isPlainClick(e)) setLoadingItem(id);
+  };
+
+  const userGrid = (users: UserRow[], ranked = false, offset = 0) => (
+    <ul className="cd-grid" style={{ ["--cd-card-min" as string]: "16rem" }}>
+      {users.map((user, i) => (
+        <li key={user.username} className="min-w-0">
+          <UserTile user={user} query={q} rank={ranked ? i + offset : undefined} opening={loadingItem === `user-${user.username}`} onOpen={open(`user-${user.username}`)} />
+        </li>
+      ))}
+    </ul>
+  );
+  const tagList = (
+    <ul className="cd-cluster" style={{ gap: "var(--cd-space-2)" }}>
+      {filteredTags.map((tag) => (
+        <li key={tag.name} className="max-w-full">
+          <TagPill tag={tag} query={q} opening={loadingItem === `tag-${tag.name}`} onOpen={open(`tag-${tag.name}`)} />
+        </li>
+      ))}
+    </ul>
+  );
+  const categoryGrid = (
+    <ul className="cd-grid">
+      {filteredCategories.map(([key, category]) => (
+        <li key={key} className="min-w-0">
+          <CategoryTile catKey={key} label={category.label} description={categorySummary(category.description)} count={categoryCounts[key] || 0} query={q} opening={loadingItem === `category-${key}`} onOpen={open(`category-${key}`)} />
+        </li>
+      ))}
+    </ul>
+  );
 
   return (
-    <div className="flex justify-center w-full mb-10">
-      <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
-        <div className="flex flex-col gap-6 mb-6 py-3">
-          {/* Page Banner */}
-          <div className="mb-8">
-            <PageBanner
-              icon={<Search className="h-8 w-8 text-cyan-500" />}
-              bannerTitle="Search Code Details"
-              description="Discover projects, explore categories, find tags, and connect with developers"
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="blue-800"
-              gradientTo="cyan-800"
-              borderColor="border-purple-700/40"
-              textGradient="from-purple-400 via-blue-400 to-cyan-400"
-            />
-          </div>
-
-          {/* Centered Hero Section with Mascot */}
-          <div className="relative flex flex-col items-center justify-center gap-6 py-8">
-            {/* Code Particles Background */}
-            <CodeParticlesElement
-              quantity="high"
-              speed="slow"
-              size="mixed"
-              includeEmojis={true}
-              includeKeywords={true}
-              includeSymbols={true}
-              syntaxHighlight="vscode"
-              depth="layered"
-              containerClassName="absolute inset-0 -z-5 pointer-events-none opacity-20"
-            />
-
-            {/* Mascot with Search Card */}
-            <Card className="relative w-full max-w-5xl z-10 border-2 border-primary/30 shadow-2xl bg-gradient-to-br from-card via-card to-primary/5">
-              <CardContent className="p-8 md:p-12">
-                <div className="flex flex-col lg:flex-row items-center justify-center gap-8 mb-8">
-                  <div className="relative flex-shrink-0">
-                    <img 
-                      src="/images/mascot.png" 
-                      alt="Code Details Mascot" 
-                      className="w-56 h-56 object-contain animate-bounce-slow"
-                    />
-                  </div>
-                  <div className="relative max-w-xl">
-                    <p className="text-lg leading-relaxed">
-                      <span className="font-semibold text-primary text-2xl">Hey there! 👋</span> 
-                      <br />
-                      <span className="text-base">I can help you find what you're looking for! Try searching for:</span>
-                      <br />
-                      <span className="inline-flex items-center gap-2 mt-3 flex-wrap">
-                        <span className="inline-flex items-center gap-1 px-3 py-2 border-2 border-primary/40 text-primary rounded-lg text-base font-medium hover:bg-primary/10 transition-colors">
-                          <Folder className="h-4 w-4" />
-                          Categories
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-3 py-2 border-2 border-accent/40 bg-accent/10 text-accent-foreground rounded-lg text-base font-medium hover:bg-accent/20 transition-colors">
-                          <Hash className="h-4 w-4" />
-                          Tags
-                        </span>
-                        <span className="inline-flex items-center gap-1 px-3 py-2 border-2 border-secondary/40 bg-secondary/30 text-secondary-foreground rounded-lg text-base font-medium hover:bg-secondary/40 transition-colors">
-                          <Users className="h-4 w-4" />
-                          Users
-                        </span>
-                      </span>
-                      <br />
-                      <span className="text-muted-foreground text-base mt-2 block">
-                        Just type a keyword and I'll show you all related content!
-                      </span>
-                    </p>
-                  </div>
-                </div>
-
-                {/* Enhanced Search Input */}
-                <div className="relative w-full max-w-4xl mx-auto">
-                  <div className="absolute left-6 top-1/2 -translate-y-1/2 pointer-events-none z-10">
-                    <Search className="h-6 w-6 text-muted-foreground transition-colors duration-200" />
-                  </div>
-                  <Input
-                    type="text"
-                    placeholder="Search categories, tags, or users..."
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    className="pl-16 pr-16 h-16 text-xl rounded-2xl border-2 border-primary/30 hover:border-primary/50 focus:border-primary focus:ring-4 focus:ring-primary/30 shadow-lg transition-all duration-200 bg-background"
-                    autoFocus
-                  />
-                  {searchQuery && !isSearching && (
-                    <button
-                      onClick={() => setSearchQuery("")}
-                      className="absolute right-6 top-1/2 -translate-y-1/2 hover:scale-110 transition-transform cursor-pointer"
-                      aria-label="Clear search"
-                    >
-                      <span className="text-2xl text-primary"><X className="h-6 w-6"/></span>
-                    </button>
-                  )}
-                  {isSearching && (
-                    <div className="absolute right-6 top-1/2 -translate-y-1/2">
-                      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Empty State - No search yet */}
-          {showEmptyState ? (
-            <div className="text-center py-12">
-              <div className="max-w-2xl mx-auto space-y-4">
-                <h3 className="text-3xl font-semibold">Ready to explore?</h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-8">
-                  <div 
-                    className={`p-6 border-2 border-primary/20 rounded-xl hover:border-primary/40 transition-all hover:shadow-lg cursor-pointer relative ${
-                      loadingItem === 'explore-categories' ? 'opacity-50' : ''
-                    }`}
-                    onClick={() => {
-                      setLoadingItem('explore-categories');
-                      router.push('/categories');
-                    }}
-                  >
-                    {loadingItem === 'explore-categories' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl z-10">
-                        <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    <Folder className="h-10 w-10 text-primary mx-auto mb-3" />
-                    <h4 className="font-semibold mb-2 text-lg">Categories</h4>
-                    <p className="text-base text-muted-foreground">Browse projects by category like Web Development, AI/ML, and more</p>
-                  </div>
-                  <div 
-                    className={`p-6 border-2 border-accent/20 rounded-xl hover:border-accent/40 transition-all hover:shadow-lg cursor-pointer relative ${
-                      loadingItem === 'explore-tags' ? 'opacity-50' : ''
-                    }`}
-                    onClick={() => {
-                      setLoadingItem('explore-tags');
-                      router.push('/tags');
-                    }}
-                  >
-                    {loadingItem === 'explore-tags' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl z-10">
-                        <div className="w-6 h-6 border-2 border-accent-foreground border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    <Hash className="h-10 w-10 text-accent-foreground mx-auto mb-3" />
-                    <h4 className="font-semibold mb-2 text-lg">Tags</h4>
-                    <p className="text-base text-muted-foreground">Find projects tagged with technologies like React, Python, Docker</p>
-                  </div>
-                  <div 
-                    className={`p-6 border-2 border-secondary/30 rounded-xl hover:border-secondary/50 transition-all hover:shadow-lg cursor-pointer relative ${
-                      loadingItem === 'explore-users' ? 'opacity-50' : ''
-                    }`}
-                    onClick={() => {
-                      setLoadingItem('explore-users');
-                      router.push('/users');
-                    }}
-                  >
-                    {loadingItem === 'explore-users' && (
-                      <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-xl z-10">
-                        <div className="w-6 h-6 border-2 border-secondary-foreground border-t-transparent rounded-full animate-spin"></div>
-                      </div>
-                    )}
-                    <Users className="h-10 w-10 text-secondary-foreground mx-auto mb-3" />
-                    <h4 className="font-semibold mb-2 text-lg">Users</h4>
-                    <p className="text-base text-muted-foreground">Discover talented developers and explore their projects</p>
-                  </div>
-                </div>
-              </div>
+    <div className="cd-foundations cd-canvas">
+      <div className="cd-page cd-stack">
+        {/* Header: the mascot, the search field and what it finds */}
+        <section className="cd-surface flex flex-col items-center gap-6 lg:flex-row lg:items-center" aria-labelledby="search-title">
+          <Image
+            src="/images/mascot.png"
+            alt="Code Details Mascot"
+            width={160}
+            height={207}
+            sizes="(min-width: 1024px) 160px, 112px"
+            className="h-auto w-28 shrink-0 lg:w-40"
+            loading="eager"
+          />
+          <div className="cd-stack w-full min-w-0">
+            <div className="cd-stack-tight">
+              <h1 id="search-title" className="cd-title">Search Code Details</h1>
+              <p className="cd-lead cd-muted cd-reading">
+                Hey there! 👋 I can help you find what you&apos;re looking for. Search projects, categories, tags and people: just type a keyword.
+              </p>
             </div>
-          ) : isLoadingData ? (
-            <SearchContentSkeleton />
-          ) : (
+            <div className="cd-search-field" role="search">
+              <Search className="h-6 w-6" aria-hidden="true" />
+              <Input
+                type="text"
+                aria-label="Search Code Details"
+                placeholder="Search categories, tags, or users..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                autoFocus
+              />
+              {isSearching ? (
+                <span className="cd-search-field-end" role="status" aria-label="Searching">
+                  <Spinner />
+                </span>
+              ) : (
+                searchQuery && (
+                  <button type="button" onClick={() => setSearchQuery("")} className="cd-search-field-end" aria-label="Clear search">
+                    <X className="h-5 w-5" aria-hidden="true" />
+                  </button>
+                )
+              )}
+            </div>
+          </div>
+        </section>
+
+        {/* The count is announced when it changes */}
+        <div role="status" className="cd-cluster justify-center cd-small cd-muted" style={{ gap: "var(--cd-space-2)" }}>
+          {q && !showEmptyState && !isLoadingData && (
             <>
-          {/* D09 S02e: project results, only while search is switched on */}
-          {debouncedSearchQuery && <ProjectSearchResults query={debouncedSearchQuery} onCount={setProjectCount} />}
-
-          {/* Results Summary */}
-          {debouncedSearchQuery && (
-            <div className="flex justify-center items-center gap-2 text-sm text-muted-foreground mb-4">
               <span>Found {totalResults} results</span>
-              {projectCount > 0 && (
-                <Badge variant="secondary" className="font-mono">
-                  {projectCount} projects
-                </Badge>
-              )}
-              <Badge variant="secondary" className="font-mono">
-                {filteredCategories.length} categories
-              </Badge>
-              <Badge variant="secondary" className="font-mono">
-                {filteredTags.length} tags
-              </Badge>
-              <Badge variant="secondary" className="font-mono">
-                {activeUsers.length + inactiveUsers.length} users
-              </Badge>
-            </div>
-          )}
-
-          {/* Tabbed Results */}
-          <Tabs defaultValue="all" className="w-full">
-            <div className="flex justify-center w-full">
-              <TabsList className="grid w-full grid-cols-4 max-w-md">
-                <TabsTrigger value="all" className="cursor-pointer">All</TabsTrigger>
-                <TabsTrigger value="categories" className="cursor-pointer">Categories</TabsTrigger>
-                <TabsTrigger value="tags" className="cursor-pointer">Tags</TabsTrigger>
-                <TabsTrigger value="users" className="cursor-pointer">Users</TabsTrigger>
-              </TabsList>
-            </div>
-
-            {/* All Results Tab */}
-            <TabsContent value="all" className="space-y-6 mt-6">
-              {/* Users - First */}
-              {(activeUsers.length > 0 || inactiveUsers.length > 0) && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Users
-                      <Badge variant="secondary">{activeUsers.length + inactiveUsers.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {activeUsers.map((user) => {
-                        const isLoading = loadingItem === `user-${user.username}`;
-                        return (
-                          <div
-                            key={user.username}
-                            className={`p-4 rounded-lg border transition-all cursor-pointer hover:bg-accent hover:shadow-md ${
-                              isLoading ? "opacity-50" : ""
-                            }`}
-                            onClick={() => handleUserClick(user.username)}
-                          >
-                            <div className="flex items-start gap-4 relative">
-                              {isLoading && (
-                                <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 rounded-lg">
-                                  <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                </div>
-                              )}
-                              {user.profileImage ? (
-                                <img
-                                  src={user.profileImage}
-                                  alt={user.username}
-                                  className="w-12 h-12 rounded-full object-cover ring-2 ring-offset-2 ring-offset-background"
-                                />
-                              ) : (
-                                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-xl font-semibold ring-2 ring-offset-2 ring-offset-background">
-                                  {user.username[0]?.toUpperCase()}
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 flex-wrap">
-                                  <h3 className="font-medium truncate"><HighlightText text={user.username} highlight={debouncedSearchQuery} /></h3>
-                                </div>
-                                {user.fullName && (
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {user.fullName}
-                                  </p>
-                                )}
-                                <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                  <Badge variant="secondary" className="text-xs">
-                                    {user.projectCount} {user.projectCount === 1 ? "project" : "projects"}
-                                  </Badge>
-                                  {user.totalFavorites > 0 && (
-                                    <Badge variant="outline" className="text-xs">
-                                      ⭐ {user.totalFavorites}
-                                    </Badge>
-                                  )}
-                                  {user.isActive && (
-                                    <Badge variant="default" className="text-xs bg-green-600">
-                                      Active
-                                    </Badge>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })}
-                      {inactiveUsers.map((user) => (
-                        <div
-                          key={user.username}
-                          className="p-4 rounded-lg border cursor-not-allowed opacity-40"
-                        >
-                          <div className="flex items-start gap-4">
-                            {user.profileImage ? (
-                              <img
-                                src={user.profileImage}
-                                alt={user.username}
-                                className="w-12 h-12 rounded-full object-cover"
-                              />
-                            ) : (
-                              <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-xl font-semibold">
-                                {user.username[0]?.toUpperCase()}
-                              </div>
-                            )}
-                            <div className="flex-1 min-w-0">
-                              <h3 className="font-medium truncate"><HighlightText text={user.username} highlight={debouncedSearchQuery} /></h3>
-                              {user.fullName && (
-                                <p className="text-sm text-muted-foreground truncate">
-                                  {user.fullName}
-                                </p>
-                              )}
-                              <Badge variant="outline" className="text-xs mt-2">
-                                No projects
-                              </Badge>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Tags - Second */}
-              {filteredTags.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Hash className="h-5 w-5" />
-                      Tags
-                      <Badge variant="secondary">{filteredTags.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                      {filteredTags.map((tag) => {
-                        const isActive = (tag.count ?? 0) > 0;
-                        const isLoading = loadingItem === `tag-${tag.name}`;
-                        return (
-                          <Badge
-                            key={tag.name}
-                            variant={isActive ? "secondary" : "outline"}
-                            className={`group text-base py-2 pl-2.5 pr-3 transition-all duration-200 ${
-                              isActive
-                                ? "hover:bg-primary hover:text-primary-foreground cursor-pointer transform hover:scale-105"
-                                : "opacity-60 cursor-not-allowed"
-                            }`}
-                            onClick={() => isActive && handleTagClick(tag.name)}
-                          >
-                            <Hash className="inline-block h-4 w-4 mr-1"/>{isLoading ? (<span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div><HighlightText text={tag.name} highlight={debouncedSearchQuery}/></span>) : (<HighlightText text={tag.name} highlight={debouncedSearchQuery}/>)}{isActive && (
-                              <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary group-hover:bg-primary-foreground/20 group-hover:text-primary-foreground">
-                                {tag.count}
-                              </span>
-                            )}
-                          </Badge>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* Categories - Third */}
-              {filteredCategories.length > 0 && (
-                <Card>
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Folder className="h-5 w-5" />
-                      Categories
-                      <Badge variant="secondary">{filteredCategories.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {filteredCategories.map(([key, category]) => {
-                        const count = categoryCounts[key] || 0;
-                        const isLoading = loadingItem === `category-${key}`;
-                        return (
-                          <div
-                            key={key}
-                            className={`p-4 rounded-lg border transition-all cursor-pointer hover:bg-accent ${
-                              count === 0 ? "opacity-50 cursor-not-allowed" : ""
-                            }`}
-                            onClick={() => handleCategoryClick(key, count)}
-                          >
-                            <div className="flex items-start justify-between mb-2">
-                              <h3 className="font-semibold"><HighlightText text={category.label} highlight={debouncedSearchQuery}/></h3>
-                              <Badge variant={count > 0 ? "secondary" : "outline"}>
-                                {count}
-                              </Badge>
-                            </div>
-                            <p className="text-sm text-muted-foreground">
-                              {category.description}
-                            </p>
-                            {isLoading && (
-                              <div className="mt-2 flex items-center gap-2 text-sm">
-                                <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                                Loading...
-                              </div>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </CardContent>
-                </Card>
-              )}
-
-              {/* No Results */}
-              {debouncedSearchQuery && totalResults === 0 && (
-                <div className="text-center py-12">
-                  <Search className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
-                  <h3 className="text-lg font-semibold mb-2">No results found</h3>
-                  <p className="text-muted-foreground">
-                    Try searching with different keywords
-                  </p>
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Categories Only Tab */}
-            <TabsContent value="categories" className="mt-6">
-              {/* Banner Section */}
-              <PageBanner
-                icon={<Folder className="h-8 w-8 text-primary" />}
-                bannerTitle="All Categories"
-                description="Explore projects organized by category - from web applications to AI/ML and beyond"
-                isUserBanner={false}
-                gradientFrom="indigo-900"
-                gradientVia="blue-800"
-                gradientTo="purple-800"
-                borderColor="border-indigo-700/40"
-                textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
-              />
-              
-              {filteredCategories.length > 0 ? (
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Folder className="h-5 w-5" />
-                      Categories
-                      <Badge variant="secondary">{filteredCategories.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {filteredCategories.map(([key, category]) => {
-                    const count = categoryCounts[key] || 0;
-                    const isLoading = loadingItem === `category-${key}`;
-                    return (
-                      <Card
-                        key={key}
-                        className={`cursor-pointer transition-all hover:shadow-lg ${
-                          count === 0 ? "opacity-50 cursor-not-allowed" : ""
-                        }`}
-                        onClick={() => handleCategoryClick(key, count)}
-                      >
-                        <CardHeader>
-                          <CardTitle className="flex items-center justify-between">
-                            <span><HighlightText text={category.label} highlight={debouncedSearchQuery}/></span>
-                            <Badge variant={count > 0 ? "secondary" : "outline"}>
-                              {count}
-                            </Badge>
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <p className="text-sm text-muted-foreground mb-4">
-                            {category.description}
-                          </p>
-                          {isLoading && (
-                            <div className="flex items-center gap-2 text-sm">
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-                              Loading...
-                            </div>
-                          )}
-                        </CardContent>
-                      </Card>
-                    );
-                  })}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No categories found
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Tags Only Tab */}
-            <TabsContent value="tags" className="mt-6">
-              {/* Banner Section */}
-              <PageBanner
-                icon={<Hash className="h-8 w-8 text-primary"/>}
-                bannerTitle="Browse All Tags"
-                description="Discover projects by technology stack and features"
-                isUserBanner={false}
-                gradientFrom="purple-900"
-                gradientVia="indigo-800"
-                gradientTo="blue-800"
-                borderColor="border-purple-700/40"
-                textGradient="from-fuchsia-400 via-purple-400 to-indigo-400"
-              />
-              
-              {filteredTags.length > 0 ? (
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Hash className="h-5 w-5" />
-                      Tags
-                      <Badge variant="secondary">{filteredTags.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex flex-wrap gap-2">
-                  {filteredTags.map((tag) => {
-                    const isActive = (tag.count ?? 0) > 0;
-                    const isLoading = loadingItem === `tag-${tag.name}`;
-                    return (
-                      <Badge
-                        key={tag.name}
-                        variant={isActive ? "secondary" : "outline"}
-                        className={`group text-base py-2 pl-2.5 pr-3 transition-all duration-200 ${
-                          isActive
-                            ? "hover:bg-primary hover:text-primary-foreground cursor-pointer transform hover:scale-105"
-                            : "opacity-60 cursor-not-allowed"
-                        }`}
-                        onClick={() => isActive && handleTagClick(tag.name)}
-                      >
-                        <Hash className="inline-block h-4 w-4 mr-1"/>{isLoading ? (<span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div><HighlightText text={tag.name} highlight={debouncedSearchQuery}/></span>) : (<HighlightText text={tag.name} highlight={debouncedSearchQuery}/>)}{isActive && (
-                          <span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary group-hover:bg-primary-foreground/20 group-hover:text-primary-foreground">
-                            {tag.count}
-                          </span>
-                        )}
-                      </Badge>
-                    );
-                  })}
-                    </div>
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No tags found
-                </div>
-              )}
-            </TabsContent>
-
-            {/* Users Only Tab */}
-            <TabsContent value="users" className="mt-6">
-              {/* Banner Section */}
-              <PageBanner
-                icon={<Users className="h-8 w-8 text-primary" />}
-                bannerTitle="All Contributing Users"
-                description="Browse and discover all the amazing contributors to our projects"
-                isUserBanner={true}
-                gradientFrom="purple-900"
-                gradientVia="pink-800"
-                gradientTo="rose-800"
-                borderColor="border-purple-700/40"
-                textGradient="from-fuchsia-400 via-pink-400 to-rose-400"
-              />
-              
-              {activeUsers.length > 0 || inactiveUsers.length > 0 ? (
-                <Card className="mt-6">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-2">
-                      <Users className="h-5 w-5" />
-                      Users
-                      <Badge variant="secondary">{activeUsers.length + inactiveUsers.length}</Badge>
-                    </CardTitle>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                  {/* Top 3 Contributors */}
-                  {activeUsers.length > 0 && (
-                    <div>
-                      <h2 className="text-2xl font-bold mb-4 bg-gradient-to-r from-purple-600 to-pink-600 text-transparent bg-clip-text">
-                        Top Contributors
-                      </h2>
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {activeUsers.slice(0, 3).map((user, index) => {
-                          const isLoading = loadingItem === `user-${user.username}`;
-                          const getLeaderboardBadge = (position: number) => {
-                            const medals = ['🥇', '🥈', '🥉'];
-                            const titles = ['1st Place', '2nd Place', '3rd Place'];
-                            return (
-                              <div
-                                className="absolute -top-2 -right-2 w-6 h-6 flex items-center justify-center"
-                                title={titles[position]}
-                              >
-                                <span className="text-xl" role="img">
-                                  {medals[position]}
-                                </span>
-                              </div>
-                            );
-                          };
-                          
-                          const getLeaderboardCardStyle = (position: number) => {
-                            const styles = [
-                              'border-2 border-yellow-400 bg-gradient-to-br from-yellow-50 to-transparent dark:from-yellow-950/20',
-                              'border-2 border-gray-300 bg-gradient-to-br from-gray-50 to-transparent dark:from-gray-950/20',
-                              'border-2 border-amber-600 bg-gradient-to-br from-amber-50 to-transparent dark:from-amber-950/20'
-                            ];
-                            return styles[position] || '';
-                          };
-
-                          return (
-                            <Card
-                              key={user.username}
-                              className={`p-4 cursor-pointer hover:bg-accent/50 transition-all transform hover:scale-105 ${
-                                isLoading ? "opacity-50" : ""
-                              } ${getLeaderboardCardStyle(index)}`}
-                              onClick={() => handleUserClick(user.username)}
-                            >
-                              <div className="flex items-center gap-4">
-                                <div className="relative">
-                                  {isLoading && (
-                                    <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full z-10">
-                                      <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                    </div>
-                                  )}
-                                  {user.profileImage ? (
-                                    <div className="relative">
-                                      <img
-                                        src={user.profileImage}
-                                        alt={user.username}
-                                        className="w-12 h-12 rounded-full object-cover ring-2 ring-offset-2 ring-offset-background"
-                                      />
-                                      {getLeaderboardBadge(index)}
-                                    </div>
-                                  ) : (
-                                    <div className="relative">
-                                      <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-xl font-semibold">
-                                        {user.username[0]?.toUpperCase()}
-                                      </div>
-                                      {getLeaderboardBadge(index)}
-                                    </div>
-                                  )}
-                                </div>
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-medium truncate"><HighlightText text={user.username} highlight={debouncedSearchQuery} /></h3>
-                                  {user.fullName && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {user.fullName}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                    <Badge variant="secondary" className="text-xs">
-                                      {user.projectCount} {user.projectCount === 1 ? "project" : "projects"}
-                                    </Badge>
-                                    {user.totalFavorites > 0 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        ⭐ {user.totalFavorites}
-                                      </Badge>
-                                    )}
-                                    {user.isActive && (
-                                      <Badge variant="default" className="text-xs bg-green-600">
-                                        Active
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* Honorable Mentions */}
-                  {activeUsers.length > 3 && (
-                    <>
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-background px-2 text-muted-foreground">
-                            ⭐️ Honorable Mentions ⭐️
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {activeUsers.slice(3).map((user) => {
-                          const isLoading = loadingItem === `user-${user.username}`;
-                          return (
-                            <Card
-                              key={user.username}
-                              className={`p-4 cursor-pointer hover:bg-accent transition-colors ${
-                                isLoading ? "opacity-50" : ""
-                              }`}
-                              onClick={() => handleUserClick(user.username)}
-                            >
-                              <div className="flex items-center gap-4 relative">
-                                {isLoading && (
-                                  <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10 rounded-lg">
-                                    <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin"></div>
-                                  </div>
-                                )}
-                                {user.profileImage ? (
-                                  <img
-                                    src={user.profileImage}
-                                    alt={user.username}
-                                    className="w-12 h-12 rounded-full object-cover"
-                                  />
-                                ) : (
-                                  <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-xl font-semibold">
-                                    {user.username[0]?.toUpperCase()}
-                                  </div>
-                                )}
-                                <div className="flex-1 min-w-0">
-                                  <h3 className="font-medium truncate"><HighlightText text={user.username} highlight={debouncedSearchQuery} /></h3>
-                                  {user.fullName && (
-                                    <p className="text-sm text-muted-foreground truncate">
-                                      {user.fullName}
-                                    </p>
-                                  )}
-                                  <div className="flex items-center gap-2 mt-2 flex-wrap">
-                                    <Badge variant="secondary" className="text-xs">
-                                      {user.projectCount} {user.projectCount === 1 ? "project" : "projects"}
-                                    </Badge>
-                                    {user.totalFavorites > 0 && (
-                                      <Badge variant="outline" className="text-xs">
-                                        ⭐ {user.totalFavorites}
-                                      </Badge>
-                                    )}
-                                    {user.isActive && (
-                                      <Badge variant="default" className="text-xs bg-green-600">
-                                        Active
-                                      </Badge>
-                                    )}
-                                  </div>
-                                </div>
-                              </div>
-                            </Card>
-                          );
-                        })}
-                      </div>
-                    </>
-                  )}
-
-                  {/* Inactive Users */}
-                  {inactiveUsers.length > 0 && (
-                    <>
-                      <div className="relative">
-                        <div className="absolute inset-0 flex items-center">
-                          <span className="w-full border-t" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                          <span className="bg-background px-2 text-muted-foreground">
-                            Inactive Users (showing {totalInactiveCount} total)
-                          </span>
-                        </div>
-                      </div>
-
-                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {inactiveUsers.map((user) => (
-                          <Card
-                            key={user.username}
-                            className="p-4 cursor-not-allowed opacity-40"
-                          >
-                            <div className="flex items-center gap-4">
-                              {user.profileImage ? (
-                                <img
-                                  src={user.profileImage}
-                                  alt={user.username}
-                                  className="w-12 h-12 rounded-full object-cover"
-                                />
-                              ) : (
-                                <div className="w-12 h-12 rounded-full bg-accent flex items-center justify-center text-xl font-semibold">
-                                  {user.username[0]?.toUpperCase()}
-                                </div>
-                              )}
-                              <div className="flex-1 min-w-0">
-                                <h3 className="font-medium truncate"><HighlightText text={user.username} highlight={debouncedSearchQuery} /></h3>
-                                {user.fullName && (
-                                  <p className="text-sm text-muted-foreground truncate">
-                                    {user.fullName}
-                                  </p>
-                                )}
-                                <Badge variant="outline" className="text-xs mt-2">
-                                  No projects
-                                </Badge>
-                              </div>
-                            </div>
-                          </Card>
-                        ))}
-                      </div>
-                    </>
-                  )}
-                  </CardContent>
-                </Card>
-              ) : (
-                <div className="text-center py-12 text-muted-foreground">
-                  No users found
-                </div>
-              )}
-            </TabsContent>
-          </Tabs>
+              {projectCount > 0 && <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>{projectCount} projects</span>}
+              <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>{filteredCategories.length} categories</span>
+              <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>{filteredTags.length} tags</span>
+              <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>{userCount} users</span>
             </>
           )}
         </div>
+
+        {!showEmptyState && failedLists.length > 0 && !isLoadingData && (
+          <div role="alert" className="cd-surface flex flex-wrap items-center justify-between gap-4" style={{ borderColor: "var(--cd-danger)" }}>
+            <div className="cd-stack-tight cd-reading">
+              <p className="cd-subheading">Some results didn&apos;t load</p>
+              <p className="cd-small cd-muted">The {failedLists.join(", ")} couldn&apos;t be fetched, so this list may be missing matches.</p>
+            </div>
+            <Button variant="outline" onClick={retryFailed}>
+              Try again
+            </Button>
+          </div>
+        )}
+
+        {showEmptyState ? (
+          /* Nothing typed yet: three ways to explore */
+          <section className="cd-stack" aria-labelledby="explore-title">
+            <h2 id="explore-title" className="cd-heading text-center">Ready to explore?</h2>
+            <ul className="cd-grid" style={{ ["--cd-card-min" as string]: "14rem" }}>
+              {[
+                { id: "explore-categories", href: "/categories", icon: <Folder className="h-8 w-8" />, title: "Categories", text: "Browse projects by category like Web Development, AI/ML, and more" },
+                { id: "explore-tags", href: "/tags", icon: <Hash className="h-8 w-8" />, title: "Tags", text: "Find projects tagged with technologies like React, Python, Docker" },
+                { id: "explore-users", href: "/users", icon: <Users className="h-8 w-8" />, title: "Users", text: "Discover talented developers and explore their projects" },
+              ].map((t) => (
+                <li key={t.id} className="min-w-0">
+                  <Link href={t.href} className="cd-tile items-center text-center" onClick={open(t.id)} aria-busy={loadingItem === t.id || undefined}>
+                    <span aria-hidden="true" style={{ color: "var(--cd-action)" }}>
+                      {loadingItem === t.id ? <Spinner /> : t.icon}
+                    </span>
+                    <h3 className="cd-subheading">{t.title}</h3>
+                    <p className="cd-small cd-muted">{t.text}</p>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : isLoadingData ? (
+          <SearchContentSkeleton />
+        ) : (
+          <>
+            {/* D09 S02e: project results, only while search is switched on */}
+            {q && <ProjectSearchResults query={q} onCount={setProjectCount} />}
+
+            <Tabs defaultValue="all" className="w-full cd-stack">
+              <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 h-auto">
+                {[["all", "All"], ["categories", "Categories"], ["tags", "Tags"], ["users", "Users"]].map(([v, label]) => (
+                  <TabsTrigger key={v} value={v} className="cursor-pointer min-h-11">
+                    {label}
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+
+              {/* All Results Tab: people, then tags, then categories */}
+              <TabsContent value="all" className="cd-stack">
+                {userCount > 0 && (
+                  <Group id="all-users" icon={<Users className="h-5 w-5" />} title="Users" count={userCount}>
+                    {userGrid([...activeUsers, ...inactiveUsers])}
+                  </Group>
+                )}
+                {filteredTags.length > 0 && (
+                  <Group id="all-tags" icon={<Hash className="h-5 w-5" />} title="Tags" count={filteredTags.length}>
+                    {tagList}
+                  </Group>
+                )}
+                {filteredCategories.length > 0 && (
+                  <Group id="all-categories" icon={<Folder className="h-5 w-5" />} title="Categories" count={filteredCategories.length}>
+                    {categoryGrid}
+                  </Group>
+                )}
+                {q && totalResults === 0 && (
+                  <div className="cd-empty">
+                    <Search className="h-12 w-12 cd-muted" aria-hidden="true" />
+                    <h2 className="cd-subheading">No results found</h2>
+                    <p className="cd-muted">Try searching with different keywords</p>
+                  </div>
+                )}
+              </TabsContent>
+
+              {/* Categories Only Tab */}
+              <TabsContent value="categories" className="cd-stack">
+                <div className="cd-stack-tight">
+                  <h2 className="cd-heading">All Categories</h2>
+                  <p className="cd-muted">Explore projects organized by category - from web applications to AI/ML and beyond</p>
+                </div>
+                {filteredCategories.length > 0 ? (
+                  <Group id="tab-categories" icon={<Folder className="h-5 w-5" />} title="Categories" count={filteredCategories.length}>
+                    {categoryGrid}
+                  </Group>
+                ) : (
+                  <p className="cd-empty cd-muted">No categories found</p>
+                )}
+              </TabsContent>
+
+              {/* Tags Only Tab */}
+              <TabsContent value="tags" className="cd-stack">
+                <div className="cd-stack-tight">
+                  <h2 className="cd-heading">Browse All Tags</h2>
+                  <p className="cd-muted">Discover projects by technology stack and features</p>
+                </div>
+                {filteredTags.length > 0 ? (
+                  <Group id="tab-tags" icon={<Hash className="h-5 w-5" />} title="Tags" count={filteredTags.length}>
+                    {tagList}
+                  </Group>
+                ) : (
+                  <p className="cd-empty cd-muted">No tags found</p>
+                )}
+              </TabsContent>
+
+              {/* Users Only Tab: top three, honorable mentions, then people with no projects */}
+              <TabsContent value="users" className="cd-stack">
+                <div className="cd-stack-tight">
+                  <h2 className="cd-heading">All Contributing Users</h2>
+                  <p className="cd-muted">Browse and discover all the amazing contributors to our projects</p>
+                </div>
+                {userCount > 0 ? (
+                  <Group id="tab-users" icon={<Users className="h-5 w-5" />} title="Users" count={userCount}>
+                    {activeUsers.length > 0 && (
+                      <div className="cd-stack-tight">
+                        <h3 className="cd-subheading">Top Contributors</h3>
+                        {userGrid(activeUsers.slice(0, 3), true)}
+                      </div>
+                    )}
+                    {activeUsers.length > 3 && (
+                      <div className="cd-stack-tight">
+                        <h3 className="cd-subheading">⭐️ Honorable Mentions ⭐️</h3>
+                        {userGrid(activeUsers.slice(3))}
+                      </div>
+                    )}
+                    {inactiveUsers.length > 0 && (
+                      <div className="cd-stack-tight">
+                        <h3 className="cd-subheading">Inactive Users (showing {totalInactiveCount} total)</h3>
+                        {userGrid(inactiveUsers)}
+                      </div>
+                    )}
+                  </Group>
+                ) : (
+                  <p className="cd-empty cd-muted">No users found</p>
+                )}
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
       </div>
     </div>
   );
@@ -1007,14 +534,9 @@ export default function SearchPage() {
 
   return (
     <ProjectsProvider userId={viewer.userId}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
-          <SearchContent />
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+      <AppShell>
+        <SearchContent signedIn={!!viewer.userId} />
+      </AppShell>
     </ProjectsProvider>
   );
 }

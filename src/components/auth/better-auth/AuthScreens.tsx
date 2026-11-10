@@ -8,7 +8,7 @@
 import { Github } from "lucide-react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useId, useState, type FormEvent, type ReactNode } from "react";
+import { Suspense, useEffect, useId, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useHydrated } from "@/components/auth/AuthGate";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,22 +18,47 @@ import { AuthCard, FormMessage, LINK, PRIMARY_BUTTON } from "./AuthCard";
 import { RESET_PATH, VERIFIED_CALLBACK, authPost, sendVerificationLink, startGitHub } from "./api";
 import { AUTH_ERROR_TEXT, authErrorKind, safeRedirect } from "./authErrors";
 
-type Message = { tone: "error" | "info" | "success"; text: string } | null;
+// UI09.1: an error can name the fields it's about; they get aria-invalid, point
+// at the message, and the first one takes focus.
+type Message = { tone: "error" | "info" | "success"; text: string; fields?: string[] } | null;
 
 const TOO_MANY = "Too many attempts. Wait a minute and try again.";
 const UNREACHABLE = "We couldn't reach the server. Check your connection and try again.";
 const MIN_PASSWORD = 8;
 
-function Field({ label, ...props }: { label: string } & React.ComponentProps<typeof Input>) {
+function Field({ label, invalid, describedBy, onInput, ...props }: { label: string; invalid?: boolean; describedBy?: string } & React.ComponentProps<typeof Input>) {
   const id = useId();
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id} className="text-foreground">
+    <div className="cd-field">
+      <Label htmlFor={id} className="cd-field-label">
         {label}
       </Label>
-      <Input id={id} required className="bg-background border-border focus:border-primary text-foreground placeholder:text-muted-foreground" {...props} />
+      <Input
+        id={id}
+        required
+        aria-invalid={invalid || undefined}
+        aria-describedby={invalid ? describedBy : undefined}
+        onInput={onInput}
+        {...props}
+      />
     </div>
   );
+}
+
+/** Which fields an error message is about, and a way to clear the mark once the person types again. */
+function useFieldErrors(message: Message, messageId: string) {
+  // Typing in a field clears its mark until the next message.
+  const [cleared, setCleared] = useState<{ message: Message; names: string[] }>({ message: null, names: [] });
+  const fields = message?.tone === "error" ? (message.fields ?? []) : [];
+  const names = cleared.message === message ? cleared.names : [];
+  return (name: string) => ({
+    name,
+    invalid: fields.includes(name) && !names.includes(name),
+    describedBy: messageId,
+    onInput: () => {
+      if (fields.includes(name) && !names.includes(name)) setCleared({ message, names: [...names, name] });
+    },
+  });
 }
 
 // f7 (D08g3a): the fields are uncontrolled, so whatever the browser already
@@ -42,6 +67,20 @@ function Field({ label, ...props }: { label: string } & React.ComponentProps<typ
 // so a form can't be sent natively (with a password) before its handler exists.
 function Form({ onSubmit, children }: { onSubmit: (data: FormData) => Promise<void>; children: ReactNode }) {
   const [pending, setPending] = useState(false);
+  const ref = useRef<HTMLFormElement>(null);
+  const settled = useRef(false);
+  // UI09.1: the disabled fieldset drops focus to <body> while a request runs.
+  // When it ends, focus goes to the first field marked invalid, or back to
+  // the submit button, so keyboard and screen reader users stay in the form.
+  useEffect(() => {
+    if (pending || !settled.current) return;
+    settled.current = false;
+    const form = ref.current;
+    if (!form) return;
+    const invalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (invalid) return invalid.focus();
+    if (!form.contains(document.activeElement) || document.activeElement === document.body) form.querySelector<HTMLElement>('button[type="submit"]')?.focus();
+  }, [pending]);
   const submit = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (pending) return;
@@ -50,12 +89,13 @@ function Form({ onSubmit, children }: { onSubmit: (data: FormData) => Promise<vo
     try {
       await onSubmit(data);
     } finally {
+      settled.current = true;
       setPending(false);
     }
   };
   return (
-    <form method="post" onSubmit={submit} className="grid gap-5" aria-busy={pending}>
-      <fieldset disabled={pending} className="grid gap-5">
+    <form ref={ref} method="post" onSubmit={submit} className="cd-stack-tight" aria-busy={pending}>
+      <fieldset disabled={pending} className="cd-auth-fields">
         {children}
       </fieldset>
     </form>
@@ -76,6 +116,8 @@ const text = (data: FormData, name: string) => String(data.get(name) ?? "");
 /** "Send a new link" for an address the user typed; the same answer whether or not it has an account. */
 function NewLinkForm({ kind, initialEmail = "" }: { kind: "verify" | "reset"; initialEmail?: string }) {
   const [message, setMessage] = useState<Message>(null);
+  const messageId = useId();
+  const field = useFieldErrors(message, messageId);
   return (
     <>
       <Form
@@ -87,12 +129,12 @@ function NewLinkForm({ kind, initialEmail = "" }: { kind: "verify" | "reset"; in
           setMessage({ tone: "success", text: "If that email needs a link, we've sent a new one. It works once, for an hour." });
         }}
       >
-        <Field label="Email address" name="email" type="email" autoComplete="email" defaultValue={initialEmail} />
+        <Field label="Email address" type="email" autoComplete="email" defaultValue={initialEmail} {...field("email")} />
         <SubmitButton>
           Send a new link
         </SubmitButton>
       </Form>
-      {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
+      {message ? <FormMessage id={messageId} tone={message.tone}>{message.text}</FormMessage> : null}
     </>
   );
 }
@@ -102,11 +144,12 @@ function GitHubSignIn({ callbackURL }: { callbackURL: string }) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   return (
-    <div className="mb-6">
+    <div className="cd-stack-tight">
       <Button
         type="button"
+        variant="outline"
         disabled={pending}
-        className="w-full bg-primary hover:bg-secondary/90 text-secondary-foreground cursor-pointer"
+        className="w-full cursor-pointer"
         onClick={async () => {
           setPending(true);
           setError(await startGitHub({ callbackURL }));
@@ -117,10 +160,8 @@ function GitHubSignIn({ callbackURL }: { callbackURL: string }) {
         Continue with GitHub
       </Button>
       {error ? <FormMessage>{error}</FormMessage> : null}
-      <div className="mt-6 flex items-center gap-4 text-sm text-muted-foreground" aria-hidden="true">
-        <span className="h-px flex-1 bg-border" />
+      <div className="cd-auth-divider cd-small cd-muted" aria-hidden="true">
         or
-        <span className="h-px flex-1 bg-border" />
       </div>
     </div>
   );
@@ -156,6 +197,8 @@ function SignInScreen() {
   const [email, setEmail] = useState("");
   const [message, setMessage] = useState<Message>(params.get("verified") === "1" ? { tone: "success", text: "Email confirmed. Sign in to continue." } : null);
   const [unverified, setUnverified] = useState(false);
+  const messageId = useId();
+  const field = useFieldErrors(message, messageId);
 
   // A failed verify-email link comes back to its callback (/sign-in?verified=1) with ?error=.
   if (params.get("error")) return <AuthErrorScreen code={params.get("error")} />;
@@ -191,15 +234,15 @@ function SignInScreen() {
             setUnverified(true);
             return setMessage({ tone: "error", text: "Confirm your email first. Open the link we sent you, or send a new one below." });
           }
-          if (res.status === 401) return setMessage({ tone: "error", text: "Email or password is incorrect." });
+          if (res.status === 401) return setMessage({ tone: "error", text: "Email or password is incorrect.", fields: ["email", "password"] });
           if (res.status === 429) return setMessage({ tone: "error", text: TOO_MANY });
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't sign you in. Please try again." });
         }}
       >
-        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" name="email" />
-        <div className="grid gap-2">
-          <Field label="Password" type="password" autoComplete="current-password" placeholder="Enter your password" name="password" />
-          <Link href={RESET_PATH} className={`${LINK} justify-self-end text-xs`}>
+        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" {...field("email")} />
+        <div className="cd-stack-tight">
+          <Field label="Password" type="password" autoComplete="current-password" placeholder="Enter your password" {...field("password")} />
+          <Link href={RESET_PATH} className={`${LINK} cd-small cd-auth-aside-link`}>
             Forgot password?
           </Link>
         </div>
@@ -207,9 +250,9 @@ function SignInScreen() {
           Continue
         </SubmitButton>
       </Form>
-      {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
+      {message ? <FormMessage id={messageId} tone={message.tone}>{message.text}</FormMessage> : null}
       {unverified ? (
-        <div className="mt-6">
+        <div className="cd-auth-section">
           <NewLinkForm kind="verify" initialEmail={email} />
         </div>
       ) : null}
@@ -221,11 +264,13 @@ function SignUpScreen() {
   const params = useSearchParams();
   const [message, setMessage] = useState<Message>(null);
   const [sentTo, setSentTo] = useState<string | null>(null);
+  const messageId = useId();
+  const field = useFieldErrors(message, messageId);
 
   if (sentTo) {
     return (
-      <AuthCard title="Check your inbox" subtitle={<>We sent a link to <span className="font-medium text-foreground">{sentTo}</span>. Open it to confirm your email, then sign in.</>} footer={<BackToSignIn />}>
-        <p className="mb-4 text-sm text-muted-foreground">Didn&apos;t get it? Check spam, or send a new link.</p>
+      <AuthCard title="Check your inbox" subtitle={<>We sent a link to <strong className="cd-wrap">{sentTo}</strong>. Open it to confirm your email, then sign in.</>} footer={<BackToSignIn />}>
+        <p className="cd-small cd-muted">Didn&apos;t get it? Check spam, or send a new link.</p>
         <NewLinkForm kind="verify" initialEmail={sentTo} />
       </AuthCard>
     );
@@ -248,26 +293,26 @@ function SignUpScreen() {
       <Form
         onSubmit={async (data) => {
           const [name, email, password] = [text(data, "name"), text(data, "email"), text(data, "password")];
-          if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
+          if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.`, fields: ["password"] });
           const res = await authPost("/sign-up/email", { name, email, password, callbackURL: VERIFIED_CALLBACK });
           // Better Auth answers 200 for an address that already has an account too.
           // It stores the address lowercased, so show it that way (F01-8).
           if (res.status === 200) return setSentTo(email.toLowerCase());
           if (res.status === 429) return setMessage({ tone: "error", text: TOO_MANY });
-          if (res.code === "PASSWORD_TOO_SHORT") return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
-          if (res.code === "PASSWORD_TOO_LONG") return setMessage({ tone: "error", text: "That password is too long." });
-          if (res.code === "INVALID_EMAIL") return setMessage({ tone: "error", text: "Enter a valid email address." });
+          if (res.code === "PASSWORD_TOO_SHORT") return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.`, fields: ["password"] });
+          if (res.code === "PASSWORD_TOO_LONG") return setMessage({ tone: "error", text: "That password is too long.", fields: ["password"] });
+          if (res.code === "INVALID_EMAIL") return setMessage({ tone: "error", text: "Enter a valid email address.", fields: ["email"] });
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't create your account. Please try again." });
         }}
       >
-        <Field label="Name" name="name" autoComplete="name" placeholder="Your name" />
-        <Field label="Email address" name="email" type="email" autoComplete="email" placeholder="Enter your email address" />
-        <Field label="Password" name="password" type="password" autoComplete="new-password" placeholder="At least 8 characters" minLength={MIN_PASSWORD} />
+        <Field label="Name" autoComplete="name" placeholder="Your name" {...field("name")} />
+        <Field label="Email address" type="email" autoComplete="email" placeholder="Enter your email address" {...field("email")} />
+        <Field label="Password" type="password" autoComplete="new-password" placeholder="At least 8 characters" minLength={MIN_PASSWORD} {...field("password")} />
         <SubmitButton>
           Continue
         </SubmitButton>
       </Form>
-      {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
+      {message ? <FormMessage id={messageId} tone={message.tone}>{message.text}</FormMessage> : null}
     </AuthCard>
   );
 }
@@ -278,6 +323,8 @@ function ResetScreen() {
   const [message, setMessage] = useState<Message>(null);
   const [done, setDone] = useState(false);
   const [badToken, setBadToken] = useState(false);
+  const messageId = useId();
+  const field = useFieldErrors(message, messageId);
 
   if (params.get("error") || badToken) return <AuthErrorScreen code={params.get("error") ?? "invalid_token"} resend="reset" />;
 
@@ -304,8 +351,8 @@ function ResetScreen() {
       <Form
         onSubmit={async (data) => {
           const [password, confirm] = [text(data, "password"), text(data, "confirm")];
-          if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.` });
-          if (password !== confirm) return setMessage({ tone: "error", text: "The passwords don't match." });
+          if (password.length < MIN_PASSWORD) return setMessage({ tone: "error", text: `Use at least ${MIN_PASSWORD} characters for your password.`, fields: ["password"] });
+          if (password !== confirm) return setMessage({ tone: "error", text: "The passwords don't match.", fields: ["confirm"] });
           const res = await authPost("/reset-password", { newPassword: password, token });
           if (res.status === 200) return setDone(true);
           if (res.code === "INVALID_TOKEN") return setBadToken(true);
@@ -313,13 +360,13 @@ function ResetScreen() {
           setMessage({ tone: "error", text: res.status === 0 ? UNREACHABLE : "We couldn't change your password. Please try again." });
         }}
       >
-        <Field label="New password" name="password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} />
-        <Field label="Confirm new password" name="confirm" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} />
+        <Field label="New password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} {...field("password")} />
+        <Field label="Confirm new password" type="password" autoComplete="new-password" minLength={MIN_PASSWORD} {...field("confirm")} />
         <SubmitButton>
           Change password
         </SubmitButton>
       </Form>
-      {message ? <FormMessage tone={message.tone}>{message.text}</FormMessage> : null}
+      {message ? <FormMessage id={messageId} tone={message.tone}>{message.text}</FormMessage> : null}
     </AuthCard>
   );
 }

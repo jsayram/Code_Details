@@ -42,6 +42,7 @@ function checkCategoryDataForProfanity(data: Record<string, unknown> | null | un
  * Valid project categories
  */
 const projectCategoryEnum = z.enum([
+  // Same keys, same order as PROJECT_CATEGORIES (a unit test checks).
   "web",
   "mobile",
   "desktop",
@@ -49,7 +50,10 @@ const projectCategoryEnum = z.enum([
   "cloud-devops",
   "data-engineering",
   "ai-ml",
+  "ai-agents",
+  "generative-ai",
   "dev-tools",
+  "libraries-frameworks",
   "integration",
   "embedded-iot",
   "gaming-graphics",

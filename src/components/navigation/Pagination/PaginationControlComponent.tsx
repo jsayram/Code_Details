@@ -1,13 +1,13 @@
 "use client";
+// UI07.3: page controls on the foundations. The pages were <a> elements with
+// no href, so the keyboard skipped them, and the list held bare spans (axe
+// `list`, `aria-prohibited-attr`). They are buttons in a list now, inside a
+// named navigation, with the current page marked. Behavior is unchanged: the
+// same pages, the same ellipsis, the same "Page n of m" on narrow phones, and
+// the scroll position kept on a page change.
+import "@/styles/foundations.css";
 import React, { useEffect, useState, useCallback, useRef } from "react";
-import {
-  Pagination,
-  PaginationContent,
-  PaginationItem,
-  PaginationLink,
-  PaginationNext,
-  PaginationPrevious,
-} from "@/components/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
 
 interface PaginationControlsProps {
   currentPage: number;
@@ -20,12 +20,9 @@ export function PaginationControls({
   totalPages,
   onPageChange,
 }: PaginationControlsProps) {
-  const [isMobile, setIsMobile] = useState(false);
   const [isVerySmallScreen, setIsVerySmallScreen] = useState(false);
-  const visitedPagesRef = useRef<Set<number>>(new Set([1]));
   const previousPageRef = useRef<number>(1);
   const [activePageState, setActivePageState] = useState(currentPage);
-  const paginationRef = useRef<HTMLDivElement>(null);
 
   // Keep active page state in sync with currentPage prop
   useEffect(() => {
@@ -33,46 +30,23 @@ export function PaginationControls({
   }, [currentPage]);
 
   useEffect(() => {
-    // Track visited pages
-    if (currentPage <= totalPages) {
-      previousPageRef.current = currentPage;
-      visitedPagesRef.current.add(currentPage);
-    }
+    if (currentPage <= totalPages) previousPageRef.current = currentPage;
   }, [currentPage, totalPages]);
 
   // Screen size detection
   useEffect(() => {
-    const checkScreenSize = () => {
-      setIsMobile(window.innerWidth < 768);
-      setIsVerySmallScreen(window.innerWidth < 640);
-    };
-
+    const checkScreenSize = () => setIsVerySmallScreen(window.innerWidth < 640);
     checkScreenSize();
     let resizeTimeout: NodeJS.Timeout;
     const debouncedCheckScreenSize = () => {
       clearTimeout(resizeTimeout);
       resizeTimeout = setTimeout(checkScreenSize, 100);
     };
-
     window.addEventListener("resize", debouncedCheckScreenSize);
     return () => {
       clearTimeout(resizeTimeout);
       window.removeEventListener("resize", debouncedCheckScreenSize);
     };
-  }, []);
-
-  const scrollToCurrentPagination = useCallback(() => {
-    if (paginationRef.current) {
-      const rect = paginationRef.current.getBoundingClientRect();
-      const isInViewport = rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-      if (!isInViewport) {
-        paginationRef.current.scrollIntoView({
-          behavior: "smooth",
-          block: "center",
-        });
-      }
-    }
   }, []);
 
   const handlePageChange = useCallback(
@@ -82,146 +56,102 @@ export function PaginationControls({
         onPageChange(previousPageRef.current);
         return;
       }
-
       // Don't allow invalid pages or same page navigation
-      if (newPage < 1 || newPage === activePageState) {
-        return;
-      }
+      if (newPage < 1 || newPage === activePageState) return;
 
-      // Store current scroll position
       const currentPosition = window.scrollY;
-
-      // Update active state immediately for smooth transition
       setActivePageState(newPage);
-      visitedPagesRef.current.add(newPage);
       onPageChange(newPage);
-
-      // Restore scroll position after a short delay to allow for content update
+      // Keep the reader where they were while the new page renders.
       requestAnimationFrame(() => {
-        window.scrollTo({
-          top: currentPosition,
-          behavior: "instant",
-        });
+        window.scrollTo({ top: currentPosition, behavior: "instant" });
       });
     },
     [activePageState, totalPages, onPageChange]
   );
 
-  // Generate visible page numbers with ellipsis
+  // Visible page numbers with gaps: first, last, and two either side of the current page.
   const getVisiblePages = useCallback(() => {
     const delta = 2;
-    const range: number[] = [];
-    let rangeWithDots: (number | string)[] = [];
+    const range: number[] = [1];
+    for (let i = Math.max(2, activePageState - delta); i <= Math.min(totalPages - 1, activePageState + delta); i++) range.push(i);
+    if (totalPages > 1) range.push(totalPages);
 
-    // Always include first and last page
-    range.push(1);
-
-    // Calculate the range around current page
-    for (
-      let i = Math.max(2, activePageState - delta);
-      i <= Math.min(totalPages - 1, activePageState + delta);
-      i++
-    ) {
-      range.push(i);
-    }
-
-    if (totalPages > 1) {
-      range.push(totalPages);
-    }
-
-    // Add dots where needed
+    const withGaps: (number | "gap")[] = [];
     let prev: number | null = null;
     for (const i of range) {
       if (prev !== null) {
-        if (i - prev === 2) {
-          rangeWithDots.push(prev + 1);
-          visitedPagesRef.current.add(prev + 1); // Add intermediate pages to visited
-        } else if (i - prev > 2) {
-          rangeWithDots.push("...");
-        }
+        if (i - prev === 2) withGaps.push(prev + 1);
+        else if (i - prev > 2) withGaps.push("gap");
       }
-      rangeWithDots.push(i);
-      visitedPagesRef.current.add(i); // Mark all visible pages as visited
+      withGaps.push(i);
       prev = i;
     }
-
-    return rangeWithDots;
+    return withGaps;
   }, [activePageState, totalPages]);
 
   if (totalPages <= 1) return null;
 
-  const visiblePages = getVisiblePages();
+  const atFirst = activePageState === 1;
+  const atLast = activePageState === totalPages;
 
   return (
-    <div className="mt-4" ref={paginationRef}>
-      <Pagination className="mb-5 pagination-container text-base md:text-lg">
-        <PaginationContent className="gap-1 md:gap-2">
-          <PaginationItem>
-            <PaginationPrevious
-              onClick={() => handlePageChange(Math.max(1, activePageState - 1))}
-              className={`${
-                activePageState === 1
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer hover:bg-accent/80"
-              } px-3 md:px-4 py-2 transition-all duration-200`}
-              aria-disabled={activePageState === 1}
-            />
-          </PaginationItem>
+    <nav aria-label="Pagination" className="cd-foundations cd-pager pagination-container">
+      <ul>
+        <li>
+          <button
+            type="button"
+            className="cd-pager-button"
+            onClick={() => handlePageChange(Math.max(1, activePageState - 1))}
+            disabled={atFirst}
+            aria-label="Previous page"
+          >
+            <ChevronLeft className="h-4 w-4" aria-hidden="true" />
+            <span className="hidden sm:inline" aria-hidden="true">Previous</span>
+          </button>
+        </li>
 
-          {isVerySmallScreen ? (
-            <span className="px-2 py-1 text-sm">
+        {isVerySmallScreen ? (
+          <li>
+            <span className="cd-small cd-number px-2" aria-current="page">
               Page {activePageState} of {totalPages}
             </span>
-          ) : (
-            visiblePages.map((page, index) => {
-              if (page === "...") {
-                return (
-                  <PaginationItem key={`ellipsis-${index}`}>
-                    <span className="px-4">...</span>
-                  </PaginationItem>
-                );
-              }
+          </li>
+        ) : (
+          getVisiblePages().map((page, index) =>
+            page === "gap" ? (
+              <li key={`gap-${index}`} className="cd-pager-gap" aria-hidden="true">
+                …
+              </li>
+            ) : (
+              <li key={page}>
+                <button
+                  type="button"
+                  className="cd-pager-button pagination-item-text"
+                  onClick={() => handlePageChange(page)}
+                  aria-current={activePageState === page ? "page" : undefined}
+                  aria-label={`Page ${page}`}
+                >
+                  {page}
+                </button>
+              </li>
+            )
+          )
+        )}
 
-              const pageNum = page as number;
-              const isVisited = visitedPagesRef.current.has(pageNum);
-              const isActive = activePageState === pageNum;
-
-              return (
-                <PaginationItem key={pageNum}>
-                  <PaginationLink
-                    isActive={isActive}
-                    onClick={() => handlePageChange(pageNum)}
-                    aria-current={isActive ? "page" : undefined}
-                    className={`pagination-item-text bg-transparent flex items-center justify-center h-10 w-10 transition-all duration-200 cursor-pointer ${
-                      isActive
-                        ? "ring-2 ring-primary bg-primary text-primary-foreground"
-                        : isVisited
-                        ? "text-foreground hover:bg-primary/80 hover:text-primary-foreground"
-                        : "text-muted-foreground hover:text-primary-foreground hover:bg-primary/60"
-                    }`}
-                  >
-                    {pageNum}
-                  </PaginationLink>
-                </PaginationItem>
-              );
-            })
-          )}
-
-          <PaginationItem>
-            <PaginationNext
-              onClick={() =>
-                handlePageChange(Math.min(totalPages, activePageState + 1))
-              }
-              className={`${
-                activePageState === totalPages
-                  ? "opacity-50 cursor-not-allowed"
-                  : "cursor-pointer hover:bg-accent/80"
-              } px-3 md:px-4 py-2 transition-all duration-200`}
-              aria-disabled={activePageState === totalPages}
-            />
-          </PaginationItem>
-        </PaginationContent>
-      </Pagination>
-    </div>
+        <li>
+          <button
+            type="button"
+            className="cd-pager-button"
+            onClick={() => handlePageChange(Math.min(totalPages, activePageState + 1))}
+            disabled={atLast}
+            aria-label="Next page"
+          >
+            <span className="hidden sm:inline" aria-hidden="true">Next</span>
+            <ChevronRight className="h-4 w-4" aria-hidden="true" />
+          </button>
+        </li>
+      </ul>
+    </nav>
   );
 }

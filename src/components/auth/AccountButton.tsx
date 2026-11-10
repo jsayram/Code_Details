@@ -84,14 +84,19 @@ function AppAccountMenu({ avatarClassName, afterSignOutUrl }: { avatarClassName?
     }
   };
   return (
-    <DropdownMenu onOpenChange={(open) => void (open && checkGitHub())}>
-      <DropdownMenuTrigger className="rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring" aria-label="Open account menu">
+    // UI09.2: not modal, so the rest of the page isn't aria-hidden while focusable
+    // (axe aria-hidden-focus); focus still moves into the menu and back on close.
+    <DropdownMenu modal={false} onOpenChange={(open) => void (open && checkGitHub())}>
+      <DropdownMenuTrigger className="rounded-full cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+        {/* UI02 defect 16: the name comes from this text, not an aria-label that left out the visible initials. */}
+        <span className="sr-only">Open account menu</span>
         <Avatar className={avatarClassName ?? "h-8 w-8"}>
           {user?.image ? <AvatarImage src={user.image} alt="" /> : null}
-          <AvatarFallback>{initials(name)}</AvatarFallback>
+          <AvatarFallback aria-hidden="true">{initials(name)}</AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="min-w-56">
+      {/* UI09.2: the menu renders in a portal, so it carries the foundations scope itself. */}
+      <DropdownMenuContent align="end" className="cd-foundations min-w-56">
         <DropdownMenuLabel className="grid text-sm leading-tight">
           <span className="truncate font-medium">{name}</span>
           {email ? <span className="truncate text-xs font-normal text-muted-foreground">{email}</span> : null}

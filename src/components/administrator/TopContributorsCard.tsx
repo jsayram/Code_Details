@@ -40,7 +40,7 @@ export function TopContributorsCard({ contributors }: TopContributorsCardProps) 
           Users ranked by contribution score (Projects × 10 + Favorites × 2 + Approved Tags × 5)
         </CardDescription>
       </CardHeader>
-      <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+      <CardContent tabIndex={0} role="region" aria-label="Top contributors list" className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
         <div className="space-y-4">
           {contributors.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">

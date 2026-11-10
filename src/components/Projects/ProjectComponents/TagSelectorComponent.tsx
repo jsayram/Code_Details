@@ -197,7 +197,7 @@ export function TagSelector({
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">
+            <label htmlFor="project-tags-input" className="text-sm font-medium">
               Project Tags ({selectedTags.length}/{MAX_PROJECT_TAGS})
             </label>
             <p className="text-xs text-muted-foreground">
@@ -230,6 +230,7 @@ export function TagSelector({
               onAddTag={handleAddTag}
               onRemoveTag={handleRemoveTag}
               searchTags={handleSearchTags}
+              inputId="project-tags-input"
               placeholder={
                 isOwner
                   ? "Search for tags..."

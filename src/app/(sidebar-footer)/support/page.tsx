@@ -21,7 +21,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Separator } from "@/components/ui/separator";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
 
 // FAQ Item Component
 const FAQItem = ({
@@ -69,17 +70,19 @@ export default function SupportPage() {
   const [searchQuery, setSearchQuery] = useState("");
 
   return (
-    <div className="container mx-auto py-8 px-4 md:py-12 md:px-6 relative min-h-screen">
-      <HeaderSectionNoSideBar />
-      <div className="relative z-10">
+    // UI09.3: in the shared shell like every other signed-in page, on the
+    // design foundations: a solid h1 and a labelled search field. Every control stays.
+    <AppShell>
+    <div className="cd-foundations cd-canvas">
+      <div className="cd-page">
         {/* Hero section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.3 }}
           className="text-center mb-12"
         >
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-fuchsia-500 mb-4">
+          <h1 className="cd-title mb-4">
             Help & Support
           </h1>
           <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
@@ -90,18 +93,20 @@ export default function SupportPage() {
 
         {/* Search & Quick Help */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: 0.3, delay: 0.03 }}
           className="max-w-3xl mx-auto mb-12"
         >
           <Card>
             <CardContent className="pt-6">
               <div className="relative mb-6">
-                <HelpCircle className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
+                <HelpCircle aria-hidden="true" className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
                 <Input
+                  aria-label="Search for help topics"
+                  type="search"
                   placeholder="Search for help topics..."
-                  className="pl-12 h-12 text-base rounded-xl border-2 border-primary/20 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-md transition-all duration-200"
+                  className="pl-12 h-12 text-base"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                 />
@@ -145,9 +150,9 @@ export default function SupportPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {/* FAQ Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
             className="lg:col-span-2 order-2 lg:order-1"
           >
             <Card>
@@ -315,9 +320,9 @@ export default function SupportPage() {
 
           {/* Contact & Resources Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
+            transition={{ duration: 0.3, delay: 0.08 }}
             className="order-1 lg:order-2"
           >
             <div className="space-y-8">
@@ -407,42 +412,47 @@ export default function SupportPage() {
                   <div className="flex items-center justify-between border-b pb-2">
                     <span className="font-medium">Documentation</span>
                     <Button variant="ghost" size="sm" className="cursor-pointer">
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} aria-hidden="true" />
+                      <span className="sr-only">Open Documentation</span>
                     </Button>
                   </div>
                   <div className="flex items-center justify-between border-b pb-2">
                     <span className="font-medium">API Reference</span>
                     <Button variant="ghost" size="sm" className="cursor-pointer">
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} aria-hidden="true" />
+                      <span className="sr-only">Open API Reference</span>
                     </Button>
                   </div>
                   <div className="flex items-center justify-between border-b pb-2">
                     <span className="font-medium">Getting Started</span>
                     <Button variant="ghost" size="sm" className="cursor-pointer">
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} aria-hidden="true" />
+                      <span className="sr-only">Open Getting Started</span>
                     </Button>
                   </div>
                   <div className="flex items-center justify-between border-b pb-2">
                     <span className="font-medium">Tutorials</span>
                     <Button variant="ghost" size="sm" className="cursor-pointer">
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} aria-hidden="true" />
+                      <span className="sr-only">Open Tutorials</span>
                     </Button>
                   </div>
                   <div className="flex items-center justify-between pb-2">
                     <span className="font-medium">Code Samples</span>
                     <Button variant="ghost" size="sm" className="cursor-pointer">
-                      <ExternalLink size={16} />
+                      <ExternalLink size={16} aria-hidden="true" />
+                      <span className="sr-only">Open Code Samples</span>
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Subscription Status Card */}
-              <Card className="bg-gradient-to-br from-primary/5 to-secondary/5">
+              <Card>
                 <CardContent className="pt-6">
                   <h3 className="font-semibold text-lg mb-2">Current Plan</h3>
                   <div className="flex items-center mb-4">
-                    <Badge className="bg-blue-600">Pro</Badge>
+                    <Badge>Pro</Badge>
                     <span className="text-sm text-muted-foreground ml-2">
                       Active
                     </span>
@@ -476,12 +486,12 @@ export default function SupportPage() {
 
         {/* Call to Action */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
           className="text-center mt-12"
         >
-          <Card className="bg-gradient-to-r from-primary/10 to-fuchsia-500/10 border-0">
+          <Card>
             <CardContent className="py-10">
               <h2 className="text-2xl font-semibold mb-4">
                 Didn&apos;t find what you were looking for?
@@ -505,5 +515,6 @@ export default function SupportPage() {
         </motion.div>
       </div>
     </div>
+    </AppShell>
   );
 }

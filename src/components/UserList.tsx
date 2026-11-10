@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type ReactNode } from "react";
+import Link from "next/link";
 import type { Profile } from "@/hooks/use-profiles";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { useRouter } from "next/navigation";
 import { GenericLoadingState } from "@/components/LoadingState/GenericLoadingState";
 import { fetchTopContributorsPublic } from "@/app/actions/advanced-analytics";
 import type { PublicTopContributor } from "@/app/actions/advanced-analytics";
@@ -25,7 +25,6 @@ export function UserList() {
   const [contributorsLoading, setContributorsLoading] = useState(true);
   const [loadingUserId, setLoadingUserId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const router = useRouter();
 
   // Debounce search query
   useEffect(() => {
@@ -151,10 +150,21 @@ export function UserList() {
   };
 
 
-  const handleUserClick = (username: string, userId: string) => {
-    setLoadingUserId(userId);
-    router.push(`/users/${username}`);
-  };
+  // UI11: each card's name is a real link (UI06's title-link pattern): its
+  // ::after covers the card, so the whole card opens the profile, and open in
+  // a new tab, the link menu and Enter work as they do for any link. UI09 had
+  // made the cards role="link" divs.
+  const userLink = (username: string, children: ReactNode) => (
+    <Link
+      href={`/users/${encodeURIComponent(username)}`}
+      className="cd-user-card-link"
+      onClick={(e) => {
+        if (e.button === 0 && !e.metaKey && !e.ctrlKey && !e.shiftKey && !e.altKey) setLoadingUserId(username);
+      }}
+    >
+      {children}
+    </Link>
+  );
 
   if (isLoading || contributorsLoading) {
     return (
@@ -184,6 +194,7 @@ export function UserList() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
         <Input
           type="search"
+          aria-label="Search users"
           placeholder="Search by username or name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -207,10 +218,9 @@ export function UserList() {
             {leaderboardTop3.map((contributor, index) => (
               <Card
                 key={contributor.username}
-                className={`w-full md:w-[calc(50%-0.5rem)] xl:flex-1 xl:max-w-[calc(33.333%-0.667rem)] max-w-md p-10 cursor-pointer hover:bg-accent/50 transition-all transform hover:scale-105 ${
+                className={`cd-user-card relative w-full md:w-[calc(50%-0.5rem)] xl:flex-1 xl:max-w-[calc(33.333%-0.667rem)] max-w-md p-10 cursor-pointer hover:bg-accent/50 transition-all transform hover:scale-105 ${
                   loadingUserId === contributor.username ? "opacity-50" : ""
                 } ${getLeaderboardCardStyle(index)}`}
-                onClick={() => handleUserClick(contributor.username, contributor.username)}
               >
                 {getLeaderboardBadge(index)}
                 <div className="flex flex-col gap-4">
@@ -240,7 +250,7 @@ export function UserList() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 flex-wrap">
                         <h3 className="font-bold text-lg truncate">
-                          <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
+                          {userLink(contributor.username, <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />)}
                         </h3>
                       </div>
                       <p className="text-sm text-muted-foreground truncate">
@@ -300,11 +310,10 @@ export function UserList() {
               {filteredTopContributors.slice(3).filter(c => c.contribution_score > 0).map((contributor, index) => (
                 <Card
                   key={contributor.username}
-                  className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
+                  className={`cd-user-card relative w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                     loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.username)}
-                >
+                  >
                 <div className="flex items-center gap-4">
                   {loadingUserId === contributor.username && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
@@ -330,7 +339,7 @@ export function UserList() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium truncate">
-                        <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
+                        {userLink(contributor.username, <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />)}
                       </h3>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
@@ -377,11 +386,10 @@ export function UserList() {
               {filteredTopContributors.filter(c => c.contribution_score === 0).map((contributor) => (
                 <Card
                   key={contributor.username}
-                  className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
+                  className={`cd-user-card relative w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                     loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.username)}
-                >
+                  >
                 <div className="flex items-center gap-4">
                   {loadingUserId === contributor.username && (
                     <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-10">
@@ -404,7 +412,7 @@ export function UserList() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <h3 className="font-medium truncate">
-                        <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />
+                        {userLink(contributor.username, <HighlightText text={contributor.full_name || contributor.username} highlight={debouncedSearchQuery} />)}
                       </h3>
                     </div>
                     <p className="text-xs text-muted-foreground truncate">
@@ -461,10 +469,9 @@ export function UserList() {
                 return (
                   <Card
                     key={user.username}
-                    className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
+                    className={`cd-user-card relative w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                       loadingUserId === user.username ? "opacity-50" : ""
                     }`}
-                    onClick={() => handleUserClick(user.username, user.username)}
                   >
                     <div className="flex items-center gap-4">
                       {loadingUserId === user.username && (
@@ -484,7 +491,7 @@ export function UserList() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium truncate">{user.username}</h3>
+                        <h3 className="font-medium truncate">{userLink(user.username, user.username)}</h3>
                         {user.full_name && (
                           <p className="text-sm text-muted-foreground truncate">
                             {user.full_name}

@@ -1,11 +1,16 @@
 "use client";
 
+// UI08.1: the dashboard on AppShell and the foundations. One main (the
+// shell's), one h1, the same data and controls. Loading, empty and failed
+// states are separate, and a failed refresh keeps the last data on screen
+// with a note instead of replacing the page.
+import "@/styles/foundations.css";
 import React, { useState, useEffect } from "react";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SignedIn, useViewerId } from "@/components/auth/AuthGate";
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
+import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { getMyProfileHandle } from "@/app/actions/profile-handle";
 import {
@@ -30,7 +35,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
-  ArrowRight,
   Code,
   Heart,
   HeartCrack,
@@ -39,7 +43,6 @@ import {
   TrendingUp,
   RefreshCw,
   Activity,
-  PieChart,
   Sparkles,
   Loader2,
   RefreshCcw,
@@ -58,13 +61,10 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { useDashboardStats } from "@/hooks/use-dashboard-stats";
 import Link from "next/link";
 import Image from "next/image";
-import { Badge } from "@/components/ui/badge";
-import { PageBanner } from "@/components/ui/page-banner";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
 import { PROJECT_CATEGORIES, ProjectCategory } from "@/constants/project-categories";
 import { UserDashboardStats } from "@/types/rows";
 import { toast } from "sonner";
-import UserDashboardLoading from "./loading";
 import { CreateFirstProjectPrompt } from "@/components/dashboard/CreateFirstProjectPrompt";
 import { removeProjectFavorite } from "@/app/actions/projects";
 
@@ -151,26 +151,20 @@ function MyProjectsCard({ totalProjects, activeThisWeek }: { totalProjects: numb
   const [isNavigating, setIsNavigating] = useState(false);
 
   return (
-    <Card className="stat-card h-[250px] flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-        <CardTitle className="text-sm font-medium">My Projects</CardTitle>
-        <Code className="h-4 w-4 text-primary" />
+    <Card className="stat-card flex flex-col gap-3 py-5 lg:h-[250px]">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 flex-shrink-0">
+        <CardTitle className="cd-small font-medium">My Projects</CardTitle>
+        <Code className="h-4 w-4" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center items-center">
-        <div className="text-5xl font-bold">{totalProjects}</div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">{activeThisWeek} updated this week</p>
-        <Link href="/projects/projects-portfolio" className="mt-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full cursor-pointer text-xs"
-            onClick={() => setIsNavigating(true)}
-            disabled={isNavigating}
-          >
-            {isNavigating && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+        <p className="cd-number text-4xl lg:text-5xl font-semibold">{totalProjects}</p>
+        <p className="cd-caption mt-2 text-center">{activeThisWeek} updated this week</p>
+        <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+          <Link href="/projects/projects-portfolio" onClick={() => setIsNavigating(true)}>
+            {isNavigating && <Loader2 className="h-3 w-3 animate-spin mr-1" aria-hidden="true" />}
             View All Projects
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
@@ -183,17 +177,18 @@ function FavoriteProjectItem({ project }: { project: { id: string; slug: string;
   return (
     <Link
       href={`/projects/${project.slug}`}
-      className="block cursor-pointer"
+      className="block rounded-md hover:bg-muted/50 transition-colors"
       onClick={() => setIsNavigating(true)}
     >
-      <div className="text-xs p-1.5 rounded hover:bg-muted/50 transition-colors flex items-center justify-between group">
-        <span className="truncate flex-1 group-hover:text-primary">{project.title}</span>
-        <div className="flex items-center gap-1 flex-shrink-0 ml-2">
-          {isNavigating && <Loader2 className="h-3 w-3 animate-spin" />}
-          <Heart className="h-3 w-3" />
-          <span className="text-xs font-medium">{project.total_favorites}</span>
-        </div>
-      </div>
+      <span className="cd-small p-2 flex items-center justify-between gap-2 min-h-11 lg:min-h-0">
+        <span className="truncate flex-1">{project.title}</span>
+        <span className="flex items-center gap-1 flex-shrink-0">
+          {isNavigating && <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" />}
+          <Heart className="h-3 w-3" aria-hidden="true" />
+          <span className="cd-number font-medium">{project.total_favorites}</span>
+          <span className="sr-only">{project.total_favorites === 1 ? " favorite" : " favorites"}</span>
+        </span>
+      </span>
     </Link>
   );
 }
@@ -207,31 +202,36 @@ function FavoritesReceivedCard({
   projectsWithFavorites: { id: string; slug: string; title: string; total_favorites: number }[] 
 }) {
   return (
-    <Card className="h-[250px] flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-        <CardTitle className="text-sm font-medium">Favorites Received</CardTitle>
-        <Heart className="h-4 w-4 text-primary" />
+    <Card className="flex flex-col gap-3 py-5 lg:h-[250px]">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 flex-shrink-0">
+        <CardTitle className="cd-small font-medium">Favorites Received</CardTitle>
+        <Heart className="h-4 w-4" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
       </CardHeader>
-      <CardContent className="flex-1 flex flex-row gap-3 overflow-hidden p-4">
+      <CardContent className="flex-1 flex flex-row gap-3 min-h-0">
         {/* Left side - Total count */}
-        <div className="flex flex-col items-center justify-center flex-shrink-0 w-1/3 border-r border-border pr-3">
-          <div className="text-4xl font-bold">{totalFavorites}</div>
-          <p className="text-xs text-muted-foreground mt-1 text-center">Total</p>
+        <div className="flex flex-col items-center justify-center flex-shrink-0 w-1/3 border-r pr-3" style={{ borderColor: "var(--cd-border-subtle)" }}>
+          <p className="cd-number text-4xl font-semibold">{totalFavorites}</p>
+          <p className="cd-caption mt-1 text-center">Total</p>
         </div>
-        
-        {/* Right side - Scrollable project list */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+
+        {/* Right side - the projects that received them, scrolling inside the card on wide screens */}
+        <div className="flex-1 min-w-0 flex flex-col">
           {projectsWithFavorites.length > 0 ? (
-            <div className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
-              <div className="space-y-1">
+            <div
+              role="region"
+              aria-label="Projects with favorites"
+              tabIndex={0}
+              className="flex-1 max-h-48 lg:max-h-none overflow-y-auto overscroll-contain pr-1"
+            >
+              <ul className="space-y-1">
                 {projectsWithFavorites.map((project) => (
-                  <FavoriteProjectItem key={project.id} project={project} />
+                  <li key={project.id}><FavoriteProjectItem project={project} /></li>
                 ))}
-              </div>
+              </ul>
             </div>
           ) : (
             <div className="flex items-center justify-center h-full">
-              <p className="text-xs text-muted-foreground text-center">No projects have received favorites yet</p>
+              <p className="cd-caption text-center">No projects have received favorites yet</p>
             </div>
           )}
         </div>
@@ -245,26 +245,20 @@ function FavoritesGivenCard({ totalFavoritesGiven }: { totalFavoritesGiven: numb
   const [isNavigating, setIsNavigating] = useState(false);
 
   return (
-    <Card className="h-[250px] flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-        <CardTitle className="text-sm font-medium">Favorites Given</CardTitle>
-        <Star className="h-4 w-4 text-primary" />
+    <Card className="flex flex-col gap-3 py-5 lg:h-[250px]">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 flex-shrink-0">
+        <CardTitle className="cd-small font-medium">Favorites Given</CardTitle>
+        <Star className="h-4 w-4" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
       </CardHeader>
       <CardContent className="flex-1 flex flex-col justify-center items-center">
-        <div className="text-5xl font-bold">{totalFavoritesGiven}</div>
-        <p className="text-xs text-muted-foreground mt-2 text-center">Projects you've favorited ❤️</p>
-        <Link href="/projects/favorites" className="mt-3">
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="w-full cursor-pointer text-xs"
-            onClick={() => setIsNavigating(true)}
-            disabled={isNavigating}
-          >
-            {isNavigating && <Loader2 className="h-3 w-3 animate-spin mr-1" />}
+        <p className="cd-number text-4xl lg:text-5xl font-semibold">{totalFavoritesGiven}</p>
+        <p className="cd-caption mt-2 text-center">Projects you&apos;ve favorited ❤️</p>
+        <Button asChild variant="outline" size="sm" className="mt-3 w-full">
+          <Link href="/projects/favorites" onClick={() => setIsNavigating(true)}>
+            {isNavigating && <Loader2 className="h-3 w-3 animate-spin mr-1" aria-hidden="true" />}
             View All Favorites
-          </Button>
-        </Link>
+          </Link>
+        </Button>
       </CardContent>
     </Card>
   );
@@ -280,38 +274,39 @@ interface TagsCardProps {
 
 function TagsCard({ title, value, icon, tags }: TagsCardProps) {
   return (
-    <Card className="h-[250px] flex flex-col">
-      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-        <CardTitle className="text-sm font-medium">{title}</CardTitle>
+    <Card className="flex flex-col gap-3 py-5 lg:h-[250px]">
+      <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-0 flex-shrink-0">
+        <CardTitle className="cd-small font-medium">{title}</CardTitle>
         {icon}
       </CardHeader>
-      <CardContent className="flex-1 flex flex-row gap-4 overflow-hidden p-4">
+      <CardContent className="flex-1 flex flex-row gap-4 min-h-0">
         {/* Left side - Total count */}
-        <div className="flex flex-col items-center justify-center flex-shrink-0 w-1/2 border-r border-border pr-4">
-          <div className="text-5xl font-bold">{value}</div>
-          <p className="text-xs text-muted-foreground mt-2 text-center">
+        <div className="flex flex-col items-center justify-center flex-shrink-0 w-1/3 border-r pr-3" style={{ borderColor: "var(--cd-border-subtle)" }}>
+          <p className="cd-number text-4xl lg:text-5xl font-semibold">{value}</p>
+          <p className="cd-caption mt-2 text-center">
             Unique tags
           </p>
         </div>
 
-        {/* Right side - Scrollable tags */}
-        <div className="flex-1 overflow-hidden flex flex-col">
+        {/* Right side - the tags, scrolling inside the card on wide screens */}
+        <div className="flex-1 min-w-0 flex flex-col">
           {tags && tags.length > 0 ? (
-            <div className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
-              <div className="flex flex-wrap gap-1.5 content-start">
+            <div
+              role="region"
+              aria-label="My tags"
+              tabIndex={0}
+              className="flex-1 max-h-48 lg:max-h-none overflow-y-auto overscroll-contain pr-1"
+            >
+              <ul className="flex flex-wrap gap-1.5 content-start">
                 {tags.map((tag, index) => (
-                  <Badge
-                    key={`${tag.name}-${index}`}
-                    variant="secondary"
-                    className="text-xs h-5"
-                  >
-                    <span className="text-foreground">#</span>{tag.name}
-                  </Badge>
+                  <li key={`${tag.name}-${index}`} className="cd-tag cd-caption rounded-full" style={{ color: "var(--cd-text)" }}>
+                    #{tag.name}
+                  </li>
                 ))}
-              </div>
+              </ul>
             </div>
           ) : (
-            <p className="text-xs text-muted-foreground">No tags yet</p>
+            <p className="cd-caption">No tags yet</p>
           )}
         </div>
       </CardContent>
@@ -331,23 +326,23 @@ function ActivityItem({
   return (
     <Link
       href={`/projects/${slug}`}
-      className="block cursor-pointer"
+      className="block rounded-lg hover:bg-muted/50 transition-colors"
       onClick={() => setIsNavigating(true)}
     >
-      <div className="flex flex-col space-y-1 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-        <div className="flex items-center justify-between gap-2">
-          <div className="flex items-center gap-2 min-w-0 flex-1">
-            {isNavigating && <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />}
-            <p className="text-sm font-medium hover:text-primary transition-colors truncate">
+      <span className="flex flex-col gap-1 p-2">
+        <span className="flex flex-wrap items-center justify-between gap-x-2">
+          <span className="flex items-center gap-2 min-w-0 flex-1">
+            {isNavigating && <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" aria-hidden="true" />}
+            <span className="cd-small font-medium truncate">
               {title}
-            </p>
-          </div>
-          <p className="text-xs text-muted-foreground flex-shrink-0">
+            </span>
+          </span>
+          <span className="cd-caption flex-shrink-0">
             <FormattedDate date={timestamp} format="datetime" />
-          </p>
-        </div>
-        <p className="text-xs text-muted-foreground line-clamp-2">{description}</p>
-      </div>
+          </span>
+        </span>
+        <span className="cd-caption line-clamp-2">{description}</span>
+      </span>
     </Link>
   );
 }
@@ -363,15 +358,15 @@ function PopularTagProjectItem({
   return (
     <Link
       href={`/projects/${project.slug}`}
-      className="block cursor-pointer"
+      className="block rounded-md hover:bg-muted/50 transition-colors"
       onClick={() => setIsNavigating(true)}
     >
-      <div className="text-xs p-2 rounded hover:bg-muted/50 transition-colors hover:text-primary flex items-center gap-1 min-w-0">
+      <span className="cd-small p-2 flex items-center gap-1 min-w-0 min-h-11 lg:min-h-0">
         {isNavigating && (
-          <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />
+          <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" aria-hidden="true" />
         )}
         <span className="truncate">{project.title}</span>
-      </div>
+      </span>
     </Link>
   );
 }
@@ -390,11 +385,11 @@ function SingleUseTagItem({
 
   return (
     <div className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/30 transition-colors gap-2 min-w-0">
-      <span className="text-sm font-medium truncate min-w-0">#{tag.name}</span>
+      <span className="cd-small font-medium truncate min-w-0">#{tag.name}</span>
       {tag.projects && tag.projects.length > 0 && (
         <Link
           href={`/projects/${tag.projects[0].slug}`}
-          className="text-xs text-primary hover:underline cursor-pointer ml-2 inline-flex items-center gap-1 min-w-0 flex-shrink-0 max-w-[50%]"
+          className="cd-link cd-small ml-2 inline-flex items-center gap-1 min-w-0 flex-shrink-0 max-w-[50%] min-h-11 lg:min-h-0"
           onClick={() => setIsNavigating(true)}
         >
           {isNavigating && (
@@ -422,62 +417,57 @@ function ProjectCard({
   return (
     <Link
       href={`/projects/${slug}`}
-      className="cursor-pointer h-full"
+      className="block h-full rounded-[var(--cd-radius-surface)]"
       onClick={() => setIsNavigating(true)}
     >
-      <Card className="hover:bg-accent/40 transition-colors relative h-[200px] 3xl:h-[440px] flex flex-col">
+      <Card className="hover:bg-accent/40 transition-colors relative min-h-36 h-full sm:h-[200px] 3xl:h-[440px] flex flex-col gap-0 py-0">
         {isNavigating && (
           <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-lg z-10">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
-        <Badge variant="outline" className={`absolute top-3 left-3 px-3 py-1 category-badge category-${category?.toLowerCase().replace(/[\s&/]+/g, '-')}`}>
+        <span className="absolute top-3 left-3 cd-tag cd-cat cd-caption rounded-full border max-w-[60%] truncate" data-category={category}>
           {PROJECT_CATEGORIES[category as ProjectCategory]?.label || category}
-        </Badge>
+        </span>
         {created_at && (
-          <div className="absolute top-3 right-3 flex flex-col items-end gap-1">
-            <div className="text-[10px] text-muted-foreground">
-              <FormattedDate date={created_at} />
-            </div>
-            <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-              <Heart className={`h-3 w-3 ${total_favorites > 0 ? 'fill-red-500 text-red-500' : ''}`} />
+          <span className="absolute top-3 right-3 flex flex-col items-end gap-1 cd-caption">
+            <FormattedDate date={created_at} />
+            <span className="flex items-center gap-1">
+              <Heart className="h-3 w-3" aria-hidden="true" style={total_favorites > 0 ? { color: "var(--cd-danger)", fill: "var(--cd-danger)" } : undefined} />
               {total_favorites}
-            </div>
-          </div>
+              <span className="sr-only">{total_favorites === 1 ? " favorite" : " favorites"}</span>
+            </span>
+          </span>
         )}
-        <CardHeader className="flex-1 min-h-0 pb-3 pt-12 px-4 overflow-hidden">
+        <CardHeader className="flex-1 min-h-0 pb-4 pt-14 px-4 overflow-hidden">
           <div className="flex items-start justify-between h-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col justify-between overflow-hidden w-full">
               <div className="overflow-hidden w-full">
-                <CardTitle className="text-base line-clamp-2 mb-3 break-words" title={title}>{title}</CardTitle>
+                <CardTitle className="text-base font-semibold line-clamp-2 mb-3 cd-wrap" title={title}>{title}</CardTitle>
               </div>
               {tags && tags.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 overflow-hidden">
+                <span className="flex flex-wrap gap-1.5 overflow-hidden">
                   {tags.slice(0, 3).map((tag, index) => (
-                    <Badge 
-                      key={index} 
-                      variant="secondary" 
-                      className="text-[10px] px-2 py-0.5 h-5 truncate max-w-[100px]"
+                    <span
+                      key={index}
+                      className="cd-tag cd-caption rounded-full truncate max-w-[8rem]"
+                      style={{ color: "var(--cd-text)" }}
                       title={tag}
                     >
                       #{tag}
-                    </Badge>
+                    </span>
                   ))}
                   {tags.length > 3 && (
-                    <Badge 
-                      variant="secondary" 
-                      className="text-[10px] px-2 py-0.5 h-5"
-                    >
+                    <span className="cd-tag cd-caption rounded-full" style={{ color: "var(--cd-text)" }}>
                       +{tags.length - 3}
-                    </Badge>
+                      <span className="sr-only"> more tags</span>
+                    </span>
                   )}
-                </div>
+                </span>
               )}
             </div>
           </div>
         </CardHeader>
-        <CardFooter className="flex justify-end items-center flex-shrink-0 pt-3 pb-3">
-        </CardFooter>
       </Card>
     </Link>
   );
@@ -530,20 +520,24 @@ function FavoriteCard({
   // For deleted projects, show limited interaction card
   if (isDeleted) {
     return (
-      <div className="relative h-[250px] 3xl:h-[490px] cursor-not-allowed">
-        <Card className="relative h-full flex flex-col opacity-70 bg-muted/30 border-dashed border-red-300 dark:border-red-800 pointer-events-none">
+      <div className="relative min-h-40 h-full sm:h-[250px] 3xl:h-[490px]">
+        <Card className="relative h-full flex flex-col gap-0 py-0 border-dashed" style={{ borderColor: "var(--cd-danger)", background: "var(--cd-raised)" }}>
           <div className="absolute top-3 left-3 right-3 flex items-center justify-between gap-2 z-10">
-            <Badge variant="outline" className="h-6 px-3 py-1 bg-muted/50 text-muted-foreground border-muted-foreground/20 text-xs flex-shrink-0">
+            <span className="cd-tag cd-caption rounded-full flex-shrink-0" style={{ color: "var(--cd-text)" }}>
               {PROJECT_CATEGORIES[category as ProjectCategory]?.label || category}
-            </Badge>
-            <Badge
+            </span>
+            <Button
+              type="button"
               variant="outline"
-              className="h-6 px-3 py-1 bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800 text-xs cursor-pointer hover:bg-red-100 dark:hover:bg-red-900 transition-colors pointer-events-auto flex items-center gap-1 flex-shrink-0"
+              size="sm"
+              className="flex items-center gap-1 flex-shrink-0"
+              style={{ color: "var(--cd-danger)" }}
               onClick={handleUnfavorite}
+              disabled={isUnfavoriting}
             >
-              {isUnfavoriting ? <Loader2 className="h-3 w-3 animate-spin" /> : <HeartCrack className="h-3 w-3" />}
+              {isUnfavoriting ? <Loader2 className="h-3 w-3 animate-spin" aria-hidden="true" /> : <HeartCrack className="h-3 w-3" aria-hidden="true" />}
               <span>Unfavorite</span>
-            </Badge>
+            </Button>
           </div>
           <CardHeader className="flex-1 min-h-0 pb-2 pt-12 px-6 overflow-hidden">
             {owner_user_id && owner_username && (
@@ -551,7 +545,7 @@ function FavoriteCard({
                 <Button
                   variant="default"
                   size="sm"
-                  className="bg-primary hover:bg-primary/90 text-primary-foreground font-semibold cursor-pointer transition-all hover:shadow-md pointer-events-auto h-8 px-3 py-1 max-w-full text-sm truncate"
+                  className="font-semibold max-w-full truncate"
                   onClick={(e) => {
                     e.stopPropagation();
                     setIsNavigating(true);
@@ -567,17 +561,17 @@ function FavoriteCard({
               </div>
             )}
             <div className="mb-2 overflow-hidden">
-              <CardTitle className="text-base text-muted-foreground text-center truncate px-2" title={title}>
+              <CardTitle className="text-base cd-muted text-center truncate px-2" title={title}>
                 {title}
               </CardTitle>
             </div>
             <div className="space-y-1 overflow-hidden">
               <div className="flex items-center justify-center gap-1.5 min-w-0 overflow-hidden flex-wrap">
-                <Badge variant="outline" className="h-6 px-3 py-1 bg-muted/50 text-muted-foreground border-muted-foreground/20 text-xs flex-shrink-0">
+                <span className="cd-status cd-caption flex-shrink-0" data-tone="danger">
                   🪦 In Graveyard
-                </Badge>
-                <span className="text-xs text-muted-foreground italic text-center truncate max-w-full">
-                  Project sent to owner's graveyard
+                </span>
+                <span className="cd-caption italic text-center truncate max-w-full">
+                  Project sent to owner&apos;s graveyard
                 </span>
               </div>
             </div>
@@ -591,25 +585,25 @@ function FavoriteCard({
   return (
     <Link
       href={`/projects/${slug}`}
-      className="cursor-pointer h-full"
+      className="block h-full rounded-[var(--cd-radius-surface)]"
       onClick={() => setIsNavigating(true)}
     >
-      <Card className="hover:bg-accent/40 transition-colors relative h-[250px] 3xl:h-[490px] flex flex-col">
+      <Card className="hover:bg-accent/40 transition-colors relative min-h-36 h-full sm:h-[250px] 3xl:h-[490px] flex flex-col gap-0 py-0">
         {isNavigating && (
           <div className="absolute inset-0 bg-background/50 flex items-center justify-center rounded-lg z-10">
             <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </div>
         )}
-        <Badge variant="outline" className={`absolute top-3 left-3 px-3 py-1 category-badge category-${category?.toLowerCase().replace(/[\s&/]+/g, '-')}`}>
+        <span className="absolute top-3 left-3 cd-tag cd-cat cd-caption rounded-full border max-w-[80%] truncate" data-category={category}>
           {PROJECT_CATEGORIES[category as ProjectCategory]?.label || category}
-        </Badge>
-        <CardHeader className="flex-1 min-h-0 pb-4 pt-12 px-4 overflow-hidden">
+        </span>
+        <CardHeader className="flex-1 min-h-0 pb-4 pt-14 px-4 overflow-hidden">
           <div className="flex items-start justify-between h-full overflow-hidden">
             <div className="flex-1 min-h-0 flex flex-col justify-between overflow-hidden w-full">
               <div className="overflow-hidden w-full">
-                <CardTitle className="text-base mb-3 truncate w-full" title={title}>{title}</CardTitle>
+                <CardTitle className="text-base font-semibold mb-3 truncate w-full" title={title}>{title}</CardTitle>
               </div>
-              <p className="text-xs text-muted-foreground line-clamp-2 overflow-hidden">
+              <p className="cd-caption line-clamp-2 overflow-hidden">
                 by {owner_username}
               </p>
             </div>
@@ -641,70 +635,60 @@ function TagSubmissionCard({
   const isPermanentlyDeleted = !project_id;
   const isInGraveyard = project_deleted_at !== null && !isPermanentlyDeleted;
   
-  // Unified badge styling with status-based text colors
-  const badgeClassName =
-    status === "approved"
-      ? "text-xs bg-green-700 dark:bg-green-400 text-black dark:text-black border-transparent"
-      : status === "rejected"
-      ? "text-xs bg-red-700 dark:bg-red-400 text-black dark:text-black border-transparent"
-      : "text-xs bg-yellow-900 dark:bg-yellow-500 text-black dark:text-black border-transparent";
+  // UI08.1: the status tones from the foundations (the old black-on-green
+  // and black-on-red badges failed contrast in light mode).
+  const statusTone = status === "approved" ? "success" : status === "rejected" ? "danger" : "warning";
 
   const isProjectAtCapacity = project_tag_count >= MAX_PROJECT_TAGS;
 
   return (
-    <div className="p-3 rounded-lg bg-muted/30">
-      <div className="flex items-center justify-between mb-2 gap-2">
+    <div className="p-3 rounded-xl" style={{ background: "var(--cd-raised)" }}>
+      <div className="flex flex-wrap items-start justify-between mb-2 gap-2">
         <div className="flex-1 min-w-0 space-y-2">
           <div className="flex items-center gap-2 flex-wrap">
-            <Badge variant="outline" className={badgeClassName}>
-              <span className="opacity-70">#</span>{tag_name}
-            </Badge>
+            <span className="cd-status cd-caption cd-wrap" data-tone={statusTone}>
+              #{tag_name}
+            </span>
             {status === "approved" && !isPermanentlyDeleted && (
               is_on_original_project ? (
-                <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800 text-xs">
+                <span className="cd-status cd-caption" data-tone="success">
                   ✅ Tag in one project
-                </Badge>
+                </span>
               ) : (
-                <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950 dark:text-amber-400 dark:border-amber-800 text-xs">
+                <span className="cd-status cd-caption" data-tone="warning">
                   ⚠️ Not in projects, but approved
-                </Badge>
+                </span>
               )
             )}
             {isInGraveyard && (
-              <Badge variant="outline" className="bg-red-50 text-red-700 border-red-200 dark:bg-red-950 dark:text-red-400 dark:border-red-800 text-xs">
+              <span className="cd-status cd-caption" data-tone="danger">
                 🪦 In Graveyard
-              </Badge>
+              </span>
             )}
             {isPermanentlyDeleted && (
-              <Badge variant="outline" className="bg-gray-50 text-gray-700 border-gray-200 dark:bg-gray-950 dark:text-gray-400 dark:border-gray-800 text-xs">
+              <span className="cd-tag cd-caption rounded-full" style={{ color: "var(--cd-text)" }}>
                 ⚰️ Project Deleted
-              </Badge>
+              </span>
             )}
           </div>
           {!isPermanentlyDeleted ? (
-            <Link
-              href={`/projects/${project_slug}`}
-              className="cursor-pointer block"
-              onClick={() => setIsNavigating(true)}
+            <Button
+              asChild
+              variant="outline"
+              size="sm"
+              className="h-auto w-full px-3 py-1 text-left justify-start overflow-hidden"
             >
-              <Button
-                variant="outline"
-                size="sm"
-                className="h-auto w-full px-2 py-1 hover:cursor-pointer hover:text-primary transition-colors text-left justify-start overflow-hidden"
-                disabled={isNavigating}
-              >
-                <div className="flex items-start gap-1 min-w-0 w-full overflow-hidden">
-                  {isNavigating && (
-                    <Loader2 className="h-3 w-3 animate-spin flex-shrink-0 mt-0.5" />
-                  )}
-                  <span className="truncate text-xs">
-                    Originally submitted for: {project_title}
-                  </span>
-                </div>
-              </Button>
-            </Link>
+              <Link href={`/projects/${project_slug}`} onClick={() => setIsNavigating(true)}>
+                {isNavigating && (
+                  <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" aria-hidden="true" />
+                )}
+                <span className="truncate cd-caption" style={{ color: "inherit" }}>
+                  Originally submitted for: {project_title}
+                </span>
+              </Link>
+            </Button>
           ) : (
-            <div className="px-2 py-1 text-xs text-muted-foreground italic">
+            <div className="px-2 py-1 cd-caption italic">
               Originally submitted for: {project_title}
             </div>
           )}
@@ -712,17 +696,17 @@ function TagSubmissionCard({
             <div className="text-xs text-muted-foreground pt-1">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button 
-                    variant="ghost" 
-                    size="sm" 
-                    className="h-auto p-1 text-xs text-muted-foreground hover:text-primary inline-flex items-center gap-1 cursor-pointer"
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="h-auto px-2 cd-caption inline-flex items-center gap-1"
                   >
                     <span className="font-medium">Also used in:</span>
-                    <span className="text-primary">{other_projects_using_tag.length} project{other_projects_using_tag.length > 1 ? 's' : ''}</span>
-                    <ChevronDown className="h-3 w-3" />
+                    <span style={{ color: "var(--cd-action)" }}>{other_projects_using_tag.length} project{other_projects_using_tag.length > 1 ? 's' : ''}</span>
+                    <ChevronDown className="h-3 w-3" aria-hidden="true" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="start" className="w-80 border max-h-80 overflow-y-auto scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+                <DropdownMenuContent align="start" className="cd-foundations w-80 max-w-[calc(100vw-2rem)] border max-h-80 overflow-y-auto pr-2">
                   <DropdownMenuLabel className="text-xs font-medium text-muted-foreground">
                     Also used in these projects:
                   </DropdownMenuLabel>
@@ -732,16 +716,9 @@ function TagSubmissionCard({
                         href={`/projects/${proj.slug}`}
                         className="flex items-center gap-2 px-2 py-2 text-sm w-full hover:bg-muted/30 rounded-sm"
                       >
-                        <div className="flex-1 min-w-0 overflow-x-auto 
-                        [&::-webkit-scrollbar]:h-[2px] 
-                        [&::-webkit-scrollbar-track]:bg-transparent 
-                        [&::-webkit-scrollbar-thumb]:bg-primary/20 
-                        hover:[&::-webkit-scrollbar-thumb]:bg-primary/40 
-                        [&::-webkit-scrollbar-thumb]:rounded-full">
-                          <span className="block whitespace-nowrap font-medium text-primary hover:underline pb-1">
-                            {proj.title}
-                          </span>
-                        </div>
+                        <span className="flex-1 min-w-0 cd-wrap font-medium" style={{ color: "var(--cd-action)" }}>
+                          {proj.title}
+                        </span>
                       </Link>
                     </DropdownMenuItem>
                   ))}
@@ -752,83 +729,68 @@ function TagSubmissionCard({
         </div>
         <div className="flex items-center gap-2 flex-shrink-0">
           {is_now_available && (
-            <Badge
-              variant="outline"
-              className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950 dark:text-green-400 dark:border-green-800"
-            >
+            <span className="cd-status cd-caption" data-tone="success">
               Now Available
-            </Badge>
+            </span>
           )}
           {created_at && (
-            <p className="text-xs text-muted-foreground">
+            <p className="cd-caption">
               <FormattedDate date={created_at} format="datetime" />
             </p>
           )}
         </div>
       </div>
       {status === "rejected" && admin_notes && (
-        <div className="mt-2 pt-2 border-t border-destructive/20">
-          <p className="text-xs text-destructive/80">
+        <div className="mt-2 pt-2 border-t" style={{ borderColor: "var(--cd-border-subtle)" }}>
+          <p className="cd-caption" style={{ color: "var(--cd-danger)" }}>
             <span className="font-medium">Reason: </span>
             {admin_notes}
           </p>
         </div>
       )}
       {is_now_available && (
-        <div className="mt-2 pt-2 border-t border-green-200 dark:border-green-800">
+        <div className="mt-2 pt-2 border-t" style={{ borderColor: "var(--cd-border-subtle)" }}>
           {isProjectAtCapacity ? (
             <>
-              <p className="text-xs text-amber-700 dark:text-amber-400">
+              <p className="cd-caption" style={{ color: "var(--cd-warning)" }}>
                 <span className="font-medium">Tag is available,</span> but this
                 project already has the maximum of {MAX_PROJECT_TAGS} tags.
                 Remove a tag first to add this one.
               </p>
-              <Link
-                href={`/projects/${project_slug}?edit=true&tag=${encodeURIComponent(
-                  tag_name
-                )}`}
-                className="cursor-pointer"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 text-xs h-7"
+              <Button asChild variant="outline" size="sm" className="mt-2">
+                <Link
+                  href={`/projects/${project_slug}?edit=true&tag=${encodeURIComponent(
+                    tag_name
+                  )}`}
                   onClick={() => setIsNavigating(true)}
-                  disabled={isNavigating}
                 >
                   {isNavigating && (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" aria-hidden="true" />
                   )}
                   Manage Project Tags
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </>
           ) : (
             <>
-              <p className="text-xs text-green-700 dark:text-green-400">
+              <p className="cd-caption" style={{ color: "var(--cd-success)" }}>
                 <span className="font-medium">Good news!</span> This tag was
                 approved for use in the system after further consideration. You
                 can add it to your project.
               </p>
-              <Link
-                href={`/projects/${project_slug}?edit=true&tag=${encodeURIComponent(
-                  tag_name
-                )}`}
-                className="cursor-pointer"
-              >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-2 text-xs h-7"
+              <Button asChild variant="outline" size="sm" className="mt-2">
+                <Link
+                  href={`/projects/${project_slug}?edit=true&tag=${encodeURIComponent(
+                    tag_name
+                  )}`}
                   onClick={() => setIsNavigating(true)}
-                  disabled={isNavigating}
                 >
                   {isNavigating && (
-                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" aria-hidden="true" />
                   )}
                   Add to Project
-                </Button>
-              </Link>
+                </Link>
+              </Button>
             </>
           )}
         </div>
@@ -849,8 +811,8 @@ function RecentAppreciationItem({
   const [isNavigatingToProject, setIsNavigatingToProject] = useState(false);
 
   return (
-    <div className="p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors">
-      <div className="flex items-start gap-3 mb-2">
+    <div className="p-3 rounded-xl" style={{ background: "var(--cd-raised)" }}>
+      <div className="flex items-start gap-3">
         <div className="flex-shrink-0">
           {favoriter_profile_image ? (
             <Image
@@ -861,17 +823,17 @@ function RecentAppreciationItem({
               className="h-10 w-10 rounded-full object-cover"
             />
           ) : (
-            <div className="h-10 w-10 rounded-full bg-primary/20 flex items-center justify-center">
-              <Heart className="h-5 w-5 text-primary" />
+            <div className="h-10 w-10 rounded-full flex items-center justify-center" style={{ background: "var(--cd-selected)" }} aria-hidden="true">
+              <Heart className="h-5 w-5" style={{ color: "var(--cd-on-selected)" }} />
             </div>
           )}
         </div>
         <div className="flex-1 min-w-0 space-y-1">
-          <p className="text-sm font-medium break-words">
+          <p className="cd-small font-medium cd-wrap">
             {favoriter_username ? (
               <Link
                 href={`/users/${favoriter_username}`}
-                className="text-primary hover:underline cursor-pointer font-semibold inline-flex items-center gap-1 max-w-full"
+                className="cd-link font-semibold inline-flex items-center gap-1 max-w-full"
                 onClick={() => setIsNavigatingToUser(true)}
               >
                 {isNavigatingToUser && (
@@ -880,34 +842,28 @@ function RecentAppreciationItem({
                 <span className="truncate">{favoriter_username}</span>
               </Link>
             ) : (
-              <span className="text-primary font-semibold">Someone</span>
+              <span className="font-semibold">Someone</span>
             )}
-            <span className="text-muted-foreground font-normal">
+            <span className="cd-muted font-normal">
               {" "}
               favorited ❤️
             </span>
           </p>
-            <Link
-            href={`/projects/${project_slug}`}
-            className="cursor-pointer block min-w-0 w-full"
-            onClick={() => setIsNavigatingToProject(true)}
-            >
-            <Button
-              variant="outline"
-              size="sm"
-              className="h-auto w-full px-2 py-1 hover:cursor-pointer hover:text-primary transition-colors text-left justify-start overflow-hidden"
-              disabled={isNavigatingToProject}
-            >
-              <div className="flex items-start gap-1 min-w-0 w-full overflow-hidden">
-                {isNavigatingToProject && (
-                  <Loader2 className="h-3 w-3 animate-spin flex-shrink-0 mt-0.5" />
-                )}
-                <span className="line-clamp-2 break-words min-w-0 overflow-hidden">{project_title}</span>
-              </div>
-            </Button>
+          <Button
+            asChild
+            variant="outline"
+            size="sm"
+            className="h-auto w-full px-3 py-1 text-left justify-start overflow-hidden whitespace-normal"
+          >
+            <Link href={`/projects/${project_slug}`} onClick={() => setIsNavigatingToProject(true)}>
+              {isNavigatingToProject && (
+                <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" aria-hidden="true" />
+              )}
+              <span className="line-clamp-2 cd-wrap min-w-0">{project_title}</span>
             </Link>
+          </Button>
           {favorited_at && (
-            <p className="text-xs text-muted-foreground">
+            <p className="cd-caption">
               <FormattedDate date={favorited_at} format="datetime" />
             </p>
           )}
@@ -923,16 +879,12 @@ function ViewAllProjectsButton() {
 
   return (
     <CardFooter className="flex-shrink-0 flex justify-center">
-      <Link href="/projects" className="cursor-pointer">
-        <Button
-          className="w-auto px-6 cursor-pointer"
-          onClick={() => setIsNavigating(true)}
-          disabled={isNavigating}
-        >
-          {isNavigating && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+      <Button asChild className="w-auto px-6">
+        <Link href="/projects" onClick={() => setIsNavigating(true)}>
+          {isNavigating && <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />}
           View All My Projects
-        </Button>
-      </Link>
+        </Link>
+      </Button>
     </CardFooter>
   );
 }
@@ -943,53 +895,62 @@ function ViewAllFavoritesButton() {
 
   return (
     <CardFooter className="flex-shrink-0 flex justify-center">
-      <Link href="/projects/favorites" className="cursor-pointer">
-        <Button
-          className="w-auto px-6 cursor-pointer"
-          onClick={() => setIsNavigating(true)}
-          disabled={isNavigating}
-        >
+      <Button asChild className="w-auto px-6">
+        <Link href="/projects/favorites" onClick={() => setIsNavigating(true)}>
           {isNavigating && (
-            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+            <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />
           )}
-          View All Projects I've Favorited ❤️
-        </Button>
-      </Link>
+          View All Projects I&apos;ve Favorited ❤️
+        </Link>
+      </Button>
     </CardFooter>
   );
 }
 
-// Dashboard error component
+// Dashboard error component. UI08.1: a first load that fails says so, with
+// Try again, inside the page; the server's own message isn't shown (it can
+// carry internal wording). With older data on screen, a failed refresh is a
+// note above that data instead (`stale`).
 function DashboardError({
-  error,
   refresh,
+  stale = false,
 }: {
-  error: Error;
-  refresh: () => void;
+  refresh: () => Promise<void>;
+  stale?: boolean;
 }) {
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const handleRefresh = async () => {
     setIsRefreshing(true);
-    await refresh();
-    setIsRefreshing(false);
+    try {
+      await refresh();
+    } catch {
+      // A second failure keeps this message on screen; nothing else to do.
+    } finally {
+      setIsRefreshing(false);
+    }
   };
 
   return (
-    <div className="w-full px-4 2xl:px-8 3xl:px-12 py-8">
-      <div className="text-center">
-        <p className="text-destructive">
-          Error loading dashboard: {error.message}
+    <div
+      role="alert"
+      className={stale ? "cd-surface flex flex-wrap items-center justify-between gap-4" : "cd-surface cd-empty"}
+      style={{ borderColor: "var(--cd-danger)" }}
+    >
+      <div className={stale ? "cd-stack-tight min-w-0" : "cd-stack-tight items-center"}>
+        <p className="cd-subheading">
+          {stale ? "Couldn't refresh your dashboard" : "Your dashboard didn't load"}
         </p>
-        <Button
-          onClick={handleRefresh}
-          disabled={isRefreshing}
-          className="mt-4 cursor-pointer"
-        >
-          {isRefreshing && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
-          {isRefreshing ? "Retrying..." : "Retry"}
-        </Button>
+        <p className="cd-small cd-muted">
+          {stale
+            ? "What you see is from the last successful load."
+            : "Check your connection and try again."}
+        </p>
       </div>
+      <Button onClick={handleRefresh} disabled={isRefreshing}>
+        {isRefreshing && <Loader2 className="h-4 w-4 animate-spin mr-2" aria-hidden="true" />}
+        {isRefreshing ? "Trying again..." : "Try again"}
+      </Button>
     </div>
   );
 }
@@ -1021,6 +982,27 @@ function ProfileEditorCard() {
   const handle = user?.username || sessionHandle;
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // UI08.3: a failed save is shown in the form, not only in a toast, and
+  // focus moves into the form on Edit and back to Edit Profile after it.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  // Only a rejected username (taken, or refused by validation) marks the
+  // field invalid; a network or server failure isn't the field's fault.
+  const [usernameRejected, setUsernameRejected] = useState(false);
+  const editButtonRef = React.useRef<HTMLButtonElement>(null);
+  const usernameRef = React.useRef<HTMLInputElement>(null);
+  const focusAfterRef = React.useRef<"form" | "edit" | null>(null);
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    focusAfterRef.current = null;
+    if (target === "form") usernameRef.current?.focus();
+    if (target === "edit") editButtonRef.current?.focus();
+  }, [isEditing]);
+  const startEditing = () => {
+    setSaveError(null);
+    setUsernameRejected(false);
+    focusAfterRef.current = "form";
+    setIsEditing(true);
+  };
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -1040,6 +1022,8 @@ function ProfileEditorCard() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
+    setUsernameRejected(false);
     try {
       if (!handle) throw new Error("Your profile isn't ready yet; try again in a moment");
       const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
@@ -1051,18 +1035,21 @@ function ProfileEditorCard() {
       const data = await response.json();
 
       if (!response.ok) {
+        if ([400, 409, 422].includes(response.status)) setUsernameRejected(true);
         const errorMessage = data.error?.detail || data.error?.title || "Failed to update profile";
         throw new Error(errorMessage);
       }
 
       if (data.success) {
         toast.success("Profile updated successfully");
+        focusAfterRef.current = "edit";
         setIsEditing(false);
         // A renamed handle is the one the next save goes to.
         if (!user?.username) setSessionHandle(formData.username);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+      setSaveError(errorMessage);
       toast.error(errorMessage);
       console.error("Error updating profile:", error);
     } finally {
@@ -1078,25 +1065,28 @@ function ProfileEditorCard() {
         profileImage: user.imageUrl || "",
       });
     }
+    setSaveError(null);
+    setUsernameRejected(false);
+    focusAfterRef.current = "edit";
     setIsEditing(false);
   };
 
   return (
-    <Card className="mb-6">
+    <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle role="heading" aria-level={2} className="cd-subheading flex items-center gap-2">
+            <User className="h-5 w-5" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
             My Profile
           </CardTitle>
           {!isEditing && (
             <Button
+              ref={editButtonRef}
               variant="outline"
               size="sm"
-              onClick={() => setIsEditing(true)}
-              className="cursor-pointer"
+              onClick={startEditing}
             >
-              <Edit className="h-4 w-4 mr-2" />
+              <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
               Edit Profile
             </Button>
           )}
@@ -1106,18 +1096,24 @@ function ProfileEditorCard() {
         <div className="flex flex-col md:flex-row gap-6">
           {/* Avatar Section */}
           <div className="flex flex-col items-center gap-3">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-20 w-20 md:h-24 md:w-24">
               {formData.profileImage ? (
-                <AvatarImage src={formData.profileImage} alt={formData.username} />
-              ) : (
-                <AvatarFallback>
-                  <User className="h-12 w-12" />
-                </AvatarFallback>
-              )}
+                <AvatarImage src={formData.profileImage} alt="" />
+              ) : null}
+              {/* Also shown when the picture can't load (UI08.3). */}
+              <AvatarFallback>
+                <User className="h-10 w-10 md:h-12 md:w-12" aria-hidden="true" />
+              </AvatarFallback>
             </Avatar>
             {isEditing && (
-              <div className="w-full max-w-xs">
+              <div className="w-full max-w-xs space-y-2">
+                <label htmlFor="profile-image-url" className="cd-small font-medium">
+                  Profile image URL
+                </label>
                 <Input
+                  id="profile-image-url"
+                  type="url"
+                  inputMode="url"
                   placeholder="Profile Image URL"
                   value={formData.profileImage}
                   onChange={(e) =>
@@ -1126,21 +1122,25 @@ function ProfileEditorCard() {
                       profileImage: e.target.value,
                     }))
                   }
-                  className="text-sm"
                 />
               </div>
             )}
           </div>
 
           {/* Profile Info Section */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 min-w-0 space-y-4">
             {isEditing ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Username</label>
+                  <label htmlFor="profile-username" className="cd-small font-medium">Username</label>
                   <Input
+                    ref={usernameRef}
+                    id="profile-username"
                     placeholder="Username"
+                    autoComplete="username"
                     value={formData.username}
+                    aria-invalid={usernameRejected ? true : undefined}
+                    aria-describedby={saveError ? "profile-save-error" : undefined}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -1150,10 +1150,12 @@ function ProfileEditorCard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
+                  <label htmlFor="profile-email" className="cd-small font-medium">Email</label>
                   <Input
+                    id="profile-email"
                     placeholder="Email"
                     value={formData.email}
+                    aria-describedby="profile-email-help"
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -1161,26 +1163,29 @@ function ProfileEditorCard() {
                       }))
                     }
                     disabled
-                    className="opacity-60 cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p id="profile-email-help" className="cd-caption">
                     Email is managed by your authentication provider
                   </p>
                 </div>
-                <div className="flex gap-2 pt-2">
+                {saveError && (
+                  <p id="profile-save-error" role="alert" className="cd-error-text cd-wrap">
+                    Your profile wasn&apos;t saved: {saveError}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="cursor-pointer"
                   >
                     {isSaving ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                         Saving...
                       </>
                     ) : (
                       <>
-                        <Save className="h-4 w-4 mr-2" />
+                        <Save className="h-4 w-4 mr-2" aria-hidden="true" />
                         Save Changes
                       </>
                     )}
@@ -1189,28 +1194,27 @@ function ProfileEditorCard() {
                     variant="outline"
                     onClick={handleCancel}
                     disabled={isSaving}
-                    className="cursor-pointer"
                   >
-                    <X className="h-4 w-4 mr-2" />
+                    <X className="h-4 w-4 mr-2" aria-hidden="true" />
                     Cancel
                   </Button>
                 </div>
               </>
             ) : (
-              <>
+              <dl className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <dt className="cd-small font-medium cd-muted">
                     Username
-                  </label>
-                  <p className="text-lg font-semibold">{formData.username}</p>
+                  </dt>
+                  <dd className="text-lg font-semibold cd-wrap">{formData.username}</dd>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <dt className="cd-small font-medium cd-muted">
                     Email
-                  </label>
-                  <p className="text-sm">{formData.email}</p>
+                  </dt>
+                  <dd className="cd-small cd-wrap">{formData.email}</dd>
                 </div>
-              </>
+              </dl>
             )}
           </div>
         </div>
@@ -1227,21 +1231,27 @@ function DashboardContent() {
     refresh,
   } = useDashboardStats();
 
-  if (loading) {
-    return <UserDashboardLoading />;
-  }
-
-  if (error) {
-    return <DashboardError error={error} refresh={refresh} />;
-  }
-
+  // First load: placeholders. A failed first load: the error with Try
+  // again. A failed refresh keeps the last data, with a note above it.
   if (!dashboardData) {
-    return <UserDashboardLoading />;
+    if (error && !loading)
+      return (
+        <div className="cd-stack">
+          <DiscoveryHeader title="Personal Analytics Dashboard" />
+          <DashboardError refresh={refresh} />
+        </div>
+      );
+    return <DashboardSkeleton />;
   }
 
   const { stats } = dashboardData;
 
-  return <DashboardMain stats={stats} refresh={refresh} />;
+  return (
+    <>
+      {error && !loading && <DashboardError refresh={refresh} stale />}
+      <DashboardMain stats={stats} refresh={refresh} />
+    </>
+  );
 }
 
 // Dashboard main content with stats
@@ -1367,64 +1377,72 @@ function DashboardMain({
     }
   };
 
+  // PageBanner's name rule: an email shows only the part before the @.
+  const rawName = user?.fullName || user?.firstName || user?.email || "User";
+  const displayName = rawName.includes("@") ? rawName.split("@")[0] : rawName;
+
   return (
-    <main className="w-full px-4 2xl:px-8 3xl:px-12 py-8">
-      {/* Dashboard Banner */}
-      <div className="mb-4 flex items-center justify-between gap-4">
-        <div className="flex-1">
-          <div className="flex justify-end mb-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleRefresh}
-              disabled={isRefreshing}
-              className="cursor-pointer self-start bg-primary"
-              aria-label="Refresh dashboard data"
-            >
-              <RefreshCw
-                className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
-              />
-              {isRefreshing ? "Refreshing..." : "Refresh"}
-            </Button>
-          </div>
-          <PageBanner
-            icon={<PieChart className="h-8 w-8 text-purple-500" />}
-            userName={user?.fullName || user?.firstName || user?.email || "User"}
-            bannerTitle="Personal Analytics Dashboard"
-            description={
-              stats.totalProjects > 0
-                ? (
-                  <div className="space-y-1">
-                    <div>📂 You have shared <a href="#my-projects-card" className="font-semibold text-primary hover:underline cursor-pointer scroll-smooth" onClick={(e) => { e.preventDefault(); const el = document.getElementById('my-projects-card'); if (el) { el.scrollIntoView({ behavior: 'smooth', block: 'start' }); const card = el.querySelector('.stat-card'); if (card) { setTimeout(() => card?.classList.add('highlight-flash'), 500); setTimeout(() => card?.classList.remove('highlight-flash'), 3000); } } }}>{stats.totalProjects}</a> project{stats.totalProjects > 1 ? "s" : ""} with the community</div>
-                  </div>
-                )
-                : "Welcome back! Your creative journey starts here. Share your first project and inspire the community! This dashboard is only visible to you."
-            }
-            isUserBanner={true}
-            gradientFrom="purple-900"
-            gradientVia="indigo-800"
-            gradientTo="violet-800"
-            borderColor="border-purple-700/40"
-            textGradient="from-purple-400 via-indigo-400 to-violet-400"
-          />
-        </div>
-      </div>
+    <div className="cd-stack">
+      {/* Dashboard header: one h1, the refresh action beside it */}
+      <DiscoveryHeader
+        eyebrow={`${displayName}'s`}
+        title="Personal Analytics Dashboard"
+        lead={
+          stats.totalProjects > 0 ? (
+            <>
+              📂 You have shared{" "}
+              <a
+                href="#my-projects-card"
+                className="cd-link font-semibold"
+                onClick={(e) => {
+                  e.preventDefault();
+                  const el = document.getElementById("my-projects-card");
+                  if (el) {
+                    el.scrollIntoView({ behavior: scrollMotion(), block: "start" });
+                    moveFocusTo(el);
+                    const card = el.querySelector(".stat-card");
+                    if (card) {
+                      setTimeout(() => card?.classList.add("highlight-flash"), 500);
+                      setTimeout(() => card?.classList.remove("highlight-flash"), 3000);
+                    }
+                  }
+                }}
+              >
+                {stats.totalProjects}
+              </a>{" "}
+              project{stats.totalProjects > 1 ? "s" : ""} with the community
+            </>
+          ) : (
+            "Welcome back! Your creative journey starts here. Share your first project and inspire the community! This dashboard is only visible to you."
+          )
+        }
+        aside={
+          <Button
+            variant="outline"
+            onClick={handleRefresh}
+            disabled={isRefreshing}
+            aria-label="Refresh dashboard data"
+          >
+            <RefreshCw
+              className={`h-4 w-4 mr-2 ${isRefreshing ? "animate-spin" : ""}`}
+              aria-hidden="true"
+            />
+            {isRefreshing ? "Refreshing..." : "Refresh"}
+          </Button>
+        }
+      />
 
       {/* Profile Editor Card */}
       <ProfileEditorCard />
 
       {/* Create First Project Prompt - Only show when user has 0 projects */}
-      {stats.totalProjects === 0 && (
-        <div className="mb-8">
-          <CreateFirstProjectPrompt />
-        </div>
-      )}
+      {stats.totalProjects === 0 && <CreateFirstProjectPrompt />}
 
       {/* Stats Cards Row */}
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <div id="my-projects-card" className="scroll-mt-20">
           {refreshingStats ? (
-            <Card className="h-[250px]">
+            <Card className="min-h-40 lg:h-[250px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-24" />
                 <Skeleton className="h-4 w-4" />
@@ -1444,7 +1462,7 @@ function DashboardMain({
         </div>
         <div id="favorites-received-card" className="scroll-mt-20">
           {refreshingStats ? (
-            <Card className="h-[250px]">
+            <Card className="min-h-40 lg:h-[250px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-4 w-4" />
@@ -1472,7 +1490,7 @@ function DashboardMain({
         </div>
         <div id="favorites-given-card" className="scroll-mt-20">
           {refreshingStats ? (
-            <Card className="h-[250px]">
+            <Card className="min-h-40 lg:h-[250px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-28" />
                 <Skeleton className="h-4 w-4" />
@@ -1489,7 +1507,7 @@ function DashboardMain({
         </div>
         <div id="my-tags-card" className="scroll-mt-20">
           {refreshingStats ? (
-            <Card className="h-[250px]">
+            <Card className="min-h-40 lg:h-[250px]">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                 <Skeleton className="h-4 w-20" />
                 <Skeleton className="h-4 w-4" />
@@ -1512,38 +1530,41 @@ function DashboardMain({
             <TagsCard
               title="My Tags"
               value={(stats.allTags?.length || 0).toString()}
-              icon={<TagIcon className="h-4 w-4 text-primary" />}
+              icon={<TagIcon className="h-4 w-4 text-primary" aria-hidden="true" />}
               tags={stats.allTags || []}
             />
           )}
         </div>
-      </div>      {/* Main Content - Three Columns */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3 mb-6">
+      </div>
+
+      {/* Main Content - Three Columns */}
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-2 xl:grid-cols-3">
         {/* Left Column - Recent Appreciation */}
-        <Card className="md:col-span-2 xl:col-span-1 flex flex-col h-[600px]">
+        <Card className="md:col-span-2 xl:col-span-1 flex flex-col max-h-[36rem] lg:max-h-none lg:h-[600px]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle role="heading" aria-level={2} className="cd-small font-semibold">
               Recent Appreciation
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
+                className="size-11"
+                aria-label="Refresh recent appreciation"
                 onClick={refreshAppreciation}
                 disabled={refreshingAppreciation}
               >
-                <RefreshCcw className={`h-3.5 w-3.5 ${refreshingAppreciation ? 'animate-spin' : ''}`} />
+                <RefreshCcw aria-hidden="true" className={`h-4 w-4 ${refreshingAppreciation ? 'animate-spin' : ''}`} />
               </Button>
-              <Heart className="h-4 w-4 text-primary" />
+              <Heart className="h-4 w-4 text-primary" aria-hidden="true" />
             </div>
           </CardHeader>
           <CardHeader className="flex-shrink-0 pt-0">
-            <CardDescription className="text-xs">
+            <CardDescription className="cd-caption">
               Favorites received in the last 90 days
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+          <CardContent tabIndex={0} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2">
             {refreshingAppreciation ? (
               <div className="space-y-3">
                 {[...Array(4)].map((_, i) => (
@@ -1569,9 +1590,9 @@ function DashboardMain({
               </div>
             ) : (
               <div className="text-center py-8">
-                <Heart className="h-12 w-12 mx-auto text-muted-foreground/30 mb-2" />
+                <Heart className="h-12 w-12 mx-auto cd-muted mb-2" aria-hidden="true" />
                 <p className="text-sm text-muted-foreground">
-                  No favorites received in the last 90 days. Don't worry someone will like your
+                  No favorites received in the last 90 days. Don&apos;t worry someone will like your
                   masterpiece soon!
                 </p>
               </div>
@@ -1580,30 +1601,31 @@ function DashboardMain({
         </Card>
 
         {/* Middle Column - Recent Activity */}
-        <Card className="md:col-span-1 xl:col-span-1 flex flex-col h-[600px]">
+        <Card className="md:col-span-1 xl:col-span-1 flex flex-col max-h-[36rem] lg:max-h-none lg:h-[600px]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle role="heading" aria-level={2} className="cd-small font-semibold">
               Recent Activity
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
+                className="size-11"
+                aria-label="Refresh recent activity"
                 onClick={refreshActivity}
                 disabled={refreshingActivity}
               >
-                <RefreshCcw className={`h-3.5 w-3.5 ${refreshingActivity ? 'animate-spin' : ''}`} />
+                <RefreshCcw aria-hidden="true" className={`h-4 w-4 ${refreshingActivity ? 'animate-spin' : ''}`} />
               </Button>
-              <Activity className="h-4 w-4 text-muted-foreground" />
+              <Activity className="h-4 w-4 text-muted-foreground" aria-hidden="true" />
             </div>
           </CardHeader>
           <CardHeader className="flex-shrink-0 pt-0">
-            <CardDescription className="text-xs">
+            <CardDescription className="cd-caption">
               Projects created or updated in the last 60 days
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+          <CardContent tabIndex={0} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2">
             {refreshingActivity ? (
               <div className="space-y-2">
                 {[...Array(6)].map((_, i) => (
@@ -1637,30 +1659,31 @@ function DashboardMain({
         </Card>
 
         {/* Right Column - Popular Tags */}
-        <Card className="md:col-span-1 xl:col-span-1 flex flex-col h-[600px]">
+        <Card className="md:col-span-1 xl:col-span-1 flex flex-col max-h-[36rem] lg:max-h-none lg:h-[600px]">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
-            <CardTitle className="text-sm font-medium">
+            <CardTitle role="heading" aria-level={2} className="cd-small font-semibold">
               My Popular Tags
             </CardTitle>
             <div className="flex items-center gap-2">
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
+                className="size-11"
+                aria-label="Refresh popular tags"
                 onClick={refreshPopularTags}
                 disabled={refreshingPopularTags}
               >
-                <RefreshCcw className={`h-3.5 w-3.5 ${refreshingPopularTags ? 'animate-spin' : ''}`} />
+                <RefreshCcw aria-hidden="true" className={`h-4 w-4 ${refreshingPopularTags ? 'animate-spin' : ''}`} />
               </Button>
-              <TrendingUp className="h-4 w-4 text-primary" />
+              <TrendingUp className="h-4 w-4 text-primary" aria-hidden="true" />
             </div>
           </CardHeader>
           <CardHeader className="flex-shrink-0 pt-0">
-            <CardDescription className="text-xs">
+            <CardDescription className="cd-caption">
               Most frequently used tags (number shows project count)
             </CardDescription>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+          <CardContent tabIndex={0} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2">
             {refreshingPopularTags ? (
               <div className="space-y-2">
                 {[...Array(5)].map((_, i) => (
@@ -1759,10 +1782,10 @@ function DashboardMain({
       </div>
 
       {/* My Projects Section */}
-      <Card id="my-projects" className="mb-6 flex flex-col h-[620px] 3xl:h-[1200px] scroll-mt-20">
+      <Card id="my-projects" className="flex flex-col max-h-[44rem] sm:max-h-[620px] 3xl:max-h-[1200px] scroll-mt-20">
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
           <div className="flex-1">
-            <CardTitle>My Recent Projects ({Math.min(stats.myProjects.length, 8)})</CardTitle>
+            <CardTitle role="heading" aria-level={2}>My Recent Projects ({Math.min(stats.myProjects.length, 8)})</CardTitle>
             <CardDescription className="text-xs mt-1">
               Your most recently updated projects
             </CardDescription>
@@ -1771,18 +1794,19 @@ function DashboardMain({
             <Button
               variant="ghost"
               size="icon"
-              className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
+              className="size-11"
+              aria-label="Refresh my recent projects"
               onClick={refreshMyProjects}
               disabled={refreshingMyProjects}
             >
-              <RefreshCcw className={`h-3.5 w-3.5 ${refreshingMyProjects ? 'animate-spin' : ''}`} />
+              <RefreshCcw aria-hidden="true" className={`h-4 w-4 ${refreshingMyProjects ? 'animate-spin' : ''}`} />
             </Button>
-            <Code className="h-4 w-4 text-primary" />
+            <Code className="h-4 w-4 text-primary" aria-hidden="true" />
           </div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+        <CardContent tabIndex={0} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2">
           {refreshingMyProjects ? (
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
               {[...Array(8)].map((_, i) => (
                 <Card key={i} className="h-[220px] 3xl:h-[460px]">
                   <CardHeader className="pb-3 pt-12">
@@ -1796,22 +1820,20 @@ function DashboardMain({
               ))}
             </div>
           ) : stats.myProjects.length > 0 ? (
-            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+            <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
               {stats.myProjects.slice(0, 8).map((project) => (
                 <ProjectCard key={project.id} {...project} />
               ))}
             </div>
           ) : (
-            <div className="text-center py-8">
-              <Code className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground mb-4">
-                You haven't created any projects yet
+            <div className="cd-empty">
+              <Code className="h-12 w-12 cd-muted" aria-hidden="true" />
+              <p className="cd-muted">
+                You haven&apos;t created any projects yet
               </p>
-              <Link href="/projects/new" className="cursor-pointer">
-                <Button onClick={() => {}} className="cursor-pointer">
-                  Create Your First Project
-                </Button>
-              </Link>
+              <Button asChild>
+                <Link href="/projects/new">Create Your First Project</Link>
+              </Button>
             </div>
           )}
         </CardContent>
@@ -1820,10 +1842,10 @@ function DashboardMain({
 
       {/* Projects I've Favorited */}
       {stats.myFavorites.length > 0 && (
-        <Card id="favorites-given" className="mb-6 flex flex-col h-[710px] 3xl:h-[1200px] scroll-mt-20">
+        <Card id="favorites-given" className="flex flex-col max-h-[44rem] sm:max-h-[710px] 3xl:max-h-[1200px] scroll-mt-20">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 flex-shrink-0">
             <div className="flex-1">
-              <CardTitle>Projects I've Favorited ❤️ ({Math.min(stats.myFavorites.length, 8)})</CardTitle>
+              <CardTitle role="heading" aria-level={2}>Projects I&apos;ve Favorited ❤️ ({Math.min(stats.myFavorites.length, 8)})</CardTitle>
               <CardDescription className="text-xs mt-1">
                 Projects you most recently favorited from the community
               </CardDescription>
@@ -1832,18 +1854,19 @@ function DashboardMain({
               <Button
                 variant="ghost"
                 size="icon"
-                className="h-7 w-7 rounded-md hover:bg-primary/10 hover:text-primary cursor-pointer"
+                className="size-11"
+                aria-label="Refresh projects I've favorited"
                 onClick={refreshFavorites}
                 disabled={refreshingFavorites}
               >
-                <RefreshCcw className={`h-3.5 w-3.5 ${refreshingFavorites ? 'animate-spin' : ''}`} />
+                <RefreshCcw aria-hidden="true" className={`h-4 w-4 ${refreshingFavorites ? 'animate-spin' : ''}`} />
               </Button>
-              <Heart className="h-4 w-4 text-red-500 fill-red-500" />
+              <Heart className="h-4 w-4 text-red-500 fill-red-500" aria-hidden="true" />
             </div>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+          <CardContent tabIndex={0} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pr-2">
             {refreshingFavorites ? (
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
                 {[...Array(8)].map((_, i) => (
                   <Card key={i} className="h-[220px] 3xl:h-[460px]">
                     <CardHeader className="pb-3 pt-12">
@@ -1854,7 +1877,7 @@ function DashboardMain({
                 ))}
               </div>
             ) : (
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))' }}>
+              <div className="grid gap-4" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(min(100%, 280px), 1fr))' }}>
                 {stats.myFavorites.slice(0, 8).map((favorite) => (
                 <FavoriteCard key={favorite.id} {...favorite} />
               ))}
@@ -1867,10 +1890,10 @@ function DashboardMain({
 
       {/* My Tag Submissions */}
       <Card id="tag-submissions" className="flex flex-col scroll-mt-20">
-        <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3 flex-shrink-0">
-          <div className="flex-1">
-          <CardTitle className="text-lg">My Tag Submissions</CardTitle>
-          <CardDescription className="text-sm">
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-3 space-y-0 pb-3 flex-shrink-0">
+          <div className="flex-1 min-w-0">
+          <CardTitle role="heading" aria-level={2} className="text-lg">My Tag Submissions</CardTitle>
+          <CardDescription className="cd-small">
             {stats.myTagSubmissions.length > 0 ? (
               <>
                 {stats.myTagSubmissions.length} tag
@@ -1885,15 +1908,14 @@ function DashboardMain({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 hover:bg-primary/10 hover:text-primary cursor-pointer"
               onClick={refreshTagSubmissions}
               disabled={refreshingTagSubmissions}
               aria-label="Refresh tag submissions"
             >
-              <RefreshCcw className={`h-3.5 w-3.5 mr-1.5 ${refreshingTagSubmissions ? 'animate-spin' : ''}`} />
-              <span className="text-xs">{refreshingTagSubmissions ? 'Refreshing...' : 'Refresh'}</span>
+              <RefreshCcw aria-hidden="true" className={`h-4 w-4 mr-1.5 ${refreshingTagSubmissions ? 'animate-spin' : ''}`} />
+              <span>{refreshingTagSubmissions ? 'Refreshing...' : 'Refresh'}</span>
             </Button>
-            <TagIcon className="h-4 w-4 text-primary" />
+            <TagIcon className="h-4 w-4 text-primary" aria-hidden="true" />
           </div>
         </CardHeader>
         <CardContent className="pt-0">
@@ -1901,49 +1923,33 @@ function DashboardMain({
           <Accordion type="single" collapsible className="mb-6">
             <AccordionItem
               value="about-submissions"
-              className="border border-primary/20 rounded-lg bg-gradient-to-r from-primary/5 via-purple/5 to-primary/5"
+              className="border rounded-xl"
+              style={{ borderColor: "var(--cd-border-subtle)", background: "var(--cd-raised)" }}
             >
               <AccordionTrigger className="px-4 hover:no-underline">
                 <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-primary" />
-                  <span className="text-sm font-semibold text-foreground">
+                  <Sparkles className="h-4 w-4" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
+                  <span className="cd-small font-semibold">
                     About Tag Submissions
                   </span>
                 </div>
               </AccordionTrigger>
               <AccordionContent className="px-4 pb-4">
                 <div className="space-y-3 pt-2">
-                  <p className="text-sm leading-relaxed">
-                    <span className="font-semibold text-purple-600 dark:text-purple-400">
-                      ✨ Share Your Tags
-                    </span>{" "}
-                    <span className="text-foreground">
-                      When editing your project, submit tags you think should be in the system if not already there for you. Once{" "}
-                      <span className="text-green-600 dark:text-green-400 font-medium">
-                        approved
-                      </span>
-                      , you can use them in your projects and others can add them to theirs too!
-                    </span>
+                  <p className="cd-small cd-reading">
+                    <span className="font-semibold">✨ Share Your Tags</span>{" "}
+                    When editing your project, submit tags you think should be in the system if not already there for you. Once{" "}
+                    <span className="font-medium">approved</span>, you can use them in your projects and others can add them to theirs too!
                   </p>
-                  <p className="text-sm leading-relaxed">
-                    <span className="font-semibold text-blue-600 dark:text-blue-400">
-                      🎯 Why Tags Matter
-                    </span>{" "}
-                    <span className="text-foreground">
-                      Tags add specific tech details beyond categorieslike frameworks, languages, or concepts helping developers find exactly what they need and your projects more efficiently and deliberately.
-                    </span>
+                  <p className="cd-small cd-reading">
+                    <span className="font-semibold">🎯 Why Tags Matter</span>{" "}
+                    Tags add specific tech details beyond categories like frameworks, languages, or concepts helping developers find exactly what they need and your projects more efficiently and deliberately.
                   </p>
-                  <p className="text-sm leading-relaxed">
-                    <span className="font-semibold text-orange-600 dark:text-orange-400">
-                      💡 Review Process
-                    </span>{" "}
-                    <span className="text-foreground">
-                      Tags get reviewed for quality as they are available for everyone in the community.{" "}
-                      <span className="text-yellow-600 dark:text-yellow-400 font-medium">
-                        Rejections?
-                      </span>{" "}
-                      Don't sweat it! They're not about you, we are just keeping tags clean, consistent, and useful for everyone.
-                    </span>
+                  <p className="cd-small cd-reading">
+                    <span className="font-semibold">💡 Review Process</span>{" "}
+                    Tags get reviewed for quality as they are available for everyone in the community.{" "}
+                    <span className="font-medium">Rejections?</span>{" "}
+                    Don&apos;t sweat it! They&apos;re not about you, we are just keeping tags clean, consistent, and useful for everyone.
                   </p>
                 </div>
               </AccordionContent>
@@ -1977,8 +1983,8 @@ function DashboardMain({
               {/* Pending Submissions Column */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="h-1 w-1 rounded-full bg-yellow-500"></div>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: "var(--cd-warning)" }} />
+                  <h3 className="cd-small font-semibold cd-muted uppercase tracking-wide">
                     Pending (
                     {
                       stats.myTagSubmissions.filter(
@@ -1988,7 +1994,7 @@ function DashboardMain({
                     )
                   </h3>
                 </div>
-                <div className="space-y-2 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+                <div tabIndex={0} className="space-y-2 max-h-[500px] overflow-y-auto overscroll-contain pr-2">
                   {stats.myTagSubmissions.filter((s) => s.status === "pending")
                     .length > 0 ? (
                     stats.myTagSubmissions
@@ -1997,7 +2003,7 @@ function DashboardMain({
                         <TagSubmissionCard key={index} {...submission} />
                       ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="cd-small cd-muted text-center py-4">
                       No pending submissions
                     </p>
                   )}
@@ -2007,8 +2013,8 @@ function DashboardMain({
               {/* Approved Submissions Column */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="h-1 w-1 rounded-full bg-green-500"></div>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: "var(--cd-success)" }} />
+                  <h3 className="cd-small font-semibold cd-muted uppercase tracking-wide">
                     Approved (
                     {
                       stats.myTagSubmissions.filter(
@@ -2018,7 +2024,7 @@ function DashboardMain({
                     )
                   </h3>
                 </div>
-                <div className="space-y-2 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+                <div tabIndex={0} className="space-y-2 max-h-[500px] overflow-y-auto overscroll-contain pr-2">
                   {stats.myTagSubmissions.filter((s) => s.status === "approved")
                     .length > 0 ? (
                     stats.myTagSubmissions
@@ -2027,7 +2033,7 @@ function DashboardMain({
                         <TagSubmissionCard key={index} {...submission} />
                       ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="cd-small cd-muted text-center py-4">
                       No approved submissions
                     </p>
                   )}
@@ -2037,8 +2043,8 @@ function DashboardMain({
               {/* Rejected Submissions Column */}
               <div>
                 <div className="flex items-center gap-2 mb-3">
-                  <div className="h-1 w-1 rounded-full bg-red-500"></div>
-                  <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
+                  <span aria-hidden="true" className="h-2 w-2 rounded-full" style={{ background: "var(--cd-danger)" }} />
+                  <h3 className="cd-small font-semibold cd-muted uppercase tracking-wide">
                     Rejected (
                     {
                       stats.myTagSubmissions.filter(
@@ -2053,22 +2059,23 @@ function DashboardMain({
                   <Accordion type="single" collapsible className="mb-3">
                     <AccordionItem
                       value="rejected-help"
-                      className="border border-muted-foreground/20 rounded-lg bg-muted/20"
+                      className="border rounded-xl"
+                      style={{ borderColor: "var(--cd-border-subtle)", background: "var(--cd-raised)" }}
                     >
                       <AccordionTrigger className="px-3 py-2 hover:no-underline">
-                        <span className="text-xs font-semibold text-foreground">
-                          💡 Got a Rejection? Here's What to Do
+                        <span className="cd-small font-semibold">
+                          💡 Got a Rejection? Here&apos;s What to Do
                         </span>
                       </AccordionTrigger>
                       <AccordionContent className="px-3 pb-3">
-                        <p className="text-xs text-muted-foreground leading-relaxed">
-                          <span className="font-semibold text-foreground">Think this was a mistake?</span> You can resubmit the tag with a better explanation of why it's useful for the community. Focus on how it helps categorize projects, describes specific technologies, or aids in discovery for all users.
+                        <p className="cd-small cd-muted">
+                          <span className="font-semibold" style={{ color: "var(--cd-text)" }}>Think this was a mistake?</span> You can resubmit the tag with a better explanation of why it&apos;s useful for the community. Focus on how it helps categorize projects, describes specific technologies, or aids in discovery for all users.
                         </p>
                       </AccordionContent>
                     </AccordionItem>
                   </Accordion>
                 )}
-                <div className="space-y-2 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/3 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/8 pr-2">
+                <div tabIndex={0} className="space-y-2 max-h-[500px] overflow-y-auto overscroll-contain pr-2">
                   {stats.myTagSubmissions.filter((s) => s.status === "rejected")
                     .length > 0 ? (
                     stats.myTagSubmissions
@@ -2077,7 +2084,7 @@ function DashboardMain({
                         <TagSubmissionCard key={index} {...submission} />
                       ))
                   ) : (
-                    <p className="text-sm text-muted-foreground text-center py-4">
+                    <p className="cd-small cd-muted text-center py-4">
                       No rejected submissions
                     </p>
                   )}
@@ -2085,18 +2092,18 @@ function DashboardMain({
               </div>
             </div>
           ) : (
-            <div className="flex flex-col items-center justify-center py-12 text-center">
-              <TagIcon className="h-16 w-16 text-muted-foreground/40 mb-4" />
-              <h3 className="text-lg font-semibold mb-2">No Tag Submissions Yet</h3>
-              <p className="text-sm text-muted-foreground max-w-md">
-                When you edit a project, you can submit new tags that aren't in the system yet. 
-                Once approved, they'll be available for everyone to use!
+            <div className="cd-empty">
+              <TagIcon className="h-12 w-12 cd-muted" aria-hidden="true" />
+              <h3 className="cd-subheading">No Tag Submissions Yet</h3>
+              <p className="cd-small cd-muted max-w-md">
+                When you edit a project, you can submit new tags that aren&apos;t in the system yet. 
+                Once approved, they&apos;ll be available for everyone to use!
               </p>
             </div>
           )}
         </CardContent>
       </Card>
-    </main>
+    </div>
   );
 }
 
@@ -2104,25 +2111,14 @@ function DashboardMain({
 
 export default function DashboardPage() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <SidebarProvider>
-        <SignedIn>
-          <AppSidebar />
-        </SignedIn>
-        <SidebarInset>
-          <HeaderSection
-            showLogo={false}
-            showDarkModeButton={true}
-            showMobileMenu={false}
-          />
-
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
+        <div className="cd-page">
           <ErrorBoundary>
             <DashboardContent />
           </ErrorBoundary>
-
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+        </div>
+      </div>
+    </AppShell>
   );
 }

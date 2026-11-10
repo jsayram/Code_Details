@@ -512,8 +512,9 @@ export function ProjectLinksManager({
                     variant="ghost"
                     size="sm"
                     onClick={() => handleRemoveLink(index)}
+                    aria-label={`Remove link ${index + 1}`}
                   >
-                    <X className="h-4 w-4" />
+                    <X className="h-4 w-4" aria-hidden="true" />
                   </Button>
                 </div>
 
@@ -595,6 +596,7 @@ export function ProjectLinksManager({
                       onClick={() => handleVerifyLink(index)}
                       disabled={!link.url || link.url === 'https://' || verifyingIndex === index}
                       className="cursor-pointer"
+                      aria-label={verifyingIndex === index ? `Checking link ${index + 1}` : `Check link ${index + 1}`}
                     >
                       {verifyingIndex === index ? (
                         <Loader2 className="h-4 w-4 animate-spin" />

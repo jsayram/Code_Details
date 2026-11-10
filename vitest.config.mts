@@ -16,6 +16,11 @@ export default defineConfig({
     restoreMocks: true,
     // Integration files share one test database; run files one at a time.
     fileParallelism: false,
+    // Integration tests talk to a real local Convex backend; under load a
+    // single call can pass 5s (TEST-D08C-TIMEOUT, D04d purge). Every phase
+    // was re-running with a 30s limit, so make it the default.
+    testTimeout: 30_000,
+    hookTimeout: 30_000,
     // Node 26 defines its own (empty) localStorage global, which hides jsdom's.
     execArgv: ["--no-experimental-webstorage"],
   },

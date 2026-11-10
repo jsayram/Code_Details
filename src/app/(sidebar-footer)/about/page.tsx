@@ -6,41 +6,31 @@ import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
-import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
+import { Button } from "@/components/ui/button";
+import "@/styles/foundations.css";
+import Link from "next/link";
 import { ExternalLink, Github, Linkedin, Mail } from "lucide-react";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
+import { AppShell } from "@/components/layout/AppShell";
 
+// UI09.3: in the shared shell like every other signed-in page (it had a
+// sidebar-less header and no main), on the design foundations. Solid headings
+// instead of gradient text, named icon links, no particles (home only).
 export default function AboutPage() {
   return (
-    <>
-      <CodeParticlesElement
-        quantity="ultra"
-        speed="fast"
-        size="large"
-        includeEmojis={true}
-        includeKeywords={true}
-        includeSymbols={true}
-        syntaxHighlight="vscode"
-        depth="layered"
-        opacityRange={[0.01, 0.2]}
-        lightModeOpacityRange={[0.01, 0.4]}
-      />
-
-      <div className="container mx-auto py-8 px-4 md:py-12 md:px-6 relative min-h-screen">
-        <HeaderSectionNoSideBar />
-        {/* Background particles effect - Fixed positioning */}
-        <div className="relative z-10">
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
+        <div className="cd-page">
           {/* Hero section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.3 }}
             className="text-center mb-12"
           >
-            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-fuchsia-500 mb-4">
+            <h1 className="cd-title mb-4">
               Developer, Creator, and Innovator
             </h1>
-            <p className="text-xl text-muted-foreground max-w-3xl mx-auto">
+            <p className="cd-lead cd-muted max-w-3xl mx-auto">
               Software engineer, builder, and lifelong learner with a passion
               for clean, scalable code and creative problem-solving.
             </p>
@@ -50,9 +40,9 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {/* Profile card */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0.8, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="col-span-1"
             >
               <Card className="overflow-hidden">
@@ -87,28 +77,32 @@ export default function AboutPage() {
                     <Badge variant="secondary">ML</Badge>
                   </div>
 
-                  <div className="flex justify-center space-x-4">
+                  {/* UI02 defect 16: these three icon links had no names. */}
+                  <div className="flex justify-center gap-2">
                     <a
                       href="https://github.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="cd-about-icon-link"
                     >
-                      <Github size={20} />
+                      <Github size={20} aria-hidden="true" />
+                      <span className="sr-only">GitHub</span>
                     </a>
                     <a
                       href="https://linkedin.com"
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="cd-about-icon-link"
                     >
-                      <Linkedin size={20} />
+                      <Linkedin size={20} aria-hidden="true" />
+                      <span className="sr-only">LinkedIn</span>
                     </a>
                     <a
                       href="mailto:contact@example.com"
-                      className="text-muted-foreground hover:text-primary transition-colors"
+                      className="cd-about-icon-link"
                     >
-                      <Mail size={20} />
+                      <Mail size={20} aria-hidden="true" />
+                      <span className="sr-only">Email</span>
                     </a>
                   </div>
                 </CardContent>
@@ -117,14 +111,14 @@ export default function AboutPage() {
 
             {/* Main content area */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
+              transition={{ duration: 0.3, delay: 0.08 }}
               className="col-span-1 md:col-span-2"
             >
               <Card className="h-full">
                 <CardContent className="pt-6">
-                  <h2 className="text-2xl font-semibold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-400">
+                  <h2 className="cd-heading mb-6">
                     My Journey
                   </h2>
 
@@ -161,7 +155,7 @@ export default function AboutPage() {
 
                   <Separator className="my-8" />
 
-                  <h2 className="text-2xl font-semibold mb-6 bg-clip-text text-transparent bg-gradient-to-r from-primary to-violet-400">
+                  <h2 className="cd-heading mb-6">
                     The Vision
                   </h2>
 
@@ -190,11 +184,11 @@ export default function AboutPage() {
 
           {/* Skills section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
           >
-            <h2 className="text-3xl font-semibold mb-8 text-center bg-clip-text text-transparent bg-gradient-to-r from-primary to-fuchsia-500">
+            <h2 className="cd-heading mb-8 text-center">
               Skills & Experience
             </h2>
 
@@ -228,19 +222,19 @@ export default function AboutPage() {
                   </h3>
                   <ul className="space-y-2">
                     <li className="flex items-center">
-                      <ExternalLink size={16} className="mr-2 text-primary" />
+                      <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
                       <span>Code Details Web Platform</span>
                     </li>
                     <li className="flex items-center">
-                      <ExternalLink size={16} className="mr-2 text-primary" />
+                      <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
                       <span>Test Automation Framework</span>
                     </li>
                     <li className="flex items-center">
-                      <ExternalLink size={16} className="mr-2 text-primary" />
+                      <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
                       <span>Medical Device Software Testing</span>
                     </li>
                     <li className="flex items-center">
-                      <ExternalLink size={16} className="mr-2 text-primary" />
+                      <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
                       <span>Fitness Tracking API</span>
                     </li>
                   </ul>
@@ -286,14 +280,14 @@ export default function AboutPage() {
 
           {/* Final CTA section */}
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 0.8 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.5 }}
+            transition={{ duration: 0.3, delay: 0.12 }}
             className="text-center mt-12"
           >
-            <Card className="bg-gradient-to-r from-primary/10 to-violet-500/10 border-0">
+            <Card>
               <CardContent className="py-12">
-                <h2 className="text-3xl font-semibold mb-4">
+                <h2 className="cd-heading mb-4">
                   Let&apos;s Connect
                 </h2>
                 <p className="text-lg text-muted-foreground max-w-2xl mx-auto mb-6">
@@ -301,25 +295,23 @@ export default function AboutPage() {
                   questions about my projects, or just want to chat about code
                   and technology, I&apos;d love to hear from you.
                 </p>
-                <div className="flex justify-center space-x-4">
-                  <a
-                    href="mailto:contact@example.com"
-                    className="inline-flex items-center px-6 py-3 rounded-md bg-primary text-primary-foreground hover:bg-primary/90 transition-colors"
-                  >
-                    <Mail size={18} className="mr-2" /> Get In Touch
-                  </a>
-                  <a
-                    href="/projects"
-                    className="inline-flex items-center px-6 py-3 rounded-md bg-secondary text-secondary-foreground hover:bg-secondary/90 transition-colors"
-                  >
-                    <ExternalLink size={18} className="mr-2" /> View Community Projects
-                  </a>
+                <div className="cd-cluster justify-center">
+                  <Button asChild size="lg">
+                    <a href="mailto:contact@example.com">
+                      <Mail size={18} aria-hidden="true" /> Get In Touch
+                    </a>
+                  </Button>
+                  <Button asChild size="lg" variant="outline">
+                    <Link href="/projects">
+                      <ExternalLink size={18} aria-hidden="true" /> View Community Projects
+                    </Link>
+                  </Button>
                 </div>
               </CardContent>
             </Card>
           </motion.div>
         </div>
       </div>
-    </>
+    </AppShell>
   );
 }

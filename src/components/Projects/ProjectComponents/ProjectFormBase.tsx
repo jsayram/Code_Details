@@ -371,7 +371,7 @@ export function ProjectFormBase({
               value={formData.category}
               onValueChange={(value) => handleSelectChange("category", value as ProjectCategory)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="category" aria-describedby="category-help">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
@@ -382,6 +382,10 @@ export function ProjectFormBase({
                 ))}
               </SelectContent>
             </Select>
+            {/* UI07 (Jose): the full description with its tie-break wording, where people choose. */}
+            <p id="category-help" className="text-xs text-muted-foreground">
+              {PROJECT_CATEGORIES[formData.category as keyof typeof PROJECT_CATEGORIES]?.description}
+            </p>
           </div>
 
           <div className="space-y-2">

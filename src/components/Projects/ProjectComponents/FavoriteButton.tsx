@@ -29,7 +29,9 @@ export function FavoriteButton({
       size="icon"
       className={`action-button favorite-button group relative cursor-pointer ${className}`}
       onClick={onClick}
-      aria-label={ariaLabel || (isFavorite ? "Remove from favorites" : "Add to favorites")}
+      // UI06: the name includes the count shown on the button, so speech
+      // matches what's on screen (axe label-content-name-mismatch).
+      aria-label={`${ariaLabel || (isFavorite ? "Remove from favorites" : "Add to favorites")}, ${count || 0} ${(count || 0) === 1 ? "favorite" : "favorites"}`}
       disabled={disabled}
       tabIndex={0}
       type="button"

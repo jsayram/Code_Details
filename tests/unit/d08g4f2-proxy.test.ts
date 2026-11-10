@@ -58,7 +58,7 @@ describe("with Better Auth off (no login)", () => {
 
   it("public routes still pass", async () => {
     env({ NODE_ENV: "production" });
-    for (const p of ["/", "/sign-in", "/sign-up/verify", "/projects/some-slug", "/projects/users/alice", "/shared-projects/x", "/api/shared-projects/x"]) {
+    for (const p of ["/", "/sign-in", "/sign-up/verify", "/projects/some-slug", "/shared-projects/x", "/api/shared-projects/x"]) {
       expect(await call(p), p).toEqual({ status: 200, location: null });
     }
   });
