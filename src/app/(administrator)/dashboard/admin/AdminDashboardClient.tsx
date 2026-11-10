@@ -1386,6 +1386,34 @@ function DashboardContent() {
     return <DashboardLoading />;
   }
 
+  // UI09.3: the stat cards jump to their section; they were click-only, so
+  // they now take focus and answer Enter and Space like buttons.
+  const jumpTo = (id: string) => {
+    const go = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
+        setTimeout(() => {
+          el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
+          setTimeout(() => {
+            el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
+          }, 1000);
+        }, 500);
+      }
+    };
+    return {
+      role: "button" as const,
+      tabIndex: 0,
+      onClick: go,
+      onKeyDown: (e: React.KeyboardEvent) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          go();
+        }
+      },
+    };
+  };
+
   return (
     <div className="w-full min-w-0 px-4 2xl:px-8 3xl:px-12 py-8">
       {/* UI09.3: the shared header (one h1) in place of the gradient banner and the second title. */}
@@ -1460,21 +1488,7 @@ function DashboardContent() {
 
       {/* Additional Analytics Row */}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4 mb-8">
-        <div 
-          onClick={() => {
-            const el = document.getElementById('user-management');
-            if (el) {
-              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("user-management")} className="block cursor-pointer">
           <StatsCard
             title="Total Users"
             value={stats.stats.userGrowth.totalUsers.toString()}
@@ -1482,21 +1496,7 @@ function DashboardContent() {
             icon={<Users className="h-4 w-4 text-emerald-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('projects-no-favorites');
-            if (el) {
-              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("projects-no-favorites")} className="block cursor-pointer">
           <StatsCard
             title="Avg Favorites/Project"
             value={Math.round(stats.stats.engagementMetrics.avgFavoritesPerProject).toString()}
@@ -1504,21 +1504,7 @@ function DashboardContent() {
             icon={<TrendingUp className="h-4 w-4 text-blue-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('projects-needing-attention');
-            if (el) {
-              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("projects-needing-attention")} className="block cursor-pointer">
           <StatsCard
             title="Avg Tags/Project"
             value={Math.round(stats.stats.engagementMetrics.avgTagsPerProject).toString()}
@@ -1526,21 +1512,7 @@ function DashboardContent() {
             icon={<TrendingUp className="h-4 w-4 text-purple-500" />}
           />
         </div>
-        <div 
-          onClick={() => {
-            const el = document.getElementById('new-users-list');
-            if (el) {
-              el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
-              setTimeout(() => {
-                el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
-                setTimeout(() => {
-                  el.classList.remove('ring-2', 'ring-primary', 'ring-offset-2');
-                }, 1000);
-              }, 500);
-            }
-          }}
-          className="block cursor-pointer"
-        >
+        <div {...jumpTo("new-users-list")} className="block cursor-pointer">
           <StatsCard
             title="New Users (30d)"
             value={stats.stats.userGrowth.newUsersThisMonth.toString()}
@@ -1581,7 +1553,7 @@ function DashboardContent() {
               A comprehensive view of all projects and their favorites
             </CardDescription>
           </CardHeader>
-          <CardContent className="px-2 sm:px-4 md:px-6 flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+          <CardContent tabIndex={0} role="region" aria-label="Projects overview" className="px-2 sm:px-4 md:px-6 flex-1 overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
             <Overview
               data={stats.stats.allProjects.map((p) => ({
                 name:

@@ -17,7 +17,10 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <SidebarProvider>
       <AppSidebar />
-      <SidebarInset>
+      {/* UI09: min-w-0 so wide content (the admin charts) can't push the
+          inset, header included, past the viewport; it's what the admin
+          page set by hand before it moved onto the shell. */}
+      <SidebarInset className="min-w-0">
         <HeaderSection />
         {children}
         <FooterSection />

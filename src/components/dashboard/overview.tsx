@@ -161,7 +161,7 @@ export function Overview({ data }: OverviewProps) {
 
       {/* Table view - Visible on mobile */}
       <div className="md:hidden">
-        <div className="space-y-3 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+        <div tabIndex={0} role="region" aria-label="Projects list" className="space-y-3 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
           {data.map((project, index) => (
             <div
               key={index}

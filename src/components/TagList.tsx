@@ -108,7 +108,7 @@ export function TagList() {
               onClick={() => handleTagClick(tag.name)}
             >
               <div className="flex items-center justify-between min-w-0">
-                <h3 className="text-sm font-medium group-hover:text-primary transition-colors truncate">
+                <h3 className="text-sm font-medium group-hover:text-primary transition-colors truncate min-w-0">
                   {clickedTag === tag.name ? (
                     <span className="flex items-center gap-2">
                       <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin flex-shrink-0"></div>
