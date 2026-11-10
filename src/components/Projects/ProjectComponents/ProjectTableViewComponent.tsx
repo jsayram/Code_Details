@@ -22,6 +22,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Image from "next/image";
 import Link from "next/link";
+import { isPlainClick } from "@/lib/plain-click";
 
 interface ProjectTableViewProps {
   projects: Project[];
@@ -86,6 +87,9 @@ export function ProjectTableView({
   };
 
   const handleTagClick = async (e: React.MouseEvent<HTMLElement>, tag: string) => {
+    e.stopPropagation();
+    // A new-tab click (modifier key or another button) is left to the browser.
+    if (!isPlainClick(e)) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -111,6 +115,9 @@ export function ProjectTableView({
   };
 
   const handleCategoryClick = async (e: React.MouseEvent<HTMLElement>, category: string) => {
+    e.stopPropagation();
+    // A new-tab click (modifier key or another button) is left to the browser.
+    if (!isPlainClick(e)) return;
     e.preventDefault();
     e.stopPropagation();
 

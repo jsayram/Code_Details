@@ -29,6 +29,7 @@ import { HighlightText } from "@/components/HighlightText";
 import { ProjectSearchResults } from "@/components/search/ProjectSearchResults";
 import { AppShell } from "@/components/layout/AppShell";
 import { SearchContentSkeleton } from "./loading";
+import { isPlainClick } from "@/lib/plain-click";
 
 type UserRow = {
   username: string;
@@ -60,7 +61,7 @@ function Avatar({ user }: { user: UserRow }) {
 }
 
 /** One person: a link to their profile when they have projects, otherwise listed only. */
-function UserTile({ user, query, rank, opening, onOpen }: { user: UserRow; query: string; rank?: number; opening: boolean; onOpen: () => void }) {
+function UserTile({ user, query, rank, opening, onOpen }: { user: UserRow; query: string; rank?: number; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
   const medals = ["🥇", "🥈", "🥉"];
   const places = ["1st Place", "2nd Place", "3rd Place"];
   const body = (
@@ -112,7 +113,7 @@ function UserTile({ user, query, rank, opening, onOpen }: { user: UserRow; query
   );
 }
 
-function TagPill({ tag, query, opening, onOpen }: { tag: { name: string; count?: number }; query: string; opening: boolean; onOpen: () => void }) {
+function TagPill({ tag, query, opening, onOpen }: { tag: { name: string; count?: number }; query: string; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
   const isActive = (tag.count ?? 0) > 0;
   const inner = (
     <>
@@ -132,7 +133,7 @@ function TagPill({ tag, query, opening, onOpen }: { tag: { name: string; count?:
   );
 }
 
-function CategoryTile({ catKey, label, description, count, query, opening, onOpen }: { catKey: string; label: string; description: string; count: number; query: string; opening: boolean; onOpen: () => void }) {
+function CategoryTile({ catKey, label, description, count, query, opening, onOpen }: { catKey: string; label: string; description: string; count: number; query: string; opening: boolean; onOpen: (e: React.MouseEvent<HTMLAnchorElement>) => void }) {
   const body = (
     <>
       <div className="cd-tile-row">
@@ -280,7 +281,10 @@ function SearchContent({ signedIn }: { signedIn: boolean }) {
     if (peopleFailed) void refreshProfiles();
   };
 
-  const open = (id: string) => () => setLoadingItem(id);
+  // The spinner is for a plain click that navigates here; a new-tab click leaves this tab as it is.
+  const open = (id: string) => (e: React.MouseEvent<HTMLAnchorElement>) => {
+    if (isPlainClick(e)) setLoadingItem(id);
+  };
 
   const userGrid = (users: UserRow[], ranked = false, offset = 0) => (
     <ul className="cd-grid" style={{ ["--cd-card-min" as string]: "16rem" }}>

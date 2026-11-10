@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 import { useTags } from "@/hooks/use-tags";
 import { HighlightText } from "@/components/HighlightText";
 import { AppShell } from "@/components/layout/AppShell";
+import { isPlainClick } from "@/lib/plain-click";
 import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 
 export default function TagsIndexPage() {
@@ -123,7 +124,7 @@ export default function TagsIndexPage() {
                         <Link
                           href={`/tags/${encodeURIComponent(tag.name)}`}
                           className="cd-pill-link"
-                          onClick={() => setClickedTag(tag.name)}
+                          onClick={(e) => isPlainClick(e) && setClickedTag(tag.name)}
                           aria-busy={clickedTag === tag.name || undefined}
                         >
                           {clickedTag === tag.name ? (
