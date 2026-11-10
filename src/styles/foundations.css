@@ -1294,3 +1294,322 @@ span.cd-project-card-owner {
   border-color: var(--cd-cat-border, var(--cd-border-subtle));
 }
 
+
+/* --- Discovery (UI07): search, tags, categories and project lists --- */
+
+/* A page header for the list pages: eyebrow, one h1, a lead and a count. */
+.cd-page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cd-space-4);
+  min-width: 0;
+}
+
+/* The one prominent search field: 56px, with room for the icon and the clear button. */
+.cd-search-field {
+  position: relative;
+  width: 100%;
+  min-width: 0;
+}
+
+.cd-search-field > svg {
+  position: absolute;
+  inset-inline-start: var(--cd-space-4);
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--cd-muted);
+  pointer-events: none;
+}
+
+.cd-foundations .cd-search-field [data-slot="input"] {
+  height: 3.5rem;
+  min-height: 3.5rem;
+  padding-inline: 3rem 3.5rem;
+  font-size: var(--cd-text-lead);
+}
+
+.cd-foundations .cd-search-field.cd-search-field-compact [data-slot="input"] {
+  height: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+  font-size: var(--cd-text-body);
+}
+
+.cd-search-field-end {
+  position: absolute;
+  inset-inline-end: var(--cd-space-1);
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-height);
+  height: var(--cd-control-height);
+  border: 0;
+  border-radius: var(--cd-radius-pill);
+  background: none;
+  color: var(--cd-muted);
+}
+
+button.cd-search-field-end {
+  cursor: pointer;
+}
+
+button.cd-search-field-end:hover {
+  background: var(--cd-raised);
+  color: var(--cd-text);
+}
+
+/* Spinners report status, so they keep turning under reduced motion (globals.css exempts .animate-spin). */
+.cd-spinner {
+  display: inline-block;
+  width: 1rem;
+  height: 1rem;
+  flex: none;
+  border: 2px solid currentColor;
+  border-top-color: transparent;
+  border-radius: var(--cd-radius-pill);
+}
+
+/* Link pills for tags, categories and people: 44px, a whole pill to click. */
+.cd-pill-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--cd-space-2);
+  box-sizing: border-box;
+  max-width: 100%;
+  min-height: var(--cd-control-height);
+  padding: var(--cd-space-2) var(--cd-space-4);
+  border: 1px solid var(--cd-border-subtle);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-surface);
+  color: var(--cd-text);
+  font-size: var(--cd-text-small);
+  line-height: 1.3;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: border-color var(--cd-duration-press) var(--cd-ease-out), background-color var(--cd-duration-press) var(--cd-ease-out);
+}
+
+a.cd-pill-link:hover {
+  border-color: var(--cd-border-control);
+  background: var(--cd-raised);
+}
+
+/* Not a link: a tag or category with no projects yet. Readable, not dimmed. */
+.cd-pill-link[data-inactive] {
+  border-style: dashed;
+  background: transparent;
+  color: var(--cd-muted);
+  cursor: default;
+}
+
+.cd-pill-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.5rem;
+  padding: 0 var(--cd-space-2);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-selected);
+  color: var(--cd-on-selected);
+  font-size: var(--cd-text-caption);
+  font-variant-numeric: tabular-nums;
+}
+
+/* A tile that is one link: categories, people and the explore shortcuts. */
+.cd-tile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  box-sizing: border-box;
+  min-width: 0;
+  height: 100%;
+  padding: var(--cd-space-4) var(--cd-space-5);
+  border: 1px solid var(--cd-border-subtle);
+  border-radius: var(--cd-radius-surface);
+  background: var(--cd-surface);
+  color: var(--cd-text);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  transition: border-color var(--cd-duration-press) var(--cd-ease-out);
+}
+
+a.cd-tile:hover {
+  border-color: var(--cd-border-control);
+}
+
+.cd-tile[data-inactive] {
+  border-style: dashed;
+  background: transparent;
+}
+
+.cd-tile-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--cd-space-3);
+  min-width: 0;
+}
+
+/* The category's own color as a dot beside its name. */
+.cd-cat-dot {
+  display: inline-block;
+  flex: none;
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-block-start: 0.4em;
+  border: 1px solid var(--cd-cat-border, var(--cd-border-control));
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-cat-bg, var(--cd-raised));
+}
+
+.cd-avatar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  overflow: hidden;
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-raised);
+  color: var(--cd-text);
+  font-weight: var(--cd-weight-medium);
+  object-fit: cover;
+}
+
+/* List controls: label above each control, wrapping to one column on phones. */
+.cd-filter-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--cd-space-4);
+  min-width: 0;
+}
+
+.cd-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-1);
+  min-width: 0;
+}
+
+.cd-field-label {
+  font-size: var(--cd-text-small);
+  font-weight: var(--cd-weight-medium);
+  color: var(--cd-text);
+}
+
+@media (max-width: 639px) {
+  .cd-filter-bar > *,
+  .cd-filter-bar .cd-cluster > *,
+  .cd-filter-bar .cd-field {
+    width: 100%;
+  }
+}
+
+/* Two or more buttons that choose one view (Cards / Table). */
+.cd-segmented {
+  display: inline-flex;
+  padding: 2px;
+  border: 1px solid var(--cd-border-control);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-surface);
+}
+
+.cd-foundations .cd-segmented [data-slot="button"] {
+  min-height: calc(var(--cd-control-height) - 6px);
+  border: 0;
+  background: transparent;
+  color: var(--cd-text);
+  box-shadow: none;
+}
+
+.cd-foundations .cd-segmented [data-slot="button"][aria-pressed="true"] {
+  background: var(--cd-selected);
+  color: var(--cd-on-selected);
+}
+
+/* Pagination: real buttons in a list, the current page marked. */
+.cd-pager {
+  display: flex;
+  justify-content: center;
+  margin-block: var(--cd-space-6) var(--cd-space-2);
+}
+
+.cd-pager ul {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.cd-pager-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--cd-space-1);
+  box-sizing: border-box;
+  min-width: var(--cd-control-height);
+  min-height: var(--cd-control-height);
+  padding-inline: var(--cd-space-3);
+  border: 1px solid var(--cd-border-subtle);
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-surface);
+  color: var(--cd-text);
+  font: inherit;
+  font-size: var(--cd-text-small);
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.cd-pager-button:hover:not(:disabled):not([aria-current]) {
+  border-color: var(--cd-border-control);
+  background: var(--cd-raised);
+}
+
+.cd-pager-button[aria-current="page"] {
+  border-color: var(--cd-action);
+  background: var(--cd-action);
+  color: var(--cd-on-action);
+  font-weight: var(--cd-weight-semibold);
+  cursor: default;
+}
+
+.cd-pager-button:disabled {
+  background: var(--cd-disabled);
+  color: var(--cd-on-disabled);
+  border-color: transparent;
+  cursor: not-allowed;
+}
+
+.cd-pager-gap {
+  min-width: 1.5rem;
+  text-align: center;
+  color: var(--cd-muted);
+}
+
+/* Empty and failed lists: a message, sometimes the mascot, and one action. */
+.cd-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-3);
+  padding: var(--cd-space-8) var(--cd-space-4);
+  text-align: center;
+}
+
+/* The matched part of a search result: solid colors that keep 4.5:1 (the old orange didn't). */
+.cd-foundations mark.cd-highlight {
+  border-radius: 0.2em;
+  background: var(--cd-warning-soft);
+  color: var(--cd-text);
+  font-weight: var(--cd-weight-semibold);
+}
