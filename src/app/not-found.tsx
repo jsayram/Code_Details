@@ -6,7 +6,7 @@
 // reach it. The floating icons and gradient blob are gone (decoration only),
 // and the "404" is solid text.
 import "@/styles/foundations.css";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
@@ -33,6 +33,9 @@ export default function NotFound() {
   const [messageIndex, setMessageIndex] = useState(0);
   const [clickCount, setClickCount] = useState(0);
   const [showConfetti, setShowConfetti] = useState(false);
+  // UI10: the confetti is pure movement, so reduced motion skips it; the
+  // message still changes.
+  const reduceMotion = useReducedMotion();
 
   // Cycle through messages when the mascot is pressed
   const handleMascotClick = () => {
@@ -41,7 +44,7 @@ export default function NotFound() {
 
     // Easter egg: show confetti after 5 presses
     if (clickCount >= 4) {
-      setShowConfetti(true);
+      if (!reduceMotion) setShowConfetti(true);
       setTimeout(() => setShowConfetti(false), 2000);
       setClickCount(0);
     }
@@ -57,9 +60,11 @@ export default function NotFound() {
               <motion.div
                 key={i}
                 className="absolute w-3 h-3 rounded-full"
-                style={{ left: `${(i * 37) % 100}%`, backgroundColor: CONFETTI[i % CONFETTI.length] }}
-                initial={{ top: "-5%", rotate: 0 }}
-                animate={{ top: "105%", rotate: (i * 97) % 720, x: ((i * 53) % 200) - 100 }}
+                // UI10: falls by transform (y in vh) rather than animating `top`,
+                // so each frame skips layout.
+                style={{ top: 0, left: `${(i * 37) % 100}%`, backgroundColor: CONFETTI[i % CONFETTI.length] }}
+                initial={{ y: "-5vh", rotate: 0 }}
+                animate={{ y: "105vh", rotate: (i * 97) % 720, x: ((i * 53) % 200) - 100 }}
                 transition={{ duration: 2 + (i % 10) / 10, ease: "easeIn" }}
               />
             ))}

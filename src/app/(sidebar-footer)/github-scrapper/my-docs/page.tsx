@@ -182,9 +182,9 @@ function MyDocsContent() {
             {/* Auth Check */}
             <SignedOut>
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0.8, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
                 className="relative z-10"
               >
                 <Alert>
@@ -222,9 +222,9 @@ function MyDocsContent() {
               {/* Empty State */}
               {!loading && !error && projects.length === 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0.8, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
                   className="relative z-10"
                 >
                   <Card className="backdrop-blur-sm bg-card/80 text-center py-12">
@@ -248,17 +248,17 @@ function MyDocsContent() {
               {/* Projects List */}
               {!loading && !error && projects.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0.8, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
                   className="space-y-4 relative z-10"
                 >
                   {projects.map((project, index) => (
                     <motion.div
                       key={project.slug}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0.8, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      transition={{ duration: 0.3, delay: Math.min(index, 5) * 0.03 }}
                     >
                       <Card className="backdrop-blur-sm bg-card/80 hover:border-primary/50 transition-colors">
                         <CardHeader className="pb-3">
@@ -438,9 +438,9 @@ function MyDocsContent() {
 
             {/* Quick Actions */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-8 text-center relative z-10"
             >
               <Button asChild size="lg" className="cursor-pointer">

@@ -22,9 +22,9 @@ export default function AboutPage() {
         <div className="cd-page">
           {/* Hero section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7 }}
+            transition={{ duration: 0.3 }}
             className="text-center mb-12"
           >
             <h1 className="cd-title mb-4">
@@ -40,9 +40,9 @@ export default function AboutPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
             {/* Profile card */}
             <motion.div
-              initial={{ opacity: 0, x: -20 }}
+              initial={{ opacity: 0.8, x: -16 }}
               animate={{ opacity: 1, x: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="col-span-1"
             >
               <Card className="overflow-hidden">
@@ -111,9 +111,9 @@ export default function AboutPage() {
 
             {/* Main content area */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3 }}
+              transition={{ duration: 0.3, delay: 0.08 }}
               className="col-span-1 md:col-span-2"
             >
               <Card className="h-full">
@@ -184,9 +184,9 @@ export default function AboutPage() {
 
           {/* Skills section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.4 }}
+            transition={{ duration: 0.3, delay: 0.1 }}
           >
             <h2 className="cd-heading mb-8 text-center">
               Skills & Experience
@@ -280,9 +280,9 @@ export default function AboutPage() {
 
           {/* Final CTA section */}
           <motion.div
-            initial={{ opacity: 0 }}
+            initial={{ opacity: 0.8 }}
             animate={{ opacity: 1 }}
-            transition={{ duration: 1, delay: 0.5 }}
+            transition={{ duration: 0.3, delay: 0.12 }}
             className="text-center mt-12"
           >
             <Card>

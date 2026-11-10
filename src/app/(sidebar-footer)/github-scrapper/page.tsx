@@ -211,9 +211,9 @@ function GitHubScrapperContent() {
           <div className="relative">
             {/* Main Card */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="relative z-10"
             >
             <Card className="backdrop-blur-sm bg-card/80">
@@ -381,9 +381,9 @@ function GitHubScrapperContent() {
 
             {/* Info Section */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-8 relative z-10"
             >
               <Card className="backdrop-blur-sm bg-card/80">

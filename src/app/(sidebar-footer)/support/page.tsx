@@ -77,9 +77,9 @@ export default function SupportPage() {
       <div className="cd-page">
         {/* Hero section */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7 }}
+          transition={{ duration: 0.3 }}
           className="text-center mb-12"
         >
           <h1 className="cd-title mb-4">
@@ -93,9 +93,9 @@ export default function SupportPage() {
 
         {/* Search & Quick Help */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.1 }}
+          transition={{ duration: 0.3, delay: 0.03 }}
           className="max-w-3xl mx-auto mb-12"
         >
           <Card>
@@ -150,9 +150,9 @@ export default function SupportPage() {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
           {/* FAQ Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.2 }}
+            transition={{ duration: 0.3, delay: 0.05 }}
             className="lg:col-span-2 order-2 lg:order-1"
           >
             <Card>
@@ -320,9 +320,9 @@ export default function SupportPage() {
 
           {/* Contact & Resources Section */}
           <motion.div
-            initial={{ opacity: 0, y: 20 }}
+            initial={{ opacity: 0.8, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.7, delay: 0.3 }}
+            transition={{ duration: 0.3, delay: 0.08 }}
             className="order-1 lg:order-2"
           >
             <div className="space-y-8">
@@ -486,9 +486,9 @@ export default function SupportPage() {
 
         {/* Call to Action */}
         <motion.div
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0.8, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.7, delay: 0.4 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
           className="text-center mt-12"
         >
           <Card>
