@@ -199,10 +199,9 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("generator re-key: the generator routes let that account past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/repo/analyze", "POST /api/repo/crawl"]) {
-      const r = ROUTES.find((x) => x.name === name)!;
-      expect((await r.call(unlinked)).status(), name).toBe(400);
-    }
+    expect((await ROUTES.find((x) => x.name === "POST /api/repo/analyze")!.call(unlinked)).status()).toBe(400);
+    // F02: the crawler is admins only too.
+    expect((await ROUTES.find((x) => x.name === "POST /api/repo/crawl")!.call(unlinked)).status()).toBe(403);
     // D08 /api/llm gate (and llm-gate-2): the model routes are admins only, so
     // this (non-admin) account stops at 403.
     for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(unlinked)).status(), name).toBe(403);
@@ -263,18 +262,17 @@ test.describe.serial("D11 generator routes, signed in (switch on)", () => {
   });
 
   test("the generator routes get past the identity check (invalid bodies, nothing sent out)", async () => {
-    for (const name of ["POST /api/repo/analyze", "POST /api/repo/crawl"]) {
-      const r = ROUTES.find((x) => x.name === name)!;
-      expect((await r.call(persona)).status(), name).toBe(400);
-    }
+    expect((await ROUTES.find((x) => x.name === "POST /api/repo/analyze")!.call(persona)).status()).toBe(400);
     // D08 /api/llm gate (and llm-gate-2): a non-admin stops at 403; made an
     // admin, the same invalid body reaches the route's own validation (400)
     // before any unit of the daily cap is taken or a provider is called.
-    for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(403);
+    // F02: the crawler is admins only too.
+    const adminOnly = [...MODEL_ROUTES, "POST /api/repo/crawl"];
+    for (const name of adminOnly) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(403);
     const authUserId = (await authState(personaEmail))!.authUserId;
     await setRole(authUserId, "admin");
     try {
-      for (const name of MODEL_ROUTES) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(400);
+      for (const name of adminOnly) expect((await ROUTES.find((x) => x.name === name)!.call(persona)).status(), name).toBe(400);
     } finally {
       await setRole(authUserId, "user");
     }
