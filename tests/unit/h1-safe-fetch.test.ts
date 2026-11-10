@@ -6,7 +6,7 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type dns from "node:dns";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { checkOutboundUrl, guardedLookup, isPublicAddress, safeFetch, UnsafeUrlError } from "@/backend/net/safe-fetch";
+import { checkOutboundUrl, guardedLookup, headersForRedirect, isPublicAddress, safeFetch, UnsafeUrlError } from "@/backend/net/safe-fetch";
 import { allowTestOwnedPort } from "../support/loopback-port";
 
 describe("isPublicAddress", () => {
@@ -16,9 +16,10 @@ describe("isPublicAddress", () => {
     "::1", "::", "fe80::1", "fc00::1", "fd12:3456::1", "ff02::1",
     "::ffff:127.0.0.1", "::ffff:7f00:1", "::ffff:169.254.169.254", "::ffff:a9fe:a9fe",
     "64:ff9b::a9fe:a9fe", "2002:a9fe:a9fe::1", "::127.0.0.1",
+    "::ffff:8.8.8.8", "::ffff:0:808:808", "::ffff:0:7f00:1", "2001:0:4136:e378:8000:63bf:3fff:fdd2", "168.63.129.16",
   ])("blocks %s", (ip) => expect(isPublicAddress(ip)).toBe(false));
 
-  it.each(["140.82.112.3", "8.8.8.8", "172.32.0.1", "2606:4700::1111", "::ffff:8.8.8.8"])("allows %s", (ip) =>
+  it.each(["140.82.112.3", "8.8.8.8", "172.32.0.1", "2606:4700::1111", "2001:4860:4860::8888", "168.63.129.17"])("allows %s", (ip) =>
     expect(isPublicAddress(ip)).toBe(true),
   );
 
@@ -67,6 +68,9 @@ describe("guardedLookup (the check inside the socket's own DNS step)", () => {
     await expect(resolveWith(fakeDns("140.82.112.3", "127.0.0.1"))).rejects.toThrow(/may not reach/);
     await expect(resolveWith(fakeDns("2606:4700::1111", "::ffff:169.254.169.254"), true)).rejects.toThrow(/may not reach/);
   });
+  it("refuses a name that resolves to loopback", async () => {
+    await expect(resolveWith(fakeDns("127.0.0.1"))).rejects.toThrow(/may not reach/);
+  });
   it("passes public answers through in the shape asked for", async () => {
     expect(await resolveWith(fakeDns("140.82.112.3"))).toBe("140.82.112.3");
     expect(await resolveWith(fakeDns("140.82.112.3"), true)).toEqual([{ address: "140.82.112.3", family: 4 }]);
@@ -77,6 +81,9 @@ describe("safeFetch", () => {
   let server: http.Server;
   let base: string;
   let release: () => void;
+  let other: http.Server;
+  let otherBase: string;
+  let releaseOther: () => void;
   const loopbackOnly = { isAllowedAddress: (a: string) => a === "127.0.0.1", allowAnyPort: true };
 
   beforeAll(async () => {
@@ -101,6 +108,15 @@ describe("safeFetch", () => {
         res.writeHead(307, { location: "http://localhost/admin" });
         return res.end();
       }
+      if (u.pathname === "/echo") return res.end(JSON.stringify(req.headers));
+      if (u.pathname === "/to-echo") {
+        res.writeHead(302, { location: "/echo" });
+        return res.end();
+      }
+      if (u.pathname === "/to-other") {
+        res.writeHead(302, { location: `${otherBase}/echo` });
+        return res.end();
+      }
       if (u.pathname === "/loop") {
         res.writeHead(302, { location: "/loop" });
         return res.end();
@@ -112,8 +128,17 @@ describe("safeFetch", () => {
     const port = (server.address() as AddressInfo).port;
     release = allowTestOwnedPort(port);
     base = `http://127.0.0.1:${port}`;
+    // A second origin (another port), which only echoes what it received.
+    other = http.createServer((req, res) => res.end(JSON.stringify(req.headers)));
+    await new Promise<void>((r) => other.listen(0, "127.0.0.1", r));
+    const otherPort = (other.address() as AddressInfo).port;
+    releaseOther = allowTestOwnedPort(otherPort);
+    otherBase = `http://127.0.0.1:${otherPort}`;
   });
   afterAll(async () => {
+    releaseOther();
+    other.closeAllConnections();
+    await new Promise<void>((r) => other.close(() => r()));
     release();
     server.closeAllConnections();
     await new Promise<void>((r) => server.close(() => r()));
@@ -123,6 +148,23 @@ describe("safeFetch", () => {
     const res = await safeFetch(`${base}/hop`, {}, loopbackOnly);
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("hello");
+  });
+
+  it("refuses a host name whose lookup answers 127.0.0.1, before any socket", async () => {
+    const lookup = fakeDns("127.0.0.1");
+    await expect(safeFetch("http://looks-public.example.test/", {}, { lookup })).rejects.toThrow(/may not reach/);
+    await expect(safeFetch("https://api.example.test/x", {}, { lookup: fakeDns("140.82.112.3", "::1") })).rejects.toThrow(/may not reach/);
+  });
+
+  it("drops credential headers on a cross-origin redirect and keeps them on the same origin", async () => {
+    const headers = { Authorization: "Bearer SYNTHETIC", "PRIVATE-TOKEN": "SYNTHETIC", Cookie: "a=b", Accept: "x/y" };
+    const cross = (await (await safeFetch(`${base}/to-other`, { headers }, loopbackOnly)).json()) as Record<string, string>;
+    expect(cross.authorization).toBeUndefined();
+    expect(cross["private-token"]).toBeUndefined();
+    expect(cross.cookie).toBeUndefined();
+    expect(cross.accept).toBe("x/y");
+    const same = (await (await safeFetch(`${base}/to-echo`, { headers }, loopbackOnly)).json()) as Record<string, string>;
+    expect(same.authorization).toBe("Bearer SYNTHETIC");
   });
 
   it("the default rule refuses loopback before connecting", async () => {
@@ -160,5 +202,20 @@ describe("safeFetch", () => {
     const res = await safeFetch(`${base}/big`, { method: "GET" }, { ...loopbackOnly, maxBytes: 10, discardBody: true });
     expect(res.status).toBe(200);
     expect(await res.text()).toBe("");
+  });
+});
+
+describe("headersForRedirect", () => {
+  const creds = { authorization: "Bearer SYNTHETIC", accept: "x/y" };
+  it("refuses https to http when credentials are present", () => {
+    expect(() => headersForRedirect(new URL("https://a.example.test/"), new URL("http://a.example.test/x"), creds)).toThrow(UnsafeUrlError);
+  });
+  it("allows https to http without credentials", () => {
+    expect(headersForRedirect(new URL("https://a.example.test/"), new URL("http://b.example.test/"), { accept: "x/y" })).toEqual({ accept: "x/y" });
+  });
+  it("strips credentials across origins, whatever their case, and keeps them on the same origin", () => {
+    const mixed = { Authorization: "a", "Private-Token": "b", COOKIE: "c", "Proxy-Authorization": "d", accept: "x/y" };
+    expect(headersForRedirect(new URL("https://a.example.test/"), new URL("https://b.example.test/"), mixed)).toEqual({ accept: "x/y" });
+    expect(headersForRedirect(new URL("https://a.example.test/"), new URL("https://a.example.test/y"), mixed)).toEqual(mixed);
   });
 });

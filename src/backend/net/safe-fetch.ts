@@ -28,6 +28,7 @@ for (const [prefix, bits] of [
   ["127.0.0.0", 8], // loopback
   ["169.254.0.0", 16], // link-local, cloud metadata
   ["172.16.0.0", 12], // private
+  ["168.63.129.16", 32], // Azure host services (wireserver, DNS, metadata)
   ["192.0.0.0", 24], // IETF protocol assignments
   ["192.0.2.0", 24], // documentation
   ["192.88.99.0", 24], // 6to4 relay
@@ -45,6 +46,7 @@ for (const [prefix, bits] of [
   ["::1", 128], // loopback
   ["64:ff9b:1::", 48], // local-use NAT64
   ["100::", 64], // discard
+  ["2001::", 32], // Teredo
   ["2001:db8::", 32], // documentation
   ["fc00::", 7], // unique local
   ["fe80::", 10], // link-local
@@ -98,9 +100,14 @@ export function isPublicAddress(address: string): boolean {
   const family = net.isIP(address);
   if (family === 4) return !blocked.check(address, "ipv4");
   if (family === 6) {
+    // IPv4-mapped ::ffff:0:0/96 and IPv4-translated ::ffff:0:0:0/96 are
+    // refused outright (checked here: a BlockList rule for the mapped range
+    // would also match every plain IPv4 address). Real DNS never answers with them.
+    const g = expandIpv6(address.toLowerCase());
+    if (g && g.slice(0, 4).every((x) => x === 0) && ((g[4] === 0 && g[5] === 0xffff) || (g[4] === 0xffff && g[5] === 0))) return false;
+    if (blocked.check(address, "ipv6")) return false;
     const v4 = embeddedIpv4(address);
-    if (v4) return isPublicAddress(v4);
-    return !blocked.check(address, "ipv6");
+    return v4 ? isPublicAddress(v4) : true;
   }
   return false;
 }
@@ -178,14 +185,50 @@ export async function safeFetch(input: string | URL, init: Init = {}, opts: Safe
   let method = init.method ?? "GET";
 
   let url = checkOutboundUrl(input, opts);
+  let headers: Record<string, string> = { ...(init.headers ?? {}) };
   for (let hop = 0; ; hop++) {
-    const res = await requestOnce(url, method, init.headers ?? {}, lookup, deadline, maxBytes, opts.discardBody ?? false);
+    // Checked up front as well as inside the socket's own lookup (which pins
+    // the address actually connected to), so a refused name never reaches a socket.
+    await checkResolves(url, lookup);
+    const res = await requestOnce(url, method, headers, lookup, deadline, maxBytes, opts.discardBody ?? false);
     const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
     if (!location) return res;
     if (hop >= maxRedirects) throw new Error("Too many redirects");
-    url = checkOutboundUrl(new URL(location, url), opts);
+    const next = checkOutboundUrl(new URL(location, url), opts);
+    headers = headersForRedirect(url, next, headers);
+    url = next;
     if (res.status === 303) method = "GET";
   }
+}
+
+function checkResolves(url: URL, lookup: typeof dns.lookup): Promise<void> {
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (net.isIP(host)) return Promise.resolve();
+  return new Promise((resolve, reject) =>
+    lookup(host, { all: true }, ((err: Error | null) => (err ? reject(err) : resolve())) as never),
+  );
+}
+
+/** Headers that carry a credential; dropped on any cross-origin redirect. */
+const CREDENTIAL_HEADERS = new Set(["authorization", "proxy-authorization", "private-token", "cookie"]);
+
+/**
+ * The headers to send on a redirect hop: credentials never travel to another
+ * origin, and a hop from https to http with credentials is refused.
+ */
+export function headersForRedirect(from: URL, to: URL, headers: Record<string, string>): Record<string, string> {
+  if (hasCredentials(headers) && from.protocol === "https:" && to.protocol === "http:") {
+    throw new UnsafeUrlError("Refusing to follow a redirect from https to http with credentials");
+  }
+  return to.origin === from.origin ? headers : withoutCredentials(headers);
+}
+
+function hasCredentials(headers: Record<string, string>): boolean {
+  return Object.keys(headers).some((k) => CREDENTIAL_HEADERS.has(k.toLowerCase()));
+}
+
+function withoutCredentials(headers: Record<string, string>): Record<string, string> {
+  return Object.fromEntries(Object.entries(headers).filter(([k]) => !CREDENTIAL_HEADERS.has(k.toLowerCase())));
 }
 
 function requestOnce(
