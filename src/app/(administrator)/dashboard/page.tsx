@@ -980,6 +980,23 @@ function ProfileEditorCard() {
   const handle = user?.username || sessionHandle;
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  // UI08.3: a failed save is shown in the form, not only in a toast, and
+  // focus moves into the form on Edit and back to Edit Profile after it.
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const editButtonRef = React.useRef<HTMLButtonElement>(null);
+  const usernameRef = React.useRef<HTMLInputElement>(null);
+  const focusAfterRef = React.useRef<"form" | "edit" | null>(null);
+  useEffect(() => {
+    const target = focusAfterRef.current;
+    focusAfterRef.current = null;
+    if (target === "form") usernameRef.current?.focus();
+    if (target === "edit") editButtonRef.current?.focus();
+  }, [isEditing]);
+  const startEditing = () => {
+    setSaveError(null);
+    focusAfterRef.current = "form";
+    setIsEditing(true);
+  };
   const [formData, setFormData] = useState({
     username: "",
     email: "",
@@ -999,6 +1016,7 @@ function ProfileEditorCard() {
 
   const handleSave = async () => {
     setIsSaving(true);
+    setSaveError(null);
     try {
       if (!handle) throw new Error("Your profile isn't ready yet; try again in a moment");
       const response = await fetch(`/api/profiles/${encodeURIComponent(handle)}`, {
@@ -1016,12 +1034,14 @@ function ProfileEditorCard() {
 
       if (data.success) {
         toast.success("Profile updated successfully");
+        focusAfterRef.current = "edit";
         setIsEditing(false);
         // A renamed handle is the one the next save goes to.
         if (!user?.username) setSessionHandle(formData.username);
       }
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : "Failed to update profile";
+      setSaveError(errorMessage);
       toast.error(errorMessage);
       console.error("Error updating profile:", error);
     } finally {
@@ -1037,25 +1057,27 @@ function ProfileEditorCard() {
         profileImage: user.imageUrl || "",
       });
     }
+    setSaveError(null);
+    focusAfterRef.current = "edit";
     setIsEditing(false);
   };
 
   return (
-    <Card className="mb-6">
+    <Card>
       <CardHeader>
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2">
-            <User className="h-5 w-5 text-primary" />
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <CardTitle role="heading" aria-level={2} className="cd-subheading flex items-center gap-2">
+            <User className="h-5 w-5" aria-hidden="true" style={{ color: "var(--cd-action)" }} />
             My Profile
           </CardTitle>
           {!isEditing && (
             <Button
+              ref={editButtonRef}
               variant="outline"
               size="sm"
-              onClick={() => setIsEditing(true)}
-              className="cursor-pointer"
+              onClick={startEditing}
             >
-              <Edit className="h-4 w-4 mr-2" />
+              <Edit className="h-4 w-4 mr-2" aria-hidden="true" />
               Edit Profile
             </Button>
           )}
@@ -1065,18 +1087,24 @@ function ProfileEditorCard() {
         <div className="flex flex-col md:flex-row gap-6">
           {/* Avatar Section */}
           <div className="flex flex-col items-center gap-3">
-            <Avatar className="h-24 w-24">
+            <Avatar className="h-20 w-20 md:h-24 md:w-24">
               {formData.profileImage ? (
-                <AvatarImage src={formData.profileImage} alt={formData.username} />
-              ) : (
-                <AvatarFallback>
-                  <User className="h-12 w-12" />
-                </AvatarFallback>
-              )}
+                <AvatarImage src={formData.profileImage} alt="" />
+              ) : null}
+              {/* Also shown when the picture can't load (UI08.3). */}
+              <AvatarFallback>
+                <User className="h-10 w-10 md:h-12 md:w-12" aria-hidden="true" />
+              </AvatarFallback>
             </Avatar>
             {isEditing && (
-              <div className="w-full max-w-xs">
+              <div className="w-full max-w-xs space-y-2">
+                <label htmlFor="profile-image-url" className="cd-small font-medium">
+                  Profile image URL
+                </label>
                 <Input
+                  id="profile-image-url"
+                  type="url"
+                  inputMode="url"
                   placeholder="Profile Image URL"
                   value={formData.profileImage}
                   onChange={(e) =>
@@ -1085,21 +1113,25 @@ function ProfileEditorCard() {
                       profileImage: e.target.value,
                     }))
                   }
-                  className="text-sm"
                 />
               </div>
             )}
           </div>
 
           {/* Profile Info Section */}
-          <div className="flex-1 space-y-4">
+          <div className="flex-1 min-w-0 space-y-4">
             {isEditing ? (
               <>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Username</label>
+                  <label htmlFor="profile-username" className="cd-small font-medium">Username</label>
                   <Input
+                    ref={usernameRef}
+                    id="profile-username"
                     placeholder="Username"
+                    autoComplete="username"
                     value={formData.username}
+                    aria-invalid={saveError ? true : undefined}
+                    aria-describedby={saveError ? "profile-save-error" : undefined}
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -1109,10 +1141,12 @@ function ProfileEditorCard() {
                   />
                 </div>
                 <div className="space-y-2">
-                  <label className="text-sm font-medium">Email</label>
+                  <label htmlFor="profile-email" className="cd-small font-medium">Email</label>
                   <Input
+                    id="profile-email"
                     placeholder="Email"
                     value={formData.email}
+                    aria-describedby="profile-email-help"
                     onChange={(e) =>
                       setFormData((prev) => ({
                         ...prev,
@@ -1120,26 +1154,29 @@ function ProfileEditorCard() {
                       }))
                     }
                     disabled
-                    className="opacity-60 cursor-not-allowed"
                   />
-                  <p className="text-xs text-muted-foreground">
+                  <p id="profile-email-help" className="cd-caption">
                     Email is managed by your authentication provider
                   </p>
                 </div>
-                <div className="flex gap-2 pt-2">
+                {saveError && (
+                  <p id="profile-save-error" role="alert" className="cd-error-text cd-wrap">
+                    Your profile wasn&apos;t saved: {saveError}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-2 pt-2">
                   <Button
                     onClick={handleSave}
                     disabled={isSaving}
-                    className="cursor-pointer"
                   >
                     {isSaving ? (
                       <>
-                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" aria-hidden="true" />
                         Saving...
                       </>
                     ) : (
                       <>
-                        <Save className="h-4 w-4 mr-2" />
+                        <Save className="h-4 w-4 mr-2" aria-hidden="true" />
                         Save Changes
                       </>
                     )}
@@ -1148,28 +1185,27 @@ function ProfileEditorCard() {
                     variant="outline"
                     onClick={handleCancel}
                     disabled={isSaving}
-                    className="cursor-pointer"
                   >
-                    <X className="h-4 w-4 mr-2" />
+                    <X className="h-4 w-4 mr-2" aria-hidden="true" />
                     Cancel
                   </Button>
                 </div>
               </>
             ) : (
-              <>
+              <dl className="space-y-4">
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <dt className="cd-small font-medium cd-muted">
                     Username
-                  </label>
-                  <p className="text-lg font-semibold">{formData.username}</p>
+                  </dt>
+                  <dd className="text-lg font-semibold cd-wrap">{formData.username}</dd>
                 </div>
                 <div>
-                  <label className="text-sm font-medium text-muted-foreground">
+                  <dt className="cd-small font-medium cd-muted">
                     Email
-                  </label>
-                  <p className="text-sm">{formData.email}</p>
+                  </dt>
+                  <dd className="cd-small cd-wrap">{formData.email}</dd>
                 </div>
-              </>
+              </dl>
             )}
           </div>
         </div>
