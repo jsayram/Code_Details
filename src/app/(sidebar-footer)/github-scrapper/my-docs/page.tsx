@@ -262,7 +262,7 @@ function MyDocsContent() {
                     >
                       <Card className="backdrop-blur-sm bg-card/80 hover:border-primary/50 transition-colors">
                         <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <CardTitle className="text-lg truncate">
                                 {project.projectName}
@@ -279,7 +279,7 @@ function MyDocsContent() {
                                 </a>
                               </CardDescription>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="secondary">
                                 <FileText className="h-3 w-3 mr-1" />
                                 {project.chapterCount} chapters
@@ -290,7 +290,7 @@ function MyDocsContent() {
                                     <TooltipTrigger asChild>
                                       <Badge 
                                         variant="outline" 
-                                        className="bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 border-purple-500/30 text-purple-400"
+                                        className="text-primary"
                                       >
                                         <CheckCircle className="h-3 w-3 mr-1" />
                                         Linked
@@ -306,7 +306,7 @@ function MyDocsContent() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
@@ -315,7 +315,7 @@ function MyDocsContent() {
                               {project.linkedProjectSlug && (
                                 <Link 
                                   href={`/projects/${project.linkedProjectSlug}`}
-                                  className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors"
+                                  className="flex items-center gap-1 text-primary hover:underline"
                                 >
                                   <Link2 className="h-4 w-4" />
                                   {project.linkedProjectTitle}
