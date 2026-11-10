@@ -5,7 +5,7 @@
 // the page's one h1, so each screen is named by what it does ("Reset your
 // password"), and status lines use the foundations' status colors.
 import Image from "next/image";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 
 export function AuthCard({
   image = "/images/CodeDetails_IconLogo.png",
@@ -20,11 +20,12 @@ export function AuthCard({
   children: ReactNode;
   footer?: ReactNode;
 }) {
+  const titleId = useId();
   return (
-    <section className="cd-surface cd-auth-card" aria-labelledby="auth-card-title">
+    <section className="cd-surface cd-auth-card" aria-labelledby={titleId}>
       <div className="cd-auth-card-body">
         <Image src={image} alt="" width={96} height={96} className="cd-auth-card-image" priority />
-        <h1 id="auth-card-title" className="cd-heading cd-wrap text-center">
+        <h1 id={titleId} className="cd-heading cd-wrap text-center">
           {title}
         </h1>
         {subtitle ? <p className="cd-small cd-muted cd-wrap text-center">{subtitle}</p> : null}

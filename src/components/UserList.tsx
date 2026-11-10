@@ -153,7 +153,7 @@ export function UserList() {
 
   const handleUserClick = (username: string, userId: string) => {
     setLoadingUserId(userId);
-    router.push(`/users/${username}`);
+    router.push(`/users/${encodeURIComponent(username)}`);
   };
 
   // UI09.3: the cards open a profile, so they behave as links for the keyboard

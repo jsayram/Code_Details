@@ -1393,6 +1393,9 @@ function DashboardContent() {
       const el = document.getElementById(id);
       if (el) {
         el.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
+        // Move focus with the view so the next Tab continues in that section.
+        if (!el.hasAttribute('tabindex')) el.setAttribute('tabindex', '-1');
+        el.focus({ preventScroll: true });
         setTimeout(() => {
           el.classList.add('ring-2', 'ring-primary', 'ring-offset-2');
           setTimeout(() => {
