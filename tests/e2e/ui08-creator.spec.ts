@@ -174,6 +174,102 @@ test.describe.serial("UI08 creator journey", () => {
     await purge(page, title);
   });
 
+  test("guard after review: new-tab clicks pass, Discard toward the same page re-arms, a save is the new baseline", async ({ page, context }) => {
+    test.setTimeout(150_000);
+    await signUpFresh(page, "ui08-guard-2");
+    const title = `${TITLE} Rearm`;
+    const slug = `${SLUG}-rearm`;
+    await createProject(page, title, slug);
+    await page.goto(`/projects/${slug}?edit=true`);
+    await expect(page.locator("#title")).toHaveValue(title);
+    await page.locator("#title").fill(`${title} changed`);
+    const dialog = page.getByRole("dialog", { name: "Unsaved Changes" });
+    const dashboardLink = page.locator('[data-sidebar="content"]').getByRole("link", { name: "Dashboard", exact: true });
+
+    // Cmd/Ctrl-click opens a new tab and leaves this one, and its edits, alone.
+    const opened = context.waitForEvent("page", { timeout: 5_000 }).catch(() => null);
+    await dashboardLink.click({ modifiers: ["ControlOrMeta"] });
+    await (await opened)?.close();
+    await expect(dialog).toHaveCount(0);
+    await expect(page).toHaveURL(/\?edit=true$/);
+    await expect(page.locator("#title")).toHaveValue(`${title} changed`);
+
+    // Discard toward this same project (view mode): the editor stays mounted.
+    await page.evaluate((href) => {
+      const a = document.createElement("a");
+      a.href = href;
+      a.id = "ui08-same-project";
+      a.textContent = "This project";
+      a.style.cssText = "position:fixed;top:8px;left:50%;z-index:2147483647;background:#fff;color:#000;padding:8px";
+      document.body.append(a);
+    }, `/projects/${slug}`);
+    await page.locator("#ui08-same-project").click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Discard Changes" }).click();
+    await expect(page).toHaveURL(new RegExp(`/projects/${slug}$`));
+    await expect(page.getByRole("heading", { name: title }).first()).toBeVisible();
+    // Editing again: the guard is back.
+    await page.getByRole("button", { name: /Edit/ }).first().click();
+    await expect(page.locator("#title")).toHaveValue(title);
+    await page.locator("#title").fill(`${title} again`);
+    await dashboardLink.click();
+    await expect(dialog).toBeVisible();
+    await dialog.getByRole("button", { name: "Continue Editing" }).click();
+
+    // A save with the same slug never reads as unsaved afterwards.
+    await page.evaluate(() => {
+      const seen: string[] = [];
+      (window as unknown as { __ui08Status: string[] }).__ui08Status = seen;
+      new MutationObserver(() => {
+        for (const el of Array.from(document.querySelectorAll('[role="status"]'))) seen.push((el.textContent ?? "").trim());
+      }).observe(document.body, { subtree: true, childList: true, characterData: true });
+    });
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByText("Project updated successfully!").first()).toBeVisible();
+    await expect(page).toHaveURL(new RegExp(`/projects/${slug}$`));
+    await expect(page.getByRole("heading", { name: `${title} again` }).first()).toBeVisible();
+    const seen = await page.evaluate(() => (window as unknown as { __ui08Status: string[] }).__ui08Status);
+    const saving = seen.findIndex((t) => t.includes("Saving your changes"));
+    expect(saving).toBeGreaterThanOrEqual(0);
+    expect(seen.slice(saving).filter((t) => t === "Unsaved changes")).toEqual([]);
+
+    await purge(page, `${title} again`);
+  });
+
+  test("an image uploaded and deleted in one session isn't deleted again on Cancel", async ({ page }) => {
+    test.setTimeout(150_000);
+    await signUpFresh(page, "ui08-pending");
+    const title = `${TITLE} Pending`;
+    const slug = `${SLUG}-pending`;
+    await createProject(page, title, slug);
+    await page.goto(`/projects/${slug}?edit=true`);
+    const images = page.locator("#images");
+    await images.locator('input[type="file"]').first().setInputFiles({ name: "ui08-pending.png", mimeType: "image/png", buffer: placeholderPng(64, 40) });
+    await expect(images.getByRole("button", { name: "Preview Screenshot 1" })).toBeVisible();
+
+    // Every server-action body, so the delete call can be counted by its argument.
+    const bodies: string[] = [];
+    page.on("request", (r) => {
+      if (r.method() === "POST" && r.headers()["next-action"]) bodies.push(r.postData() ?? "");
+    });
+    await images.getByRole("button", { name: "Delete Screenshot 1" }).click();
+    const before = bodies.length;
+    await page.getByRole("button", { name: "Delete", exact: true }).click();
+    await expect(images.getByRole("button", { name: "Preview Screenshot 1" })).toHaveCount(0);
+    const deleteBody = bodies.slice(before).find((b) => /^\["[^"]+"\]$/.test(b));
+    expect(deleteBody).toBeTruthy();
+
+    // Nothing is pending any more: Cancel leaves without asking and without a second delete.
+    await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    await page.locator("main").getByRole("button", { name: "Cancel", exact: true }).click();
+    await expect(page.getByRole("dialog", { name: "Unsaved Changes" })).toHaveCount(0);
+    await expect(page).toHaveURL(new RegExp(`/projects/${slug}$`));
+    await page.waitForTimeout(1500);
+    expect(bodies.filter((b) => b === deleteBody)).toHaveLength(1);
+
+    await purge(page, title);
+  });
+
   test("create: Cancel after typing asks first; Cancel on an untouched form just leaves", async ({ page }) => {
     await signUpFresh(page, "ui08-create-cancel");
     await page.goto("/projects/new");
@@ -234,6 +330,24 @@ test.describe("UI08 dashboard", () => {
     await expect(page.locator("main")).toHaveCount(1);
   });
 
+  test("a failed refresh keeps the dashboard and says it couldn't refresh", async ({ page }) => {
+    await signUpFresh(page, "ui08-dash-stale");
+    await page.goto("/dashboard");
+    await expect(page.getByRole("heading", { name: "Ready to Share Your Work?" })).toBeVisible();
+    await page.route("**/dashboard", (route) => (isAction(route) ? route.fulfill({ status: 500, body: "forced internal detail" }) : route.continue()));
+    await page.getByRole("button", { name: "Refresh dashboard data" }).click();
+    const note = page.getByRole("alert").filter({ hasText: "Couldn't refresh your dashboard" });
+    await expect(note).toBeVisible();
+    await expect(note).toContainText("What you see is from the last successful load.");
+    // The older data is still on screen, and the server's text isn't.
+    await expect(page.getByRole("heading", { name: "Ready to Share Your Work?" })).toBeVisible();
+    await expect(page.getByRole("heading", { level: 1, name: "Personal Analytics Dashboard" })).toBeVisible();
+    await expect(page.getByText("forced internal detail")).toHaveCount(0);
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await note.getByRole("button", { name: "Try again" }).click();
+    await expect(note).toHaveCount(0);
+  });
+
   test("profile form: labels tied, focus moves in and back, a failed save shows in the form", async ({ page }) => {
     await signUpFresh(page, "ui08-profile");
     await page.goto("/dashboard");
@@ -254,6 +368,16 @@ test.describe("UI08 dashboard", () => {
     await page.getByRole("button", { name: "Save Changes" }).click();
     await expect(page.getByRole("alert").filter({ hasText: "Your profile wasn't saved: That username is taken" })).toBeVisible();
     await expect(username).toHaveAttribute("aria-invalid", "true");
+    // A server failure isn't the username's fault.
+    await page.unrouteAll({ behavior: "ignoreErrors" });
+    await page.route("**/api/profiles/**", (route) =>
+      route.request().method() === "PUT"
+        ? route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ success: false, error: { detail: "Something broke" } }) })
+        : route.continue(),
+    );
+    await page.getByRole("button", { name: "Save Changes" }).click();
+    await expect(page.getByRole("alert").filter({ hasText: "Your profile wasn't saved: Something broke" })).toBeVisible();
+    await expect(username).not.toHaveAttribute("aria-invalid", "true");
     await page.getByRole("button", { name: "Cancel" }).click();
     await expect(edit).toBeFocused();
   });
