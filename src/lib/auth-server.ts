@@ -8,8 +8,11 @@
 // deployment through NEXT_PUBLIC_CONVEX_URL, which this app doesn't set. The
 // switch's own loopback URL goes to fetchQuery instead.
 //
-// The JWT cache stays off: every server render asks Convex for a fresh token,
-// so each one re-checks that the session is still live (D08A_REPORT, limits).
+// The JWT cache stays off across requests: every request asks Convex for a
+// fresh token, so each one re-checks that the session is still live
+// (D08A_REPORT, limits). Within one server render the token is fetched once
+// (H1, React cache below); UI02 counted 9 to 43 token calls per page load.
+import { cache } from "react";
 import { fetchMutation, fetchQuery } from "convex/nextjs";
 import { headers } from "next/headers";
 import { makeFunctionReference, type FunctionReference } from "convex/server";
@@ -61,6 +64,15 @@ async function requestCookie(): Promise<string | null> {
 }
 
 /**
+ * H1 (UI02 decision 5): the request's Convex token, fetched at most once per
+ * server render (React cache is per request; outside a render it doesn't
+ * memoize, so route handlers still fetch per call). Always through
+ * serverToken, so these calls carry the internal secret and never land in a
+ * per-address rate-limit bucket. The proxy (viewerForCookies) stays uncached.
+ */
+const requestToken = cache(async (convexSiteUrl: string, cookie: string | null) => serverToken(convexSiteUrl, cookie));
+
+/**
  * Runs a Convex query as the request's signed-in user (or anonymously when the
  * request has no live session). Null when Better Auth is switched off.
  */
@@ -69,7 +81,7 @@ export async function viewerQuery<Q extends FunctionReference<"query", "public",
 ): Promise<{ result: Q["_returnType"] } | null> {
   const choice = chooseAuthBackend();
   if (choice.backend !== "better-auth") return null;
-  const token = await serverToken(choice.convexSiteUrl, await requestCookie());
+  const token = await requestToken(choice.convexSiteUrl, await requestCookie());
   return { result: await fetchQuery(query, {}, { token: token ?? undefined, url: choice.convexUrl }) };
 }
 
@@ -86,7 +98,7 @@ export async function viewerMutation<Args extends Record<string, unknown>, R>(
 ): Promise<{ result: R } | null> {
   const choice = chooseAuthBackend();
   if (choice.backend !== "better-auth") return null;
-  const token = await serverToken(choice.convexSiteUrl, await requestCookie());
+  const token = await requestToken(choice.convexSiteUrl, await requestCookie());
   if (!token) return null;
   const ref = mutation as unknown as FunctionReference<"mutation", "public", Record<string, unknown>, R>;
   return { result: (await fetchMutation(ref, args, { token, url: choice.convexUrl })) as R };
@@ -97,7 +109,7 @@ export async function betterAuthSignedIn(): Promise<boolean | null> {
   const choice = chooseAuthBackend();
   if (choice.backend !== "better-auth") return null;
   try {
-    return !!(await serverToken(choice.convexSiteUrl, await requestCookie()));
+    return !!(await requestToken(choice.convexSiteUrl, await requestCookie()));
   } catch {
     return false;
   }
@@ -112,11 +124,13 @@ export async function viewerQueryWithArgs<Args extends Record<string, unknown>, 
   args: Args,
 ): Promise<{ result: R } | null> {
   const choice = chooseAuthBackend();
-  const helpers = await betterAuthServer();
-  if (choice.backend !== "better-auth" || !helpers) return null;
-  const token = await helpers.getToken();
+  if (choice.backend !== "better-auth") return null;
+  // H1: was the component's getToken(), which forwards the browser's headers
+  // without the internal secret, so busy pages hit the 100-a-minute limit and
+  // an owner's own project read as missing (UI02 defect 7).
+  const token = await requestToken(choice.convexSiteUrl, await requestCookie());
   const ref = query as unknown as FunctionReference<"query", "public", Record<string, unknown>, R>;
-  return { result: (await fetchQuery(ref, args, { token, url: choice.convexUrl })) as R };
+  return { result: (await fetchQuery(ref, args, { token: token ?? undefined, url: choice.convexUrl })) as R };
 }
 
 /**
