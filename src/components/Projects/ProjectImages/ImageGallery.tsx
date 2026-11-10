@@ -276,9 +276,10 @@ function GalleryTile({
       <button
         type="button"
         onClick={onOpen}
-        aria-label={`Open ${description}, ${index + 1} of ${total}`}
         className="cd-gallery-tile relative block aspect-square w-full overflow-hidden rounded-2xl bg-muted cursor-pointer group"
       >
+        {/* The name comes from this text, so it always includes what's on screen. */}
+        <span className="sr-only">{`Open ${description}, ${index + 1} of ${total}. `}</span>
         {failed ? (
           <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center text-sm text-muted-foreground">
             <ImageIcon className="h-6 w-6" aria-hidden="true" />
@@ -304,7 +305,7 @@ function GalleryTile({
 
         {/* Cover indicator badge */}
         {image.image_type === "cover" && (
-          <Badge className="absolute left-2 top-2 text-xs">
+          <Badge className="absolute left-2 top-2 text-xs" aria-hidden="true">
             <Star className="h-2.5 w-2.5 mr-0.5 fill-current" aria-hidden="true" />
             Cover
           </Badge>
