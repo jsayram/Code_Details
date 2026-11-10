@@ -647,6 +647,12 @@
   padding-inline: var(--cd-space-4);
 }
 
+/* The home hero has a full-viewport decorative glow; the old button sat above it on z-50, so this one does too. */
+.cd-shell-footer .cd-shell-pill-button {
+  position: relative;
+  z-index: 50;
+}
+
 .cd-shell-icon-button:hover,
 .cd-shell-pill-button:hover {
   background: var(--cd-raised);
