@@ -20,14 +20,10 @@ import {
 import { PROFANITY_LIST } from "@/constants/profanity-list";
 import { useRouter, useParams } from "next/navigation";
 import { SelectTagSubmission } from "@/types/rows";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { PageBanner } from "@/components/ui/page-banner";
 import { UnsavedChangesConfirmationModal } from "@/components/Projects/ProjectComponents/UnsavedChangesConfirmationModal";
 import SuggestTagsLoading from "./loading";
 
@@ -460,17 +456,8 @@ export default function SuggestTagsPage() {
 
   if (!viewerId) {
     return (
-      <SidebarProvider>
-        <SignedIn>
-          <AppSidebar />
-        </SignedIn>
-        <SidebarInset>
-          <SignedOut>
-            <HeaderSectionNoSideBar showMobileMenu={false} />
-          </SignedOut>
-          <SignedIn>
-            <HeaderSection />
-          </SignedIn>
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           <div className="flex items-center justify-center min-h-[60vh] p-4">
             <div className="max-w-md w-full text-center space-y-4">
               <AlertCircle className="h-16 w-16 mx-auto text-muted-foreground/50" />
@@ -483,43 +470,24 @@ export default function SuggestTagsPage() {
               </Button>
             </div>
           </div>
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     );
   }
 
   return (
-    <SidebarProvider>
-      <SignedIn>
-        <AppSidebar />
-      </SignedIn>
-      <SidebarInset>
-        <SignedOut>
-          <HeaderSectionNoSideBar showMobileMenu={false} />
-        </SignedOut>
-        <SignedIn>
-          <HeaderSection />
-        </SignedIn>
+    // UI09.3: the shared shell and the design foundations; the header names the
+    // project instead of saying "Your Project" to everyone (UI02 defect 20).
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
 
         {/* Page Banner */}
         <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-3 sm:px-4 2xl:px-8 3xl:px-12 mb-0 py-2 sm:py-3">
-          <PageBanner
-            icon={<TagIcon className="h-6 w-6 sm:h-8 sm:w-8 text-primary" />}
-            bannerTitle="Suggest Tags for Your Project"
-            description={
-              <div>
-                  <p className="mt-1 sm:mt-2 text-xs">
-                  <span className="font-semibold">Project:</span> <Badge className="bg-transparent outline-1 text-fuchsia-600/60 text-xs">{projectData?.title || "Loading..."}</Badge>
-                </p>
-              </div>
-            }
-            isUserBanner={false}
-            gradientFrom="indigo-900"
-            gradientVia="blue-800"
-            gradientTo="purple-800"
-            borderColor="border-indigo-700/40"
-            textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
+          <DiscoveryHeader
+            eyebrow="Suggest tags"
+            icon={<TagIcon className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+            title={projectData?.title ? `Suggest tags for ${projectData.title}` : "Suggest tags"}
+            lead="Tags you suggest are reviewed before they're added to the project."
           />
         </div>
 
@@ -556,6 +524,7 @@ export default function SuggestTagsPage() {
                   <CardContent className="space-y-4 p-4 sm:p-6 pt-0 sm:pt-0">
                     <Input
                       id="tag-name"
+                      aria-label="Tag names"
                       placeholder="e.g. react, next-js, typescript"
                       value={tagInput}
                       onChange={(e) => {
@@ -876,8 +845,7 @@ export default function SuggestTagsPage() {
           </div>
         </div>
 
-        <FooterSection />
-      </SidebarInset>
+      </div>
 
       {/* Unsaved Changes Modal */}
       <UnsavedChangesConfirmationModal
@@ -885,6 +853,6 @@ export default function SuggestTagsPage() {
         onClose={() => setShowUnsavedChangesModal(false)}
         onConfirm={handleConfirmDiscardChanges}
       />
-    </SidebarProvider>
+    </AppShell>
   );
 }

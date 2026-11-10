@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, type KeyboardEvent } from "react";
 import type { Profile } from "@/hooks/use-profiles";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -156,6 +156,21 @@ export function UserList() {
     router.push(`/users/${username}`);
   };
 
+  // UI09.3: the cards open a profile, so they behave as links for the keyboard
+  // and screen readers too (they were click-only): focusable, named by their
+  // content, opened with Enter.
+  const openUser = (username: string) => ({
+    role: "link" as const,
+    tabIndex: 0,
+    onClick: () => handleUserClick(username, username),
+    onKeyDown: (e: KeyboardEvent) => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        handleUserClick(username, username);
+      }
+    },
+  });
+
   if (isLoading || contributorsLoading) {
     return (
       <div aria-live="polite" aria-busy="true">
@@ -184,6 +199,7 @@ export function UserList() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
         <Input
           type="search"
+          aria-label="Search users"
           placeholder="Search by username or name..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -210,7 +226,7 @@ export function UserList() {
                 className={`w-full md:w-[calc(50%-0.5rem)] xl:flex-1 xl:max-w-[calc(33.333%-0.667rem)] max-w-md p-10 cursor-pointer hover:bg-accent/50 transition-all transform hover:scale-105 ${
                   loadingUserId === contributor.username ? "opacity-50" : ""
                 } ${getLeaderboardCardStyle(index)}`}
-                onClick={() => handleUserClick(contributor.username, contributor.username)}
+                {...openUser(contributor.username)}
               >
                 {getLeaderboardBadge(index)}
                 <div className="flex flex-col gap-4">
@@ -303,7 +319,7 @@ export function UserList() {
                   className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                     loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.username)}
+                  {...openUser(contributor.username)}
                 >
                 <div className="flex items-center gap-4">
                   {loadingUserId === contributor.username && (
@@ -380,7 +396,7 @@ export function UserList() {
                   className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                     loadingUserId === contributor.username ? "opacity-50" : ""
                   }`}
-                  onClick={() => handleUserClick(contributor.username, contributor.username)}
+                  {...openUser(contributor.username)}
                 >
                 <div className="flex items-center gap-4">
                   {loadingUserId === contributor.username && (
@@ -464,7 +480,7 @@ export function UserList() {
                     className={`w-full md:w-[calc(50%-0.5rem)] xl:w-[calc(33.333%-0.667rem)] max-w-md md:max-w-none mx-auto md:mx-0 p-4 cursor-pointer hover:bg-accent transition-colors ${
                       loadingUserId === user.username ? "opacity-50" : ""
                     }`}
-                    onClick={() => handleUserClick(user.username, user.username)}
+                    {...openUser(user.username)}
                   >
                     <div className="flex items-center gap-4">
                       {loadingUserId === user.username && (

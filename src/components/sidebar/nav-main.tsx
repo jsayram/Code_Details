@@ -70,7 +70,7 @@ export function NavMain({
       return [
         ...(item.items || []),
         // Separator-like entry
-        { title: `── ${projectMeta.projectName} ──`, url: '#divider', isDivider: true },
+        { title: `── ${projectMeta.projectName ?? projectMeta.projectSlug} ──`, url: '#divider', isDivider: true },
         // Dynamic chapter items
         ...chapters.map((chapter) => ({
           title: chapter.order === -1 ? `📋 ${chapter.title}` : `${chapter.order}. ${chapter.title}`,
@@ -137,7 +137,7 @@ export function NavMain({
                           if (subItem.isDivider) {
                             return (
                               <SidebarMenuSubItem key={subItem.title}>
-                                <div className="px-2 py-2 text-xs font-semibold text-muted-foreground/70 truncate">
+                                <div className="px-2 py-2 text-xs font-semibold text-muted-foreground truncate">
                                   {subItem.title}
                                 </div>
                               </SidebarMenuSubItem>

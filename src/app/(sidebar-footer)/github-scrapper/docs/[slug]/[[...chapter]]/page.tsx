@@ -27,13 +27,10 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { DocumentationViewer } from '@/components/created_mds';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { useViewerId } from '@/components/auth/AuthGate';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { useDocChapters } from '@/providers/doc-chapters-provider';
@@ -293,12 +290,12 @@ export default function DocViewerPage() {
   if (error && !meta) {
     return (
       <ProjectsProvider userId={viewerId ?? null}>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <HeaderSection />
-            <main className="flex-1 px-4 py-12">
+        <AppShell>
+          <div className="cd-foundations cd-canvas">
+            <div className="flex-1 px-4 py-12">
               <div className="container mx-auto max-w-4xl">
+                {/* UI09.3: the page keeps its one h1 when the docs can't be opened. */}
+                <h1 className="cd-title mb-4">Generated documentation</h1>
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Error</AlertTitle>
@@ -313,29 +310,27 @@ export default function DocViewerPage() {
                   </Button>
                 </div>
               </div>
-            </main>
-            <FooterSection />
-          </SidebarInset>
-        </SidebarProvider>
+            </div>
+          </div>
+        </AppShell>
       </ProjectsProvider>
     );
   }
   
   return (
     <ProjectsProvider userId={viewerId ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           
           <div className="flex justify-center w-full mb-20">
             <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
               <div className="flex flex-col gap-6 mb-6 py-3">
-                {/* Page Banner - Matching tags page style (purple/indigo theme) */}
-                <PageBanner
-                  icon={<FolderGit2 className="h-8 w-8 text-primary" />}
-                  bannerTitle={meta?.projectName || projectSlug}
-                  description={
+                {/* UI09.3: the shared header in place of the gradient banner. */}
+                <DiscoveryHeader
+                  eyebrow="Generated documentation"
+                  icon={<FolderGit2 className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+                  title={meta?.projectName || projectSlug}
+                  lead={
                     <div className="flex flex-wrap items-center gap-4 mt-1">
                       {meta?.repoUrl && (
                         <a 
@@ -362,26 +357,9 @@ export default function DocViewerPage() {
                       </span>
                     </div>
                   }
-                  isUserBanner={false}
-                  gradientFrom="purple-900"
-                  gradientVia="indigo-800"
-                  gradientTo="blue-800"
-                  borderColor="border-purple-700/40"
-                  textGradient="from-fuchsia-400 via-purple-400 to-indigo-400"
                 />
               </div>
               
-              <CodeParticlesElement
-                quantity="medium"
-                speed="slow"
-                size="medium"
-                includeKeywords={true}
-                syntaxHighlight="vscode"
-                depth="layered"
-                opacityRange={[0.01, 0.1]}
-                lightModeOpacityRange={[0.01, 0.2]}
-                containerClassName="pointer-events-none"
-              />
               
               {/* Main Content Area with TOC */}
               <div className="relative z-10 flex gap-8 items-start">
@@ -606,9 +584,8 @@ export default function DocViewerPage() {
             </div>
           </div>
           
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

@@ -34,12 +34,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { AssignToProjectDialog } from '@/components/docs/AssignToProjectDialog';
 import {
@@ -171,35 +168,17 @@ function MyDocsContent() {
     <div className="flex justify-center w-full mb-10">
       <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
         <div className="flex flex-col gap-6 mb-6 py-3">
-          {/* Page Banner */}
+          {/* UI09.3: the shared header in place of the gradient banner. */}
           <div className="mb-4">
-            <PageBanner
-              icon={<Folder className="h-8 w-8 text-fuchsia-500" />}
-              bannerTitle="My Generated Docs"
-              description="View and manage your generated architecture documentation"
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="fuchsia-800"
-              gradientTo="pink-800"
-              borderColor="border-purple-700/40"
-              textGradient="from-purple-400 via-fuchsia-400 to-pink-400"
+            <DiscoveryHeader
+              eyebrow="GitHub Scrapper"
+              icon={<Folder className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+              title="My Generated Docs"
+              lead="View and manage your generated architecture documentation"
             />
           </div>
 
-          {/* Code Particles Background */}
           <div className="relative">
-            <CodeParticlesElement
-              quantity="high"
-              speed="slow"
-              size="mixed"
-              includeEmojis={true}
-              includeKeywords={true}
-              includeSymbols={true}
-              syntaxHighlight="vscode"
-              depth="layered"
-              containerClassName="absolute inset-0 -z-5 pointer-events-none opacity-20"
-            />
-
             {/* Auth Check */}
             <SignedOut>
               <motion.div
@@ -388,7 +367,7 @@ function MyDocsContent() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-purple-500 hover:text-purple-400 cursor-pointer"
+                                  className="cursor-pointer"
                                   onClick={() => handleOpenAssignDialog(project)}
                                 >
                                   <Link2 className="h-4 w-4 mr-1" />
@@ -409,7 +388,8 @@ function MyDocsContent() {
                                   window.open(`/api/docs/${project.slug}/download`, '_blank');
                                 }}
                               >
-                                <Download className="h-4 w-4" />
+                                <Download className="h-4 w-4" aria-hidden="true" />
+                                <span className="sr-only">Download {project.slug}</span>
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -418,11 +398,12 @@ function MyDocsContent() {
                                     size="sm"
                                     className="text-destructive hover:text-destructive cursor-pointer"
                                     disabled={deletingSlug === project.slug}
+                                    aria-label={`Delete documentation for ${project.slug}`}
                                   >
                                     {deletingSlug === project.slug ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                                     )}
                                   </Button>
                                 </AlertDialogTrigger>
@@ -496,14 +477,11 @@ export default function MyDocsPage() {
 
   return (
     <ProjectsProvider userId={viewerId ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           <MyDocsContent />
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

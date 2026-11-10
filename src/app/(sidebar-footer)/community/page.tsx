@@ -19,30 +19,17 @@ import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
-import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
 
+// UI09.3: in the shared shell like every other signed-in page, on the design
+// foundations: a solid h1, status pills instead of green-on-green badges,
+// named icon buttons, no particles (home only). Every control stays.
 export default function CommunityPage() {
   return (
-    <div className="container mx-auto py-8 px-4 md:py-12 md:px-6 relative min-h-screen">
-      <HeaderSectionNoSideBar />
-      {/* Background particles effect */}
-      <div className="absolute inset-0 z-0 pointer-events-none">
-        <CodeParticlesElement
-          quantity="ultra"
-          speed="fast"
-          size="large"
-          includeEmojis={true}
-          includeKeywords={true}
-          includeSymbols={true}
-          syntaxHighlight="vscode"
-          depth="layered"
-          opacityRange={[0.01, 0.2]}
-          lightModeOpacityRange={[0.01, 0.4]}
-        />
-      </div>
-
-      <div className="relative z-10">
+    <AppShell>
+    <div className="cd-foundations cd-canvas">
+      <div className="cd-page">
         {/* Hero section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -50,10 +37,10 @@ export default function CommunityPage() {
           transition={{ duration: 0.7 }}
           className="text-center mb-8"
         >
-          <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary to-fuchsia-500 mb-4">
+          <h1 className="cd-title mb-4">
             Code Details Community
           </h1>
-          <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
+          <p className="cd-lead cd-muted max-w-2xl mx-auto">
             Connect with other developers, share ideas, and get help with your
             coding projects
           </p>
@@ -83,23 +70,17 @@ export default function CommunityPage() {
                       <span className="text-sm text-muted-foreground">
                         Members
                       </span>
-                      <Badge
-                        variant="secondary"
-                        className="bg-green-600/20 text-green-600 hover:bg-green-600/30"
-                      >
+                      <span className="cd-status" data-tone="success">
                         1,240+ developers
-                      </Badge>
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">
                         Active discussions
                       </span>
-                      <Badge
-                        variant="secondary"
-                        className="bg-primary/20 text-primary hover:bg-primary/30"
-                      >
+                      <span className="cd-status" data-tone="selected">
                         5 topics
-                      </Badge>
+                      </span>
                     </div>
                     <div className="flex justify-between items-center">
                       <span className="text-sm text-muted-foreground">
@@ -189,28 +170,31 @@ export default function CommunityPage() {
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Community Guidelines</span>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <ExternalLink size={14} />
+                      <ExternalLink size={14} aria-hidden="true" />
+                      <span className="sr-only">Open Community Guidelines</span>
                     </Button>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm">Code of Conduct</span>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <ExternalLink size={14} />
+                      <ExternalLink size={14} aria-hidden="true" />
+                      <span className="sr-only">Open Code of Conduct</span>
                     </Button>
                   </div>
                   <Separator />
                   <div className="flex items-center justify-between">
                     <span className="text-sm">FAQ</span>
                     <Button variant="ghost" size="icon" className="h-8 w-8">
-                      <ExternalLink size={14} />
+                      <ExternalLink size={14} aria-hidden="true" />
+                      <span className="sr-only">Open FAQ</span>
                     </Button>
                   </div>
                 </CardContent>
               </Card>
 
               {/* Events & Notifications */}
-              <Card className="bg-gradient-to-br from-primary/5 to-secondary/5">
+              <Card>
                 <CardHeader className="pb-3">
                   <CardTitle className="text-lg flex items-center gap-2">
                     <BellRing className="h-5 w-5 text-primary" />
@@ -346,7 +330,7 @@ export default function CommunityPage() {
           transition={{ duration: 0.7, delay: 0.4 }}
           className="text-center mt-12"
         >
-          <Card className="bg-gradient-to-r from-primary/10 to-fuchsia-500/10 border-0">
+          <Card>
             <CardContent className="py-8">
               <h2 className="text-2xl font-semibold mb-4">
                 Join Our Growing Developer Community
@@ -371,5 +355,6 @@ export default function CommunityPage() {
         </motion.div>
       </div>
     </div>
+    </AppShell>
   );
 }
