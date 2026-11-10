@@ -151,12 +151,19 @@ export function ProjectImagesManager({
   useEffect(() => {
     fetchImages();
   }, [fetchImages]);
-  useEffect(() => {
-    fetchImages();
-  }, [fetchImages]);
 
   // Handle image click (open modal)
+  // UI06.2: the viewer opens without a Radix trigger, so remember the
+  // thumbnail that opened it and put focus back there on close.
+  const openerRef = React.useRef<HTMLElement | null>(null);
+  const closeModal = () => {
+    setModalOpen(false);
+    const opener = openerRef.current;
+    window.setTimeout(() => opener?.isConnected && opener.focus(), 0);
+  };
+
   const handleImageClick = (image: SelectProjectImage, _index: number) => {
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     // Find the actual index of this image in the images array
     const actualIndex = images.findIndex((img) => img.id === image.id);
     setModalInitialIndex(actualIndex >= 0 ? actualIndex : 0);
@@ -280,12 +287,14 @@ export function ProjectImagesManager({
 
     return (
       <>
-        {/* Blog-style image section without Card wrapper */}
-        <div className={cn("space-y-4", className)}>
+        {/* Blog-style image section without Card wrapper. UI06.2: the section
+            (and its "images" anchor) exists only when there are images, so the
+            page's contents list doesn't offer an empty section. */}
+        <section id="images" aria-labelledby="project-images-heading" className={cn("space-y-4 scroll-mt-24", className)}>
           {/* Header with Edit button for owners */}
-          <div className="flex items-center justify-between">
-            <h2 className="text-2xl font-bold tracking-tight flex items-center gap-2">
-              <ImageIcon className="h-6 w-6" />
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <h2 id="project-images-heading" className="cd-heading flex items-center gap-2">
+              <ImageIcon className="h-6 w-6" aria-hidden="true" />
               Project Images
             </h2>
             {isOwner && onEditClick && (
@@ -306,14 +315,14 @@ export function ProjectImagesManager({
             images={images}
             onImageClick={handleImageClick}
           />
-        </div>
+        </section>
 
         {/* Image Modal */}
         <ImageModal
           images={images}
           initialIndex={modalInitialIndex}
           isOpen={modalOpen}
-          onClose={() => setModalOpen(false)}
+          onClose={closeModal}
           allowDownload={isOwner}
         />
       </>

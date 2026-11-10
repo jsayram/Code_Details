@@ -67,7 +67,7 @@ export function ProjectLinksDisplay({
     <Card className={className}>
       <CardHeader>
         <CardTitle className="flex items-center gap-2">
-          <LinkIcon className="h-5 w-5" />
+          <LinkIcon className="h-5 w-5" aria-hidden="true" />
           Quick Links
         </CardTitle>
       </CardHeader>
@@ -79,15 +79,18 @@ export function ProjectLinksDisplay({
               variant={getButtonVariant(link.type)}
               size="default"
               asChild
+              // UI06.2: a long label wraps instead of running off a phone screen.
+              className="h-auto max-w-full whitespace-normal py-2 text-left"
             >
               <a
                 href={safeHref(link.url)}
                 target="_blank"
                 rel="noopener noreferrer"
-                className="cursor-pointer"
+                className="cursor-pointer cd-wrap"
               >
-                {getLinkIcon(link.type, "h-4 w-4 mr-2")}
-                {getLinkDisplayLabel(link)}
+                {getLinkIcon(link.type, "h-4 w-4 mr-2 shrink-0")}
+                <span className="min-w-0">{getLinkDisplayLabel(link)}</span>
+                <span className="sr-only"> (opens in a new tab)</span>
               </a>
             </Button>
           ))}

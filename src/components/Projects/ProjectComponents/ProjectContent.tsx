@@ -1,5 +1,9 @@
 "use client";
 
+// UI06.2: the public project page (view mode) is on the UI03 foundations.
+// Edit and create mode keep their old look until the editor's phase (UI08).
+import "@/styles/foundations.css";
+
 import React, {
   useState,
   useCallback,
@@ -732,8 +736,18 @@ export function ProjectContent({
     project.owner_username?.split("@")[0] ||
     "Unknown User";
 
+  // View mode carries the foundations scope; edit and create keep the old
+  // wrapper. The inner div is display: contents there, so nothing moves.
+  const viewMode = !isEditMode;
   const renderContent = () => (
-    <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-3 sm:px-4 md:px-6 2xl:px-8 3xl:px-12 py-4 sm:py-6 md:py-8">
+    <div
+      className={
+        viewMode
+          ? "cd-foundations cd-canvas"
+          : "w-full max-w-[1920px] 4xl:max-w-none mx-auto px-3 sm:px-4 md:px-6 2xl:px-8 3xl:px-12 py-4 sm:py-6 md:py-8"
+      }
+    >
+    <div className={viewMode ? "cd-page cd-project-page" : "contents"}>
       {/* Top action bar - stacks on mobile */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
       {!create && (
@@ -764,19 +778,24 @@ export function ProjectContent({
       )}
 
       <div className="flex items-center gap-3 sm:gap-5">
-        <Badge variant="secondary" className="capitalize text-xs sm:text-sm">
+        <Badge
+          variant="secondary"
+          className={viewMode ? "cd-tag cd-cat rounded-full border" : "capitalize text-xs sm:text-sm"}
+          data-category={viewMode ? project.category : undefined}
+        >
           {PROJECT_CATEGORIES[
             project.category as keyof typeof PROJECT_CATEGORIES
           ]?.label || project.category}
         </Badge>
         <div className="flex items-center gap-1 text-muted-foreground text-sm">
-          <Heart className="h-4 w-4 sm:h-5 sm:w-5" />
+          <Heart className="h-4 w-4 sm:h-5 sm:w-5" aria-hidden="true" />
           <span>{project.total_favorites || 0}</span>
+          <span className="sr-only">{Number(project.total_favorites) === 1 ? " favorite" : " favorites"}</span>
         </div>
       </div>
       </div>
       {/* Profile Header Section - Mobile responsive */}
-      <div className="mb-4 sm:mb-6 bg-card rounded-lg p-4 sm:p-6 shadow-lg">
+      <div className={viewMode ? "cd-surface mb-6" : "mb-4 sm:mb-6 bg-card rounded-lg p-4 sm:p-6 shadow-lg"}>
         <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-6">
           {!create && (
             <button
@@ -795,11 +814,11 @@ export function ProjectContent({
                     src={userProfile?.profile_image_url || project.owner_profile_image_url || ""}
                     alt={displayName}
                   />
-                ) : (
-                  <AvatarFallback className="text-xl sm:text-2xl">
-                    <User className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12" />
-                  </AvatarFallback>
-                )}
+                ) : null}
+                {/* UI06.2: also shown when the picture fails to load (an unreachable host). */}
+                <AvatarFallback className="text-xl sm:text-2xl">
+                  <User className="h-8 w-8 sm:h-10 sm:w-10 md:h-12 md:w-12" />
+                </AvatarFallback>
               </Avatar>
               {isNavigatingUser && (
                 <div className="absolute inset-0 flex items-center justify-center bg-background/50 rounded-full">
@@ -811,7 +830,7 @@ export function ProjectContent({
           <div className="flex-1 text-center sm:text-left min-w-0">
             <div className="flex flex-col items-center sm:items-start">
               <div className="w-full">
-                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold break-words">
+                <h1 className={viewMode ? "cd-title cd-wrap" : "text-xl sm:text-2xl md:text-3xl font-bold break-words"}>
                   {create ? "Create New Project" : project.title}
                 </h1>
                 {!create && (
@@ -819,7 +838,7 @@ export function ProjectContent({
                     <button
                       onClick={handleNavigateUser}
                       disabled={isNavigatingUser}
-                      className={`text-sm sm:text-base text-muted-foreground ${
+                      className={`text-sm sm:text-base text-muted-foreground cd-wrap ${viewMode ? "mt-1 min-h-11 sm:min-h-0" : ""} ${
                         isNavigatingUser
                           ? "cursor-wait opacity-70"
                           : "hover:text-primary hover:underline cursor-pointer"
@@ -1075,10 +1094,12 @@ export function ProjectContent({
             </>
           ) : (
             <>
-              {/* Blog-style View Mode Layout */}
-              <div className="lg:grid lg:grid-cols-[1fr_250px] lg:gap-8">
+              {/* Blog-style View Mode Layout. The main column may shrink below
+                  its content, so one long word can't widen the page (UI02
+                  defect 5). */}
+              <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_250px] lg:gap-8">
                 {/* Main Content Column */}
-                <div className="space-y-6 sm:space-y-8">
+                <div className="cd-project-sections min-w-0">
                   {/* Architecture Documentation Section - Featured at Top */}
                   {project.slug && (
                     <LinkedDocumentationSection
@@ -1087,8 +1108,8 @@ export function ProjectContent({
                     />
                   )}
 
-                  {/* Images Section */}
-                  <section id="images">
+                  {/* Images Section (the manager draws the section when there are images) */}
+                  <div>
                     {/* F02: signed-out visitors of a shared link see the images
                         too. The server read decides who may (listed projects,
                         else the owner); view mode never uses userId. */}
@@ -1105,30 +1126,28 @@ export function ProjectContent({
                         }}
                       />
                     )}
-                  </section>
+                  </div>
 
                   {/* About Section */}
-                  <section id="about">
-                    <div className="prose dark:prose-invert prose-sm sm:prose-base md:prose-lg max-w-none">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">About This Project</h2>
-                      <p className="text-base sm:text-lg leading-relaxed text-muted-foreground">
-                        {project.description || "No description provided"}
-                      </p>
-                    </div>
+                  <section id="about" aria-labelledby="about-heading">
+                    <h2 id="about-heading" className="cd-heading mb-3">About This Project</h2>
+                    <p className={`cd-lead cd-reading cd-wrap ${project.description ? "" : "cd-muted"}`}>
+                      {project.description || "No description provided"}
+                    </p>
                   </section>
 
                   {/* Links Section */}
                   {project.url_links && (project.url_links as ProjectLink[]).length > 0 && (
-                    <section id="links">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Links</h2>
+                    <section id="links" aria-labelledby="links-heading">
+                      <h2 id="links-heading" className="cd-heading mb-3">Links</h2>
                       <ProjectLinksDisplay links={project.url_links as ProjectLink[]} />
                     </section>
                   )}
 
                   {/* Category Fields Section */}
                   {project.category_data && Object.keys(project.category_data as Record<string, unknown>).length > 0 && (
-                    <section id="category-fields">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Project Details</h2>
+                    <section id="category-fields" aria-labelledby="details-heading" className="cd-wrap">
+                      <h2 id="details-heading" className="cd-heading mb-3">Project Details</h2>
                       <CategoryFieldsDisplay
                         category={project.category as ProjectCategory}
                         categoryData={project.category_data as Record<string, unknown>}
@@ -1139,10 +1158,10 @@ export function ProjectContent({
                   )}
 
                   {/* Tags Section */}
-                  <section id="tags" className="py-4 sm:py-6 border-t">
-                    <div className="flex items-center justify-between gap-2 mb-3 sm:mb-4">
-                      <h2 className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
-                        <Tags className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <section id="tags" aria-labelledby="tags-heading" className="cd-project-divided">
+                    <div className="flex flex-wrap items-center justify-between gap-3 mb-3">
+                      <h2 id="tags-heading" className="cd-heading flex items-center gap-2">
+                        <Tags className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                         Tags
                       </h2>
                       {!isEditMode && !create && isOwner && (
@@ -1158,26 +1177,27 @@ export function ProjectContent({
                       )}
                     </div>
                     {project.tags && project.tags.length > 0 ? (
-                      <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <ul className="flex flex-wrap gap-2" aria-label="Tags">
                         {project.tags.map((tag) => (
-                          <Badge key={tag} variant="outline" className="text-xs sm:text-sm py-0.5 sm:py-1 px-2 sm:px-3">
+                          <li key={tag} className="cd-tag rounded-full">
                             #{tag}
-                          </Badge>
+                          </li>
                         ))}
-                      </div>
+                      </ul>
                     ) : (
-                      <p className="text-sm sm:text-base text-muted-foreground">No tags added yet</p>
+                      <p className="cd-muted">No tags added yet</p>
                     )}
 
                     {/* Pending tag submissions */}
                     {pendingTags && pendingTags.length > 0 && (
-                      <div className="mt-3 sm:mt-4 rounded-md bg-muted/50 p-3 sm:p-4 space-y-2">
-                        <p className="text-xs sm:text-sm font-medium">Pending Tag Submissions:</p>
-                        <div className="flex flex-wrap gap-1.5 sm:gap-2">
+                      <div className="cd-surface mt-4 space-y-2" style={{ background: "var(--cd-raised)" }}>
+                        <p className="cd-small font-medium">Pending Tag Submissions:</p>
+                        <div className="flex flex-wrap gap-2">
                           {pendingTags.map((submission) => (
                             <span
                               key={submission.id}
-                              className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200"
+                              className="cd-status cd-wrap"
+                              data-tone="warning"
                             >
                               {submission.tag_name}
                             </span>
@@ -1191,10 +1211,10 @@ export function ProjectContent({
                   </section>
 
                   {/* Project Info Section */}
-                  <section id="project-info" className="py-4 sm:py-6 border-t">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4">Project Info</h2>
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                      <div className="rounded-lg border bg-card p-3 sm:p-4">
+                  <section id="project-info" aria-labelledby="info-heading" className="cd-project-divided">
+                    <h2 id="info-heading" className="cd-heading mb-3">Project Info</h2>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="cd-surface">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Category</p>
                         <p className="text-sm sm:text-base font-medium">
                           {PROJECT_CATEGORIES[
@@ -1207,10 +1227,10 @@ export function ProjectContent({
                           ]?.description}
                         </p>
                       </div>
-                      <div className="rounded-lg border bg-card p-3 sm:p-4">
+                      <div className="cd-surface">
                         <p className="text-xs sm:text-sm font-medium text-muted-foreground mb-1">Engagement</p>
                         <p className="text-sm sm:text-base font-medium flex items-center gap-2">
-                          <Heart className="h-4 w-4 sm:h-5 sm:w-5 text-red-500" />
+                          <Heart className="h-4 w-4 sm:h-5 sm:w-5" style={{ color: "var(--cd-danger)" }} aria-hidden="true" />
                           {project.total_favorites || 0} favorites
                         </p>
                       </div>
@@ -1218,15 +1238,15 @@ export function ProjectContent({
                   </section>
 
                   {/* Timeline Section */}
-                  <section id="timeline" className="py-4 sm:py-6 border-t">
-                    <h2 className="text-xl sm:text-2xl font-bold tracking-tight mb-3 sm:mb-4 flex items-center gap-2">
-                      <Clock className="h-5 w-5 sm:h-6 sm:w-6" />
+                  <section id="timeline" aria-labelledby="timeline-heading" className="cd-project-divided">
+                    <h2 id="timeline-heading" className="cd-heading mb-3 flex items-center gap-2">
+                      <Clock className="h-5 w-5 sm:h-6 sm:w-6" aria-hidden="true" />
                       Timeline
                     </h2>
                     <div className="space-y-3 sm:space-y-4">
                       <div className="flex items-center gap-2 sm:gap-3">
-                        <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                          <Calendar className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                        <div className="cd-timeline-dot h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+                          <Calendar className="h-4 w-4 sm:h-5 sm:w-5" />
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs sm:text-sm font-medium">Created</p>
@@ -1241,8 +1261,8 @@ export function ProjectContent({
                       </div>
                       {project.updated_at && (
                         <div className="flex items-center gap-2 sm:gap-3">
-                          <div className="h-8 w-8 sm:h-10 sm:w-10 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
-                            <Clock className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
+                          <div className="cd-timeline-dot h-8 w-8 sm:h-10 sm:w-10 rounded-full flex items-center justify-center shrink-0" aria-hidden="true">
+                            <Clock className="h-4 w-4 sm:h-5 sm:w-5" />
                           </div>
                           <div className="min-w-0">
                             <p className="text-xs sm:text-sm font-medium">Last Updated</p>
@@ -1282,6 +1302,7 @@ export function ProjectContent({
       {categoryChangeModalProps && (
         <CategoryChangeConfirmationModal {...categoryChangeModalProps} />
       )}
+    </div>
     </div>
   );
 

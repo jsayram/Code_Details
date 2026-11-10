@@ -255,6 +255,66 @@ export function ImageGallery({
 }
 
 /**
+ * One thumbnail in the public gallery: a button that opens the viewer, with
+ * a plain placeholder if the image itself fails to load (UI06.2).
+ */
+function GalleryTile({
+  image,
+  index,
+  total,
+  onOpen,
+}: {
+  image: SelectProjectImage;
+  index: number;
+  total: number;
+  onOpen?: () => void;
+}) {
+  const [failed, setFailed] = React.useState(false);
+  const description = image.alt_text || (image.image_type === "cover" ? "Cover image" : `Image ${index + 1}`);
+  return (
+    <li className="min-w-0">
+      <button
+        type="button"
+        onClick={onOpen}
+        aria-label={`Open ${description}, ${index + 1} of ${total}`}
+        className="cd-gallery-tile relative block aspect-square w-full overflow-hidden rounded-2xl bg-muted cursor-pointer group"
+      >
+        {failed ? (
+          <span className="absolute inset-0 flex flex-col items-center justify-center gap-2 p-3 text-center text-sm text-muted-foreground">
+            <ImageIcon className="h-6 w-6" aria-hidden="true" />
+            Image unavailable
+          </span>
+        ) : (
+          <Image
+            src={image.storage_url}
+            alt=""
+            fill
+            className="object-cover transition-transform duration-300 group-hover:scale-105"
+            sizes="(max-width: 475px) 100vw, (max-width: 640px) 50vw, 33vw"
+            onError={() => setFailed(true)}
+          />
+        )}
+
+        {/* Hover overlay with zoom icon */}
+        {!failed && (
+          <span aria-hidden="true" className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center">
+            <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+          </span>
+        )}
+
+        {/* Cover indicator badge */}
+        {image.image_type === "cover" && (
+          <Badge className="absolute left-2 top-2 text-xs">
+            <Star className="h-2.5 w-2.5 mr-0.5 fill-current" aria-hidden="true" />
+            Cover
+          </Badge>
+        )}
+      </button>
+    </li>
+  );
+}
+
+/**
  * Instagram-style grid gallery for view mode
  * All images displayed as square thumbnails for consistent, visible display
  */
@@ -279,43 +339,22 @@ export function ImageGalleryGrid({
   return (
     <div className={cn("space-y-4", className)}>
       {/* Responsive grid - 1 column on mobile, 2 on sm, 3 on md+ */}
-      <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
+      <ul className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3">
         {allImages.map((image, index) => (
-          <div
+          <GalleryTile
             key={image.id}
-            className="relative aspect-square overflow-hidden rounded-lg bg-muted cursor-pointer group"
-            onClick={() => onImageClick?.(image, index)}
-          >
-            <Image
-              src={image.storage_url}
-              alt={image.alt_text || `Image ${index + 1}`}
-              fill
-              className="object-cover transition-transform duration-300 group-hover:scale-110"
-              sizes="(max-width: 475px) 100vw, (max-width: 640px) 50vw, 33vw"
-            />
-            
-            {/* Hover overlay with zoom icon */}
-            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-all duration-200 flex items-center justify-center">
-              <ZoomIn className="h-6 w-6 text-white opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
-            </div>
-
-            {/* Cover indicator badge */}
-            {image.image_type === "cover" && (
-              <Badge className="absolute left-1 top-1 text-xs bg-primary/90 backdrop-blur-sm">
-                <Star className="h-2.5 w-2.5 mr-0.5 fill-current" />
-                Cover
-              </Badge>
-            )}
-          </div>
+            image={image}
+            index={index}
+            total={allImages.length}
+            onOpen={() => onImageClick?.(image, index)}
+          />
         ))}
-      </div>
-      
+      </ul>
+
       {/* Image count */}
-      {allImages.length > 0 && (
-        <p className="text-xs text-muted-foreground text-center">
-          {allImages.length} {allImages.length === 1 ? "image" : "images"}
-        </p>
-      )}
+      <p className="text-xs text-muted-foreground text-center">
+        {allImages.length} {allImages.length === 1 ? "image" : "images"}
+      </p>
     </div>
   );
 }

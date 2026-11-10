@@ -123,6 +123,11 @@ it("is imported only by the preview route and the screens that adopted it", () =
     // own scope wherever they appear.
     path.join("components", "Projects", "ProjectComponents", "ProjectCardComponent.tsx"),
     path.join("components", "LoadingState", "ProjectListLoadingState.tsx"),
+    // UI06.2: the public project page (view mode), its placeholder and error screen.
+    path.join("app", "projects", "[slug]", "page.tsx"),
+    path.join("app", "projects", "[slug]", "error.tsx"),
+    path.join("app", "projects", "[slug]", "project-page-skeleton.tsx"),
+    path.join("components", "Projects", "ProjectComponents", "ProjectContent.tsx"),
   ].sort());
 });
 
