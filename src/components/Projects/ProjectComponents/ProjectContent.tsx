@@ -382,16 +382,6 @@ export function ProjectContent({
       await discardImagesRef.current();
     }
 
-    // UI08.2: a guarded link, or Cancel on create, goes where it was going.
-    if (pendingHref) {
-      const href = pendingHref;
-      setPendingHref(null);
-      setPendingImageCount(0);
-      leavingRef.current = true;
-      router.push(href);
-      return;
-    }
-
     // Reset form data to original project values
     if (project) {
       setFormData({
@@ -427,6 +417,18 @@ export function ProjectContent({
     // Reset pending image count
     setPendingImageCount(0);
 
+    // UI08.2: a guarded link, or Cancel on create, goes where it was going.
+    // The form is already reset above, so nothing stale is left if the
+    // editor stays mounted; leavingRef only covers the moment until the
+    // route changes (the effect below clears it).
+    if (pendingHref) {
+      const href = pendingHref;
+      setPendingHref(null);
+      leavingRef.current = true;
+      router.push(href);
+      return;
+    }
+
     // Exit edit mode
     const url = new URL(window.location.href);
     url.searchParams.delete("edit");
@@ -450,6 +452,13 @@ export function ProjectContent({
   // contents list), new-tab clicks and the browser's Back button are left
   // alone: Back can't be held without rewriting history.
   const leavingRef = useRef(false);
+  // Audit fix: a navigation that has happened (or a new edit session) ends
+  // "leaving" and "navigating after save", so the guard comes back on.
+  const routeKey = `${searchParams?.toString() ?? ""}|${project?.slug ?? ""}|${isEditMode}`;
+  useEffect(() => {
+    leavingRef.current = false;
+    setIsNavigatingAfterSave(false);
+  }, [routeKey]);
   const dirtyRef = useRef(false);
   dirtyRef.current =
     isEditMode && !isUpdating && !isNavigatingAfterSave && !leavingRef.current && hasUnsavedChanges();
@@ -466,7 +475,9 @@ export function ProjectContent({
       if (!anchor || (anchor.target && anchor.target !== "_self") || anchor.hasAttribute("download")) return;
       const url = new URL(anchor.href, window.location.href);
       if (url.origin !== window.location.origin) return;
-      if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) return;
+      // The same page (an in-page anchor, or a link to where we already are)
+      // doesn't navigate away, so nothing is lost.
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
       e.preventDefault();
       e.stopPropagation();
       unsavedOpenerRef.current = anchor;
@@ -730,6 +741,16 @@ export function ProjectContent({
 
           // Reset form initialization state
           formInitializedRef.current = false;
+
+          // Audit fix: what was just saved is the new baseline, so the
+          // status line and the guard don't treat it as unsaved while the
+          // page refreshes and leaves edit mode.
+          const savedCategoryData = projectData.category_data as Record<string, unknown>;
+          setCategoryData(savedCategoryData);
+          setOriginalCategoryData(savedCategoryData);
+          setOriginalFormData({ ...formData });
+          setOriginalTags([...selectedTags]);
+          setOriginalFieldOrder([...fieldOrder]);
 
           // Exit edit mode
           const url = new URL(window.location.href);
