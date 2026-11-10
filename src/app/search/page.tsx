@@ -21,7 +21,7 @@ import { ProjectsProvider } from "@/providers/projects-provider";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { PROJECT_CATEGORIES } from "@/constants/project-categories";
+import { PROJECT_CATEGORIES, categorySummary } from "@/constants/project-categories";
 import { useTags } from "@/hooks/use-tags";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
 import { useProfiles } from "@/hooks/use-profiles";
@@ -301,7 +301,7 @@ function SearchContent() {
     <ul className="cd-grid">
       {filteredCategories.map(([key, category]) => (
         <li key={key} className="min-w-0">
-          <CategoryTile catKey={key} label={category.label} description={category.description} count={categoryCounts[key] || 0} query={q} opening={loadingItem === `category-${key}`} onOpen={open(`category-${key}`)} />
+          <CategoryTile catKey={key} label={category.label} description={categorySummary(category.description)} count={categoryCounts[key] || 0} query={q} opening={loadingItem === `category-${key}`} onOpen={open(`category-${key}`)} />
         </li>
       ))}
     </ul>

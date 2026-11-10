@@ -4,7 +4,7 @@
 // around it (AppShell) is on the foundations too, so the old seam is gone.
 import "@/styles/foundations.css";
 import { Card } from "@/components/ui/card";
-import { PROJECT_CATEGORIES } from "@/constants/project-categories";
+import { PROJECT_CATEGORIES, categorySummary } from "@/constants/project-categories";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -92,7 +92,8 @@ function CategoriesContent() {
                       </span>
                     )}
                   </div>
-                  <p className="cd-small cd-muted flex-1">{category.description}</p>
+                  {/* UI07 (Jose): the short form here; the full wording is on the category page. */}
+                  <p className="cd-small cd-muted flex-1">{categorySummary(category.description)}</p>
                   {isLoading ? (
                     <Skeleton aria-hidden="true" className="h-11 w-full rounded-full" />
                   ) : (
