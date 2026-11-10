@@ -6,7 +6,7 @@
 // with a note instead of replacing the page.
 import "@/styles/foundations.css";
 import React, { useState, useEffect } from "react";
-import { scrollMotion } from "@/lib/reduced-motion";
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
 import { AppShell } from "@/components/layout/AppShell";
 import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 import { DashboardSkeleton } from "@/components/dashboard/DashboardSkeleton";
@@ -1399,6 +1399,7 @@ function DashboardMain({
                   const el = document.getElementById("my-projects-card");
                   if (el) {
                     el.scrollIntoView({ behavior: scrollMotion(), block: "start" });
+                    moveFocusTo(el);
                     const card = el.querySelector(".stat-card");
                     if (card) {
                       setTimeout(() => card?.classList.add("highlight-flash"), 500);

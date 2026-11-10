@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { scrollMotion } from "@/lib/reduced-motion";
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -169,6 +169,7 @@ export default function DocViewerPage() {
     const element = document.getElementById(id);
     if (element) {
       element.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
+      moveFocusTo(element);
       setActiveHeading(id);
     }
   }, []);
@@ -392,10 +393,10 @@ export default function DocViewerPage() {
                     ) : (
                       <motion.div
                         key="content"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0.8, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                        transition={{ duration: 0.24 }}
                         className="space-y-4"
                       >
                         {/* Edit/View Toggle for Owner */}

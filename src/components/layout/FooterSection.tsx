@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { scrollMotion } from "@/lib/reduced-motion";
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
 import { ArrowUp } from "lucide-react";
 import "@/styles/shell-foundations";
 
@@ -12,6 +12,8 @@ import "@/styles/shell-foundations";
 export const FooterSection = () => {
   const scrollToTop = () => {
     window.scrollTo({ top: 0, behavior: scrollMotion() });
+    // Keyboard focus follows the view to the start of the page's content.
+    moveFocusTo(document.getElementById("main-content"));
   };
 
   return (

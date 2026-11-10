@@ -7,7 +7,7 @@
  */
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
-import { scrollMotion } from "@/lib/reduced-motion";
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import {
@@ -146,6 +146,7 @@ export function TableOfContents({
         top: offsetTop,
         behavior: scrollMotion(),
       });
+      moveFocusTo(element);
       setIsOpen(false); // Close mobile menu after navigation
     }
   }, []);
