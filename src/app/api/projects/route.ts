@@ -3,6 +3,7 @@ import { serverError, invalidInput, unauthorized } from "@/lib/api-errors";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
 import { betterAuthSignedIn } from "@/lib/auth-server";
+import { hasSessionCookie } from "@/backend/auth/proxy-rules";
 import { getProjectReadBackend } from "@/backend/projects";
 import { ownProjectForEdit } from "@/backend/projects/owner-edit";
 import { toProjectContentProps } from "@/backend/projects/legacy-props";
@@ -76,6 +77,16 @@ export async function GET(request: NextRequest) {
        - Limit: ${limit || "all"}`
     );
 
+    // H1: anything that depends on the session is never for a shared cache:
+    // the personal views and the single-project read (the owner sees their own
+    // private or deleted project) always, and the public list when a session
+    // cookie came with it (the session marks the viewer's rows and favorites).
+    // An anonymous public list keeps its headers as before.
+    const personalView = showFavorites ? "favorites" : showDeleted ? "deleted" : !showAll && !username ? "mine" : null;
+    if (slug || personalView || hasSessionCookie(request.headers.get("cookie"))) {
+      headers.set("Cache-Control", "private, no-store");
+    }
+
     // D08g4f3: the same read as the project page and /api/projects/slug/[slug]:
     // the owner's own project (deleted included), else the public projection.
     if (slug) {
@@ -92,7 +103,6 @@ export async function GET(request: NextRequest) {
     // from the Better Auth session. A username with favorites or the
     // graveyard narrows the viewer's own list to that owner's projects (what
     // the Supabase query did).
-    const personalView = showFavorites ? "favorites" : showDeleted ? "deleted" : !showAll && !username ? "mine" : null;
     if (personalView) {
       const handle = username?.toLowerCase();
       const cards = (await convexPersonalList(personalView)).filter((c) => !handle || c.owner?.username.toLowerCase() === handle);
