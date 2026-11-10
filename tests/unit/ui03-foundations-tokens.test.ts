@@ -128,6 +128,10 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("app", "projects", "[slug]", "error.tsx"),
     path.join("app", "projects", "[slug]", "project-page-skeleton.tsx"),
     path.join("components", "Projects", "ProjectComponents", "ProjectContent.tsx"),
+    // UI06.3: the public profile (shared projects) and the member profile.
+    path.join("app", "shared-projects", "[username]", "page.tsx"),
+    path.join("app", "users", "[username]", "page.tsx"),
+    path.join("app", "users", "[username]", "loading.tsx"),
   ].sort());
 });
 
