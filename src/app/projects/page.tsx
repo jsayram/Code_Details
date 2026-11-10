@@ -66,7 +66,7 @@ export default function DashBoard() {
           <div className="cd-foundations cd-canvas">
             <div className="cd-page cd-stack">
               <DiscoveryHeader
-                eyebrow="Explore"
+                eyebrow="Community"
                 title="Community Projects"
                 lead="Explore a diverse range of community projects. Discover, contribute, and be inspired by the creativity and innovation of fellow developers."
               />

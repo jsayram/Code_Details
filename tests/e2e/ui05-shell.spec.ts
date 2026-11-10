@@ -30,13 +30,19 @@ test.beforeEach(async ({ context }) => {
 });
 
 test("the shell scopes only itself; unadopted page content stays outside", async ({ page }) => {
-  await page.goto("/tags");
+  // UI07: /tags and /search adopted the foundations, so the shell's own parts
+  // are checked on /search and the unadopted content on home.
+  await page.goto("/search");
   await expect(page.locator('header.cd-foundations[data-shell="header"]')).toHaveCount(1);
   await expect(page.locator('footer.cd-foundations[data-shell="footer"]')).toHaveCount(1);
   await expect(page.locator('[data-slot="sidebar-container"].cd-foundations')).toHaveCount(1);
-  // /tags hasn't adopted the foundations: its content has no scoped ancestor.
-  const content = page.locator('[data-slot="sidebar-inset"] > :not([data-shell])').first();
-  expect(await content.evaluate((el) => !!el.closest(".cd-foundations"))).toBe(false);
+  await page.goto("/");
+  await expect(page.locator('header.cd-foundations[data-shell="header"]')).toHaveCount(1);
+  // Home hasn't adopted the foundations: nothing outside the shell is scoped.
+  const scopedContent = await page.evaluate(() =>
+    [...document.querySelectorAll(".cd-foundations")].filter((el) => !el.closest('[data-shell], [data-slot="sidebar-container"], [data-mobile="true"], .cd-theme-switch')).length,
+  );
+  expect(scopedContent).toBe(0);
 });
 
 test("signed out: no signed-in entries in the server HTML or while the session loads", async ({ page, browser }) => {

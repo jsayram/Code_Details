@@ -60,7 +60,7 @@ export default function TagsIndexPage() {
         <div className="cd-foundations cd-canvas">
           <div className="cd-page cd-stack">
             <DiscoveryHeader
-              eyebrow="Explore"
+              eyebrow="Browse"
               title="Browse All Tags"
               lead="Discover projects by technology stack and features"
             />
