@@ -1,10 +1,8 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardDescription } from "@/components/ui/card";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SignedIn } from "@/components/auth/AuthGateServer";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 
 // Loading skeleton for stats card
 function StatsCardSkeleton() {
@@ -41,28 +39,14 @@ function ChartSkeleton() {
 
 export default function AdminDashboardLoading() {
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
-      <SidebarProvider>
-        <SignedIn>
-          <AppSidebar />
-        </SignedIn>
-        <SidebarInset className="min-w-0">
-          <HeaderSection
-            showLogo={false}
-            showDarkModeButton={true}
-            showMobileMenu={false}
-          />
-
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
           <div className="w-full min-w-0 px-4 2xl:px-8 3xl:px-12 py-8">
-            {/* Dashboard Header */}
-            <div className="mb-6 md:mb-8">\n              <div className="flex items-center justify-between mb-2">
-                <div>
-                  <Skeleton className="h-8 w-[200px] mb-2" />
-                  <Skeleton className="h-4 w-[300px]" />
-                </div>
-                <Skeleton className="h-9 w-24" />
-              </div>
+            {/* UI09.3: the real h1 stays visible while the data loads, and the wait is announced. */}
+            <div className="mb-6 md:mb-8">
+              <DiscoveryHeader eyebrow="System Administration" title="Admin Dashboard" lead={<span role="status">Loading the admin dashboard</span>} />
             </div>
+            <div aria-hidden="true">
 
             {/* Stats Cards Row */}
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4 mb-8">
@@ -392,11 +376,9 @@ export default function AdminDashboardLoading() {
                 </div>
               </CardContent>
             </Card>
+            </div>
           </div>
-
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
-    </div>
+      </div>
+    </AppShell>
   );
 }

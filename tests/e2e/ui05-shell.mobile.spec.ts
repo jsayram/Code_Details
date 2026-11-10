@@ -1,6 +1,6 @@
 // UI05: the shell's phone menu (Pixel 7 emulation in Chrome, not a real device).
 import type { Page } from "@playwright/test";
-import { freshClientIp, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
+import { authState, freshClientIp, setRole, SYNTHETIC_PASSWORD, syntheticEmail, TEST_CLIENT_IP_HEADER, verifyEmail } from "../fixtures/better-auth";
 import { BASE_URL, expect, overflowingContent, test } from "./support";
 
 async function signIn(page: Page, label: string) {
@@ -9,6 +9,7 @@ async function signIn(page: Page, label: string) {
   expect((await page.request.post("/api/auth/sign-up/email", { headers, data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
   await verifyEmail(email);
   expect((await page.request.post("/api/auth/sign-in/email", { headers, data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+  return email;
 }
 
 test.beforeEach(async ({ context }) => {
@@ -46,9 +47,11 @@ test("signed out: the menu button opens the sidebar sheet with Sign In; Escape c
 });
 
 test("the no-sidebar header's phone menu is hidden while closed and closes on Escape", async ({ page }) => {
-  // About, Support and Community use the menu; they're signed-in pages.
-  await signIn(page, "ui05-panel");
-  await page.goto("/community");
+  // UI09 moved About, Support and Community into the shared shell; the admin
+  // theme-test pages are what's left on the sidebar-less header with this menu.
+  const email = await signIn(page, "ui05-panel");
+  await setRole((await authState(email))!.authUserId, "admin");
+  await page.goto("/api/toasttest");
   const header = page.locator('[data-shell="header"]');
   const open = header.getByRole("button", { name: "Open menu" });
   await expect(open).toBeVisible();

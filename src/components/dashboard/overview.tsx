@@ -32,7 +32,8 @@ export function Overview({ data }: OverviewProps) {
     <>
       {/* Chart view - Hidden on mobile */}
       <div className="hidden md:block">
-        <div className="overflow-x-auto">
+        {/* UI09.3: a scrollable chart is focusable, so the keyboard can scroll it. */}
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Projects chart">
           <div className="min-w-full" style={{ width: `${Math.max(data.length * 40, 100)}px` }}>
             <ResponsiveContainer width="100%" height={350}>
               <BarChart
