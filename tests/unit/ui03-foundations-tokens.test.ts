@@ -81,7 +81,10 @@ describe.each([["light", light], ["dark", dark]] as const)("%s tokens", (_, t) =
   });
 
   it("has no purple (decision 4)", () => {
-    const purple = Object.entries(t).filter(([, hex]) => {
+    // Category chips follow Jose's UI06 rule instead (pink and rose allowed,
+    // OKLCH 258-330 out); tests/unit/ui06-category-tokens.test.ts checks them.
+    const purple = Object.entries(t).filter(([name, hex]) => {
+      if (name.startsWith("--cd-cat-")) return false;
       const { hue, saturation } = hueAndSaturation(hex);
       return saturation > 0.15 && hue >= 245 && hue <= 340;
     });

@@ -4,9 +4,10 @@ import { describe, expect, it } from "vitest";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
 
 // UI06: every category has its own chip color, as tokens in the foundations
-// stylesheet. Jose's rules: clearly distinct in both themes, none purple, text
-// at least 4.5:1 on the chip, Other the only neutral. Three keys belong to
-// categories a later phase adds; their tokens are here already.
+// stylesheet. Jose's rules: clearly distinct in both themes, no purple or
+// violet (OKLCH hue 258-330; pink and rose are fine), text at least 4.5:1 on
+// the chip, Other the only neutral, and four pairs he named well apart. Three
+// keys belong to categories a later phase adds; their tokens are here already.
 const css = fs.readFileSync(path.resolve(__dirname, "../../src/styles/foundations.css"), "utf8");
 const block = (selector: string) => {
   const start = css.indexOf(`\n${selector} {`);
@@ -62,12 +63,23 @@ describe.each([["light", light], ["dark", dark]] as const)("%s category chips", 
     expect(contrast(fg, bg)).toBeGreaterThanOrEqual(4.5);
   });
 
-  it("has no purple", () => {
+  it("has no purple or violet (OKLCH hue 258-330)", () => {
     const purple = Object.entries(t).filter(([, hex]) => {
-      const { hue, sat } = hueSat(hex);
-      return sat > 0.15 && hue >= 245 && hue <= 340;
+      const [, a, b] = oklab(hex);
+      const hue = ((Math.atan2(b, a) * 180) / Math.PI + 360) % 360;
+      return Math.hypot(a, b) > 0.03 && hue > 258 && hue < 330;
     });
     expect(purple).toEqual([]);
+  });
+
+  it.each([
+    ["testing-qa", "security"],
+    ["ai-ml", "cloud-devops"],
+    ["data-engineering", "desktop"],
+    ["embedded-iot", "dev-tools"],
+  ])("keeps %s and %s clearly apart", (a, b) => {
+    const d = (dist(t[`--cd-cat-${a}-fg`], t[`--cd-cat-${b}-fg`]) + dist(t[`--cd-cat-${a}-bg`], t[`--cd-cat-${b}-bg`])) / 2;
+    expect(d).toBeGreaterThanOrEqual(0.1);
   });
 
   it("keeps every pair of chips apart (text and fill together)", () => {
