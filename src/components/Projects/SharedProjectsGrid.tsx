@@ -160,18 +160,18 @@ export function SharedProjectsGrid({
 
   return (
     <div className="cd-stack">
-      {/* Controls (UI07 owns their look) */}
-      <div className="flex flex-col gap-3 sm:flex-row">
+      {/* Controls: labelled selects (UI07.2) */}
+      <div className="cd-filter-bar justify-start">
         <CategorySelect
           value={selectedCategory}
           onValueChange={handleCategoryChange}
-          triggerClassName="w-full sm:w-[180px]"
+          triggerClassName="w-full sm:w-[240px]"
           hasCategoryProjects={hasCategoryProjects}
         />
         <SortBySelect
           value={sortBy}
           onValueChange={handleSortChange}
-          triggerClassName="w-full sm:w-[180px]"
+          triggerClassName="w-full sm:w-[200px]"
         />
       </div>
 
@@ -211,13 +211,11 @@ export function SharedProjectsGrid({
             onUpdateProject={() => {}}
           />
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center">
-              <PaginationControls
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
           )}
         </>
       ) : (

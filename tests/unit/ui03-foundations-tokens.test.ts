@@ -135,6 +135,24 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("app", "shared-projects", "[username]", "page.tsx"),
     path.join("app", "users", "[username]", "page.tsx"),
     path.join("app", "users", "[username]", "loading.tsx"),
+    // UI07: discovery. Search, tags, one category, the project lists and the
+    // controls they share (header, selects, pagination).
+    path.join("app", "search", "page.tsx"),
+    path.join("app", "search", "loading.tsx"),
+    path.join("app", "tags", "page.tsx"),
+    path.join("app", "tags", "loading.tsx"),
+    path.join("app", "tags", "[tag]", "page.tsx"),
+    path.join("app", "tags", "[tag]", "loading.tsx"),
+    path.join("app", "categories", "[category]", "page.tsx"),
+    path.join("app", "categories", "[category]", "loading.tsx"),
+    path.join("app", "projects", "page.tsx"),
+    path.join("app", "projects", "favorites", "page.tsx"),
+    path.join("app", "projects", "deleted", "page.tsx"),
+    path.join("app", "projects", "projects-portfolio", "page.tsx"),
+    path.join("app", "projects", "users", "[username]", "page.tsx"),
+    path.join("components", "layout", "DiscoveryHeader.tsx"),
+    path.join("components", "Projects", "ProjectComponents", "ProjectListComponent.tsx"),
+    path.join("components", "navigation", "Pagination", "PaginationControlComponent.tsx"),
   ].sort());
 });
 

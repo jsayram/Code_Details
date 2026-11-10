@@ -1,6 +1,9 @@
 "use client";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// UI07: on AppShell and the foundations, with a plain header instead of the
+// gradient banner. The list, its filters and its personal actions are unchanged.
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 
 // React Core
 import React, { use, useMemo, useState } from "react";
@@ -29,11 +32,6 @@ import {
 import {
   CURRENT_PAGE,
 } from "@/components/navigation/Pagination/paginationConstants";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import Image from "next/image";
-import { Code2 } from "lucide-react";
-import { PageBanner } from "@/components/ui/page-banner";
 
 export default function DashBoard() {
   // D07x/D08g4e3: the app's login (Better Auth).
@@ -63,68 +61,36 @@ export default function DashBoard() {
         isLoading={isLoading}
         allowAnonymousView
       >
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <HeaderSection />
+        <AppShell>
+          {/* F02: public. Signed-out visitors get the same list, minus personal actions. */}
+          <div className="cd-foundations cd-canvas">
+            <div className="cd-page cd-stack">
+              <DiscoveryHeader
+                eyebrow="Community"
+                title="Community Projects"
+                lead="Explore a diverse range of community projects. Discover, contribute, and be inspired by the creativity and innovation of fellow developers."
+              />
+              <ProjectList
+                currentPage={allProjectsPage}
+                showSortingFilters={true}
+                onPageChange={handleAllProjectsPageChange}
+                allowAnonymousView
+              />
 
-            {/* F02: public. Signed-out visitors get the same list, minus personal actions. */}
-            <div className="flex justify-center w-full mb-20">
-              <div className="w-full px-4 2xl:px-8 3xl:px-12">
-                {/* Main content */}
-                <div className="flex flex-col gap-4">
-                  {/* All Projects Section */}
-                  <div className="mb-8">
-                    <div className="flex flex-col space-y-4">
-                      <PageBanner
-                        bannerTitle="Community Projects"
-                        description="Explore a diverse range of community projects. Discover, contribute, and be inspired by the creativity and innovation of fellow developers."
-                        isUserBanner={false}
-                        gradientFrom="indigo-900"
-                        gradientVia="blue-800"
-                        gradientTo="purple-800"
-                        borderColor="border-indigo-700/40"
-                        textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
-                        logo={{
-                          src: "/images/CodeDetails_IconLogo.png",
-                          alt: "Code Details Logo",
-                          width: 50,
-                          height: 50
-                        }}
-                      />
-                      <ProjectList
-                        currentPage={allProjectsPage}
-                        showSortingFilters={true}
-                        onPageChange={handleAllProjectsPageChange}
-                        allowAnonymousView
-                      />
-                    </div>
-                  </div>
-
-                  <SignedIn>
-                    <Dialog
-                      open={isProjectFormOpen}
-                      onOpenChange={setIsProjectFormOpen}
-                    >
-                      <DialogContent className="sm:max-w-[600px]">
-                        <DialogHeader>
-                          <DialogTitle>Create New Project</DialogTitle>
-                          <DialogDescription>
-                            Add a new project to share with the community.
-                          </DialogDescription>
-                        </DialogHeader>
-                        <ProjectForm
-                          onProjectAdded={handleProjectAdded}
-                        />
-                      </DialogContent>
-                    </Dialog>
-                  </SignedIn>
-                </div>
-              </div>
+              <SignedIn>
+                <Dialog open={isProjectFormOpen} onOpenChange={setIsProjectFormOpen}>
+                  <DialogContent className="sm:max-w-[600px]">
+                    <DialogHeader>
+                      <DialogTitle>Create New Project</DialogTitle>
+                      <DialogDescription>Add a new project to share with the community.</DialogDescription>
+                    </DialogHeader>
+                    <ProjectForm onProjectAdded={handleProjectAdded} />
+                  </DialogContent>
+                </Dialog>
+              </SignedIn>
             </div>
-            <FooterSection />
-          </SidebarInset>
-        </SidebarProvider>
+          </div>
+        </AppShell>
       </ProjectsProvider>
     </>
   );

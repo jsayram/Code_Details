@@ -145,3 +145,14 @@ export const PROJECT_CATEGORIES = {
     keywords: "miscellaneous other general experimental prototype proof-of-concept educational learning tutorial",
   },
 } as const;
+
+/**
+ * UI07 (Jose, 2026-11-09): the short form of a category's description, for
+ * cards and tiles. It's the text up to the first sentence end or colon; the
+ * tie-break wording after it ("X goes in Y") stays on /categories/<key> and
+ * in the create and edit category picker.
+ */
+export function categorySummary(description: string): string {
+  const cut = description.search(/\.\s|:\s|\.$/);
+  return (cut === -1 ? description : description.slice(0, cut)).trim();
+}

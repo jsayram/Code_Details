@@ -284,7 +284,8 @@ test.describe.serial("C01 categories", () => {
     await expect(page.getByText("Automation & Workflows", { exact: true }).first()).toBeVisible(); // by its key
     // A category with projects opens from its tile (empty ones don't, as before).
     await search("generative");
-    await page.getByText("Generative AI Apps", { exact: true }).first().click();
+    // UI07: project results above the tabs now show the category's label too, so look in the tabs.
+    await page.getByRole("tabpanel").getByText("Generative AI Apps", { exact: true }).first().click();
     await expect(page).toHaveURL(/\/categories\/generative-ai$/);
   });
 

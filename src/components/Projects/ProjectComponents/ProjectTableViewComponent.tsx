@@ -1,4 +1,10 @@
 "use client";
+// UI07: the table is a dense view, so it uses compact controls (36px with a
+// mouse, 44px on touch). Keyboard and screen readers can now use it: the
+// title, category and tags are links, the column headers are sort buttons
+// with aria-sort, and the edit and delete buttons have names. A click on a
+// row still opens the project, and the sort, column settings and the
+// category and tag delays work as before.
 
 import React, { useState, useMemo } from "react";
 import { Project } from "@/types/models/project";
@@ -15,6 +21,8 @@ import { FavoriteButton } from "./FavoriteButton";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
+import { isPlainClick } from "@/lib/plain-click";
 
 interface ProjectTableViewProps {
   projects: Project[];
@@ -78,7 +86,10 @@ export function ProjectTableView({
     }));
   };
 
-  const handleTagClick = async (e: React.MouseEvent, tag: string) => {
+  const handleTagClick = async (e: React.MouseEvent<HTMLElement>, tag: string) => {
+    e.stopPropagation();
+    // A new-tab click (modifier key or another button) is left to the browser.
+    if (!isPlainClick(e)) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -103,7 +114,10 @@ export function ProjectTableView({
     }
   };
 
-  const handleCategoryClick = async (e: React.MouseEvent, category: string) => {
+  const handleCategoryClick = async (e: React.MouseEvent<HTMLElement>, category: string) => {
+    e.stopPropagation();
+    // A new-tab click (modifier key or another button) is left to the browser.
+    if (!isPlainClick(e)) return;
     e.preventDefault();
     e.stopPropagation();
 
@@ -169,7 +183,7 @@ export function ProjectTableView({
   const isColumnVisible = (key: string) => !hiddenColumns.includes(key);
 
   return (
-    <div className="hidden md:block w-full">
+    <div className="hidden md:block w-full cd-foundations" data-density="compact">
       <div className="w-full px-4 mb-8">
         <div className="mb-4 flex justify-end">
           <div className="relative">
@@ -205,15 +219,22 @@ export function ProjectTableView({
                     isColumnVisible(column.key) && (
                       <th
                         key={column.key}
-                        onClick={() => handleSort(column.key === "creator" ? "profile" : (column.key as keyof Project))}
-                        className="cursor-pointer hover:bg-muted/50 transition-colors"
+                        aria-sort={
+                          sortConfig.key === (column.key === "creator" ? "profile" : column.key)
+                            ? sortConfig.direction === "asc" ? "ascending" : "descending"
+                            : undefined
+                        }
                       >
-                        <div className="flex items-center space-x-1">
+                        <button
+                          type="button"
+                          onClick={() => handleSort(column.key === "creator" ? "profile" : (column.key as keyof Project))}
+                          className="flex w-full min-h-9 items-center space-x-1 rounded-md px-2 cursor-pointer hover:bg-muted/50 transition-colors"
+                        >
                           <span className="truncate">{column.label}</span>
                           {sortConfig.key === (column.key === "creator" ? "profile" : column.key) && (
-                            <ChevronUp className={`h-4 w-4 transition-transform flex-shrink-0 ${sortConfig.direction === "desc" ? "rotate-180" : ""}`} />
+                            <ChevronUp aria-hidden="true" className={`h-4 w-4 transition-transform flex-shrink-0 ${sortConfig.direction === "desc" ? "rotate-180" : ""}`} />
                           )}
-                        </div>
+                        </button>
                       </th>
                     )
                 )}
@@ -241,13 +262,17 @@ export function ProjectTableView({
                             <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                           </span>
                         )}
-                        <div className="font-medium h-full max-h-20 overflow-y-auto p-2">{project.title}</div>
+                        <div className="font-medium p-2 line-clamp-3 cd-wrap">
+                          <Link href={`/projects/${project.slug}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                            {project.title}
+                          </Link>
+                        </div>
                       </td>
                     )}
 
                     {isColumnVisible("description") && (
                       <td className={`${ROW_HEIGHT} align-middle p-0`} style={{ opacity: cellOpacity }}>
-                        <div className="h-full max-h-20 overflow-y-auto p-2 text-sm text-muted-foreground">
+                        <div className="p-2 text-sm text-muted-foreground line-clamp-3 cd-wrap">
                           {project.description || "No description provided"}
                         </div>
                       </td>
@@ -255,33 +280,34 @@ export function ProjectTableView({
 
                     {isColumnVisible("category") && (
                       <td className={`${ROW_HEIGHT} align-middle overflow-hidden`} style={{ opacity: cellOpacity }}>
-                        <Badge
-                          variant={loadingCategory === project.category ? "default" : "secondary"}
-                          className={`capitalize cursor-pointer hover:bg-accent ${loadingCategory === project.category ? "bg-primary text-primary-foreground animate-pulse" : ""}`}
+                        <Link
+                          href={`/categories/${encodeURIComponent(project.category)}`}
+                          className="cd-project-card-chip cd-cat"
+                          data-category={project.category}
+                          aria-busy={loadingCategory === project.category || undefined}
                           onClick={(e) => handleCategoryClick(e, project.category)}
                         >
-                          {loadingCategory === project.category && (
-                            <div className="w-3 h-3 mr-1 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />
-                          )}
+                          {loadingCategory === project.category && <span aria-hidden="true" className="cd-spinner animate-spin" />}
                           {PROJECT_CATEGORIES[project.category as ProjectCategory]?.label || project.category}
-                        </Badge>
+                        </Link>
                       </td>
                     )}
 
                     {isColumnVisible("tags") && (
                       <td className={`${ROW_HEIGHT} align-middle p-0`} style={{ opacity: cellOpacity }}>
-                        <div className="flex flex-wrap gap-1 h-full max-h-20 overflow-y-auto p-2">
+                        <div className="flex flex-wrap gap-1 p-2">
                           {project.tags?.length ? (
                             project.tags.map((tag, i) => (
-                              <Badge
+                              <Link
                                 key={i}
-                                variant={loadingTag === tag ? "default" : "outline"}
-                                className={`text-xs cursor-pointer hover:bg-accent ${loadingTag === tag ? "bg-primary text-primary-foreground animate-pulse" : ""}`}
+                                href={`/tags/${encodeURIComponent(tag)}`}
+                                className="cd-project-card-chip"
+                                aria-busy={loadingTag === tag || undefined}
                                 onClick={(e) => handleTagClick(e, tag)}
                               >
-                                {loadingTag === tag && <div className="w-3 h-3 mr-1 border-2 border-primary-foreground border-t-transparent rounded-full animate-spin" />}
+                                {loadingTag === tag && <span aria-hidden="true" className="cd-spinner animate-spin" />}
                                 #{tag}
-                              </Badge>
+                              </Link>
                             ))
                           ) : (
                             <span className="text-muted-foreground text-sm">No tags</span>
@@ -331,11 +357,11 @@ export function ProjectTableView({
                         )}
                         {isOwner && (
                           <>
-                            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); onUpdateProject?.(project); }}>
-                              <Edit className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" aria-label={`Update project ${project.title}`} onClick={(e) => { e.stopPropagation(); onUpdateProject?.(project); }}>
+                              <Edit className="h-4 w-4" aria-hidden="true" />
                             </Button>
-                            <Button variant="ghost" size="icon" className="h-8 w-8 hover:text-destructive" onClick={(e) => { e.stopPropagation(); onDeleteProject?.(project.id); }}>
-                              <Trash2 className="h-4 w-4" />
+                            <Button variant="ghost" size="icon" className="hover:text-destructive" aria-label={`Delete project ${project.title}`} onClick={(e) => { e.stopPropagation(); onDeleteProject?.(project.id); }}>
+                              <Trash2 className="h-4 w-4" aria-hidden="true" />
                             </Button>
                           </>
                         )}

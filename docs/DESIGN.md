@@ -2,7 +2,7 @@
 
 The current visual system for the UI refresh, written from the accepted UI01 brief and tuned in UI03. It replaces the mix of old and new notes in `Agent Planning/design-reference/DESIGN.md`, which stays as history. The tokens themselves live in `src/styles/foundations.css`.
 
-**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
+**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. UI07 adopted discovery: `/search`, `/tags`, `/tags/<name>`, `/categories/<key>` and the project lists (`/projects`, portfolio, favorites, Graveyard, `/projects/users/<name>`) with their sort, category, view and page controls. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
 
 ## Principles
 
@@ -90,7 +90,7 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 - Each shell part carries `cd-foundations` on its own element: the `header`, the sidebar's desktop panel and phone sheet, the `footer`, the theme switch and the skip link. Nothing wraps the page content, so a page that hasn't adopted the foundations keeps its look inside the new shell.
 - Shell components import `src/styles/shell-foundations.ts`, which loads the stylesheet. That's the one importer for the shell.
 - The frame around the inset content sits outside the scope, so `.cd-shell-frame` repeats the two `--cd-bg` values. A unit test checks they match.
-- `AppShell` (`src/components/layout/AppShell.tsx`) renders the sidebar, header, page and footer in one place. `/categories`, `/tags`, `/users`, `/users/<name>`, `/shared-projects/<name>` and `/projects/<slug>` use it; move a page onto it when its phase adopts the foundations.
+- `AppShell` (`src/components/layout/AppShell.tsx`) renders the sidebar, header, page and footer in one place. `/categories`, `/tags`, `/users`, `/users/<name>`, `/shared-projects/<name>` and `/projects/<slug>` use it, and since UI07 `/search`, `/tags/<name>`, `/categories/<key>` and the project lists; move a page onto it when its phase adopts the foundations.
 - The header is solid. Signed out, when the sidebar is a sheet (below 1024px), the header shows the logo and a menu button that opens that sheet; on wider screens the sidebar carries the only logo.
 - Sidebar entries are links with `aria-current`, 44px pills, blue "selected" for the current page. Signed-in entries and the Explore label appear only once the session confirms a user, never while it loads.
 - Skip to content comes first in the Tab order and lands past the sidebar and header (`#main-content`).
@@ -102,6 +102,17 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 - Category and tag chips are links (32px pills, with a 44px hit area on touch). The owner's avatar and name are one button. Icon buttons are 44px. A graveyard card seen by someone else has no title link, as before.
 - The description is clamped to three lines. The full text is on the project page.
 - List placeholders (`ProjectCardSkeleton`) have the card's shape but not the `.project-card` class, are hidden from screen readers and sit behind a "Loading projects" status. Tests can wait for `[data-project-card]` or `.project-card` and know the data is there.
+
+## Discovery (UI07)
+
+- List pages share `DiscoveryHeader`: an eyebrow, one `h1`, a lead, and an aside for the member tier on personal lists. It replaces the gradient `PageBanner` there.
+- Anything that opens a page is a link: search results, category tiles, tags, people and the explore shortcuts. Something with nothing to open (a tag or category with no projects, a person with none) stays listed with a dashed outline and is not a link.
+- Category descriptions (Jose, UI07): cards and tiles show the short form, `categorySummary()`, up to the first sentence end or colon. The full wording with its tie-breaks is on `/categories/<key>` and under the category picker in create and edit. No tooltips.
+- List controls carry a visible label tied to the control (`aria-labelledby` label + trigger, so the name reads "Sort by, Newest"). Their menus carry `cd-foundations` because they render in a portal.
+- Pagination is buttons in a list inside `nav[aria-label="Pagination"]`, the current page marked with `aria-current`. Below 640px it shows "Page n of m".
+- Cards / Table is a group of two pressed-state buttons. The table is a dense view and uses compact density.
+- A list that fails says so and offers Try again; it never looks like an empty list. On `/search` the people list needs a session, so its 401 signed out isn't a failure.
+- `/search` loads the mascot through `next/image`. The full-page particles are gone from `/search` and the lists (particles are for home only).
 
 ## Adopting the foundations on a screen
 
@@ -134,5 +145,11 @@ Lessons from the showcase (UI06):
 - When a button shows text (a count, "Image unavailable"), its name must contain that text. Prefer screen-reader text inside the button to `aria-label`.
 - Don't add a `loading.tsx` to a route that can call `notFound()` (the project page). The loading boundary streams the response, so the 200 status is sent before `notFound()` runs and private, deleted and unknown projects stop answering 404. Use a `Suspense` fallback inside the page instead.
 - A view that shares a component with an editor (the project page and its edit mode) can scope only the view: `isEditMode ? old classes : "cd-foundations cd-canvas"`, with `display: contents` on the inner wrapper so the editor doesn't move.
+
+Lessons from discovery (UI07):
+
+- An `<a>` without `href` isn't focusable. The old pagination used them, so keyboard users couldn't change pages. Use a button for an action and a link for a place.
+- `pkill -f "next start"` leaves the `next-server` child holding the port. Stop a slot's Next by port (`lsof -t -iTCP:<port>`), or the next run quietly tests the old build.
+- A public page that also reads a signed-in-only endpoint must treat its 401 as "not available", not as a failure.
 
 The block of legacy variables in `foundations.css` points shadcn's variables at the new tokens inside the scope, so `ui/button`, `ui/card` and the rest need no edits. Once every screen has adopted it, the tokens can move to `:root` and the scope class can go.

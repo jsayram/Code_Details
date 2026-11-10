@@ -942,7 +942,7 @@ export function ProjectContent({
                           value={formData.category}
                           onValueChange={handleCategoryChange}
                         >
-                          <SelectTrigger>
+                          <SelectTrigger id="category" aria-describedby="category-help">
                             <SelectValue placeholder="Select Category" />
                           </SelectTrigger>
                           <SelectContent>
@@ -955,6 +955,10 @@ export function ProjectContent({
                             )}
                           </SelectContent>
                         </Select>
+                        {/* UI07 (Jose): the full description with its tie-break wording, where people choose. */}
+                        <p id="category-help" className="text-xs sm:text-sm text-muted-foreground">
+                          {PROJECT_CATEGORIES[formData.category as keyof typeof PROJECT_CATEGORIES]?.description}
+                        </p>
                       </div>
                     </CardContent>
                   </Card>

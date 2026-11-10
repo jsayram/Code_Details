@@ -112,7 +112,8 @@ test.describe("preview page", () => {
 // isolation that matters is that page content outside the shell stays
 // unscoped until the page adopts the foundations.
 test.describe("isolation from existing pages", () => {
-  for (const path of ["/", "/sign-in", "/search"]) {
+  // UI07: /search adopted the foundations, so /about stands in for it.
+  for (const path of ["/", "/sign-in", "/about"]) {
     test(`${path} keeps its content outside the foundations scope`, async ({ page }) => {
       await page.goto(path);
       await expect(page.locator('[data-shell="header"].cd-foundations')).toHaveCount(1);
