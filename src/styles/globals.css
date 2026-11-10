@@ -392,6 +392,55 @@
   }
 }
 
+/* UI10: home's code particles (components/Elements/CodeParticlesElement.tsx).
+   Text color at low opacity, so they read as gray in both themes, transform and opacity only. They move only when the system
+   asks for no reduced motion; otherwise they stand still at a middle opacity.
+   Phones show the first 10 of the 18. */
+.cd-particle {
+  color: var(--foreground);
+  opacity: var(--cd-particle-rest);
+  line-height: 1;
+  white-space: nowrap;
+}
+.cd-particles {
+  --cd-particle-low: 0.08;
+  --cd-particle-high: 0.22;
+  --cd-particle-rest: 0.15;
+}
+.dark .cd-particles {
+  --cd-particle-low: 0.1;
+  --cd-particle-high: 0.24;
+  --cd-particle-rest: 0.16;
+}
+@media (max-width: 639.98px) {
+  .cd-particle:nth-child(n + 11) {
+    display: none;
+  }
+}
+@keyframes cd-particle-drift {
+  0%,
+  100% {
+    transform: translate(0, 0) rotate(0deg);
+    opacity: var(--cd-particle-low);
+  }
+  50% {
+    transform: translate(var(--cd-particle-dx), var(--cd-particle-dy)) rotate(var(--cd-particle-rot));
+    opacity: var(--cd-particle-high);
+  }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .cd-particle {
+    animation-name: cd-particle-drift;
+    animation-timing-function: ease-in-out;
+    animation-iteration-count: infinite;
+  }
+  .cd-particles[data-running="false"] .cd-particle {
+    animation-play-state: paused;
+  }
+}
+/* Under reduced motion the inline duration/delay stay but nothing is named,
+   so nothing runs. */
+
 /* UI03 (decision 10): global reduced motion. A tiny duration rather than
    "none", so fill-mode end states still apply and animationend still fires.
    Spinners keep turning because they report status. Framer Motion and scripted
