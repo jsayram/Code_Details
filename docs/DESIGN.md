@@ -80,8 +80,20 @@ The old `category-styles.css` still colors filter pills and badges on pages that
 | Dialogs | 200 to 300ms (token 240ms), exits about 20% shorter |
 | Particles | 18 desktop, 10 phone, CSS transform only, pause button, home only |
 | Mascot tracking | 10px and 3 degrees at most, fine pointers only |
+| Entry | Once, from 16px and 0.8 opacity, 300ms or less, stagger 100ms at most |
+| Typed labels | The whole text is in the page from the start; the reveal takes 1s at most |
 
 No scroll hijacking, and content works before any animation ends.
+
+What runs, since UI10:
+
+- **Home particles** (`CodeParticlesElement`): 18 code symbols from a fixed seed, so server and client draw the same field; phones hide all but the first 10. One color (the text color at low opacity), no emoji. A CSS keyframe moves transform and opacity, with no JavaScript per frame. They run only under `prefers-reduced-motion: no-preference`, and pause (`data-running="false"`) while the tab is hidden, the layer is offscreen, data saver is on, or the visitor presses "Pause background animation" below the hero. That choice is kept in `localStorage` for this browser. The layer and its symbols ignore the pointer (F01-7).
+- **Home hero**: the headline, mascot and welcome line use `.cd-enter` (CSS, from 0.8 opacity), so they're readable on the first frame. The full-screen pulsing blurred glow is gone.
+- **Terminal labels**: `TextTypingEffectAnimation` puts the whole label in the DOM and reveals it with a stepped `clip-path`, so a link has its name and full click area at once.
+- **Secondary pages** (About, Community, Support, the GitHub Scrapper pages): Framer Motion entries start at 0.8 opacity and 16px, last 300ms and stagger by 100ms at most.
+- **Not-found confetti** falls by transform and is skipped under reduced motion.
+- **Scripted jumps** (the project page's "On This Page", Back to top, the dashboard's "You have shared N" link, a doc's headings) call `moveFocusTo` from `src/lib/reduced-motion.ts` after scrolling, so the next Tab continues where the view went.
+- Spinners and loading skeletons keep running: they report status.
 
 Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS animations and transitions straight away, spinners excepted, because a spinner reports status. `src/providers/motion-provider.tsx` stops Framer Motion's movement and keeps its fades. `src/lib/reduced-motion.ts` covers what CSS can't reach: scripted smooth scrolling and typed text.
 
