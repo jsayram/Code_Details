@@ -1,17 +1,17 @@
 "use client";
 
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+// UI07: on AppShell and the foundations. Signed out, the sidebar shows its
+// public entries and the page still asks for a sign-in; the projects list,
+// the old-username redirect and the sign-in toast are unchanged.
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import { useState, use } from "react";
 import { CURRENT_PAGE } from "@/components/navigation/Pagination/paginationConstants";
-import { PageBanner } from "@/components/ui/page-banner";
-import { User } from "lucide-react";
 import type { PublicProfileRow } from "@/backend/profiles/public-profile";
 import { useEffect } from "react";
 import { UserProfileLoadingState } from "@/components/LoadingState/UserProfileLoadingState";
@@ -19,7 +19,6 @@ import { capitalizeNames } from "@/utils/stringUtils";
 import { toast } from "sonner";
 import Image from "next/image";
 import { TerminalWindowSection } from "@/components/layout/TerminalWindowSection";
-import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 import { useRouter } from "next/navigation";
 import { USER_PROJECTS_DEFAULT_LIMIT } from "@/constants/project-limits";
 
@@ -105,127 +104,55 @@ export default function UserProjectsPage({ params }: PageProps) {
   // Only consider loading if we're waiting for auth-related data AND we don't have profile data yet
   const isLoading = viewer.isLoading && !profileData;
 
-  return (
-    <>
-      {isLoading ? (
-        <div className="container mx-auto px-4 py-8">
-          <UserProfileLoadingState />
-        </div>
-      ) : (
-        <ProjectsProvider
-          userId={viewer.userId}
-          isLoading={isLoading}
-          initialFilters={{
-            username: decodedUsername,
-            showAll: false,
-            page: currentPage,
-            limit: USER_PROJECTS_DEFAULT_LIMIT,
-          }}
-        >
-          <SidebarProvider>
-            <SignedIn>
-              <AppSidebar />
-            </SignedIn>
-            <SidebarInset>
-              <SignedIn>
-                <HeaderSection />
-              </SignedIn>
-              <SignedOut>
-                <HeaderSection showMobileMenu={false} />
-              </SignedOut>
-              <SignedIn>
-                <div className="container mx-auto px-4">
-                  <div className="flex justify-center w-full mb-20">
-                    <div className="w-full px-4 2xl:px-8 3xl:px-12">
-                      <div className="flex flex-col gap-4 mb-6 py-3">
-                        <PageBanner
-                          icon={<User className="h-8 w-8 text-primary" />}
-                          userName={
-                            profileData?.full_name
-                              ? capitalizeNames(profileData.full_name)
-                              : trimmedUsername ||
-                                decodedUsername ||
-                                "Anonymous User"
-                          }
-                          bannerTitle="Projects Showcase"
-                          description={
-                            profileData?.full_name
-                              ? `Browse all projects by ${trimmedUsername}`
-                              : "Browse user's projects"
-                          }
-                          isUserBanner={true}
-                          gradientFrom="indigo-900"
-                          gradientVia="blue-800"
-                          gradientTo="purple-800"
-                          tierBgColor="bg-indigo-700/60"
-                          textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
-                        />
-                      </div>
-                      <ProjectList
-                        currentPage={currentPage}
-                        onPageChange={setCurrentPage}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </SignedIn>
-              <SignedOut>
-                <div className="container mx-auto h-full px-4 py-8 mt-30 ">
-                  <div className="flex justify-center w-full">
-                    <div className="w-full max-w-3xl text-center">
-                      <CodeParticlesElement />
-                      <div className="flex flex-col items-center gap-6 p-8">
-                        <div className="relative mb-8">
-                          <div className="bg-card/90 rounded-2xl p-6 shadow-lg relative border border-white/20">
-                            <h1 className="text-2xl font-bold text-foreground mb-4">
-                              Authentication Required To View User Profiles
-                            </h1>
-                            <TerminalWindowSection
-                              unauthenticatedMessage="Please sign in to view user profiles and their projects"
-                              width="w-full lg:w-[500px] xl:w-[500px]"
-                              height="h-[200px] lg:h-[200px] xl:h-[200px]"
-                              showDatetime={false}
-                            />
-                            <p className="text-muted-foreground mt-4">
-                              You need to be signed in to view user profiles and
-                              their projects.
-                            </p>
-                            {/* Larger triangle with white border effect */}
-                            <div
-                              className="absolute -bottom-6 left-1/2 -translate-x-1/2 w-0 h-0 
-                              border-l-[16px] border-l-transparent
-                              border-t-[24px] border-t-white/20
-                              border-r-[16px] border-r-transparent"
-                            ></div>
-                            <div
-                              className="absolute -bottom-5 left-1/2 -translate-x-1/2 w-0 h-0 
-                              border-l-[16px] border-l-transparent
-                              border-t-[24px] border-t-card/90
-                              border-r-[16px] border-r-transparent"
-                            ></div>
-                          </div>
-                        </div>
+  const displayName = profileData?.full_name
+    ? capitalizeNames(profileData.full_name)
+    : trimmedUsername || decodedUsername || "Anonymous User";
 
-                        {/* Mascot Image */}
-                        <div className="relative w-40 h-40 ">
-                          <Image
-                            src="/images/mascot.png"
-                            alt="Code Minion"
-                            width={600}
-                            height={600}
-                            className="object-contain"
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+  return (
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
+        <div className="cd-page cd-stack">
+          {isLoading ? (
+            <UserProfileLoadingState />
+          ) : (
+            <ProjectsProvider
+              userId={viewer.userId}
+              isLoading={isLoading}
+              initialFilters={{
+                username: decodedUsername,
+                showAll: false,
+                page: currentPage,
+                limit: USER_PROJECTS_DEFAULT_LIMIT,
+              }}
+            >
+              <SignedIn>
+                <div className="cd-stack">
+                  <DiscoveryHeader
+                    eyebrow={`${displayName.split(" ")[0]}'s projects`}
+                    title="Projects Showcase"
+                    lead={profileData?.full_name ? `Browse all projects by ${trimmedUsername}` : "Browse user's projects"}
+                  />
+                  <ProjectList currentPage={currentPage} onPageChange={setCurrentPage} />
+                </div>
+              </SignedIn>
+              <SignedOut>
+                {/* Member profiles stay behind sign-in, as before. */}
+                <div className="cd-surface cd-empty mx-auto w-full max-w-2xl">
+                  <h1 className="cd-heading">Authentication Required To View User Profiles</h1>
+                  <TerminalWindowSection
+                    unauthenticatedMessage="Please sign in to view user profiles and their projects"
+                    width="w-full lg:w-[500px] xl:w-[500px]"
+                    height="h-[200px] lg:h-[200px] xl:h-[200px]"
+                    showDatetime={false}
+                  />
+                  <p className="cd-muted">You need to be signed in to view user profiles and their projects.</p>
+                  <Image src="/images/mascot.png" alt="" width={124} height={160} sizes="124px" />
                 </div>
               </SignedOut>
-            </SidebarInset>
-          </SidebarProvider>
-        </ProjectsProvider>
-      )}
-      <FooterSection />
-    </>
+            </ProjectsProvider>
+          )}
+        </div>
+      </div>
+    </AppShell>
   );
 }
