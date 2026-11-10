@@ -122,6 +122,43 @@ describe("/api/repo/analyze server tokens", () => {
     expect(calls.every((c) => c.token === GITLAB)).toBe(true);
   });
 
+  // H1: admins too, each server token goes only to its own hosts.
+  it.each([
+    ["https://gitlab.attacker.example/a/b", GITLAB],
+    ["https://gitea.attacker.example/a/b", GITEA],
+    ["https://evil.example/gitea/repo", GITEA],
+  ])("an admin never sends a server token to %s", async (url, secret) => {
+    h.role = "admin";
+    await post(url);
+    expect(calls.length).toBeGreaterThan(0);
+    expect(sentAnywhere(secret)).toBe(false);
+  });
+
+  it("an admin sends GITLAB_TOKEN to gitlab.com and to hosts on GITLAB_TOKEN_HOSTS only", async () => {
+    h.role = "admin";
+    vi.stubEnv("GITLAB_TOKEN_HOSTS", "gitlab.example.test, Other.Example.Test");
+    for (const url of ["https://gitlab.com/a/b", "https://gitlab.example.test/a/b"]) {
+      calls = [];
+      await post(url);
+      expect(calls.length, url).toBeGreaterThan(0);
+      expect(calls.every((c) => c.token === GITLAB), url).toBe(true);
+    }
+    calls = [];
+    await post("https://gitlab.unlisted.example.test/a/b");
+    expect(sentAnywhere(GITLAB)).toBe(false);
+  });
+
+  it("GITEA_TOKEN goes nowhere by default and only to GITEA_TOKEN_HOSTS when set", async () => {
+    h.role = "admin";
+    await post("https://gitea.example.test/o/r");
+    expect(sentAnywhere(GITEA)).toBe(false);
+    vi.stubEnv("GITEA_TOKEN_HOSTS", "gitea.example.test");
+    calls = [];
+    await post("https://gitea.example.test/o/r");
+    expect(calls.length).toBeGreaterThan(0);
+    expect(calls.every((c) => c.token === `Bearer ${GITEA}`)).toBe(true);
+  });
+
   it("anyone's own token wins, and no server token goes with it", async () => {
     await post(REPO, "synthetic-own-token");
     expect(calls.every((c) => c.token === "Bearer synthetic-own-token")).toBe(true);

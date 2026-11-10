@@ -802,13 +802,39 @@ function shuffleArray<T>(array: T[]): T[] {
  * supplies their own for anything private. Without this check any signed-in
  * account could learn about repositories only the server's token can read, and
  * could send GITLAB_TOKEN or GITEA_TOKEN to a host they picked ("gitlab.evil.com").
- * An admin may use them anywhere. Anyone else gets the GitHub token on public
+ * H1: no token, an admin's included, goes to a host outside tokenMayGoTo. Anyone else gets the GitHub token on public
  * GitHub repositories only, so those keep the server's rate limit. When the
  * check can't tell, there's no token.
  */
+/** Comma-separated host names from an env var, lowercased. */
+function hostList(name: string): string[] {
+  return (process.env[name] ?? "").split(",").map((h) => h.trim().toLowerCase()).filter(Boolean);
+}
+
+/**
+ * H1: the hosts each server token may be sent to, for everyone, admins too.
+ * GitHub's only to github.com; GitLab's to gitlab.com plus GITLAB_TOKEN_HOSTS;
+ * Gitea's only to GITEA_TOKEN_HOSTS (none by default). The other platforms
+ * have one fixed host, so their tokens can't be pointed anywhere else.
+ */
+function tokenMayGoTo(parsed: Pick<ParsedRepo, "platform" | "host">): boolean {
+  const host = parsed.host.toLowerCase();
+  switch (parsed.platform) {
+    case "github":
+      return host === "github.com";
+    case "gitlab":
+      return host === "gitlab.com" || hostList("GITLAB_TOKEN_HOSTS").includes(host);
+    case "gitea":
+      return hostList("GITEA_TOKEN_HOSTS").includes(host);
+    default:
+      return true;
+  }
+}
+
 async function serverTokenFor(parsed: ParsedRepo): Promise<string | undefined> {
   const token = process.env[PLATFORM_CONFIGS[parsed.platform].tokenEnvVar];
   if (!token) return undefined;
+  if (!tokenMayGoTo(parsed)) return undefined;
   if ((await betterAuthRole()) === "admin") return token;
   if (parsed.platform !== "github") return undefined;
   // The owner and repo come from the URL; a ".." would point the check, and the token, elsewhere.
