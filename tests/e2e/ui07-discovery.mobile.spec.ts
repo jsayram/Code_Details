@@ -7,6 +7,10 @@ test.beforeEach(async ({ context }) => {
   await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
 });
 
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
 async function threePages(route: Route) {
   // The fixture set fills one page, so every page asks for page 1's projects.
   const res = await route.fetch({ url: route.request().url().replace(/([?&]page=)\d+/, "$11") });

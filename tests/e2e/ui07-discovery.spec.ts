@@ -43,6 +43,11 @@ test.beforeEach(async ({ context }) => {
   await context.setExtraHTTPHeaders({ [TEST_CLIENT_IP_HEADER]: freshClientIp() });
 });
 
+// A mocked request still in flight when a test ends must not fail it.
+test.afterEach(async ({ page }) => {
+  await page.unrouteAll({ behavior: "ignoreErrors" });
+});
+
 test.describe("UI07.1 /search", () => {
   test("one h1, a labelled field, the explore shortcuts are links reached by Tab", async ({ page }) => {
     await page.goto("/search");
@@ -127,6 +132,40 @@ test.describe("UI07.1 /search", () => {
   });
 });
 
+test.describe("UI07 links: encoded hrefs and new-tab clicks", () => {
+  test("/tags and /search items are links with encoded hrefs", async ({ page }) => {
+    await page.goto("/tags");
+    await expect(page.getByRole("link", { name: /^C#\s*\d+$/ })).toHaveAttribute("href", "/tags/C%23");
+    await expect(page.getByRole("link", { name: /^C\+\+\s*\d+$/ })).toHaveAttribute("href", "/tags/C%2B%2B");
+    await searchFor(page, "c#");
+    const panel = page.getByRole("tabpanel");
+    await expect(panel.getByRole("link", { name: /^C#\s*\d+$/ })).toHaveAttribute("href", "/tags/C%23");
+  });
+
+  test("a modifier click opens a new tab and leaves this one as it was", async ({ page, context }) => {
+    await page.goto("/tags");
+    const rust = page.getByRole("link", { name: /^Rust\s*\d+$/ });
+    await expect(rust).toBeVisible();
+    const modifier = process.platform === "darwin" ? "Meta" : "Control";
+    const [popup] = await Promise.all([context.waitForEvent("page"), rust.click({ modifiers: [modifier] })]);
+    await popup.waitForLoadState("domcontentloaded");
+    expect(popup.url()).toMatch(/\/tags\/Rust$/);
+    await expect(page).toHaveURL(/\/tags$/);
+    await expect(rust).not.toHaveAttribute("aria-busy", "true");
+    await popup.close();
+
+    await page.goto("/projects");
+    await expect(page.locator("[data-project-card]").first()).toBeVisible();
+    await page.getByRole("button", { name: "Table" }).click();
+    const tag = page.locator("table").getByRole("link", { name: "#Rust" }).first();
+    const [tab] = await Promise.all([context.waitForEvent("page"), tag.click({ modifiers: [modifier] })]);
+    await tab.waitForLoadState("domcontentloaded");
+    expect(tab.url()).toMatch(/\/tags\/Rust$/);
+    await expect(page).toHaveURL(/\/projects$/);
+    await expect(tag).not.toHaveAttribute("aria-busy", "true");
+  });
+});
+
 test.describe("UI07.2 tags", () => {
   test("/tags: tags with projects are links, by keyboard too", async ({ page }) => {
     await page.goto("/tags");
@@ -178,7 +217,27 @@ test.describe("UI07.3 lists: controls, pagination, states", () => {
     await expect(nav.getByRole("button", { name: "Page 2" })).toBeFocused();
     await page.keyboard.press("Enter");
     await expect.poll(() => asked.some((u) => u.includes("page=2"))).toBe(true);
-    await expect(page.getByRole("navigation", { name: "Pagination" }).getByRole("button", { name: "Page 2" })).toHaveAttribute("aria-current", "page");
+    const page2 = page.getByRole("navigation", { name: "Pagination" }).getByRole("button", { name: "Page 2" });
+    await expect(page2).toHaveAttribute("aria-current", "page");
+    // The list and pager stay mounted while the page loads, so focus stays on
+    // the button that was pressed instead of dropping to <body>.
+    await expect(page2).toBeFocused();
+    await page.keyboard.press("Tab");
+    await expect(page.getByRole("navigation", { name: "Pagination" }).getByRole("button", { name: "Page 3" })).toBeFocused();
+  });
+
+  test("a page change that fails says so and keeps the older list on screen", async ({ page }) => {
+    await page.route(/\/api\/projects\?/, async (r) => {
+      if (/[?&]page=2\b/.test(r.request().url())) return r.fulfill({ status: 500, contentType: "application/json", body: '{"success":false,"error":"forced"}' });
+      return threePages(r);
+    });
+    await page.goto("/projects");
+    await expect(page.locator("[data-project-card]").first()).toBeVisible();
+    await page.getByRole("navigation", { name: "Pagination" }).getByRole("button", { name: "Page 2" }).click();
+    const alert = page.getByRole("alert").filter({ hasText: "Couldn't refresh the projects" });
+    await expect(alert).toBeVisible();
+    await expect(page.locator("[data-project-card]").first()).toBeVisible();
+    await expect(alert.getByRole("button", { name: "Try again" })).toBeVisible();
   });
 
   test("a failed list says so and Try again loads it", async ({ page }) => {
