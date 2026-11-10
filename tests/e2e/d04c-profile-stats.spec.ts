@@ -28,7 +28,8 @@ test.describe("D04c profile stats", () => {
     expect((await res.json()).data.stats).toMatchObject({ activeProjects: want.activeProjects, projectsFavorited: want.projectsFavorited, totalLikes: want.totalLikes });
 
     await page.goto(`/users/${B.profile!.username}`);
-    const card = (title: string) => page.locator("div.rounded-xl, [class*=card]").filter({ hasText: title }).locator(".text-3xl").first();
+    // UI06: each stat is a list item with its number in .cd-number.
+    const card = (title: string) => page.getByRole("listitem").filter({ hasText: title }).locator(".cd-number").first();
     await expect(card("Active Projects")).toHaveText(String(want.activeProjects));
     await expect(card("Favorites Given")).toHaveText(String(want.projectsFavorited));
   });

@@ -92,8 +92,10 @@ test.describe.serial("F02 images on shared links", () => {
 
   test("signed out: a project with no images shows no image heading", async ({ page }) => {
     await page.goto("/projects/fixture-no-description");
-    await expect(page.locator("#images")).toBeAttached();
+    // UI06: the page loaded (About is there); the images section only exists when there are images.
+    await expect(page.locator("#about")).toBeAttached();
     await expect(page.getByRole("heading", { name: "Project Images" })).toHaveCount(0);
+    await expect(page.locator("#images")).toHaveCount(0);
   });
 
   // Last, because it also cleans up: once a login is linked to A, the persona

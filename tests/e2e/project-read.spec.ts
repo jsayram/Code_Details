@@ -36,7 +36,8 @@ test.describe("public project read, signed out", () => {
     await expect(page.getByRole("heading", { level: 1, name: listed.title }).filter({ visible: true })).toBeVisible();
     await expect(page.getByText("Alice Fixture").first()).toBeVisible();
     for (const tag of ["#Next.js", "#Postgres"]) await expect(page.getByText(tag, { exact: true }).first()).toBeVisible();
-    await expect(page.getByText("2 favorites")).toBeVisible();
+    // UI06: the top bar also says "2 favorites" to screen readers, so look in Project Info.
+    await expect(page.locator("#project-info").getByText("2 favorites")).toBeVisible();
   });
 
   test("an owner whose username is an email address: the page renders without the address", async ({ page }) => {
