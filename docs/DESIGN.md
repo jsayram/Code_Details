@@ -2,7 +2,7 @@
 
 The current visual system for the UI refresh, written from the accepted UI01 brief and tuned in UI03. It replaces the mix of old and new notes in `Agent Planning/design-reference/DESIGN.md`, which stays as history. The tokens themselves live in `src/styles/foundations.css`.
 
-**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. UI07 adopted discovery: `/search`, `/tags`, `/tags/<name>`, `/categories/<key>` and the project lists (`/projects`, portfolio, favorites, Graveyard, `/projects/users/<name>`) with their sort, category, view and page controls. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
+**Status:** adopted screen by screen. `/categories` was the first (UI04). Since UI05 the shared shell (header, sidebar, footer and the frame around the content) is on the foundations on every page, while each page's own content keeps its old look until it adopts them. UI06 adopted the showcase: the project card (on every list that shows it), the public project page in view mode, `/shared-projects/<name>` and `/users/<name>`. UI07 adopted discovery: `/search`, `/tags`, `/tags/<name>`, `/categories/<key>` and the project lists (`/projects`, portfolio, favorites, Graveyard, `/projects/users/<name>`) with their sort, category, view and page controls. UI08 adopted the creator screens: `/dashboard` (with the profile form), `/projects/new`, the project editor and its media controls. To see every token and control, run the app in development, sign in as an admin and open `/dashboard/admin/design-foundations`. Production answers 404 there.
 
 ## Principles
 
@@ -114,6 +114,16 @@ Reduced motion is global, in three parts. `src/styles/globals.css` ends CSS anim
 - A list that fails says so and offers Try again; it never looks like an empty list. On `/search` the people list needs a session, so its 401 signed out isn't a failure.
 - `/search` loads the mascot through `next/image`. The full-page particles are gone from `/search` and the lists (particles are for home only).
 
+## Creator screens (UI08)
+
+- `/dashboard` is on `AppShell` with `DiscoveryHeader`. Its loading screen and the page's placeholder share `DashboardSkeleton`, which has no `main` of its own and keeps the real `h1` visible. Fixed card heights apply from `lg` (or `sm` for the project lists) up; on a phone the cards take their natural height and long lists scroll inside a bounded, focusable region.
+- A dashboard that fails on first load says so with Try again and never shows the server's message. A failed refresh keeps the last data with a note above it.
+- A link that looks like a button is `<Button asChild><Link/></Button>`, never a button inside a link.
+- The editor (create and edit) carries the scope like view mode. Field errors sit under the field with `aria-invalid` and `aria-describedby`; the first invalid field takes focus; an alert beside Save lists what blocked the save, with in-page links to the fields. A status line beside the buttons says whether anything is unsaved.
+- Unsaved edits are guarded on Cancel, on any same-site link (a capture-phase click listener while the form is dirty) and on reload or close (`beforeunload`). In-page anchors and new-tab clicks pass. Back isn't guarded.
+- A dialog opened from state remembers its opener and returns focus through `onCloseAutoFocus`.
+- Media: the drop zone is a button; thumbnails in the editor are buttons that open the preview; per-image actions name the image ("Delete Screenshot 2"); a file that won't load shows "Image unavailable". There is no reorder control.
+
 ## Adopting the foundations on a screen
 
 1. Import `@/styles/foundations.css` in that route's layout, and move the page onto `AppShell` if it assembles the shell by hand.
@@ -145,6 +155,12 @@ Lessons from the showcase (UI06):
 - When a button shows text (a count, "Image unavailable"), its name must contain that text. Prefer screen-reader text inside the button to `aria-label`.
 - Don't add a `loading.tsx` to a route that can call `notFound()` (the project page). The loading boundary streams the response, so the 200 status is sent before `notFound()` runs and private, deleted and unknown projects stop answering 404. Use a `Suspense` fallback inside the page instead.
 - A view that shares a component with an editor (the project page and its edit mode) can scope only the view: `isEditMode ? old classes : "cd-foundations cd-canvas"`, with `display: contents` on the inner wrapper so the editor doesn't move.
+
+Lessons from the creator screens (UI08):
+
+- Don't wrap the editor in a `<form>` to get Enter-to-submit: its child components have dozens of plain buttons, which become submit buttons inside a form, and Enter in a field would "click" the first one (Generate slug).
+- `.cd-status` sets `display: inline-block` unlayered, so Tailwind's `inline-flex` loses; use an inline style when a status pill holds an icon.
+- A `label` with no field (the old read-only profile) is noise for screen readers; read-only pairs are a `dl`.
 
 Lessons from discovery (UI07):
 
