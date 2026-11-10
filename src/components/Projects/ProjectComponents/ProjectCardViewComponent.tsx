@@ -83,8 +83,9 @@ export function ProjectCardView({
   const minHeight = rows * CARD_HEIGHT + (rows - 1) * GRID_GAP;
 
   return (
-    <div className="w-full" style={{ minHeight: `${minHeight}px` }}>
-      <div className="project-grid">
+    <div className="cd-foundations w-full" style={{ minHeight: `${minHeight}px` }}>
+      {/* UI06.1: as many columns of at least 17rem as fit (.cd-card-grid). */}
+      <div className="cd-card-grid">
         {validProjects.map((project) => (
           <ProjectCard
             key={project.id}

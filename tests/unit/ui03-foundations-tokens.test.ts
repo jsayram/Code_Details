@@ -119,6 +119,10 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("app", "categories", "page.tsx"),
     // UI05: the shared shell, through one module its components import.
     path.join("styles", "shell-foundations.ts"),
+    // UI06: the showcase. The project card and list placeholders carry their
+    // own scope wherever they appear.
+    path.join("components", "Projects", "ProjectComponents", "ProjectCardComponent.tsx"),
+    path.join("components", "LoadingState", "ProjectListLoadingState.tsx"),
   ].sort());
 });
 
