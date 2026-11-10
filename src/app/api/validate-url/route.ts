@@ -36,14 +36,19 @@ export async function POST(request: NextRequest) {
       // (public addresses only, every redirect checked, one deadline). Only
       // the status matters, so the body is never read.
       const headers = { 'User-Agent': 'Mozilla/5.0 (compatible; URLChecker/1.0)' };
-      const opts = { timeoutMs, discardBody: true };
+      // One 5s budget for the whole check: the GET fallback gets what's left.
+      const left = () => {
+        const ms = timeoutMs - (Date.now() - startTime);
+        if (ms <= 0) throw new Error('Request timed out');
+        return ms;
+      };
       let response: Response;
       try {
-        response = await safeFetch(url, { method: 'HEAD', headers }, opts);
+        response = await safeFetch(url, { method: 'HEAD', headers }, { timeoutMs: left(), discardBody: true });
       } catch (headError) {
         if (headError instanceof UnsafeUrlError) throw headError;
         // If HEAD fails, try GET
-        response = await safeFetch(url, { method: 'GET', headers }, opts);
+        response = await safeFetch(url, { method: 'GET', headers }, { timeoutMs: left(), discardBody: true });
       }
 
       const responseTime = Date.now() - startTime;

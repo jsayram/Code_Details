@@ -1,6 +1,8 @@
 // H1: the analyzer and the link checker refuse internal hosts before any
 // socket opens. The real guard runs here; the isolation guard in
 // vitest-setup.ts would turn any attempted connection into a failure.
+import fs from "node:fs";
+import path from "node:path";
 import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -62,6 +64,19 @@ describe("serverGithubCrawler path parts", () => {
     "%s: refused before any request",
     async (repoUrl) => {
       await expect(serverGithubCrawler({ repoUrl } as never)).rejects.toMatchObject({ detail: expect.stringMatching(/Invalid GitHub URL/) });
+    },
+  );
+});
+
+describe("no plain fetch for visitor-influenced URLs", () => {
+  // The ui-refresh merge conflicts in analyze/route.ts; taking the wrong side
+  // would silently swap safeFetch back to fetch. This catches it.
+  it.each(["src/app/api/repo/analyze/route.ts", "src/app/api/validate-url/route.ts", "src/repoScrapper/server-crawler.ts"])(
+    "%s only uses safeFetch",
+    (file) => {
+      const src = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8").replace(/\/\/.*$|\/\*[\s\S]*?\*\//gm, "");
+      expect(src.match(/(?<![\w.])fetch\s*\(/g) ?? []).toEqual([]);
+      expect(src).toMatch(/\bsafeFetch\(/);
     },
   );
 });
