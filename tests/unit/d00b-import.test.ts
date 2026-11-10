@@ -261,10 +261,12 @@ describe("D00b batch logic (invalid-relationship sets)", () => {
     store.storage.set("s1", { sha256Hex: "aa", size: 3, contentType: "image/png" });
     await expect(go(store, "files", [{ sourceId: "o1", rowHash: "h", storageId: "s1", sha256Hex: "bb", size: 3 }])).rejects.toThrow(/doesn't match/);
     await go(store, "files", [{ sourceId: "o1", rowHash: "h", storageId: "s1", sha256Hex: "aa", size: 3 }]);
-    const img = { id: "i1", project_id: project(1, 1).id, storage_path: "x", file_name: "f.png", width: 1, height: 1, image_type: "cover", display_order: 0, alt_text: null, caption: null, uploaded_by: "synthetic_subject_1", created_at: null, deleted_at: null, aspect_ratio: null };
+    const img = { id: "i1", project_id: project(1, 1).id, storage_path: "x", file_name: "passport-scan.png", width: 1, height: 1, image_type: "cover", display_order: 0, alt_text: null, caption: null, uploaded_by: "synthetic_subject_1", created_at: null, deleted_at: null, aspect_ratio: null };
     await go(store, "images", [mapImage(KEY, { ...img, object_id: "o1" }).row!, mapImage(KEY, { ...img, id: "i2", object_id: "o2" }).row!, mapImage(KEY, { ...img, id: "i3", object_id: "o1", uploaded_by: "nobody" }).row!]);
     expect(store.rows("projectImages")).toHaveLength(1);
     expect(store.rows("projectImages")[0]).toMatchObject({ mimeType: "image/png", size: 3, status: "active" });
+    // H1 privacy: the source's file name isn't stored, only kind.ext.
+    expect(store.rows("projectImages")[0].fileName).toBe("cover.png");
     expect(store.rejects.map((r) => r.reason)).toEqual(["file_missing", "uploader_missing"]);
   });
 
