@@ -62,3 +62,22 @@ test("the no-sidebar header's phone menu is hidden while closed and closes on Es
   await expect(signOut).toHaveCount(0);
   await expect(header.getByRole("button", { name: "Open menu" })).toBeFocused();
 });
+
+test("signed in: the sidebar trigger opens the sheet with the signed-in entries and gets focus back", async ({ page }) => {
+  await signIn(page, "ui05-sheet");
+  await page.goto("/projects");
+  const trigger = page.locator('[data-shell="header"] [data-sidebar="trigger"]');
+  await expect(trigger).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "false");
+  await trigger.focus();
+  await page.keyboard.press("Enter");
+  const sheet = page.locator('[data-mobile="true"]');
+  await expect(sheet).toBeVisible();
+  await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  await expect(sheet.getByText("Explore", { exact: true })).toBeVisible();
+  for (const name of ["Dashboard", "Projects", "GitHub Scraper"]) await expect(sheet.getByRole("link", { name, exact: true })).toBeVisible();
+  await expect(sheet.getByRole("button", { name: "Sign out" })).toBeVisible();
+  await page.keyboard.press("Escape");
+  await expect(sheet).toBeHidden();
+  await expect(trigger).toBeFocused();
+});
