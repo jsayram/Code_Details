@@ -13,13 +13,12 @@
 import fs from "node:fs";
 import path from "node:path";
 
-const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
+import { storedNeutralName } from "../../convex/imageNames";
 
 export type ImageRow = { _id: string; kind: string; mimeType: string; fileName: string };
 export type Proposal = { id: string; kind: string; storedIsNeutral: boolean; proposed: string };
 
-/** The value attach stores since H1. */
-export const storedNeutralName = (kind: string, mimeType: string) => `${kind}.${EXTENSIONS[mimeType] ?? "img"}`;
+export { storedNeutralName };
 
 export function propose(rows: ImageRow[]): Proposal[] {
   return rows.map((r) => {

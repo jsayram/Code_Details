@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
-import { neutralFileName } from "../../convex/projectImages";
+import { neutralFileName } from "../../convex/imageNames";
 import { propose, readRows, storedNeutralName } from "../../scripts/h1-image-names/dry-run";
 
 describe("neutralFileName", () => {

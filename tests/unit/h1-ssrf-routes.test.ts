@@ -12,6 +12,7 @@ vi.mock("@/lib/auth-server", () => ({
 
 import { POST as analyze } from "@/app/api/repo/analyze/route";
 import { POST as validateUrl } from "@/app/api/validate-url/route";
+import { serverGithubCrawler } from "@/repoScrapper/server-crawler";
 
 const post = (path: string, body: unknown) =>
   new NextRequest(`http://localhost${path}`, { method: "POST", body: JSON.stringify(body) });
@@ -60,7 +61,6 @@ describe("serverGithubCrawler path parts", () => {
   it.each(["owner/repo#../../user", "owner/repo@a/../../b", "owner/repo#a//b", "owner/repo#a?b"])(
     "%s: refused before any request",
     async (repoUrl) => {
-      const { serverGithubCrawler } = await import("@/repoScrapper/server-crawler");
       await expect(serverGithubCrawler({ repoUrl } as never)).rejects.toMatchObject({ detail: expect.stringMatching(/Invalid GitHub URL/) });
     },
   );

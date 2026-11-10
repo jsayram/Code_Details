@@ -28,6 +28,7 @@ import { internal } from "./_generated/api";
 import type { Doc, Id } from "./_generated/dataModel";
 import { getViewer, type Viewer } from "./viewer";
 import { ORPHAN_MIN_AGE_MS, ORPHAN_SWEEP_BATCH, sweepAllowed } from "../src/backend/projects/image-sweep-rules";
+import { neutralFileName, storedNeutralName } from "./imageNames";
 
 export const IMAGE_KINDS = ["cover", "screenshot", "diagram", "logo"] as const;
 export type ImageKind = (typeof IMAGE_KINDS)[number];
@@ -62,18 +63,6 @@ export interface ImageView {
 }
 
 export type ImageFailure = { ok: false; code: "not_found" | "private_project" | "limit" | "invalid"; message?: string };
-
-const EXTENSIONS: Record<string, string> = { "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif" };
-
-/**
- * H1 privacy: the name every caller sees for an image, built from its kind,
- * id and type. The uploader's own file name ("passport-scan.png") is never
- * returned; rows from before H1 may still hold one in storage (see
- * scripts/h1-image-names-dry-run.ts).
- */
-export function neutralFileName(kind: ImageKind, mimeType: string, id: string): string {
-  return `${kind}-${id.slice(-6)}.${EXTENSIONS[mimeType] ?? "img"}`;
-}
 
 async function toView(ctx: QueryCtx, image: Doc<"projectImages">): Promise<ImageView> {
   return {
@@ -219,7 +208,7 @@ export const attach = mutation({
       storageId,
       kind: args.kind,
       displayOrder: args.kind === "cover" || args.kind === "logo" ? 0 : current.length,
-      fileName: `${args.kind}.${EXTENSIONS[contentType] ?? "img"}`,
+      fileName: storedNeutralName(args.kind, contentType),
       mimeType: contentType,
       size: file.size,
       uploadedBy: viewer.userId,
