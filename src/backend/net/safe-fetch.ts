@@ -189,7 +189,7 @@ export async function safeFetch(input: string | URL, init: Init = {}, opts: Safe
   for (let hop = 0; ; hop++) {
     // Checked up front as well as inside the socket's own lookup (which pins
     // the address actually connected to), so a refused name never reaches a socket.
-    await checkResolves(url, lookup);
+    await checkResolves(url, lookup, deadline);
     const res = await requestOnce(url, method, headers, lookup, deadline, maxBytes, opts.discardBody ?? false);
     const location = res.status >= 300 && res.status < 400 ? res.headers.get("location") : null;
     if (!location) return res;
@@ -201,16 +201,24 @@ export async function safeFetch(input: string | URL, init: Init = {}, opts: Safe
   }
 }
 
-function checkResolves(url: URL, lookup: typeof dns.lookup): Promise<void> {
+/** The up-front DNS check, inside the call's deadline (a lookup can hang). */
+function checkResolves(url: URL, lookup: typeof dns.lookup, deadline: number): Promise<void> {
   const host = url.hostname.replace(/^\[|\]$/g, "");
   if (net.isIP(host)) return Promise.resolve();
-  return new Promise((resolve, reject) =>
-    lookup(host, { all: true }, ((err: Error | null) => (err ? reject(err) : resolve())) as never),
-  );
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) return Promise.reject(new Error("Request timed out"));
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error("Request timed out")), remaining);
+    lookup(host, { all: true }, ((err: Error | null) => {
+      clearTimeout(timer);
+      if (err) reject(err);
+      else resolve();
+    }) as never);
+  });
 }
 
 /** Headers that carry a credential; dropped on any cross-origin redirect. */
-const CREDENTIAL_HEADERS = new Set(["authorization", "proxy-authorization", "private-token", "cookie"]);
+const CREDENTIAL_HEADERS = new Set(["authorization", "proxy-authorization", "private-token", "cookie", "x-api-key", "x-auth-token"]);
 
 /**
  * The headers to send on a redirect hop: credentials never travel to another

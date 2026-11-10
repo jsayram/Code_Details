@@ -156,12 +156,21 @@ describe("safeFetch", () => {
     await expect(safeFetch("https://api.example.test/x", {}, { lookup: fakeDns("140.82.112.3", "::1") })).rejects.toThrow(/may not reach/);
   });
 
+  it("a DNS lookup that never answers still ends at the deadline", async () => {
+    const hang = (() => undefined) as unknown as typeof dns.lookup;
+    const started = Date.now();
+    await expect(safeFetch("https://slow-dns.example.test/", {}, { lookup: hang, timeoutMs: 200 })).rejects.toThrow(/timed out/);
+    expect(Date.now() - started).toBeLessThan(1_500);
+  });
+
   it("drops credential headers on a cross-origin redirect and keeps them on the same origin", async () => {
-    const headers = { Authorization: "Bearer SYNTHETIC", "PRIVATE-TOKEN": "SYNTHETIC", Cookie: "a=b", Accept: "x/y" };
+    const headers = { Authorization: "Bearer SYNTHETIC", "PRIVATE-TOKEN": "SYNTHETIC", Cookie: "a=b", "X-Api-Key": "SYNTHETIC", "X-Auth-Token": "SYNTHETIC", Accept: "x/y" };
     const cross = (await (await safeFetch(`${base}/to-other`, { headers }, loopbackOnly)).json()) as Record<string, string>;
     expect(cross.authorization).toBeUndefined();
     expect(cross["private-token"]).toBeUndefined();
     expect(cross.cookie).toBeUndefined();
+    expect(cross["x-api-key"]).toBeUndefined();
+    expect(cross["x-auth-token"]).toBeUndefined();
     expect(cross.accept).toBe("x/y");
     const same = (await (await safeFetch(`${base}/to-echo`, { headers }, loopbackOnly)).json()) as Record<string, string>;
     expect(same.authorization).toBe("Bearer SYNTHETIC");
@@ -214,7 +223,7 @@ describe("headersForRedirect", () => {
     expect(headersForRedirect(new URL("https://a.example.test/"), new URL("http://b.example.test/"), { accept: "x/y" })).toEqual({ accept: "x/y" });
   });
   it("strips credentials across origins, whatever their case, and keeps them on the same origin", () => {
-    const mixed = { Authorization: "a", "Private-Token": "b", COOKIE: "c", "Proxy-Authorization": "d", accept: "x/y" };
+    const mixed = { Authorization: "a", "Private-Token": "b", COOKIE: "c", "Proxy-Authorization": "d", "X-Api-Key": "e", "X-AUTH-TOKEN": "f", accept: "x/y" };
     expect(headersForRedirect(new URL("https://a.example.test/"), new URL("https://b.example.test/"), mixed)).toEqual({ accept: "x/y" });
     expect(headersForRedirect(new URL("https://a.example.test/"), new URL("https://a.example.test/y"), mixed)).toEqual(mixed);
   });
