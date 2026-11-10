@@ -1613,3 +1613,204 @@ a.cd-tile:hover {
   color: var(--cd-text);
   font-weight: var(--cd-weight-semibold);
 }
+
+/* --- Account and secondary screens (UI09) --- */
+
+/* Sign in, sign up, reset and sign out: one card centered in the page. */
+.cd-auth-page {
+  display: flex;
+  flex-direction: column;
+}
+
+.cd-auth-main {
+  display: flex;
+  flex: 1;
+  justify-content: center;
+  align-items: flex-start;
+  padding: var(--cd-space-6) var(--cd-page-gutter) var(--cd-space-8);
+}
+
+.cd-auth-column {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  width: 100%;
+  max-width: 26rem;
+  min-width: 0;
+}
+
+.cd-auth-greeting {
+  text-align: center;
+}
+
+.cd-auth-icon {
+  display: inline-flex;
+  align-self: center;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: var(--cd-radius-pill);
+  background: var(--cd-selected);
+  color: var(--cd-on-selected);
+}
+
+.cd-auth-card {
+  padding: 0;
+  overflow: hidden;
+}
+
+.cd-auth-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-2);
+  padding: var(--cd-space-5) var(--cd-space-5) var(--cd-space-6);
+}
+
+.cd-auth-card-image {
+  width: 5rem;
+  height: 5rem;
+  align-self: center;
+  object-fit: contain;
+}
+
+.cd-auth-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  margin-block-start: var(--cd-space-4);
+}
+
+.cd-auth-card-footer {
+  padding: var(--cd-space-4) var(--cd-space-5);
+  border-top: 1px solid var(--cd-border-subtle);
+  background: var(--cd-raised);
+  color: var(--cd-text);
+  text-align: center;
+}
+
+.cd-auth-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--cd-space-4);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.cd-auth-aside-link {
+  align-self: flex-end;
+  display: inline-flex;
+  align-items: center;
+  min-height: 1.5rem;
+}
+
+.cd-auth-section {
+  padding-block-start: var(--cd-space-4);
+  border-top: 1px solid var(--cd-border-subtle);
+}
+
+.cd-auth-divider {
+  display: flex;
+  align-items: center;
+  gap: var(--cd-space-3);
+  margin-block: var(--cd-space-2);
+}
+
+.cd-auth-divider::before,
+.cd-auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--cd-border-subtle);
+}
+
+.cd-auth-terminal {
+  max-width: 40rem;
+  margin-inline: auto;
+}
+
+/* A line under a form: errors in red, confirmations in green, both solid. */
+.cd-form-message {
+  margin: 0;
+  font-size: var(--cd-text-small);
+  color: var(--cd-muted);
+}
+
+.cd-form-message[data-tone="error"] {
+  color: var(--cd-danger);
+}
+
+.cd-form-message[data-tone="success"] {
+  color: var(--cd-success);
+}
+
+@media (pointer: coarse) {
+  .cd-auth-aside-link {
+    min-height: 2.75rem;
+  }
+}
+
+/* Not found: the code, the h1, the mascot with its speech bubble, the way home. */
+.cd-not-found {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-4);
+  text-align: center;
+}
+
+.cd-not-found-code {
+  margin: 0;
+  font-size: var(--cd-text-display);
+  font-weight: var(--cd-weight-semibold);
+  line-height: var(--cd-leading-tight);
+  color: var(--cd-action);
+}
+
+.cd-not-found-mascot {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-3);
+}
+
+.cd-not-found-bubble {
+  max-width: 18rem;
+  padding: var(--cd-space-3) var(--cd-space-4);
+  margin: 0;
+}
+
+.cd-not-found-mascot-button {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--cd-space-1);
+  width: min(15rem, 100%);
+  padding: var(--cd-space-2);
+  border: 0;
+  border-radius: var(--cd-radius-surface);
+  background: transparent;
+  cursor: pointer;
+}
+
+.cd-not-found-actions {
+  justify-content: center;
+}
+
+/* About: the three icon links under the profile card. */
+.cd-about-icon-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--cd-control-height);
+  height: var(--cd-control-height);
+  border-radius: var(--cd-radius-pill);
+  color: var(--cd-muted);
+}
+
+.cd-about-icon-link:hover {
+  background: var(--cd-raised);
+  color: var(--cd-action);
+}
