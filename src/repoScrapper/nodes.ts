@@ -29,9 +29,12 @@ import type { LLMCallOptions } from '@/llm/types';
 /** See SharedData._llmGuard. */
 export type LlmGuard = (provider: string | undefined, model: string | undefined) => Promise<(ok: boolean, latencyMs: number, errorStatus?: number) => Promise<void>>;
 
-/** callLLM behind the gate: one reserved unit per call, its outcome logged (never the prompt). */
+/**
+ * callLLM behind the gate: one reserved unit per call, its outcome logged (never the prompt).
+ * No guard means no model call (H1: fail closed; a caller that forgets the gate gets an error).
+ */
 export async function guardedCallLLM(guard: LlmGuard | undefined, options: LLMCallOptions): Promise<string> {
-  if (!guard) return callLLM(options);
+  if (!guard) throw new Error("Model calls need the usage gate; none was supplied");
   const done = await guard(options.provider, options.model);
   const startedAt = Date.now();
   try {
