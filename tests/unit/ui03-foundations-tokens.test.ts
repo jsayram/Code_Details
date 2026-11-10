@@ -157,6 +157,26 @@ it("is imported only by the preview route and the screens that adopted it", () =
     path.join("app", "(administrator)", "dashboard", "page.tsx"),
     path.join("app", "(administrator)", "dashboard", "loading.tsx"),
     path.join("components", "dashboard", "DashboardSkeleton.tsx"),
+    // UI09: account and secondary screens. Auth frame, not-found and errors,
+    // admin, the secondary pages and the people directory.
+    path.join("components", "auth", "AuthPageFrame.tsx"),
+    path.join("app", "not-found.tsx"),
+    path.join("app", "error.tsx"),
+    path.join("app", "(administrator)", "dashboard", "admin", "AdminDashboardClient.tsx"),
+    path.join("app", "(administrator)", "dashboard", "admin", "loading.tsx"),
+    path.join("app", "(administrator)", "dashboard", "tag-submissions", "page.tsx"),
+    path.join("app", "(administrator)", "llm-test", "page.tsx"),
+    path.join("app", "(administrator)", "scrapper-demo", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "about", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "community", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "support", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "github-scrapper", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "github-scrapper", "my-docs", "page.tsx"),
+    path.join("app", "(sidebar-footer)", "github-scrapper", "docs", "[slug]", "[[...chapter]]", "page.tsx"),
+    path.join("app", "projects", "[slug]", "suggest-tags", "page.tsx"),
+    path.join("app", "projects", "[slug]", "suggest-tags", "loading.tsx"),
+    path.join("app", "users", "page.tsx"),
+    path.join("app", "users", "loading.tsx"),
   ].sort());
 });
 
