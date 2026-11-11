@@ -8,12 +8,33 @@
 // click are covered in the browser by tests/e2e/x1-mermaid-xss.spec.ts.
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cleanup, render, waitFor } from "@testing-library/react";
-import { mermaidConfig } from "@/components/created_mds/MermaidDiagram";
+// mermaid is ESM-only; this file compiles as CommonJS, so types come in with resolution-mode.
+import type { Mermaid } from "mermaid" with { "resolution-mode": "import" };
+import { MermaidDiagram, mermaidConfig } from "@/components/created_mds/MermaidDiagram";
+
+const SVG = '<svg id="mermaid-synthetic"><g><text>Start</text></g></svg>';
+const h = vi.hoisted(() => ({ initialized: [] as Record<string, unknown>[] }));
+
+// The real mermaid, except render(): jsdom can't lay a diagram out. initialize
+// is recorded and still applied, so the parser below runs with that config.
+vi.mock("mermaid", async (importOriginal) => {
+  const real = ((await importOriginal()) as { default: Mermaid }).default;
+  return {
+    default: {
+      ...real,
+      initialize: (config: Parameters<typeof real.initialize>[0]) => {
+        h.initialized.push(config as Record<string, unknown>);
+        real.initialize(config);
+      },
+      render: async () => ({ svg: SVG, diagramType: "flowchart" }),
+    },
+  };
+});
 
 const CHART = 'flowchart TD\n  A["Start"] --> B["End"]\n  click A href "javascript:alert(document.domain)"';
 
-async function linkOfA(config: Parameters<typeof import("mermaid").default.initialize>[0]) {
-  const mermaid = (await vi.importActual<typeof import("mermaid")>("mermaid")).default;
+async function linkOfA(config: Parameters<Mermaid["initialize"]>[0]) {
+  const mermaid = (await import("mermaid")).default;
   mermaid.initialize(config);
   const diagram = await mermaid.mermaidAPI.getDiagramFromText(CHART);
   return (diagram.db as unknown as { getVertices(): Map<string, { link?: string }> }).getVertices().get("A")?.link;
@@ -21,8 +42,7 @@ async function linkOfA(config: Parameters<typeof import("mermaid").default.initi
 
 afterEach(() => {
   cleanup();
-  vi.doUnmock("mermaid");
-  vi.resetModules();
+  h.initialized = [];
 });
 
 describe("Mermaid security level", () => {
@@ -40,15 +60,9 @@ describe("Mermaid security level", () => {
   });
 
   it("the component initializes strict and inserts only mermaid's rendered SVG", async () => {
-    const initialize = vi.fn();
-    const svg = '<svg id="mermaid-synthetic"><g><text>Start</text></g></svg>';
-    vi.doMock("mermaid", () => ({
-      default: { initialize, parse: vi.fn(async () => true), render: vi.fn(async () => ({ svg })) },
-    }));
-    const { MermaidDiagram } = await import("@/components/created_mds/MermaidDiagram");
     const { container } = render(<MermaidDiagram chart={CHART} />);
     await waitFor(() => expect(container.querySelector("#mermaid-synthetic")).not.toBeNull());
-    expect(initialize).toHaveBeenCalledWith(expect.objectContaining({ securityLevel: "strict" }));
+    expect(h.initialized).toEqual([expect.objectContaining({ securityLevel: "strict" })]);
     expect(container.innerHTML).not.toMatch(/javascript:/i);
     expect(container.querySelectorAll("[onerror],[onclick],[onload]")).toHaveLength(0);
   });
