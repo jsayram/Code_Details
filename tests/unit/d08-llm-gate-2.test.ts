@@ -49,8 +49,7 @@ vi.mock("@/repoScrapper", async (importOriginal) => ({
 }));
 vi.mock("@/lib/output-utils", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/output-utils")>()),
-  saveChapter: async () => "chapter.md",
-  saveProjectMeta: async () => undefined,
+  docStore: { saveChapter: async () => "chapter.md", saveMeta: async () => undefined },
 }));
 
 import { baseUrlProblem, LlmGateError } from "@/backend/llm/gate";

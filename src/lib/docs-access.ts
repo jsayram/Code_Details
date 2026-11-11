@@ -11,7 +11,7 @@
 // stripped from the owner's responses (ownerMeta).
 import { getProjectReadBackend } from '@/backend/projects';
 import { personalReadsFromConvex } from '@/backend/projects/personal';
-import { getProjectMeta, type ProjectMeta } from '@/lib/output-utils';
+import { docStore, type ProjectMeta } from '@/lib/output-utils';
 import { isSafeDocSlug } from '@/lib/docs-output-root';
 import type { DocOwner } from '@/lib/auth-server';
 
@@ -24,7 +24,7 @@ export function isDocOwner(meta: Pick<ProjectMeta, 'userId'> | null | undefined,
 
 export async function readableDoc(slug: string, owner: DocOwner | null): Promise<ReadableDoc | null> {
   if (!owner || !isSafeDocSlug(slug)) return null;
-  const meta = await getProjectMeta(slug);
+  const meta = await docStore.readMeta(slug);
   if (!meta || typeof meta.userId !== 'string' || !meta.userId) return null;
   if (isDocOwner(meta, owner)) return { meta, isOwner: true };
   if (!meta.linkedProjectId || !meta.linkedProjectSlug) return null;

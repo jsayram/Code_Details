@@ -8,13 +8,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import matter from 'gray-matter';
 import { routeDocOwner } from '@/lib/auth-server';
-import { getProjectMeta } from '@/lib/output-utils';
+import { docStore } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
-import { docsOutputRoot, isSafeChapterFilename, isSafeDocSlug } from '@/lib/docs-output-root';
+import { isSafeChapterFilename, isSafeDocSlug } from '@/lib/docs-output-root';
 import { isDocOwner, readableDoc } from '@/lib/docs-access';
 
 interface RouteParams {
@@ -24,22 +22,15 @@ interface RouteParams {
   }>;
 }
 
-// Output directory (relative to project root)
-const OUTPUT_DIR = docsOutputRoot();
-
 const chapterNotFound = () => NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
 
-/** The chapter's file, falling back to index.md for the overview; null if neither exists. */
-async function existingChapterPath(slug: string, filename: string): Promise<string | null> {
-  const candidates = [path.join(OUTPUT_DIR, slug, filename)];
-  if (filename === '-1_overview.md') candidates.push(path.join(OUTPUT_DIR, slug, 'index.md'));
+/** The chapter as stored, falling back to index.md for the overview; null if neither exists. */
+async function existingChapter(slug: string, filename: string): Promise<{ filename: string; raw: string } | null> {
+  const candidates = [filename];
+  if (filename === '-1_overview.md') candidates.push('index.md');
   for (const candidate of candidates) {
-    try {
-      await fs.access(candidate);
-      return candidate;
-    } catch {
-      // try the next one
-    }
+    const raw = await docStore.readChapter(slug, candidate);
+    if (raw !== null) return { filename: candidate, raw };
   }
   return null;
 }
@@ -60,16 +51,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       return chapterNotFound();
     }
 
-    const filePath = await existingChapterPath(slug, filename);
-    if (!filePath) {
+    const chapter = await existingChapter(slug, filename);
+    if (!chapter) {
       return chapterNotFound();
     }
     
-    // Read file content
-    const fileContent = await fs.readFile(filePath, 'utf-8');
-    
     // Parse frontmatter
-    const { content } = matter(fileContent);
+    const { content } = matter(chapter.raw);
     
     // Return just the content (without frontmatter) as plain text
     return new NextResponse(content, {
@@ -114,7 +102,7 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     const safeFilename = filename;
     
     // Get the documentation metadata to verify ownership
-    const docMeta = await getProjectMeta(safeSlug);
+    const docMeta = await docStore.readMeta(safeSlug);
     if (!docMeta) {
       return notFound('documentation', { identifier: safeSlug });
     }
@@ -135,15 +123,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Check if file exists - fall back to index.md for overview
-    const targetPath = await existingChapterPath(safeSlug, safeFilename);
-    if (!targetPath) {
+    // Check if the chapter exists - fall back to index.md for overview
+    const existing = await existingChapter(safeSlug, safeFilename);
+    if (!existing) {
       return notFound('chapter', { identifier: safeFilename });
     }
     
-    // Read existing file to get frontmatter
-    const existingContent = await fs.readFile(targetPath, 'utf-8');
-    const { data: frontmatter } = matter(existingContent);
+    // Existing frontmatter
+    const { data: frontmatter } = matter(existing.raw);
     
     // Reconstruct file with frontmatter + new content
     let newFileContent: string;
@@ -156,7 +143,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     
     // Write the updated content
-    await fs.writeFile(targetPath, newFileContent, 'utf-8');
+    if (!(await docStore.writeChapter(safeSlug, existing.filename, newFileContent))) {
+      return notFound('chapter', { identifier: safeFilename });
+    }
     
     return success({
       updated: true,

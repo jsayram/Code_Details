@@ -12,12 +12,7 @@ import { NextRequest } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { isDocOwner } from '@/lib/docs-access';
 import { convexPersonalList, personalReadsFromConvex } from '@/backend/projects/personal';
-import { 
-  getProjectMeta, 
-  updateProjectMeta, 
-  listProjects,
-  findDocLinkedToProject 
-} from '@/lib/output-utils';
+import { docStore, findDocLinkedToProject } from '@/lib/output-utils';
 import { 
   unauthorized, 
   notFound, 
@@ -49,7 +44,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     const { slug } = await params;
 
     // Get the documentation metadata
-    const docMeta = await getProjectMeta(slug);
+    const docMeta = await docStore.readMeta(slug);
     if (!docMeta) {
       return notFound('documentation', { identifier: slug });
     }
@@ -98,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
       
       // Unlink the existing doc first
-      await updateProjectMeta(existingLinkedDoc.projectSlug, {
+      await docStore.updateMeta(existingLinkedDoc.projectSlug, {
         linkedProjectId: undefined,
         linkedProjectSlug: undefined,
         linkedProjectTitle: undefined,
@@ -106,7 +101,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Link the documentation to the project
-    const updatedMeta = await updateProjectMeta(slug, {
+    const updatedMeta = await docStore.updateMeta(slug, {
       linkedProjectId: projectId,
       linkedProjectSlug: projectSlug,
       // The project's own title, not the one the request sent
@@ -145,7 +140,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { slug } = await params;
 
     // Get the documentation metadata
-    const docMeta = await getProjectMeta(slug);
+    const docMeta = await docStore.readMeta(slug);
     if (!docMeta) {
       return notFound('documentation', { identifier: slug });
     }
@@ -167,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const previousProjectSlug = docMeta.linkedProjectSlug;
 
     // Unlink the documentation
-    const updatedMeta = await updateProjectMeta(slug, {
+    const updatedMeta = await docStore.updateMeta(slug, {
       linkedProjectId: undefined,
       linkedProjectSlug: undefined,
       linkedProjectTitle: undefined,
