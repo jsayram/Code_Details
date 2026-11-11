@@ -24,7 +24,7 @@ import {
   LLM_PROVIDERS,
   PROVIDER_IDS,
   getProvider,
-} from '@/llm';
+} from 'repo-docs/llm';
 
 interface LLMProviderSelectorProps {
   onConfigChange: (config: {

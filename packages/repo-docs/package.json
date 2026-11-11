@@ -1,0 +1,47 @@
+{
+  "name": "repo-docs",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Crawl a GitHub repository and turn it into chaptered Markdown docs with an LLM. Working name; not published.",
+  "license": "UNLICENSED",
+  "exports": {
+    ".": "./src/index.ts",
+    "./llm": "./src/llm/public.ts",
+    "./store": "./src/repoScrapper/store/doc-store.ts",
+    "./server": {
+      "browser": null,
+      "default": "./src/server.ts"
+    },
+    "./llm/server": {
+      "browser": null,
+      "default": "./src/llm/index.ts"
+    },
+    "./safe-fetch": {
+      "browser": null,
+      "default": "./src/repoScrapper/net/safe-fetch.ts"
+    },
+    "./store/file": {
+      "browser": null,
+      "default": "./src/repoScrapper/store/file-doc-store.ts"
+    },
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit -p tsconfig.json"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.71.0",
+    "@google/generative-ai": "0.24.1",
+    "js-yaml": "4.1.1",
+    "minimatch": "10.1.1",
+    "openai": "6.9.1",
+    "pocketflow": "1.0.4"
+  },
+  "devDependencies": {
+    "@types/js-yaml": "^4.0.9",
+    "@types/node": "^20",
+    "typescript": "^5",
+    "vitest": "4.1.12"
+  }
+}

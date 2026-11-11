@@ -14,8 +14,8 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { baseUrlProblem, requireLlmAdmin, reserveLlmCall, type GateRefusal } from '@/backend/llm/gate';
-import { callLLM, PROVIDER_IDS } from '@/llm';
-import { LLMError } from '@/llm/errors';
+import { callLLM, PROVIDER_IDS } from 'repo-docs/llm/server';
+import { LLMError } from 'repo-docs/llm';
 import { createLLMErrorResponse, toLLMError } from '@/backend/llm/errors';
 
 const problem = (status: number, slug: string, title: string, detail: string) =>

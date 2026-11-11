@@ -23,8 +23,8 @@
 
 import * as yaml from 'js-yaml';
 import { Node, BatchNode } from 'pocketflow';
-import { callLLM } from '@/llm/client';
-import type { LLMCallOptions } from '@/llm/types';
+import { callLLM } from '../llm/client';
+import type { LLMCallOptions } from '../llm/types';
 
 /** See SharedData._llmGuard. */
 export type LlmGuard = (provider: string | undefined, model: string | undefined) => Promise<(ok: boolean, latencyMs: number, errorStatus?: number) => Promise<void>>;

@@ -6,8 +6,8 @@ import http from "node:http";
 import type { AddressInfo } from "node:net";
 import type dns from "node:dns";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { checkOutboundUrl, guardedLookup, headersForRedirect, isPublicAddress, safeFetch, UnsafeUrlError } from "@/repoScrapper/net/safe-fetch";
-import { allowTestOwnedPort } from "../support/loopback-port";
+import { checkOutboundUrl, guardedLookup, headersForRedirect, isPublicAddress, safeFetch, UnsafeUrlError } from "../src/repoScrapper/net/safe-fetch";
+import { allowTestOwnedPort } from "./support/loopback-port";
 
 describe("isPublicAddress", () => {
   it.each([

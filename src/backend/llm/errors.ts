@@ -3,7 +3,7 @@
 // routes turn those errors into responses here. Server-side only.
 import { NextResponse } from 'next/server';
 import type { ErrorCode } from '@/constants/error-codes';
-import { LLMError, parseLLMError, type LLMErrorCode, type LLMProblemDetail } from '@/llm/errors';
+import { LLMError, parseLLMError, type LLMErrorCode, type LLMProblemDetail } from 'repo-docs/llm';
 
 /** A problem body the app may send: an engine LLM code or one of the app's own codes. */
 export type AppLLMProblemDetail = Omit<LLMProblemDetail, 'code'> & { code: LLMErrorCode | ErrorCode };

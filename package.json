@@ -2,6 +2,9 @@
   "name": "codedetailsweb",
   "version": "0.1.0",
   "private": true,
+  "workspaces": [
+    "packages/*"
+  ],
   "scripts": {
     "validate-env": "node -r ts-node/register ./scripts/validateEnv.ts",
     "set-env": "node -r ts-node/register ./scripts/setEnv.ts",
@@ -14,8 +17,8 @@
     "test:convex:up": "tests/convex/up.sh",
     "test:convex:push": "node tests/convex/push.mjs",
     "test:convex:down": "tests/convex/down.sh",
-    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p convex/tsconfig.json",
-    "lint:tests": "eslint tests playwright.config.ts vitest.config.mts next.config.ts eslint.config.mjs scripts/setEnv.ts",
+    "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p convex/tsconfig.json && tsc --noEmit -p packages/repo-docs/tsconfig.json",
+    "lint:tests": "eslint tests packages/repo-docs/test packages/repo-docs/vitest.config.mts playwright.config.ts vitest.config.mts next.config.ts eslint.config.mjs scripts/setEnv.ts",
     "build:isolated": "node tests/ci/isolated-build.mjs",
     "test:scripts": "node --test scripts/test-credential-logging.cjs && node -r ts-node/register scripts/test-repo-analyzer.ts",
     "build": "cross-env NODE_ENV=production npm run set-env && npm run validate-env && next build",
@@ -67,6 +70,7 @@
     "recharts": "^2.15.3",
     "rehype-highlight": "^7.0.2",
     "remark-gfm": "^4.0.1",
+    "repo-docs": "0.1.0",
     "shadcn-ui": "^0.9.5",
     "sonner": "^2.0.3",
     "stripe": "^17.7.0",

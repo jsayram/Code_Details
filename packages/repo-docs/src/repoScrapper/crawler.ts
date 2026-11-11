@@ -39,7 +39,7 @@ export const DEFAULT_API_PATH = '/api/github-crawler';
  * 
  * @example
  * ```ts
- * import { githubFileCrawler, getDefaultPatterns } from '@/repoScrapper';
+ * import { githubFileCrawler, getDefaultPatterns } from 'repo-docs/server';
  * 
  * const { includePatterns, excludePatterns } = getDefaultPatterns();
  * 

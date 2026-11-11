@@ -19,7 +19,7 @@
  *   LocalStorageAdapter,
  *   loadRepoCache,
  *   saveRepoCache,
- * } from '@/repoScrapper';
+ * } from 'repo-docs/server';
  * 
  * // Get default patterns
  * const { includePatterns, excludePatterns } = getDefaultPatterns();

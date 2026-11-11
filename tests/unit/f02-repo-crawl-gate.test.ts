@@ -9,7 +9,8 @@ vi.mock("@/lib/auth-server", () => ({
   betterAuthRole: async () => h.role,
   routeDocOwner: async () => (h.account ? { writeKey: h.account } : null),
 }));
-vi.mock("@/repoScrapper/server-crawler", () => ({
+vi.mock("repo-docs/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("repo-docs/server")>()),
   serverGithubCrawler: async (options: { repoUrl: string; token?: string }) => {
     h.crawls.push(options);
     return { files: { "a.ts": "x" }, stats: { skipped_count: 0, excluded_count: 0 } };

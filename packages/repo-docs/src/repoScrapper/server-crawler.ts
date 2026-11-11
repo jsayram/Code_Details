@@ -100,7 +100,7 @@ function decodeBase64(content: string): string {
  * @example
  * ```ts
  * // In an API route
- * import { serverGithubCrawler } from '@/repoScrapper/server-crawler';
+ * import { serverGithubCrawler } from 'repo-docs/server';
  * 
  * const result = await serverGithubCrawler({
  *   repoUrl: 'https://github.com/owner/repo',

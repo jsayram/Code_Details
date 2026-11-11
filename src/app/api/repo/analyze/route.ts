@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { betterAuthRole, routeDocOwner } from "@/lib/auth-server";
-import { safeFetch, UnsafeUrlError } from "@/repoScrapper/net/safe-fetch";
+import { safeFetch, UnsafeUrlError } from "repo-docs/safe-fetch";
 
 // =============================================================================
 // SUPPORTED PLATFORMS

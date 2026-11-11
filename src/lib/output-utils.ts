@@ -2,17 +2,17 @@
  * Generated docs: the app's side of the engine's DocStore (X2).
  *
  * The engine owns the doc's facts (repo, chapters, generation time, model) and
- * how they are stored (src/repoScrapper/store). Code Details adds who owns the
+ * how they are stored (`repo-docs/store`). Code Details adds who owns the
  * doc and which project it is linked to; those fields live in the same
  * metadata record but only the app reads them. Ownership checks stay in the
  * app (src/lib/docs-access.ts and the /api/docs routes) and wrap the store.
  */
 
-import { FileDocStore } from '@/repoScrapper/store/file-doc-store';
-import type { DocChapterInfo, DocMeta } from '@/repoScrapper/store/doc-store';
+import { FileDocStore } from 'repo-docs/store/file';
+import type { DocChapterInfo, DocMeta } from 'repo-docs/store';
 import { docsOutputRoot } from './docs-output-root';
 
-export { generateDocSlug as generateProjectSlug } from '@/repoScrapper/store/doc-store';
+export { generateDocSlug as generateProjectSlug } from 'repo-docs/store';
 
 export type ChapterInfo = DocChapterInfo;
 

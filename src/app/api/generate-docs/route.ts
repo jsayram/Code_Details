@@ -12,14 +12,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { baseUrlProblem, LlmGateError, requireLlmAdmin, reserveLlmCall } from '@/backend/llm/gate';
-import type { LlmGuard } from '@/repoScrapper/nodes';
+import type { LlmGuard } from 'repo-docs/server';
 import {
   runDocumentationFlowWithProgress,
   isValidGitHubUrl,
   parseGitHubUrl,
   type SharedData,
   type ProgressCallback,
-} from '@/repoScrapper';
+} from 'repo-docs/server';
 import {
   docStore,
   generateProjectSlug,

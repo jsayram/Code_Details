@@ -1,5 +1,6 @@
 // D08 llm-gate-2: the /api/llm rules on every route that reaches a model
-// provider. No real provider: @/llm, @/llm/client and the docs flow are doubles.
+// provider. No real provider: repo-docs/llm/server, the engine's LLM client and the docs
+// flow are doubles.
 // - /api/llm-test and /api/generate-docs: admins only, a custom base URL only
 //   to this machine, one reserved unit per provider call (refused or unchecked:
 //   no call), and nothing about keys in the logs.
@@ -27,21 +28,23 @@ vi.mock("@/lib/auth-server", () => ({
     return { result: true };
   },
 }));
-vi.mock("@/llm", () => ({
+vi.mock("repo-docs/llm/server", () => ({
   testProviderConnection: async (args: unknown) => {
     h.providerCalls.push(args);
     return { success: true, message: "synthetic ok" };
   },
 }));
-vi.mock("@/llm/client", () => ({
+// nodes.ts calls the client through its own relative import, so the double
+// replaces that module inside the package.
+vi.mock("../../packages/repo-docs/src/llm/client", () => ({
   callLLM: async (args: unknown) => {
     h.providerCalls.push(args);
     if ((args as { prompt?: string }).prompt === "fail") throw Object.assign(new Error("synthetic"), { status: 502 });
     return "synthetic answer";
   },
 }));
-vi.mock("@/repoScrapper", async (importOriginal) => ({
-  ...(await importOriginal<typeof import("@/repoScrapper")>()),
+vi.mock("repo-docs/server", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("repo-docs/server")>()),
   runDocumentationFlowWithProgress: async (shared: Record<string, unknown>) => {
     h.flowShared = shared;
     return { generatedChapters: [], generatedIndex: "", chapterFilenames: {} };
@@ -55,7 +58,7 @@ vi.mock("@/lib/output-utils", async (importOriginal) => ({
 import { baseUrlProblem, LlmGateError } from "@/backend/llm/gate";
 import { POST as llmTest } from "@/app/api/llm-test/route";
 import { POST as generateDocs } from "@/app/api/generate-docs/route";
-import { guardedCallLLM, type LlmGuard } from "@/repoScrapper/nodes";
+import { guardedCallLLM, type LlmGuard } from "repo-docs/server";
 
 const req = (url: string, body: unknown) => new NextRequest(`http://localhost:3000${url}`, { method: "POST", body: JSON.stringify(body) });
 const testBody = { provider: "openai", model: "gpt-synthetic", apiKey: "sk-SYNTHETIC-not-logged-123" };
@@ -176,7 +179,7 @@ describe("guardedCallLLM (the docs flow's only way to a model)", () => {
   });
 
   it("nodes.ts has no model call that skips the guard", () => {
-    const src = fs.readFileSync(path.resolve(__dirname, "../../src/repoScrapper/nodes.ts"), "utf8");
+    const src = fs.readFileSync(path.resolve(__dirname, "../../packages/repo-docs/src/repoScrapper/nodes.ts"), "utf8");
     const body = src.slice(src.indexOf("export async function guardedCallLLM"));
     const outside = src.replace(body.slice(0, body.indexOf("\n}\n") + 3), "");
     expect(outside.match(/\bcallLLM\(/g) ?? []).toEqual([]);

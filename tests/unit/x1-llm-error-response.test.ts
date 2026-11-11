@@ -2,7 +2,7 @@
 // src/backend/llm/errors.ts. Pins the shape /api/llm sent before the move.
 import { describe, expect, it } from "vitest";
 import { createLLMErrorResponse, toLLMError } from "@/backend/llm/errors";
-import { LLMError, LLM_ERROR_CODES, UNKNOWN_PROVIDER_ERROR_DETAIL } from "@/llm/errors";
+import { LLMError, LLM_ERROR_CODES, UNKNOWN_PROVIDER_ERROR_DETAIL } from "repo-docs/llm";
 
 const req = new Request("http://localhost:3000/api/llm", { method: "POST" });
 

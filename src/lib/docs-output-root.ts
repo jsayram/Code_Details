@@ -4,12 +4,12 @@
 // .test-runtime/ and can never touch a real generated doc.
 //
 // X2: the slug and chapter-name checks live with the engine's DocStore
-// (src/repoScrapper/store/doc-store.ts, which has no disk access); they are
+// (`repo-docs/store`, which has no disk access); they are
 // re-exported here for the app. This module needs only node:path.
 import path from "node:path";
-import { isSafeDocSlug } from "@/repoScrapper/store/doc-store";
+import { isSafeDocSlug } from "repo-docs/store";
 
-export { isSafeChapterFilename, isSafeDocSlug } from "@/repoScrapper/store/doc-store";
+export { isSafeChapterFilename, isSafeDocSlug } from "repo-docs/store";
 
 export function docsOutputRoot(env: Record<string, string | undefined> = process.env, cwd: string = process.cwd()): string {
   return env.CODEDETAILS_ENV_ISOLATED === "1" ? path.join(cwd, ".test-runtime", "docs-output") : path.join(cwd, "src", "app", "output");

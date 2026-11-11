@@ -14,7 +14,7 @@ import type { StorageAdapter } from '../types';
  * 
  * @example
  * ```ts
- * import { LocalStorageAdapter } from '@/repoScrapper';
+ * import { LocalStorageAdapter } from 'repo-docs/server';
  * 
  * const storage = new LocalStorageAdapter('myapp_');
  * await storage.set('key', { data: 'value' });
@@ -170,7 +170,7 @@ export class LocalStorageAdapter implements StorageAdapter {
  * 
  * @example
  * ```ts
- * import { MemoryStorageAdapter } from '@/repoScrapper';
+ * import { MemoryStorageAdapter } from 'repo-docs/server';
  * 
  * const storage = new MemoryStorageAdapter();
  * await storage.set('key', { data: 'value' });
@@ -252,8 +252,8 @@ export interface SupabaseStorageConfig {
  * @example
  * ```ts
  * // In your consuming app:
- * import { createSupabaseAdapter } from '@/repoScrapper';
- * import { supabase } from '@/lib/supabase';
+ * import { createSupabaseAdapter } from 'repo-docs/server';
+ * import { supabase } from './your-supabase-client';
  * 
  * const storage = createSupabaseAdapter({
  *   supabase,

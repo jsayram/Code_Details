@@ -7,8 +7,8 @@ import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { FileDocStore, docDir } from "@/repoScrapper/store/file-doc-store";
-import { createChapterFilename, isSafeChapterFilename, isSafeDocSlug, type DocMeta } from "@/repoScrapper/store/doc-store";
+import { FileDocStore, docDir } from "../src/repoScrapper/store/file-doc-store";
+import { createChapterFilename, isSafeChapterFilename, isSafeDocSlug, type DocMeta } from "../src/repoScrapper/store/doc-store";
 
 type AppMeta = DocMeta & { userId: string; linkedProjectId?: string; linkedProjectSlug?: string; linkedProjectTitle?: string };
 
@@ -169,10 +169,11 @@ describe("FileDocStore path checks (D11s)", () => {
 });
 
 describe("what loads the disk", () => {
-  // docs-output-root is imported widely by the app; it and the engine's
-  // interface module must not pull node:fs in. Only file-doc-store may.
-  const source = (rel: string) => readFileSync(path.resolve(__dirname, "../..", rel), "utf8");
-  it.each(["src/repoScrapper/store/doc-store.ts", "src/lib/docs-output-root.ts"])("%s imports neither fs nor file-doc-store", (rel) => {
+  // The interface module (the `repo-docs/store` entry) must not pull node:fs
+  // in. Only file-doc-store may. The app checks its own docs-output-root in
+  // tests/unit/x3-engine-package-imports.test.ts.
+  const source = (rel: string) => readFileSync(path.resolve(__dirname, "..", rel), "utf8");
+  it.each(["src/repoScrapper/store/doc-store.ts"])("%s imports neither fs nor file-doc-store", (rel) => {
     const imports = [...source(rel).matchAll(/\bfrom\s+["']([^"']+)["']/g)].map((m) => m[1]);
     expect(imports.filter((s) => /^(node:)?fs(\/|$)|file-doc-store/.test(s))).toEqual([]);
   });

@@ -11,7 +11,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { baseUrlProblem, requireLlmAdmin, reserveLlmCall } from '@/backend/llm/gate';
-import { testProviderConnection } from '@/llm';
+import { testProviderConnection } from 'repo-docs/llm/server';
 
 // Rate limiting: Track last test time per user
 const lastTestTimes = new Map<string, number>();

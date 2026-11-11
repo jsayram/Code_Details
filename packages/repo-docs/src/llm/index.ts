@@ -11,7 +11,7 @@
  * 
  * @example
  * ```ts
- * import { callLLM, PROVIDER_IDS, OPENAI_MODELS } from '@/llm';
+ * import { callLLM, PROVIDER_IDS, OPENAI_MODELS } from 'repo-docs/llm/server';
  * 
  * const result = await callLLM(
  *   { prompt: 'Hello, world!' },
