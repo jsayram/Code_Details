@@ -1,19 +1,17 @@
 /**
  * LLM Errors - RFC 7807 Compliant Error Handling
  * 
- * Extends CodeDetailsWeb's error system with LLM-specific error types.
- * All errors follow RFC 7807 Problem Details format.
+ * The engine's own error type. All errors follow RFC 7807 Problem Details
+ * format. No framework or app imports here: the app maps these errors to its
+ * own responses (src/backend/llm/errors.ts).
  */
 
-import { ErrorCode, ERROR_HINTS, ERROR_STATUS_CODES } from '@/constants/error-codes';
-
 // ============================================================================
-// LLM Error Codes (extend existing ErrorCode enum in your project)
+// LLM Error Codes
 // ============================================================================
 
 /**
  * LLM-specific error codes
- * Add these to your ErrorCode enum in constants/error-codes.ts
  */
 export const LLM_ERROR_CODES = {
   LLM_PROVIDER_ERROR: 'LLM_PROVIDER_ERROR',
@@ -74,7 +72,7 @@ export interface LLMProblemDetail {
   status: number;
   detail: string;
   instance?: string;
-  code: LLMErrorCode | ErrorCode;
+  code: LLMErrorCode;
   hint: string;
   timestamp: string;
   provider?: string;
@@ -382,30 +380,8 @@ export function parseLLMError(
 }
 
 // ============================================================================
-// NextResponse Helpers
+// Handler Helpers
 // ============================================================================
-
-import { NextResponse } from 'next/server';
-
-/**
- * Create a NextResponse from an LLMError (RFC 7807 format)
- */
-export function createLLMErrorResponse(
-  error: LLMError,
-  request?: Request
-): NextResponse<{ success: false; error: LLMProblemDetail }> {
-  const problemDetail = error.toProblemDetail(request?.url);
-  
-  return NextResponse.json(
-    { success: false, error: problemDetail },
-    { 
-      status: error.status,
-      headers: {
-        'Content-Type': 'application/problem+json',
-      },
-    }
-  );
-}
 
 /**
  * Wrap an LLM handler with error handling

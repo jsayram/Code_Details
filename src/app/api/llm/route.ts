@@ -15,7 +15,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { baseUrlProblem, requireLlmAdmin, reserveLlmCall, type GateRefusal } from '@/backend/llm/gate';
 import { callLLM, PROVIDER_IDS } from '@/llm';
-import { LLMError, parseLLMError } from '@/llm/errors';
+import { LLMError } from '@/llm/errors';
+import { createLLMErrorResponse, toLLMError } from '@/backend/llm/errors';
 
 const problem = (status: number, slug: string, title: string, detail: string) =>
   NextResponse.json(
@@ -143,16 +144,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('[LLM API] Error:', error);
     
-    // Convert to LLMError if not already
-    const llmError = error instanceof LLMError 
-      ? error 
-      : parseLLMError(error, 'unknown');
-    
-    const problemDetail = llmError.toProblemDetail(request.url);
-    
-    return NextResponse.json(
-      { success: false, error: problemDetail },
-      { status: llmError.status, headers: { 'Content-Type': 'application/problem+json' } }
-    );
+    // Convert to LLMError if not already, then to the app's problem response
+    return createLLMErrorResponse(toLLMError(error), request);
   }
 }
