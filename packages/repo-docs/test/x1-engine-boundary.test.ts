@@ -10,7 +10,7 @@ import ts from "typescript";
 import { describe, expect, it } from "vitest";
 
 const PKG = path.resolve(__dirname, "..");
-const SCANNED = ["src", "test"];
+const SCANNED = ["src", "test", "bin"];
 
 function specifiers(source: string, fileName = "x.ts"): string[] {
   const file = ts.createSourceFile(fileName, source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
@@ -99,12 +99,13 @@ type ExportTarget = string | null | { [condition: string]: ExportTarget };
 const manifest = JSON.parse(fs.readFileSync(path.join(PKG, "package.json"), "utf8")) as {
   exports: Record<string, ExportTarget>;
   dependencies?: Record<string, string>;
+  bin?: Record<string, string>;
 };
 
 const CLIENT_ENTRIES = [".", "./llm", "./store"];
 const SERVER_ENTRIES = ["./server", "./llm/server", "./safe-fetch", "./store/file"];
 // What a browser bundle must never get from the engine.
-const SERVER_ONLY_MODULES = ["server-crawler.ts", "safe-fetch.ts", "file-doc-store.ts", "nodes.ts", "flow.ts", path.join("llm", "client.ts")];
+const SERVER_ONLY_MODULES = ["server-crawler.ts", "safe-fetch.ts", "file-doc-store.ts", "nodes.ts", "flow.ts", path.join("llm", "client.ts"), path.join("cli", "main.ts")];
 
 describe("scraper engine import boundary", () => {
   const inEngine = path.join(PKG, "src/repoScrapper/x.ts");
@@ -154,6 +155,11 @@ describe("scraper engine import boundary", () => {
 describe("package entries", () => {
   it("lists exactly the client and server entries", () => {
     expect(Object.keys(manifest.exports).sort()).toEqual([...CLIENT_ENTRIES, ...SERVER_ENTRIES, "./package.json"].sort());
+  });
+
+  it("the CLI (X4) is only a bin, never an import entry", () => {
+    expect(manifest.bin).toEqual({ "repo-docs": "bin/repo-docs.mjs" });
+    expect(JSON.stringify(manifest.exports)).not.toMatch(/cli|bin\//);
   });
 
   it.each(SERVER_ENTRIES)("%s is closed to browser bundles", (entry) => {

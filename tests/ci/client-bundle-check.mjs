@@ -19,6 +19,8 @@ const MARKERS = [
   "api.github.com/repos", "GITHUB_TOKEN", "FileDocStore", "llmUsage:reserve", "pocketflow",
   // Provider SDKs (OpenAI, Anthropic, Google).
   "dangerouslyAllowBrowser", "OpenAI-Organization", "anthropic-version", "generativelanguage",
+  // The repo-docs CLI (X4).
+  "REPO_DOCS_LLM_BASE_URL_ALLOWLIST", "allow-loopback-llm", "LlmCallCapError",
 ];
 // Reported, not failed: env var names in the provider list LLMProviderSelector shows (no values).
 const INFO = ["OPENAI_API_KEY"];
