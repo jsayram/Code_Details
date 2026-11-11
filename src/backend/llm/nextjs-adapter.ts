@@ -2,18 +2,19 @@
  * Next.js Adapters
  * Route handler factories and utilities for Next.js App Router
  * 
- * Pure functions that wrap LLM calls with Next.js patterns
+ * Pure functions that wrap LLM calls with Next.js patterns.
+ * X1: moved here from src/llm/adapters so the engine has no Next.js imports.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { callLLM, callLLMWithMetadata } from '../client';
-import { LLMError, createLLMError, LLM_ERROR_CODES } from '../errors';
+import { callLLM, callLLMWithMetadata } from '@/llm/client';
+import { LLMError, createLLMError, LLM_ERROR_CODES } from '@/llm/errors';
 import type { 
   LLMRequest, 
   LLMCallOptions, 
   LLMCallResult,
   ProblemDetail 
-} from '../types';
+} from '@/llm/types';
 
 // ============================================================================
 // Types
@@ -114,7 +115,7 @@ export function errorToProblemDetail(error: unknown): ProblemDetail {
  * @example
  * ```ts
  * // app/api/llm/route.ts
- * import { createLLMHandler } from '@/llm/adapters/nextjs';
+ * import { createLLMHandler } from '@/backend/llm/nextjs-adapter';
  * 
  * export const POST = createLLMHandler({
  *   validateAuth: async (req) => {

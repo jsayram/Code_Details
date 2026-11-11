@@ -8,7 +8,6 @@
  * - Pure functions with dependency injection
  * - RFC 7807 compliant error handling
  * - Token and cost estimation
- * - Next.js route handler adapters
  * 
  * @example
  * ```ts
@@ -166,30 +165,3 @@ export {
   type ContentReduction,
   type ModelSuggestion,
 } from './estimators';
-
-// ============================================================================
-// Adapters
-// ============================================================================
-
-export {
-  // Route handler factories
-  createLLMHandler,
-  createSimpleLLMHandler,
-  createStreamingLLMHandler,
-  createCorsHandler,
-  
-  // Response helpers
-  jsonResponse,
-  problemResponse,
-  errorToProblemDetail,
-  
-  // API key helpers
-  getApiKeyFromEnv,
-  createEnvApiKeyGetter,
-  defaultCorsHeaders,
-  
-  // Types
-  type NextJSAdapterOptions,
-  type LLMRouteBody,
-  type StreamingOptions,
-} from './adapters';
