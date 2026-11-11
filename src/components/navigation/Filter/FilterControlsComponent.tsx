@@ -4,7 +4,7 @@ import React from "react";
 import { useProjects } from "@/providers/projects-provider";
 import { SortBySelect, CategorySelect, SortByValue } from "@/components/filters";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
-import { useAuth } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 
 interface FilterControlsProps {
   showControls?: boolean;
@@ -12,7 +12,8 @@ interface FilterControlsProps {
 
 export function FilterControls({ showControls = true }: FilterControlsProps) {
   const { filters, setFilters } = useProjects();
-  const { userId } = useAuth();
+  // D02r-c: Clerk's userId by default, the Better Auth session's under the switch.
+  const userId = useViewerId();
 
   // Determine category counts filter based on current view
   const categoryCountsFilters = React.useMemo(() => {

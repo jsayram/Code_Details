@@ -1,0 +1,23 @@
+{
+  /* D08a: Convex functions get their own project, from Convex's codegen
+   * template. The root tsconfig resolves as NodeNext with CommonJS .ts files,
+   * which can't import the ESM-only Better Auth packages; Convex bundles these
+   * files itself, so Bundler resolution is what they actually run under.
+   * `npm run typecheck` checks both projects. */
+  "compilerOptions": {
+    "allowJs": true,
+    "strict": true,
+    "moduleResolution": "Bundler",
+    "jsx": "react-jsx",
+    "skipLibCheck": true,
+    "allowSyntheticDefaultImports": true,
+    "target": "ESNext",
+    "lib": ["ES2023", "dom"],
+    "forceConsistentCasingInFileNames": true,
+    "module": "ESNext",
+    "isolatedModules": true,
+    "noEmit": true
+  },
+  "include": ["./**/*"],
+  "exclude": ["./_generated"]
+}

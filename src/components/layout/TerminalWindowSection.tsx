@@ -1,6 +1,7 @@
 import React from "react";
 import Link from "next/link";
-import { SignedIn, SignedOut, SignInButton, useUser } from "@clerk/nextjs";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { ClientOnly, getClientSideValue } from "@/lib/ClientSideUtils";
 import { capitalizeNames } from "@/utils/stringUtils";
@@ -66,13 +67,11 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
   userInfo,
 }) => {
   // Get the user info if not provided as prop
-  const { user: clerkUser } = useUser();
+  const { user: displayUser } = useDisplayUser();
 
-  // Handle Clerk user email address properly
-  const userEmail =
-    userInfo?.email || clerkUser?.primaryEmailAddress?.emailAddress || null;
+  const userEmail = userInfo?.email || displayUser?.email || null;
 
-  const userName = userInfo?.firstName || clerkUser?.firstName || "user";
+  const userName = userInfo?.firstName || displayUser?.firstName || "user";
 
   // Construct terminal title based on user information
   const displayTitle =
@@ -154,11 +153,11 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
                   animationSpeed={120}
                 />
                 {/* Flat blinking cursor (underscore style) - safe for SSR */}
+                {/* UI10: blinks by opacity (globals.css .cd-cursor-blink). The old
+                    animate-pulse here was the app's shimmer, which repainted
+                    a background every frame. */}
                 <ClientOnly>
-                  <span
-                    className="ml-1 inline-block h-[2px] w-[10px] bg-white/70 group-hover:bg-primary/90 mt-4 animate-pulse"
-                    style={{ animationDuration: "1s" }}
-                  ></span>
+                  <span className="cd-cursor-blink ml-1 inline-block h-[2px] w-[10px] bg-white/70 group-hover:bg-primary/90 mt-4"></span>
                 </ClientOnly>
               </div>
             </div>
@@ -212,10 +211,7 @@ export const TerminalWindowSection: React.FC<TerminalWindowProps> = ({
 
                       {/* Flat blinking cursor ONLY for clickable items */}
                       <ClientOnly>
-                        <span
-                          className="ml-1 inline-block h-[2px] w-[10px] bg-transparent group-hover:bg-green-400/70 mt-4 animate-pulse"
-                          style={{ animationDuration: "1s" }}
-                        ></span>
+                        <span className="cd-cursor-blink ml-1 inline-block h-[2px] w-[10px] bg-transparent group-hover:bg-green-400/70 mt-4"></span>
                       </ClientOnly>
                     </>
                   ) : (

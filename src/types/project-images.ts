@@ -3,11 +3,41 @@
  * Type definitions for project image management
  */
 
-import { SelectProjectImage, ImageType, AspectRatio } from "@/db/schema/project_images";
+// E03 (slice 3): these were src/db/schema/project_images.ts (the Drizzle
+// table and its inferred row); the shapes are unchanged.
 
-// Re-export schema types
-export type { SelectProjectImage, ImageType, AspectRatio };
-export { IMAGE_TYPES, ASPECT_RATIOS } from "@/db/schema/project_images";
+/** A project image row (was project_images.$inferSelect). */
+export type SelectProjectImage = {
+  id: string;
+  project_id: string;
+  storage_path: string;
+  storage_url: string;
+  file_name: string;
+  file_size: number | null;
+  mime_type: string | null;
+  width: number | null;
+  height: number | null;
+  image_type: string;
+  aspect_ratio: string | null;
+  display_order: number | null;
+  alt_text: string | null;
+  caption: string | null;
+  uploaded_by: string;
+  created_at: Date | null;
+  deleted_at: Date | null;
+};
+
+/**
+ * Valid image types
+ */
+export const IMAGE_TYPES = ['cover', 'screenshot', 'diagram', 'logo'] as const;
+export type ImageType = (typeof IMAGE_TYPES)[number];
+
+/**
+ * Valid aspect ratios
+ */
+export const ASPECT_RATIOS = ['auto', '16:9', '4:3', '1:1'] as const;
+export type AspectRatio = (typeof ASPECT_RATIOS)[number];
 
 /**
  * Image with UI state for upload tracking

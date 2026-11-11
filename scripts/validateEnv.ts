@@ -4,34 +4,16 @@ import { setEnv } from "./setEnv";
 setEnv();
 
 // validateEnvs.ts - Ensures all required environment variables are set before the app runs.
-// MVP Environment Variables Only
-const requiredEnvVars = [
-  // MVP: Secret keys (DO NOT expose)
-  "SUPABASE_SERVICE_ROLE_KEY",  // Secret Supabase service role key (DO NOT expose)
-  "CLERK_SECRET_KEY", // Secret API key for Clerk authentication (server-side)
-  "CLERK_WEBHOOK_SIGNING_SECRET", // Secret for verifying Clerk webhooks
-  "DATABASE_URL", // Database connection string (PostgreSQL)
-  
-  // MVP: Public keys 
-  "NEXT_PUBLIC_SUPABASE_URL", // Public Supabase API URL 
-  "NEXT_PUBLIC_SUPABASE_ANON_KEY", // Public Supabase anonymous key 
-  "NEXT_PUBLIC_CLERK_PUBLISHABLE_KEY", // Public API key for Clerk authentication
-  
-  // MVP: Clerk Auth Routes
-  "NEXT_PUBLIC_CLERK_SIGN_IN_URL", // Sign-in route
-  "NEXT_PUBLIC_CLERK_SIGN_UP_URL", // Sign-up route
-  "NEXT_PUBLIC_CLERK_SIGN_IN_FALLBACK_REDIRECT_URL", // Fallback URL after sign-in
-  "NEXT_PUBLIC_CLERK_SIGN_UP_FALLBACK_REDIRECT_URL", // Fallback URL after sign-up
-];
+// E03: the Supabase and DATABASE_URL names are gone; the app has no Supabase
+// client or database connection. Nothing else is required here yet: without
+// CODEDETAILS_CONVEX_URL the data layer fails closed on its own.
+const requiredEnvVars: string[] = [];
 
 // ❌ Future Features (Not MVP) - Uncomment when needed
 const futureEnvVars = [
   // "STRIPE_SECRET_KEY", // Payments - not MVP
   // "NEXT_PUBLIC_STRIPE_PUBLIC_KEY", // Payments - not MVP
-  // "JWT_SECRET", // Custom JWT - not needed (using Clerk)
-  // "ALGOLIA_ADMIN_KEY", // Search - not MVP
-  // "NEXT_PUBLIC_ALGOLIA_APP_ID", // Search - not MVP
-  // "NEXT_PUBLIC_ALGOLIA_SEARCH_KEY", // Search - not MVP
+  // "JWT_SECRET", // Custom JWT - not needed (Better Auth signs its own)
 ];
 
 //Check which required environment variables are missing.

@@ -3,34 +3,39 @@
  * Multi-provider LLM endpoint with caching and rate limiting
  * 
  * Supports: OpenAI, Anthropic, Google, Groq, DeepSeek, OpenRouter, xAI, Azure, Ollama
+ *
+ * D08 gate (Jose, 2026-10-30): admins only (users.role from the session), and
+ * every call takes one unit of a per-user and a global daily cap kept in
+ * Convex (convex/llmUsage.ts), so a restart doesn't reset them. Each call is
+ * logged there without the prompt or the answer. Anything that can't be
+ * checked (no login, no Convex) is refused before a provider is called. The
+ * checks are shared with the other provider routes (src/backend/llm/gate.ts).
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { callLLM, PROVIDER_IDS } from '@/llm';
-import { LLMError, parseLLMError } from '@/llm/errors';
+import { baseUrlProblem, requireLlmAdmin, reserveLlmCall, type GateRefusal } from '@/backend/llm/gate';
+import { callLLM, PROVIDER_IDS } from 'repo-docs/llm/server';
+import { LLMError } from 'repo-docs/llm';
+import { createLLMErrorResponse, toLLMError } from '@/backend/llm/errors';
+
+const problem = (status: number, slug: string, title: string, detail: string) =>
+  NextResponse.json(
+    { success: false, error: { type: `https://api.codedetails.dev/problems/${slug}`, title, status, detail } },
+    { status, headers: { 'Content-Type': 'application/problem+json' } }
+  );
+const refused = (r: GateRefusal) => problem(r.status, r.slug, r.title, r.detail);
 
 // Rate limiting: Track last request time per user
 const lastRequestTimes = new Map<string, number>();
 const RATE_LIMIT_MS = 2000; // 2 seconds between requests
 
 export async function POST(request: NextRequest) {
-  // 1. Authentication check
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json(
-      { 
-        success: false, 
-        error: {
-          type: 'https://api.codedetails.dev/problems/unauthorized',
-          title: 'Unauthorized',
-          status: 401,
-          detail: 'Authentication required',
-        }
-      },
-      { status: 401, headers: { 'Content-Type': 'application/problem+json' } }
-    );
-  }
+  // 1. Admins only: users.role from the session (null when signed out or
+  // with no login at all). The in-memory throttle below keys on the session's
+  // own account; the caps that matter are the persistent ones in step 4.
+  const admin = await requireLlmAdmin();
+  if (!admin.ok) return refused(admin);
+  const userId = admin.accountId;
 
   // 2. Rate limiting per user
   const lastRequest = lastRequestTimes.get(userId) || 0;
@@ -92,22 +97,39 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // 4. Call LLM
+    // A custom base URL only to a local model server (no SSRF with our keys).
+    const badBaseUrl = baseUrlProblem(customBaseUrl);
+    if (badBaseUrl) return refused(badBaseUrl);
+
+    // 4. Take one unit of today's per-user and global caps (Convex, durable).
+    // Refused or unavailable: no provider call.
+    const ticket = await reserveLlmCall(provider, model);
+    if (!ticket.ok) return refused(ticket);
+    const done = ticket.finish;
+
+    // 5. Call LLM
     const startTime = Date.now();
     
-    const result = await callLLM({
-      prompt,
-      provider,
-      model,
-      temperature,
-      maxTokens,
-      customApiKey,
-      customBaseUrl,
-    });
+    let result: Awaited<ReturnType<typeof callLLM>>;
+    try {
+      result = await callLLM({
+        prompt,
+        provider,
+        model,
+        temperature,
+        maxTokens,
+        customApiKey,
+        customBaseUrl,
+      });
+    } catch (error) {
+      await done(false, Date.now() - startTime, error instanceof LLMError ? error.status : undefined);
+      throw error;
+    }
     
     const latencyMs = Date.now() - startTime;
+    await done(true, latencyMs);
 
-    // 5. Return result
+    // 6. Return result
     return NextResponse.json({
       success: true,
       result,
@@ -122,16 +144,7 @@ export async function POST(request: NextRequest) {
   } catch (error: unknown) {
     console.error('[LLM API] Error:', error);
     
-    // Convert to LLMError if not already
-    const llmError = error instanceof LLMError 
-      ? error 
-      : parseLLMError(error, 'unknown');
-    
-    const problemDetail = llmError.toProblemDetail(request.url);
-    
-    return NextResponse.json(
-      { success: false, error: problemDetail },
-      { status: llmError.status, headers: { 'Content-Type': 'application/problem+json' } }
-    );
+    // Convert to LLMError if not already, then to the app's problem response
+    return createLLMErrorResponse(toLLMError(error), request);
   }
 }

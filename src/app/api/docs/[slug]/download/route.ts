@@ -7,10 +7,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import JSZip from 'jszip';
-import { getProjectMeta } from '@/lib/output-utils';
+import { routeDocOwner } from '@/lib/auth-server';
+import { unauthorized } from '@/lib/api-errors';
+import { ownerMeta, readableDoc } from '@/lib/docs-access';
+import { docStore } from '@/lib/output-utils';
 
 interface RouteParams {
   params: Promise<{
@@ -18,50 +19,37 @@ interface RouteParams {
   }>;
 }
 
-// Output directory (relative to project root)
-const OUTPUT_DIR = path.join(process.cwd(), 'src', 'app', 'output');
-
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // D11s: identity from the session only; signed out is refused before anything is read
+    const owner = await routeDocOwner();
+    if (!owner) {
+      return unauthorized('Authentication required to download documentation');
+    }
+
     const { slug } = await params;
     
-    if (!slug) {
-      return NextResponse.json(
-        { error: 'Project slug is required' },
-        { status: 400 }
-      );
-    }
-    
-    // Sanitize slug
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const projectDir = path.join(OUTPUT_DIR, safeSlug);
-    
-    // Check if project exists
-    try {
-      await fs.access(projectDir);
-    } catch {
+    // Owner only, even for a linked doc: the ZIP is the whole doc in one request.
+    // Anyone else gets the same 404 as a missing doc.
+    const doc = await readableDoc(slug, owner);
+    if (!doc?.isOwner) {
       return NextResponse.json(
         { error: 'Project not found' },
         { status: 404 }
       );
     }
-    
-    // Get project metadata
-    const meta = await getProjectMeta(safeSlug);
-    const projectName = meta?.repoName || safeSlug;
+    const projectName = doc.meta.repoName || slug;
     
     // Create ZIP archive
     const zip = new JSZip();
     
-    // Read all files in the project directory
-    const files = await fs.readdir(projectDir);
-    
-    for (const file of files) {
-      if (file.endsWith('.md') || file.endsWith('.json')) {
-        const filePath = path.join(projectDir, file);
-        const content = await fs.readFile(filePath, 'utf-8');
-        zip.file(file, content);
-      }
+    // Every Markdown and JSON file of the doc
+    for (const file of await docStore.exportFiles(slug)) {
+      // The metadata goes in without its server-only fields (no Clerk-era subject)
+      const content = file.name === '_meta.json'
+        ? JSON.stringify(ownerMeta(doc.meta), null, 2)
+        : file.content;
+      zip.file(file.name, content);
     }
     
     // Generate ZIP buffer

@@ -1,35 +1,21 @@
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { HeaderSectionNoSideBar } from "@/components/layout/HeaderSectionNoSideBar";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+// UI09.3: the shared shell (AppShell is a client module, so the client page
+// can still render this file) and the design foundations. The real h1 stays
+// visible and the wait is announced.
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 import { Card, CardHeader, CardContent } from "@/components/ui/card";
 
 export default function SuggestTagsLoading() {
   return (
-    <SidebarProvider>
-      <SignedIn>
-        <AppSidebar />
-      </SignedIn>
-      <SidebarInset>
-        <SignedOut>
-          <HeaderSectionNoSideBar showMobileMenu={false} />
-        </SignedOut>
-        <SignedIn>
-          <HeaderSection />
-        </SignedIn>
-
-        {/* Page Banner Skeleton */}
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
         <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-4 2xl:px-8 3xl:px-12 mb-0 py-3">
-          <div className="rounded-lg border border-indigo-700/40 bg-gradient-to-r from-indigo-900/20 via-blue-800/20 to-purple-800/20 backdrop-blur-sm p-6 animate-pulse">
-            <div className="h-8 bg-white/10 rounded w-64 mb-2"></div>
-            <div className="h-4 bg-white/5 rounded w-96"></div>
-          </div>
+          <DiscoveryHeader eyebrow="Suggest tags" title="Suggest tags" lead={<span role="status">Loading the project</span>} />
         </div>
 
         {/* Main Content Skeleton */}
-        <div className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-4 2xl:px-8 3xl:px-12 py-8">
+        <div aria-hidden="true" className="w-full max-w-[1920px] 4xl:max-w-none mx-auto px-4 2xl:px-8 3xl:px-12 py-8">
           <div className="container max-w-6xl mx-auto">
             <div className="space-y-6">
               {/* Tag Input Card Skeleton */}
@@ -106,8 +92,7 @@ export default function SuggestTagsLoading() {
           </div>
         </div>
 
-        <FooterSection />
-      </SidebarInset>
-    </SidebarProvider>
+      </div>
+    </AppShell>
   );
 }

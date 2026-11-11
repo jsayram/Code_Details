@@ -2,12 +2,12 @@
 
 import React, { useEffect, useState, useCallback, useRef } from "react";
 import { TagInput } from "@/components/ui/tag-input";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { useTags } from "@/hooks/use-tags";
 import { TagSubmissionModal } from "./TagSubmissionModal";
-import { useUser } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useProjects } from "@/providers/projects-provider";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import { toast } from "sonner";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
 
@@ -35,7 +35,7 @@ export function TagSelector({
     refreshCache,
   } = useTags();
   const isMounted = useRef(false);
-  const { user } = useUser();
+  const viewerId = useViewerId();
   const { projects } = useProjects();
 
   useEffect(() => {
@@ -156,13 +156,11 @@ export function TagSelector({
   );
 
   const loadPendingSubmissions = useCallback(async () => {
-    if (projectId === "new" || !user?.primaryEmailAddress?.emailAddress) return;
+    if (projectId === "new" || !viewerId) return;
 
     try {
       const result = await fetch(
-        `/api/projects/${projectId}/tag-submissions?status=pending&email=${encodeURIComponent(
-          user.primaryEmailAddress.emailAddress
-        )}`,
+        `/api/projects/${encodeURIComponent(projectId)}/tag-submissions?status=pending`,
         { cache: "no-store" }
       ).then((res) => res.json());
 
@@ -176,7 +174,7 @@ export function TagSelector({
       console.error("Failed to load pending tag submissions:", error);
       setPendingTags([]);
     }
-  }, [projectId, user?.primaryEmailAddress?.emailAddress]);
+  }, [projectId, viewerId]);
 
   useEffect(() => {
     if (isMounted.current) {
@@ -199,7 +197,7 @@ export function TagSelector({
       <div className="space-y-4">
         <div className="space-y-2">
           <div className="flex items-center justify-between">
-            <label className="text-sm font-medium">
+            <label htmlFor="project-tags-input" className="text-sm font-medium">
               Project Tags ({selectedTags.length}/{MAX_PROJECT_TAGS})
             </label>
             <p className="text-xs text-muted-foreground">
@@ -232,6 +230,7 @@ export function TagSelector({
               onAddTag={handleAddTag}
               onRemoveTag={handleRemoveTag}
               searchTags={handleSearchTags}
+              inputId="project-tags-input"
               placeholder={
                 isOwner
                   ? "Search for tags..."

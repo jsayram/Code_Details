@@ -7,6 +7,8 @@
  * Tests the portable llm/ module with all supported providers.
  */
 
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
 import React, { useState, useCallback } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -99,6 +101,10 @@ export default function LLMTestPage() {
   };
 
   return (
+    // UI09.3: the shared shell (the page had no header, sidebar or main) and the
+    // design foundations. An admin tool; the proxy limits it to admins (F02).
+    <AppShell>
+    <div className="cd-foundations cd-canvas">
     <div className="container mx-auto p-4 max-w-4xl">
       {/* Header with Dark Mode Toggle */}
       <div className="flex items-center justify-between mb-6">
@@ -145,6 +151,7 @@ export default function LLMTestPage() {
         </CardHeader>
         <CardContent>
           <Textarea
+            aria-label="Prompt"
             placeholder="Enter your prompt here..."
             value={prompt}
             onChange={(e) => setPrompt(e.target.value)}
@@ -262,5 +269,7 @@ export default function LLMTestPage() {
         </CardContent>
       </Card>
     </div>
+    </div>
+    </AppShell>
   );
 }

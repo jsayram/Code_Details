@@ -1,0 +1,116 @@
+// D01, P08 rule 3: no public Convex function accepts a user, owner, viewer or
+// other identity argument. Identity only ever comes from the verified token
+// (convex/viewer.ts). This loads every module in convex/ and inspects the
+// argument validators Convex itself exports for each registered function, so
+// a new function is covered as soon as it exists. Internal functions (admin
+// key only, e.g. fixtures) are exempt; public ones must also declare args.
+import fs from "node:fs";
+import path from "node:path";
+import { v } from "convex/values";
+import { describe, expect, it } from "vitest";
+import { queryGeneric } from "convex/server";
+
+const CONVEX_DIR = path.resolve(__dirname, "../../convex");
+// convex.config.ts only runs inside the Convex runtime (D08a) and defines no functions.
+const NOT_FUNCTION_MODULES = new Set(["schema.ts", "auth.config.ts", "convex.config.ts"]);
+const IDENTITY_NAME = /user|owner|viewer|subject|email|identity|account|author|creator|member|caller|actor|token|session/i;
+const IDENTITY_TABLES = new Set(["users", "authLinks", "profiles"]);
+// D07-d (coordinator's rule, 2026-10-30): an admin acting on another account
+// names it as a target, never as the caller. Every argument whose name starts
+// with "target" must be listed here exactly (function -> argument names); the
+// function must be admin-only (tests/integration/d07-convex-admin.test.ts).
+// The identity checks still apply to everything else, these arguments included.
+const ADMIN_TARGETS: Record<string, string[]> = { "admin:updateUser": ["targetProfileId"] };
+const TARGET_NAME = /^target/i;
+
+interface Registered {
+  isPublic?: boolean;
+  isInternal?: boolean;
+  isQuery?: boolean;
+  isMutation?: boolean;
+  isAction?: boolean;
+  exportArgs?: () => string;
+}
+
+type ValidatorJson = { type: string; value?: unknown; tableName?: string; keys?: ValidatorJson; values?: { fieldType: ValidatorJson } };
+
+/** The top-level argument names of an exported args validator that start with "target". */
+function targetArgs(argsJson: string): string[] {
+  const node = JSON.parse(argsJson) as ValidatorJson;
+  return node.type === "object" ? Object.keys(node.value as Record<string, unknown>).filter((n) => TARGET_NAME.test(n)) : [];
+}
+
+/** Every identity-shaped field name or ID in an exported args validator. */
+function identityProblems(argsJson: string): string[] {
+  const problems: string[] = [];
+  const walk = (node: ValidatorJson, where: string) => {
+    if (node.type === "any") problems.push(`${where}: v.any() accepts anything, identities included`);
+    if (node.type === "id" && node.tableName && IDENTITY_TABLES.has(node.tableName)) problems.push(`${where}: takes an Id<"${node.tableName}">`);
+    if (node.type === "object") {
+      for (const [name, field] of Object.entries(node.value as Record<string, { fieldType: ValidatorJson }>)) {
+        if (IDENTITY_NAME.test(name)) problems.push(`${where}.${name}: identity-shaped argument name`);
+        walk(field.fieldType, `${where}.${name}`);
+      }
+    }
+    if (node.type === "array") walk(node.value as ValidatorJson, `${where}[]`);
+    if (node.type === "union") (node.value as ValidatorJson[]).forEach((m, i) => walk(m, `${where}|${i}`));
+    // D02: the first record argument showed Convex puts keys/values on the
+    // node itself, not under value.
+    if (node.type === "record") {
+      walk(node.keys!, `${where}{key}`);
+      walk(node.values!.fieldType, `${where}{}`);
+    }
+  };
+  walk(JSON.parse(argsJson) as ValidatorJson, "args");
+  return problems;
+}
+
+async function publicFunctions(): Promise<{ name: string; argsJson: string }[]> {
+  const files = fs.readdirSync(CONVEX_DIR).filter((f) => f.endsWith(".ts") && !NOT_FUNCTION_MODULES.has(f));
+  const out: { name: string; argsJson: string }[] = [];
+  for (const file of files) {
+    const mod = (await import(path.join(CONVEX_DIR, file))) as Record<string, unknown>;
+    for (const [exportName, value] of Object.entries(mod)) {
+      const fn = value as Registered;
+      if (typeof value !== "function" || !fn.exportArgs || !fn.isPublic) continue;
+      out.push({ name: `${file.replace(/\.ts$/, "")}:${exportName}`, argsJson: fn.exportArgs() });
+    }
+  }
+  return out;
+}
+
+describe("D01 no public Convex function takes an identity argument", () => {
+  it("finds the public functions (guards against an empty scan)", async () => {
+    const names = (await publicFunctions()).map((f) => f.name).sort();
+    expect(names).toEqual(expect.arrayContaining(["accountDeletion:request", "identity:whoami", "profiles:getPublicByUsername", "profiles:updateMine", "projects:getOwnBySlug", "projects:getPublicBySlug", "projects:update", "tags:suggest", "tags:approve", "tags:reject", "tags:listPending"]));
+  });
+
+  it("every public function's arguments are free of identity", async () => {
+    const problems = (await publicFunctions()).flatMap((f) => identityProblems(f.argsJson).map((p) => `${f.name} ${p}`));
+    expect(problems).toEqual([]);
+  });
+
+  it("D07-d: target arguments appear only in the exact admin allowlist, and every entry still exists", async () => {
+    const found: Record<string, string[]> = {};
+    for (const f of await publicFunctions()) {
+      const targets = targetArgs(f.argsJson);
+      if (targets.length) found[f.name] = targets.sort();
+    }
+    expect(found).toEqual(Object.fromEntries(Object.entries(ADMIN_TARGETS).map(([k, a]) => [k, [...a].sort()])));
+    expect(Object.keys(found).every((name) => name.startsWith("admin:"))).toBe(true);
+  });
+
+  it("the checker catches the shapes it is meant to (self-test)", () => {
+    const argsOf = (args: Parameters<typeof queryGeneric>[0] extends infer D ? D : never) =>
+      (queryGeneric(args) as unknown as Registered).exportArgs!();
+    expect(identityProblems(argsOf({ args: { userId: v.string() }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { slug: v.string(), opts: v.object({ ownerKey: v.string() }) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { target: v.id("users") }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { who: v.optional(v.union(v.null(), v.id("profiles"))) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.string(), v.id("users")) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.id("authLinks"), v.string()) }, handler: async () => null }))).toHaveLength(1);
+    expect(identityProblems(argsOf({ args: { data: v.record(v.string(), v.array(v.string())) }, handler: async () => null }))).toEqual([]);
+    expect(identityProblems(argsOf({ handler: async () => null }))).toEqual(["args: v.any() accepts anything, identities included"]);
+    expect(identityProblems(argsOf({ args: { slug: v.string() }, handler: async () => null }))).toEqual([]);
+  });
+});

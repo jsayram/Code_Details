@@ -11,9 +11,12 @@ import { z } from 'zod';
 // ============================================================================
 
 export const linkProjectSchema = z.object({
-  projectId: z
-    .string()
-    .uuid('Project ID must be a valid UUID'),
+  // A Supabase project UUID, or (behind the development switches) a Convex
+  // project ID. Either way the route checks it against the caller's own projects.
+  projectId: z.union(
+    [z.string().uuid(), z.string().regex(/^[0-9a-z]{25,40}$/)],
+    { message: 'Project ID must be a project ID' },
+  ),
   projectSlug: z
     .string()
     .min(1, 'Project slug is required')

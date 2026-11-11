@@ -22,41 +22,14 @@ export const API_ROUTES = {
       const queryString = searchParams.toString();
       return `/api/projects${queryString ? `?${queryString}` : ""}`;
     },
-    TEST_PAGE: "/api/projects/test",
   },
   TIERS: {
     USER_TIER: "/api/tiers/user-tier",
   },
   AUTH: {
-    WEBHOOK: "/api/webhook/clerk",
     USER: (userId: string) => `/users/${userId}`,
   },
   TEST: {
     BASE: "/api/test",
-  },
-  THEME: {
-    TEST_PAGE: "/api/darkmodetest",
-  },
-  TOAST: {
-    TEST_PAGE: "/api/toasttest",
-  },
-  CACHE: {
-    REVALIDATE: "/api/revalidate",
-    revalidateTags: (tags: string[]) => ({
-      url: "/api/revalidate",
-      config: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tags }),
-      },
-    }),
-    revalidateTag: (tag: string) => ({
-      url: "/api/revalidate",
-      config: {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ tag }),
-      },
-    }),
   },
 } as const;

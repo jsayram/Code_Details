@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { SelectTagSubmission } from "@/db/schema/tag_submissions";
+import { SelectTagSubmission } from "@/types/rows";
 import {
   approveTagSubmission,
   rejectTagSubmission,
@@ -18,7 +18,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useState } from "react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
-import { getProjectById } from "@/app/actions/projects";
 import { FormattedDate } from "@/lib/FormattedDate";
 import {
   Accordion,
@@ -29,7 +28,6 @@ import {
 import { useTags } from "@/hooks/use-tags";
 import { MAX_PROJECT_TAGS } from "@/constants/project-limits";
 import Link from "next/link";
-import { getProjectTagCounts } from "@/app/actions/projects";
 
 interface GroupedTagSubmission {
   tag_name: string;
@@ -218,29 +216,22 @@ export function TagSubmissionManagement({
 
   useEffect(() => {
     const fetchProjectNames = async () => {
-      const projectIds = submissions.flatMap((group) =>
-        group.submissions.map((submission) => submission.project_id)
-      );
-
-      const uniqueProjectIds = Array.from(new Set(projectIds)).filter((id): id is string => id !== null);
       const projectNameMap: Record<string, string> = {};
       const projectSlugMap: Record<string, string> = {};
 
-      // Fetch project details
-      for (const projectId of uniqueProjectIds) {
-        if (!projectId) continue; // Skip null project IDs
-        const project = await getProjectById(projectId);
-        if (project) {
-          projectNameMap[projectId] = project.title;
-          projectSlugMap[projectId] = project.slug;
-        }
+      // D07-c: the Convex list carries each project's title, slug and tag
+      // count; no lookups needed. E03: the Supabase lookups are gone.
+      type WithProject = { project_title?: string | null; project_slug?: string | null; project_tag_count?: number | null };
+      const carried = submissions.flatMap((group) => group.submissions as (SelectTagSubmission & WithProject)[]);
+      const tagCountMap: Record<string, number> = {};
+      for (const sub of carried) {
+        if (!sub.project_id || !sub.project_slug) continue;
+        projectNameMap[sub.project_id] = sub.project_title ?? "";
+        projectSlugMap[sub.project_id] = sub.project_slug;
+        tagCountMap[sub.project_id] = sub.project_tag_count ?? 0;
       }
-
-      // Fetch tag counts for all projects at once
-      const projectTagCountMap = await getProjectTagCounts(uniqueProjectIds);
-
       setProjectNames((prev) => ({ ...prev, ...projectNameMap }));
-      setProjectTagCounts((prev) => ({ ...prev, ...projectTagCountMap }));
+      setProjectTagCounts((prev) => ({ ...prev, ...tagCountMap }));
       setProjectSlugs((prev) => ({ ...prev, ...projectSlugMap }));
     };
 

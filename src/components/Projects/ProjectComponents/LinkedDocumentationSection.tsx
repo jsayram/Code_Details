@@ -38,6 +38,7 @@ import {
 } from 'lucide-react';
 import { useSWRConfig } from 'swr';
 import useSWR from 'swr';
+import { safeHref } from "@/lib/safe-href";
 
 interface LinkedDocInfo {
   hasLinkedDoc: boolean;
@@ -115,9 +116,9 @@ export function LinkedDocumentationSection({
   if (isLoading) {
     return (
       <section id="architecture-docs" className="mb-6 sm:mb-8">
-        <Card className="overflow-hidden border-purple-500/20 bg-gradient-to-br from-purple-500/5 via-fuchsia-500/5 to-pink-500/5">
+        <Card className="overflow-hidden">
           <CardContent className="py-8 flex items-center justify-center">
-            <Loader2 className="h-6 w-6 animate-spin text-purple-500" />
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
           </CardContent>
         </Card>
       </section>
@@ -133,11 +134,11 @@ export function LinkedDocumentationSection({
   if (!data?.hasLinkedDoc && isOwner) {
     return (
       <section id="architecture-docs" className="mb-6 sm:mb-8">
-        <Card className="overflow-hidden border-dashed border-purple-500/30 bg-gradient-to-br from-purple-500/5 via-fuchsia-500/5 to-pink-500/5">
+        <Card className="overflow-hidden border-dashed">
           <CardContent className="py-8 text-center">
             <div className="flex flex-col items-center gap-4">
-              <div className="h-16 w-16 rounded-full bg-gradient-to-br from-purple-500/20 to-fuchsia-500/20 flex items-center justify-center">
-                <BookOpen className="h-8 w-8 text-purple-500" />
+              <div className="h-16 w-16 rounded-full bg-secondary flex items-center justify-center">
+                <BookOpen className="h-8 w-8 text-primary" />
               </div>
               <div>
                 <h3 className="text-lg font-semibold mb-1">Add Architecture Documentation</h3>
@@ -148,7 +149,7 @@ export function LinkedDocumentationSection({
               </div>
               <Button
                 asChild
-                className="mt-2 bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500"
+                className="mt-2"
               >
                 <Link href="/github-scrapper">
                   <Sparkles className="h-4 w-4 mr-2" />
@@ -168,19 +169,19 @@ export function LinkedDocumentationSection({
 
   return (
     <section id="architecture-docs" className="mb-6 sm:mb-8">
-      <Card className="overflow-hidden border-purple-500/30 bg-gradient-to-br from-purple-500/5 via-fuchsia-500/5 to-pink-500/5 hover:border-purple-500/50 transition-colors">
+      <Card className="overflow-hidden">
         <CardHeader className="pb-3">
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-3">
-              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-gradient-to-br from-purple-600 to-fuchsia-600 flex items-center justify-center shadow-lg shadow-purple-500/20">
-                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-white" />
+              <div className="h-10 w-10 sm:h-12 sm:w-12 rounded-lg bg-primary flex items-center justify-center">
+                <BookOpen className="h-5 w-5 sm:h-6 sm:w-6 text-primary-foreground" />
               </div>
               <div>
                 <CardTitle className="text-lg sm:text-xl flex items-center gap-2">
                   Architecture Documentation
                   <Badge 
-                    variant="outline" 
-                    className="bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 border-purple-500/30 text-purple-400 text-xs"
+                    variant="secondary"
+                    className="text-xs"
                   >
                     <Sparkles className="h-3 w-3 mr-1" />
                     AI Generated
@@ -254,10 +255,9 @@ export function LinkedDocumentationSection({
                 asChild
                 variant="outline"
                 size="sm"
-                className="border-purple-500/30 hover:border-purple-500/50 hover:bg-purple-500/10"
               >
                 <a
-                  href={linkedDoc.repoUrl}
+                  href={safeHref(linkedDoc.repoUrl)}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -268,7 +268,6 @@ export function LinkedDocumentationSection({
               <Button
                 asChild
                 size="sm"
-                className="bg-gradient-to-r from-purple-600 to-fuchsia-600 hover:from-purple-500 hover:to-fuchsia-500 text-white shadow-md shadow-purple-500/20"
               >
                 <Link href={`/github-scrapper/docs/${linkedDoc.docSlug}`}>
                   <BookOpen className="h-4 w-4 mr-1" />
@@ -285,10 +284,10 @@ export function LinkedDocumentationSection({
                 <Button
                   variant="ghost"
                   size="sm"
-                  className="w-full justify-between hover:bg-purple-500/10 border border-dashed border-purple-500/30"
+                  className="w-full justify-between border border-dashed"
                 >
                   <span className="flex items-center gap-2">
-                    <FileText className="h-4 w-4 text-purple-500" />
+                    <FileText className="h-4 w-4 text-primary" />
                     <span className="text-sm">
                       Manage Chapters ({linkedDoc.chapters.length} files)
                     </span>
@@ -301,8 +300,8 @@ export function LinkedDocumentationSection({
                 </Button>
               </CollapsibleTrigger>
               <CollapsibleContent className="mt-3">
-                <div className="rounded-lg border border-purple-500/20 bg-muted/30 overflow-hidden">
-                  <div className="px-4 py-2 bg-purple-500/5 border-b border-purple-500/20">
+                <div className="rounded-lg border bg-muted/30 overflow-hidden">
+                  <div className="px-4 py-2 bg-muted border-b">
                     <p className="text-xs text-muted-foreground">
                       Click on a chapter to view or edit its content
                     </p>
@@ -314,11 +313,11 @@ export function LinkedDocumentationSection({
                         .map((chapter, index) => (
                           <div
                             key={chapter.filename}
-                            className="flex items-center justify-between px-4 py-3 hover:bg-purple-500/5 transition-colors group"
+                            className="flex items-center justify-between px-4 py-3 hover:bg-muted transition-colors group"
                           >
                             <div className="flex items-center gap-3 min-w-0 flex-1">
-                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-purple-500/10 flex items-center justify-center">
-                                <span className="text-xs font-medium text-purple-500">
+                              <div className="flex-shrink-0 w-6 h-6 rounded-full bg-secondary flex items-center justify-center">
+                                <span className="text-xs font-medium text-primary">
                                   {index + 1}
                                 </span>
                               </div>
@@ -331,12 +330,12 @@ export function LinkedDocumentationSection({
                                 </p>
                               </div>
                             </div>
-                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity">
                               <Button
                                 asChild
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-purple-500"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
                               >
                                 <Link
                                   href={`/github-scrapper/docs/${linkedDoc.docSlug}/${chapter.filename}`}
@@ -349,7 +348,7 @@ export function LinkedDocumentationSection({
                                 asChild
                                 variant="ghost"
                                 size="icon"
-                                className="h-8 w-8 text-muted-foreground hover:text-purple-500"
+                                className="h-8 w-8 text-muted-foreground hover:text-primary"
                               >
                                 <Link
                                   href={`/github-scrapper/docs/${linkedDoc.docSlug}/${chapter.filename}?edit=true`}

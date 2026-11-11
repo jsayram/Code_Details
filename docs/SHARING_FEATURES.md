@@ -356,7 +356,7 @@ Embed portfolio link in your personal website or blog footer
 
 **Solution:**
 - Grant clipboard permissions in browser
-- Wait for user profile to sync from Clerk
+- Make sure you are signed in (the share link needs your profile handle)
 - Try clicking again after a few seconds
 
 ### Category Filter Empty

@@ -72,7 +72,7 @@ The filtering and sorting system allows users to:
                                 │
                                 ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                         Database (Drizzle ORM)                       │
+│                  Data (Convex queries; Drizzle until E03)            │
 ├─────────────────────────────────────────────────────────────────────┤
 │  • Dynamic WHERE clause building                                     │
 │  • JOIN with favorites table for favorites view                      │
@@ -237,7 +237,10 @@ export type ProjectCategory =
   | "cloud-devops"
   | "data-engineering"
   | "ai-ml"
+  | "ai-agents"
+  | "generative-ai"
   | "dev-tools"
+  | "libraries-frameworks"
   | "integration"
   | "embedded-iot"
   | "gaming-graphics"
@@ -259,6 +262,19 @@ export const PROJECT_CATEGORIES = {
   // ... other categories
 };
 ```
+
+22 categories since C01 (2026-11-09). Keys never change once projects use
+them; labels and descriptions can. The zod enum in
+`src/types/schemas/project.ts` lists the same keys, and the server accepts a
+category only if `PROJECT_CATEGORIES` has it (`isKnownCategory`). Convex
+stores `category` as a plain string, so adding a key needs no schema push.
+
+Filing rule (in the descriptions too): file by how it's built, then by what
+it does. If AI is the core of the product, use an AI category (ML Models &
+Research, AI Agents & Assistants, Generative AI Apps) whatever the platform.
+If AI is one feature, file by platform and tag it. Workflows built in n8n,
+Zapier, Make or Power Automate go in Automation & Workflows even with AI
+steps, tagged `ai-agent`.
 
 ### CategorySelect Component
 

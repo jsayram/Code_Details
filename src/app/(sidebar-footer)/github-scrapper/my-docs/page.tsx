@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { useAuth, SignedIn, SignedOut, SignInButton, useUser } from '@clerk/nextjs';
+import { SignInTrigger } from '@/components/auth/SignInButtonComponent';
+import { SignedIn, SignedOut, useViewerId } from '@/components/auth/AuthGate';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
@@ -33,13 +34,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
-import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { AssignToProjectDialog } from '@/components/docs/AssignToProjectDialog';
 import {
@@ -61,7 +58,8 @@ interface ProjectInfo {
 }
 
 function MyDocsContent() {
-  const { isSignedIn } = useAuth();
+  // Generator re-key: the active session (Clerk, or Better Auth behind the switch)
+  const isSignedIn = !!useViewerId();
   
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -170,41 +168,23 @@ function MyDocsContent() {
     <div className="flex justify-center w-full mb-10">
       <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
         <div className="flex flex-col gap-6 mb-6 py-3">
-          {/* Page Banner */}
+          {/* UI09.3: the shared header in place of the gradient banner. */}
           <div className="mb-4">
-            <PageBanner
-              icon={<Folder className="h-8 w-8 text-fuchsia-500" />}
-              bannerTitle="My Generated Docs"
-              description="View and manage your generated architecture documentation"
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="fuchsia-800"
-              gradientTo="pink-800"
-              borderColor="border-purple-700/40"
-              textGradient="from-purple-400 via-fuchsia-400 to-pink-400"
+            <DiscoveryHeader
+              eyebrow="GitHub Scrapper"
+              icon={<Folder className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+              title="My Generated Docs"
+              lead="View and manage your generated architecture documentation"
             />
           </div>
 
-          {/* Code Particles Background */}
           <div className="relative">
-            <CodeParticlesElement
-              quantity="high"
-              speed="slow"
-              size="mixed"
-              includeEmojis={true}
-              includeKeywords={true}
-              includeSymbols={true}
-              syntaxHighlight="vscode"
-              depth="layered"
-              containerClassName="absolute inset-0 -z-5 pointer-events-none opacity-20"
-            />
-
             {/* Auth Check */}
             <SignedOut>
               <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0.8, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.7, delay: 0.2 }}
+                transition={{ duration: 0.3, delay: 0.05 }}
                 className="relative z-10"
               >
                 <Alert>
@@ -212,11 +192,11 @@ function MyDocsContent() {
                   <AlertTitle>Authentication Required</AlertTitle>
                   <AlertDescription>
                     Please sign in to view your generated documentation.
-                    <SignInButton mode="modal">
+                    <SignInTrigger mode="modal">
                       <Button variant="link" className="px-2 h-auto">
                         Sign In
                       </Button>
-                    </SignInButton>
+                    </SignInTrigger>
                   </AlertDescription>
                 </Alert>
               </motion.div>
@@ -242,9 +222,9 @@ function MyDocsContent() {
               {/* Empty State */}
               {!loading && !error && projects.length === 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0.8, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
                   className="relative z-10"
                 >
                   <Card className="backdrop-blur-sm bg-card/80 text-center py-12">
@@ -268,21 +248,21 @@ function MyDocsContent() {
               {/* Projects List */}
               {!loading && !error && projects.length > 0 && (
                 <motion.div
-                  initial={{ opacity: 0, y: 20 }}
+                  initial={{ opacity: 0.8, y: 16 }}
                   animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.7, delay: 0.2 }}
+                  transition={{ duration: 0.3, delay: 0.05 }}
                   className="space-y-4 relative z-10"
                 >
                   {projects.map((project, index) => (
                     <motion.div
                       key={project.slug}
-                      initial={{ opacity: 0, y: 20 }}
+                      initial={{ opacity: 0.8, y: 16 }}
                       animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.5, delay: index * 0.1 }}
+                      transition={{ duration: 0.3, delay: Math.min(index, 5) * 0.03 }}
                     >
                       <Card className="backdrop-blur-sm bg-card/80 hover:border-primary/50 transition-colors">
                         <CardHeader className="pb-3">
-                          <div className="flex items-start justify-between">
+                          <div className="flex flex-wrap items-start justify-between gap-2">
                             <div className="flex-1 min-w-0">
                               <CardTitle className="text-lg truncate">
                                 {project.projectName}
@@ -299,7 +279,7 @@ function MyDocsContent() {
                                 </a>
                               </CardDescription>
                             </div>
-                            <div className="flex items-center gap-2 ml-4">
+                            <div className="flex flex-wrap items-center gap-2">
                               <Badge variant="secondary">
                                 <FileText className="h-3 w-3 mr-1" />
                                 {project.chapterCount} chapters
@@ -310,7 +290,7 @@ function MyDocsContent() {
                                     <TooltipTrigger asChild>
                                       <Badge 
                                         variant="outline" 
-                                        className="bg-gradient-to-r from-purple-500/10 to-fuchsia-500/10 border-purple-500/30 text-purple-400"
+                                        className="text-primary"
                                       >
                                         <CheckCircle className="h-3 w-3 mr-1" />
                                         Linked
@@ -326,7 +306,7 @@ function MyDocsContent() {
                           </div>
                         </CardHeader>
                         <CardContent>
-                          <div className="flex items-center justify-between">
+                          <div className="flex flex-wrap items-center justify-between gap-2">
                             <div className="flex items-center gap-4 text-sm text-muted-foreground">
                               <span className="flex items-center gap-1">
                                 <Calendar className="h-4 w-4" />
@@ -335,7 +315,7 @@ function MyDocsContent() {
                               {project.linkedProjectSlug && (
                                 <Link 
                                   href={`/projects/${project.linkedProjectSlug}`}
-                                  className="flex items-center gap-1 text-purple-400 hover:text-purple-300 transition-colors"
+                                  className="flex items-center gap-1 text-primary hover:underline"
                                 >
                                   <Link2 className="h-4 w-4" />
                                   {project.linkedProjectTitle}
@@ -387,7 +367,7 @@ function MyDocsContent() {
                                 <Button
                                   variant="outline"
                                   size="sm"
-                                  className="text-purple-500 hover:text-purple-400 cursor-pointer"
+                                  className="cursor-pointer"
                                   onClick={() => handleOpenAssignDialog(project)}
                                 >
                                   <Link2 className="h-4 w-4 mr-1" />
@@ -408,7 +388,8 @@ function MyDocsContent() {
                                   window.open(`/api/docs/${project.slug}/download`, '_blank');
                                 }}
                               >
-                                <Download className="h-4 w-4" />
+                                <Download className="h-4 w-4" aria-hidden="true" />
+                                <span className="sr-only">Download {project.slug}</span>
                               </Button>
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
@@ -417,11 +398,12 @@ function MyDocsContent() {
                                     size="sm"
                                     className="text-destructive hover:text-destructive cursor-pointer"
                                     disabled={deletingSlug === project.slug}
+                                    aria-label={`Delete documentation for ${project.slug}`}
                                   >
                                     {deletingSlug === project.slug ? (
                                       <Loader2 className="h-4 w-4 animate-spin" />
                                     ) : (
-                                      <Trash2 className="h-4 w-4" />
+                                      <Trash2 className="h-4 w-4" aria-hidden="true" />
                                     )}
                                   </Button>
                                 </AlertDialogTrigger>
@@ -456,9 +438,9 @@ function MyDocsContent() {
 
             {/* Quick Actions */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-8 text-center relative z-10"
             >
               <Button asChild size="lg" className="cursor-pointer">
@@ -490,19 +472,16 @@ function MyDocsContent() {
 }
 
 export default function MyDocsPage() {
-  const { user } = useUser();
-  const { token } = useSupabaseToken();
+  // D08g4e3: the app's login (Clerk or Better Auth).
+  const viewerId = useViewerId();
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+    <ProjectsProvider userId={viewerId ?? null}>
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           <MyDocsContent />
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

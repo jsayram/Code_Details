@@ -1,117 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
-import { eq, and, SQL, inArray, desc, sql } from "drizzle-orm";
-import { executeQuery, DrizzleClient } from "@/db/server";
-import { getProject } from "@/app/actions/projects";
-import { projects } from "@/db/schema/projects";
-import { serverError, notFound, success, invalidInput } from "@/lib/api-errors";
-import { tags as tagsTable } from "@/db/schema/tags";
-import { project_tags } from "@/db/schema/project_tags";
-import { profiles } from "@/db/schema/profiles";
-import { favorites } from "@/db/schema/favorites";
-import { PROJECT_CATEGORIES } from "@/constants/project-categories";
+import { serverError, invalidInput, unauthorized } from "@/lib/api-errors";
 import { projectQuerySchema, parseSearchParams, type ProjectQueryInput } from "@/types/schemas/project";
 import { ZodError } from "zod";
+import { betterAuthSignedIn } from "@/lib/auth-server";
+import { hasSessionCookie } from "@/backend/auth/proxy-rules";
+import { getProjectReadBackend } from "@/backend/projects";
+import { ownProjectForEdit } from "@/backend/projects/owner-edit";
+import { toProjectContentProps } from "@/backend/projects/legacy-props";
+import {
+  DATA_UNAVAILABLE,
+  convexPersonalList,
+  convexPublicList,
+  listResponse,
+  personalListResponse,
+  personalReadsFromConvex,
+} from "@/backend/projects/personal";
 
-// Helper function to build base project selection
-const buildProjectSelection = () => ({
-  project: {
-    id: projects.id,
-    title: projects.title,
-    slug: projects.slug,
-    description: projects.description,
-    category: projects.category,
-    created_at: projects.created_at,
-    updated_at: projects.updated_at,
-    user_id: projects.user_id,
-    deleted_at: projects.deleted_at,
-    total_favorites: projects.total_favorites,
-  },
-  profile: {
-    username: profiles.username,
-    email_address: profiles.email_address,
-    profile_image_url: profiles.profile_image_url,
-    full_name: profiles.full_name,
-  },
-});
-
-// Helper function to apply sorting - returns void as it mutates the query
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const applySorting = (query: { orderBy: (...args: any[]) => any }, sortBy: string) => {
-  switch (sortBy) {
-    case "oldest":
-      return query.orderBy(sql`${projects.created_at} asc`);
-    case "recently-edited":
-      return query.orderBy(sql`${projects.updated_at} desc`);
-    case "popular":
-      return query.orderBy(sql`${projects.total_favorites} desc`);
-    case "alphabetical":
-      return query.orderBy(sql`LOWER(${projects.title}) asc`);
-    case "alphabetical-desc":
-      return query.orderBy(sql`LOWER(${projects.title}) desc`);
-    case "most-tagged":
-      return query.orderBy(sql`(
-        SELECT COUNT(*)
-        FROM project_tags pt
-        WHERE pt.project_id = ${projects.id}
-      ) desc`);
-    case "least-favorited":
-      return query.orderBy(sql`${projects.total_favorites} asc`);
-    case "trending":
-      return query.orderBy(sql`(
-        SELECT COUNT(*)
-        FROM favorites f
-        WHERE f.project_id = ${projects.id}
-          AND f.created_at > NOW() - INTERVAL '7 days'
-      ) desc, ${projects.total_favorites} desc`);
-    case "random":
-      return query.orderBy(sql`RANDOM()`);
-    case "newest":
-    default:
-      return query.orderBy(sql`${projects.created_at} desc`);
-  }
-};
-
-// Helper function to get project tags
-const getProjectTags = async (db: DrizzleClient, projectIds: string[]) => {
-  const allTags = await db
-    .select({
-      projectId: project_tags.project_id,
-      tagName: tagsTable.name,
-    })
-    .from(project_tags)
-    .innerJoin(tagsTable, eq(project_tags.tag_id, tagsTable.id))
-    .where(inArray(project_tags.project_id, projectIds));
-
-  return allTags.reduce(
-    (
-      acc: Record<string, string[]>,
-      { projectId, tagName }: { projectId: string; tagName: string }
-    ) => {
-      if (!acc[projectId]) acc[projectId] = [];
-      acc[projectId].push(tagName);
-      return acc;
-    },
-    {} as Record<string, string[]>
-  );
-};
-
-// Helper function to get user favorites
-const getUserFavorites = async (db: DrizzleClient, userId: string) => {
-  const userProfile = await db
-    .select()
-    .from(profiles)
-    .where(eq(profiles.user_id, userId))
-    .limit(1);
-
-  if (!userProfile.length) return new Set<string>();
-
-  const userFavorites = await db
-    .select({ projectId: favorites.project_id })
-    .from(favorites)
-    .where(eq(favorites.profile_id, userProfile[0].id));
-
-  return new Set(userFavorites.map((f: { projectId: string }) => f.projectId));
-};
+// E03: every list and the single-project read come from Convex. The Supabase
+// queries (and their Clerk-era viewer) are gone; with no local Convex the
+// route refuses (fail closed).
 
 export async function GET(request: NextRequest) {
   try {
@@ -128,9 +35,22 @@ export async function GET(request: NextRequest) {
     
     const validatedParams: ProjectQueryInput = projectQuerySchema.parse(rawParams);
     
+    // D02r (P08 R08): who "my projects", "my favorites" and "my graveyard"
+    // belong to comes from the session only. A userId in the query string is
+    // still accepted (the client puts it in its cache key) but never used.
+    // D08g4f3: under the Convex data default every branch below reads Convex
+    // with the session itself, so the Supabase viewer (a Clerk-era subject,
+    // which a fresh account doesn't have) isn't looked up at all.
+    // D09 S02c: /api/projects is a public route now. Its personal views
+    // (mine, favorites, deleted) need a live session; without one they are a
+    // 401, never an empty or public list.
+    const wantsPersonal = validatedParams.showFavorites || validatedParams.showDeleted || (!validatedParams.showAll && !validatedParams.username && !validatedParams.slug);
+    if (wantsPersonal && (await betterAuthSignedIn()) !== true) return unauthorized("Sign in to see your own projects");
+
+    if (!personalReadsFromConvex()) return serverError(undefined, DATA_UNAVAILABLE);
+
     const {
       showAll,
-      userId,
       slug,
       category,
       username,
@@ -146,7 +66,7 @@ export async function GET(request: NextRequest) {
     console.log(
       `🔍 API Request - Projects:
        - Category: ${category || "any"}
-       - User: ${userId || "anonymous"}
+       - Viewer: from the session (Convex)
        - Username: ${username || "any"}
        - Tags: ${tags.length > 0 ? tags.join(", ") : "any"}
        - Show All: ${showAll}
@@ -157,256 +77,52 @@ export async function GET(request: NextRequest) {
        - Limit: ${limit || "all"}`
     );
 
-    // Handle single project request by slug
+    // H1: anything that depends on the session is never for a shared cache:
+    // the personal views and the single-project read (the owner sees their own
+    // private or deleted project) always, and the public list when a session
+    // cookie came with it (the session marks the viewer's rows and favorites).
+    // An anonymous public list keeps its headers as before.
+    const personalView = showFavorites ? "favorites" : showDeleted ? "deleted" : !showAll && !username ? "mine" : null;
+    if (slug || personalView || hasSessionCookie(request.headers.get("cookie"))) {
+      headers.set("Cache-Control", "private, no-store");
+    }
+
+    // D08g4f3: the same read as the project page and /api/projects/slug/[slug]:
+    // the owner's own project (deleted included), else the public projection.
     if (slug) {
-      const result = await getProject(slug);
+      const own = await ownProjectForEdit(slug);
+      const publicProject = own ? null : await getProjectReadBackend().getPublicProjectBySlug(slug);
+      const project = own?.project ?? (publicProject ? toProjectContentProps(publicProject).project : null);
       return new NextResponse(
-        JSON.stringify(
-          result.success
-            ? result
-            : { success: false, error: "Project not found" }
-        ),
-        { status: result.success ? 200 : 404, headers }
+        JSON.stringify(project ? { success: true, data: project } : { success: false, error: "Project not found" }),
+        { status: project ? 200 : 404, headers },
       );
     }
 
-    const result = await executeQuery(async (db) => {
-      const conditions: SQL[] = [];
+    // D02r-c: the personal views come from Convex, which learns the caller
+    // from the Better Auth session. A username with favorites or the
+    // graveyard narrows the viewer's own list to that owner's projects (what
+    // the Supabase query did).
+    if (personalView) {
+      const handle = username?.toLowerCase();
+      const cards = (await convexPersonalList(personalView)).filter((c) => !handle || c.owner?.username.toLowerCase() === handle);
+      const response = personalListResponse(cards, { category, tags, sortBy, page, limit });
+      return new NextResponse(JSON.stringify(response), { status: 200, headers });
+    }
 
-      // Handle username filter first since it's independent of auth
-      if (username) {
-        const userProfile = await db
-          .select()
-          .from(profiles)
-          .where(eq(profiles.username, username))
-          .limit(1);
-
-        if (userProfile.length > 0) {
-          conditions.push(eq(projects.user_id, userProfile[0].user_id));
-        } else {
-          // Return empty result if username not found
-          return {
-            success: true,
-            data: [],
-            pagination: { total: 0, page, limit, totalPages: 0 },
-          };
-        }
-      }
-
-      // Handle favorites query (requires authentication)
-      if (userId && showFavorites) {
-        const userProfile = await db
-          .select()
-          .from(profiles)
-          .where(eq(profiles.user_id, userId))
-          .limit(1);
-
-        if (!userProfile.length) {
-          return {
-            success: true,
-            data: [],
-            pagination: { total: 0, page, limit, totalPages: 0 },
-          };
-        }
-
-        const profileId = userProfile[0].id;
-
-        // Get projects filtered by tags if specified
-        let tagCondition: SQL | undefined;
-        if (tags.length > 0) {
-          const matchingTags = await db
-            .select()
-            .from(tagsTable)
-            .where(inArray(tagsTable.name, tags));
-
-          if (matchingTags.length > 0) {
-            const tagIds = matchingTags.map((t) => t.id);
-
-            // Find projects that have ALL specified tags using a subquery
-            tagCondition = sql`${projects.id} IN (
-              SELECT ${project_tags.project_id}
-              FROM ${project_tags}
-              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds)})
-              GROUP BY ${project_tags.project_id}
-              HAVING count(*) = ${tagIds.length}
-            )`;
-          } else {
-            // If no matching tags found, return empty result
-            return {
-              success: true,
-              data: [],
-              pagination: { total: 0, page, limit, totalPages: 0 },
-            };
-          }
-        }
-
-        // Get total count for favorites
-        const [{ count }] = await db
-          .select({ count: sql<number>`count(*)` })
-          .from(favorites)
-          .where(
-            and(
-              eq(favorites.profile_id, profileId),
-              ...(tagCondition ? [tagCondition] : [])
-            )
-          );
-
-        // Build and execute favorites query with tag filtering
-        let query = db
-          .select(buildProjectSelection())
-          .from(favorites)
-          .innerJoin(projects, eq(favorites.project_id, projects.id))
-          .leftJoin(profiles, eq(profiles.user_id, projects.user_id))
-          .where(
-            and(
-              eq(favorites.profile_id, profileId),
-              ...(category && category !== "all"
-                ? [eq(projects.category, category)]
-                : []),
-              ...(tagCondition ? [tagCondition] : [])
-            )
-          );
-
-        query = applySorting(query, sortBy);
-
-        if (limit > 0) {
-          query.limit(limit).offset((page - 1) * limit);
-        }
-
-        const favoriteProjects = await query;
-        const projectIds = favoriteProjects.map((p) => p.project.id);
-        const tagsByProject = await getProjectTags(db, projectIds);
-
-        const data = favoriteProjects.map(({ project, profile }) => ({
-          ...project,
-          tags: tagsByProject[project.id] || [],
-          profile: {
-            username: profile?.username || null,
-            email_address: profile?.email_address || null,
-            profile_image_url: profile?.profile_image_url || null,
-            full_name: profile?.full_name || null,
-          },
-          isFavorite: true,
-        }));
-
-        return {
-          success: true,
-          data,
-          pagination: {
-            total: count,
-            page,
-            limit: limit || count,
-            totalPages: limit ? Math.ceil(count / limit) : 1,
-          },
-        };
-      }
-
-      // Add other filters
-      if (!showAll && userId) {
-        conditions.push(eq(projects.user_id, userId));
-      }
-
-      if (
-        category &&
-        category !== "all" &&
-        Object.keys(PROJECT_CATEGORIES).includes(category)
-      ) {
-        conditions.push(eq(projects.category, category));
-      }
-
-      // Add tag filtering using Drizzle syntax
-      if (tags.length > 0) {
-        const matchingTags = await db
-          .select()
-          .from(tagsTable)
-          .where(inArray(tagsTable.name, tags));
-
-        if (matchingTags.length > 0) {
-          const tagIds = matchingTags.map((t) => t.id);
-
-          // Find projects that have ALL specified tags using Drizzle SQL builder
-          conditions.push(
-            sql`${projects.id} IN (
-              SELECT ${project_tags.project_id}
-              FROM ${project_tags}
-              WHERE ${project_tags.tag_id} IN (${sql.join(tagIds)})
-              GROUP BY ${project_tags.project_id}
-              HAVING count(*) = ${tagIds.length}
-            )`
-          );
-        } else {
-          // If no matching tags found, ensure no results
-          conditions.push(sql`FALSE`);
-        }
-      }
-
-      // Handle deleted state
-      if (showDeleted && userId) {
-        conditions.push(
-          sql`${eq(projects.user_id, userId)} AND ${
-            projects.deleted_at
-          } IS NOT NULL`
-        );
-      } else if (!showDeleted) {
-        conditions.push(sql`${projects.deleted_at} IS NULL`);
-      }
-
-      // Get total count
-      const [{ count }] = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(projects)
-        .where(conditions.length > 0 ? and(...conditions) : undefined);
-
-      // Build main query
-      let query = db
-        .select(buildProjectSelection())
-        .from(projects)
-        .leftJoin(profiles, eq(profiles.user_id, projects.user_id))
-        .$dynamic();
-
-      if (conditions.length > 0) {
-        query = query.where(and(...conditions));
-      }
-
-      query = applySorting(query, sortBy);
-
-      if (limit > 0) {
-        query = query.limit(limit).offset((page - 1) * limit);
-      }
-
-      const filteredProjects = await query;
-      const projectIds = filteredProjects.map((p) => p.project.id);
-      const tagsByProject = await getProjectTags(db, projectIds);
-      const userFavoriteSet = userId
-        ? await getUserFavorites(db, userId)
-        : new Set();
-
-      const data = filteredProjects.map(({ project, profile }) => ({
-        ...project,
-        tags: tagsByProject[project.id] || [],
-        profile: {
-          username: profile?.username || null,
-          email_address: profile?.email_address || null,
-          profile_image_url: profile?.profile_image_url || null,
-          full_name: profile?.full_name || null,
-        },
-        isFavorite: userFavoriteSet.has(project.id),
-      }));
-
-      return {
-        success: true,
-        data,
-        pagination: {
-          total: count,
-          page,
-          limit: limit || count,
-          totalPages: limit ? Math.ceil(count / limit) : 1,
-        },
-      };
+    // D07x: the community list and its category, tag and portfolio variants,
+    // so their rows carry Convex IDs the favorite, edit and lifecycle actions
+    // can act on. Listed projects only; the session only marks the viewer's
+    // own rows and favorites.
+    const { cards, total } = await convexPublicList({
+      ...(category && category !== "all" ? { category } : {}),
+      ...(tags.length > 0 ? { tags } : {}),
+      ...(username ? { handle: username } : {}),
+      sortBy,
+      page,
+      limit,
     });
-
-    // Ensure we always return a response with headers
-    return new NextResponse(JSON.stringify(result), { status: 200, headers });
+    return new NextResponse(JSON.stringify(listResponse(cards, total, page, limit)), { status: 200, headers });
   } catch (error) {
     // Handle Zod validation errors specifically
     if (error instanceof ZodError) {

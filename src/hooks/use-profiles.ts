@@ -18,16 +18,13 @@ interface ApiError {
 }
 
 /**
- * Profile data from /api/profiles endpoint
+ * Profile data from /api/profiles endpoint. Public fields only (D04a): no
+ * email, tier, provider subject or profile UUID.
  */
 export interface Profile {
-  id: string;
-  user_id: string;
   username: string | null;
   full_name: string | null;
   profile_image_url: string | null;
-  tier: string | null;
-  email_address: string | null;
   created_at: string | null;
   updated_at: string | null;
   project_count: number;

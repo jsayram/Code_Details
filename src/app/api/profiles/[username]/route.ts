@@ -1,160 +1,87 @@
 import { NextRequest } from "next/server";
-import { auth } from "@clerk/nextjs/server";
-import { executeQuery } from "@/db/server";
-import { profiles } from "@/db/schema/profiles";
-import { usernameHistory } from "@/db/schema/username-history";
-import { eq } from "drizzle-orm";
 import { revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { 
   notFound, 
   unauthorized, 
-  notOwner,
   validationError, 
   serverError,
-  success 
+  success,
+  conflict,
 } from "@/lib/api-errors";
 import { updateProfileSchema, formatZodErrors } from "@/types/schemas/profile";
+import { updateProfileOnConvex } from "@/backend/profiles/profile-update";
+import { DATA_UNAVAILABLE, personalReadsFromConvex } from "@/backend/projects/personal";
+import { convexPublicProfile } from "@/backend/profiles/read";
 
+// D04a (P08 R07): the public projection only (no email, tier, provider
+// subject or profile UUID), from Convex. E03: the Supabase read is gone.
 export async function GET(
   request: NextRequest,
   context: { params: Promise<{ username: string }> }
 ) {
   try {
     const { username } = await context.params;
-    
-    const profile = await executeQuery(async (db) => {
-      const result = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.username, username))
-        .limit(1);
 
-      return result[0] || null;
-    });
-
-    if (!profile) {
-      // Profile not found - check if this is a historical username
-      const historyRecord = await executeQuery(async (db) => {
-        return await db
-          .select()
-          .from(usernameHistory)
-          .where(eq(usernameHistory.old_username, username))
-          .limit(1);
-      });
-
-      if (historyRecord.length) {
-        // Found in history - look up current username by user_id
-        const currentProfile = await executeQuery(async (db) => {
-          return await db
-            .select()
-            .from(profiles)
-            .where(eq(profiles.user_id, historyRecord[0].user_id))
-            .limit(1);
-        });
-
-        if (currentProfile.length) {
-          // Return redirect info with current profile
-          return success({
-            redirect: true,
-            oldUsername: username,
-            currentUsername: currentProfile[0].username,
-            profile: currentProfile[0],
-          });
-        }
-      }
-
-      // No profile found and no history - return 404
-      return notFound("profile", { 
-        identifier: username, 
-        identifierType: "username" 
+    const fromConvex = await convexPublicProfile(username);
+    if (fromConvex === undefined) return serverError(undefined, DATA_UNAVAILABLE);
+    if (fromConvex?.kind === "profile") return success({ profile: fromConvex.profile });
+    if (fromConvex?.kind === "redirect") {
+      return success({
+        redirect: true,
+        oldUsername: username,
+        currentUsername: fromConvex.currentUsername,
+        profile: fromConvex.profile,
       });
     }
-
-    return success({ profile });
+    return notFound("profile", { identifier: username, identifierType: "username" });
   } catch (error) {
     console.error("Error fetching profile:", error);
     return serverError(error, "Failed to fetch profile");
   }
 }
 
+// D04b (P08 R22): the owner edits their own profile through the Convex
+// profiles:updateMine mutation, which learns the caller from the Better Auth
+// session and applies the shared username rules and the history row. E03: the
+// Supabase edit is gone.
 export async function PUT(
   request: NextRequest,
   context: { params: Promise<{ username: string }> }
 ) {
   try {
-    // 1. Authentication check
-    const { userId } = await auth();
-    if (!userId) {
-      return unauthorized("You must be signed in to update a profile");
-    }
-
     const { username } = await context.params;
 
-    // 2. Check if the profile exists and user owns it
-    const existingProfile = await executeQuery(async (db) => {
-      const result = await db
-        .select()
-        .from(profiles)
-        .where(eq(profiles.username, username))
-        .limit(1);
-      return result[0] || null;
-    });
-
-    if (!existingProfile) {
-      return notFound("profile", { 
-        identifier: username, 
-        identifierType: "username" 
-      });
-    }
-
-    // 3. Authorization check - user must own the profile
-    if (existingProfile.user_id !== userId) {
-      return notOwner("profile", {
-        resource: "profile",
-        identifier: username,
-        operation: "PUT",
-        userId,
-      });
-    }
-
-    // 4. Parse and validate request body
-    const body = await request.json();
+    // 1. Parse and validate request body
+    const body = await request.json().catch(() => null);
     const validation = updateProfileSchema.safeParse(body);
-    
     if (!validation.success) {
       return validationError(
         formatZodErrors(validation.error),
         "Invalid profile data provided"
       );
     }
-
     const validatedData = validation.data;
 
-    // 5. Update the profile
-    const updatedProfile = await executeQuery(async (db) => {
-      const [result] = await db
-        .update(profiles)
-        .set({
-          ...(validatedData.username && { username: validatedData.username }),
-          ...(validatedData.email_address && { email_address: validatedData.email_address }),
-          ...(validatedData.profile_image_url !== undefined && { profile_image_url: validatedData.profile_image_url }),
-          ...(validatedData.full_name !== undefined && { full_name: validatedData.full_name }),
-          ...(validatedData.first_name !== undefined && { first_name: validatedData.first_name }),
-          ...(validatedData.last_name !== undefined && { last_name: validatedData.last_name }),
-          ...(validatedData.bio !== undefined && { bio: validatedData.bio }),
-          updated_at: new Date(),
-        })
-        .where(eq(profiles.username, username))
-        .returning();
+    // D04e (P08 R23): the email address changes only through the auth
+    // provider, verified. The app never takes it from a form.
+    if (validatedData.email_address !== undefined) {
+      const message = "Change your email address in your account settings";
+      return validationError([{ field: "email_address", message }], message);
+    }
 
-return result;
-    });
+    // 2. With no local Convex there is nothing to edit (fail closed).
+    if (!personalReadsFromConvex()) return serverError(undefined, DATA_UNAVAILABLE);
 
-    // Invalidate user profile cache after update
-    revalidateTag(CACHE_TAGS.USER_PROFILE, {});
-
-    return success({ profile: updatedProfile });
+    const result = await updateProfileOnConvex(username, validatedData);
+    if (result.ok) {
+      revalidateTag(CACHE_TAGS.USER_PROFILE, {});
+      return success({ profile: result.profile });
+    }
+    if (result.code === "not_signed_in") return unauthorized("You must be signed in to update a profile");
+    if (result.code === "not_found") return notFound("profile", { identifier: username, identifierType: "username" });
+    if (result.code === "taken") return conflict("profile", "username");
+    return validationError([{ field: result.field, message: result.message }], result.message);
   } catch (error) {
     console.error("Error updating profile:");
     return serverError(error, "Failed to update profile");

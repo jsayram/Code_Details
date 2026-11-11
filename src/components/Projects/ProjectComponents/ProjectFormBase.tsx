@@ -2,18 +2,18 @@
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import { Project } from "@/types/models/project";
-import { InsertProject } from "@/db/schema/projects";
+import { InsertProject } from "@/types/rows";
 import { createProject, updateProject } from "@/app/actions/projects";
 import { toast } from "sonner";
 import { useProjects } from "@/providers/projects-provider";
-import { useAuth } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import {
   validateProjectForm,
   handleFormSubmit,
   ProjectFormErrors,
   ProjectCategory,
 } from "@/utils/formValidation";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { TagSelector } from "./TagSelectorComponent";
 import { slugify } from "@/utils/stringUtils";
 import { PROJECT_CATEGORIES } from "@/constants/project-categories";
@@ -67,7 +67,8 @@ export function ProjectFormBase({
   showCancelButton = true,
 }: ProjectFormBaseProps) {
   const projectsContext = useProjects();
-  const { userId } = useAuth();
+  // D08g4e2: the session's user; the actions read it from the session again.
+  const userId = useViewerId();
   const [mounted, setMounted] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -370,7 +371,7 @@ export function ProjectFormBase({
               value={formData.category}
               onValueChange={(value) => handleSelectChange("category", value as ProjectCategory)}
             >
-              <SelectTrigger>
+              <SelectTrigger id="category" aria-describedby="category-help">
                 <SelectValue placeholder="Select Category" />
               </SelectTrigger>
               <SelectContent>
@@ -381,6 +382,10 @@ export function ProjectFormBase({
                 ))}
               </SelectContent>
             </Select>
+            {/* UI07 (Jose): the full description with its tie-break wording, where people choose. */}
+            <p id="category-help" className="text-xs text-muted-foreground">
+              {PROJECT_CATEGORIES[formData.category as keyof typeof PROJECT_CATEGORIES]?.description}
+            </p>
           </div>
 
           <div className="space-y-2">

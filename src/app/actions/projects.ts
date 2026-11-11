@@ -1,603 +1,216 @@
 "use server";
 
-import { eq, sql, and } from "drizzle-orm";
-import {
-  createProjectServer,
-  getAccessibleProjectsServer,
-  deleteProjectServer,
-  updateProjectServer,
-  getUserProjectsServer,
-  isProjectOwner,
-  getProjectTagNames,
-} from "@/db/actions";
-import { InsertProject } from "@/db/schema/projects";
-import { projects } from "@/db/schema/projects";
-import { project_tags } from "@/db/schema/project_tags";
-import { revalidatePath, unstable_cache, revalidateTag } from "next/cache";
-import { mapDrizzleProjectToProject } from "@/types/models/project";
-import { executeQuery } from "@/db/server";
-import { favorites } from "@/db/schema/favorites";
-import { getProfileByUserId } from "@/db/operations";
-import { createProjectSchema, updateProjectSchema } from "@/types/schemas";
+import { projectWritesToConvex, updateProjectOnConvex } from "@/backend/projects/project-update";
+import { changeLifecycleOnConvex, createProjectOnConvex } from "@/backend/projects/project-lifecycle";
+import { changeFavoriteOnConvex } from "@/backend/projects/favorites";
+import type { InsertProject } from "@/types/rows";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
 import { 
   unauthorizedError, 
-  notOwnerError, 
-  notFoundError, 
-  zodValidationError, 
   serverError,
   actionSuccess,
-  type ActionResult
+  type ActionResult,
 } from "@/lib/action-errors";
-import { ErrorCode } from "@/constants/error-codes";
 
 const pathToRevalidate = "/projects";
 
-export async function getProjectById(projectId: string) {
-  return executeQuery(async (db) => {
-    // Use more explicit query building pattern
-    const results = await db
-      .select({
-        id: projects.id,
-        title: projects.title,
-        slug: projects.slug,
-        description: projects.description,
-        category: projects.category,
-        user_id: projects.user_id,
-        total_favorites: projects.total_favorites,
-        url_links: projects.url_links,
-        category_data: projects.category_data,
-        field_order: projects.field_order,
-        created_at: projects.created_at,
-        updated_at: projects.updated_at,
-        deleted_at: projects.deleted_at
-      })
-      .from(projects)
-      .where(eq(projects.id, projectId))
-      .limit(1);
+// D03 (P08 R02): the writes below (create, update, delete, restore, purge,
+// favorites) go to the Convex mutations, which take the caller from
+// getViewer. D08g4f2: the Clerk-keyed Supabase writes are gone, so anything
+// else (Better Auth alone, or no login) writes nothing.
 
-    return results[0] || null;
-  });
-}
-
-export const getCachedProjectById = unstable_cache(
-  async (projectId: string) => getProjectById(projectId),
-  ['project-by-id'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
-
-// Get a single project by slug
-export async function getProjectBySlugServer(slug: string) {
-  return executeQuery(async (db) => {
-    const results = await db
-      .select()
-      .from(projects)
-      .where(eq(projects.slug, slug))
-      .limit(1);
-
-    return results[0] || null;
-  });
-}
-
-export const getCachedProjectBySlug = unstable_cache(
-  async (slug: string) => getProjectBySlugServer(slug),
-  ['project-by-slug'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
-
-// Server action to create a new project
-export async function createProject(project: InsertProject, userId: string) {
+// Server action to create a new project.
+//
+// D03 (P08 R02, SEC-D02-MASS): the creator comes from the session; the second
+// argument is the client's own idea of its user ID, ignored and kept only so
+// the callers don't change. Only the validated, whitelisted columns reach the
+// insert (insertProjectRow), so the input can't set an owner, deleted_at,
+// total_favorites, an ID or timestamps.
+export async function createProject(
+  project: InsertProject,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
-    if (!userId) {
-      return unauthorizedError("User ID is required to create a project");
+    if (projectWritesToConvex()) {
+      const result = await createProjectOnConvex(project);
+      if (result.success) revalidateAfterLifecycleChange();
+      return result.success ? actionSuccess(result.data) : result;
     }
-
-    // Validate input with Zod schema
-    const validationResult = createProjectSchema.safeParse({
-      title: project.title,
-      slug: project.slug,
-      description: project.description,
-      category: project.category,
-      url_links: project.url_links,
-      tags: project.tags || [],
-      category_data: project.category_data,
-      field_order: project.field_order,
-    });
-
-    if (!validationResult.success) {
-      return zodValidationError(validationResult);
-    }
-
-    // Use validated and transformed data
-    const validatedData = validationResult.data;
-
-    const trimmedProject = {
-      ...project,
-      title: validatedData.title,
-      slug: validatedData.slug,
-      description: validatedData.description,
-      category: validatedData.category,
-      user_id: userId,
-      url_links: validatedData.url_links,
-      tags: validatedData.tags,
-      category_data: validatedData.category_data ?? undefined,
-      field_order: validatedData.field_order ?? undefined,
-    };
-
-    console.log('Creating project with data:', JSON.stringify(trimmedProject, null, 2));
-
-    const newProject = await createProjectServer(trimmedProject);
-    // Revalidate the projects list page
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    return actionSuccess(mapDrizzleProjectToProject(newProject));
+    return unauthorizedError("You must be signed in to create a project");
   } catch (error) {
     console.error("Failed to create project:", error);
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to get a project by slug
-export async function getProject(slug: string) {
+
+// Server action to soft-delete a project. D03 (R02): the owner comes from the
+// session; the second argument is ignored.
+export async function removeProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    const project = await getProjectBySlugServer(slug);
-    if (!project) {
-      return notFoundError("Project", ErrorCode.PROJECT_NOT_FOUND);
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("softDelete", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
     }
-    return actionSuccess(mapDrizzleProjectToProject(project));
-  } catch (error) {
-    console.error("Failed to get project:", error);
-    return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
-  }
-}
-
-export const getCachedProject = unstable_cache(
-  async (slug: string) => getProject(slug),
-  ['project'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects', 'project-detail']
-  }
-);
-
-// Server action to delete a project
-export async function removeProject(id: string, userId: string) {
-  try {
-    // Ensure there is a user ID
-    if (!userId) {
-      return unauthorizedError("User ID is required to delete a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    const deletedProject = await deleteProjectServer(id);
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    return actionSuccess(mapDrizzleProjectToProject(deletedProject));
+    return unauthorizedError("You must be signed in to delete a project");
   } catch (error) {
     console.error("Failed to remove project:", error);
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to update a project
+function revalidateAfterLifecycleChange(slug?: string) {
+  revalidatePath(pathToRevalidate);
+  if (slug) revalidatePath(`/projects/${slug}`);
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+}
+
+// Server action to update a project.
+//
+// D02 (P08 R02): the caller comes from the session. The third argument is the
+// client's own idea of its user ID; it is ignored and kept only so the
+// callers don't change. Under both development switches (Convex read and
+// Better Auth) the save goes to the Convex mutation, which learns the caller
+// from getViewer. Under the Better Auth switch alone nothing is written to
+// Supabase: there are no mixed-provider writes.
 export async function updateProject(
   id: string,
-  project: Partial<InsertProject>,
-  userId: string
+  project: Partial<InsertProject> & { content_version?: number },
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    // Ensure there is a user ID
-    if (!userId) {
-      return unauthorizedError("User ID is required to update a project");
+    if (projectWritesToConvex()) {
+      const result = await updateProjectOnConvex(id, project);
+      if (result.success) revalidateAfterUpdate(result.data.slug, result.previousSlug);
+      if (result.success) return actionSuccess(result.data);
+      return result;
     }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    // Validate input with Zod schema
-    const validationResult = updateProjectSchema.safeParse({
-      title: project.title,
-      slug: project.slug,
-      description: project.description,
-      category: project.category,
-      url_links: project.url_links,
-      tags: project.tags,
-      category_data: project.category_data,
-      field_order: project.field_order,
-    });
-
-    if (!validationResult.success) {
-      return zodValidationError(validationResult);
-    }
-
-    // Use validated and transformed data
-    const validatedData = validationResult.data;
-
-    // Create a new project object with validated values
-    const trimmedProject: Partial<InsertProject> = {};
-
-    // Only include fields that were provided and validated
-    if (validatedData.title !== undefined) {
-      trimmedProject.title = validatedData.title;
-    }
-    if (validatedData.slug !== undefined) {
-      trimmedProject.slug = validatedData.slug;
-    }
-    if (validatedData.description !== undefined) {
-      trimmedProject.description = validatedData.description;
-    }
-    if (validatedData.category !== undefined) {
-      trimmedProject.category = validatedData.category;
-    }
-    if (validatedData.url_links !== undefined) {
-      trimmedProject.url_links = validatedData.url_links;
-    }
-    if (validatedData.tags !== undefined) {
-      trimmedProject.tags = validatedData.tags;
-    }
-    if (validatedData.category_data !== undefined) {
-      trimmedProject.category_data = validatedData.category_data ?? undefined;
-    }
-    if (validatedData.field_order !== undefined) {
-      trimmedProject.field_order = validatedData.field_order ?? undefined;
-    }
-
-    console.log('Updating project with data:', JSON.stringify(trimmedProject, null, 2));
-    const updatedProject = await updateProjectServer(id, trimmedProject);
-    
-    // Revalidate the projects list page
-    revalidatePath(pathToRevalidate);
-    
-    // Revalidate the specific project page (using the new slug if changed, otherwise the original)
-    const projectSlug = updatedProject.slug || validatedData.slug;
-    if (projectSlug) {
-      revalidatePath(`/projects/${projectSlug}`);
-    }
-    
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    return actionSuccess(mapDrizzleProjectToProject(updatedProject));
+    return unauthorizedError("You must be signed in to update a project");
   } catch (error) {
     console.error("Failed to update project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to get all projects accessible to a user
-export async function getUserProjects(userId: string) {
-  try {
-    console.log(`Fetching all projects for user ${userId}`);
-
-    try {
-      // Pass userId to get all available projects (no tier filtering)
-      const projects = await getAccessibleProjectsServer(userId);
-
-      // Map the data to our Project type
-      const mappedProjects = projects.map(mapDrizzleProjectToProject);
-      console.log(
-        `Successfully fetched ${mappedProjects.length} projects for user ${userId}`
-      );
-      return mappedProjects;
-    } catch (dbError) {
-      console.error("Database error when getting projects:", dbError);
-      // Return empty array instead of letting the error propagate
-      return [];
-    }
-  } catch (error) {
-    console.error("Failed to get user projects:", error);
-    // Return empty array instead of propagating the error to client
-    return [];
-  }
+function revalidateAfterUpdate(slug?: string | null, previousSlug?: string | null) {
+  // Revalidate the projects list page
+  revalidatePath(pathToRevalidate);
+  // Revalidate the specific project page (using the new slug if changed)
+  if (slug) revalidatePath(`/projects/${slug}`);
+  if (previousSlug && previousSlug !== slug) revalidatePath(`/projects/${previousSlug}`);
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
 }
 
-export const getCachedUserProjects = unstable_cache(
-  async (userId: string) => getUserProjects(userId),
-  ['user-projects'],
-  {
-    revalidate: 180, // 3 minutes
-    tags: ['projects', 'user-projects']
-  }
-);
+// The read actions (getProjectById, getProjectBySlugServer, getProject,
+// getUserOwnProjects, getProjectTagCounts) read Supabase and were removed in
+// E03; the reads come from Convex through the API routes and the page.
 
-// Server action to get all projects (previously free tier only)
-export async function getAllProjects() {
+// Server action to permanently delete a project. D03 (R02): the owner comes
+// from the session; the second argument is ignored. Only a project in the
+// graveyard can be purged.
+export async function permanentlyDeleteProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Get all projects without tier filtering
-    const projects = await getAccessibleProjectsServer("anonymous");
-
-    // Return the projects directly as an array, not wrapped in an object
-    return projects.map(mapDrizzleProjectToProject);
-  } catch (error) {
-    console.error("Failed to get projects:", error);
-    return [];
-  }
-}
-
-export const getCachedAllProjects = unstable_cache(
-  async () => getAllProjects(),
-  ['all-projects'],
-  {
-    revalidate: 300, // 5 minutes
-    tags: ['projects']
-  }
-);
-
-// Server action to get projects created by the current user
-export async function getUserOwnProjects(userId: string) {
-  try {
-    if (!userId) {
-      return unauthorizedError("User ID is required");
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("purge", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
     }
-
-    console.log(`Fetching projects owned by user ${userId}`);
-    const projects = await getUserProjectsServer(userId);
-
-    // Map the data to our Project type
-    const mappedProjects = projects.map(mapDrizzleProjectToProject);
-    console.log(`Successfully fetched ${mappedProjects.length} user projects`);
-
-    return actionSuccess(mappedProjects);
-  } catch (error) {
-    console.error("Failed to get user's own projects:", error);
-    return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
-  }
-}
-
-export const getCachedUserOwnProjects = unstable_cache(
-  async (userId: string) => getUserOwnProjects(userId),
-  ['user-own-projects'],
-  {
-    revalidate: 180, // 3 minutes
-    tags: ['projects', 'user-own-projects']
-  }
-);
-
-// Server action to permanently delete a project
-export async function permanentlyDeleteProject(id: string, userId: string) {
-  try {
-    // Ensure there is a user ID
-    if (!userId) {
-      return unauthorizedError("User ID is required to delete a project");
-    }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    // Permanently delete the project
-    await executeQuery(async (db) => {
-      // First verify the project exists and is deleted
-      const [project] = await db
-        .select()
-        .from(projects)
-        .where(eq(projects.id, id))
-        .limit(1);
-
-      if (!project) {
-        throw new Error("Project not found");
-      }
-
-      if (!project.deleted_at) {
-        throw new Error("Project must be in the graveyard before permanent deletion");
-      }
-
-      // If checks pass, perform the permanent deletion
-      await db.delete(projects).where(eq(projects.id, id));
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    return actionSuccess(null);
+    return unauthorizedError("You must be signed in to delete a project");
   } catch (error) {
     console.error("Failed to permanently delete project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to restore a deleted project
-export async function restoreProject(id: string, userId: string) {
+// Server action to restore a deleted project. D03 (R02): the owner comes from
+// the session; the second argument is ignored. Restore is valid only from
+// deleted (P07 §5.11).
+export async function restoreProject(
+  id: string,
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
+) {
   try {
-    // Ensure there is a user ID
-    if (!userId) {
-      return unauthorizedError("User ID is required to restore a project");
+    if (projectWritesToConvex()) {
+      const result = await changeLifecycleOnConvex("restore", id);
+      if (!result.success) return result;
+      revalidateAfterLifecycleChange(result.slug);
+      return actionSuccess(null);
     }
-
-    // First check if the user is the owner of this project
-    const isOwner = await isProjectOwner(id, userId);
-    if (!isOwner) {
-      return notOwnerError("project");
-    }
-
-    // Restore the project by clearing deleted_at
-    const restoredProject = await executeQuery(async (db) => {
-      const [updated] = await db
-        .update(projects)
-        .set({ 
-          deleted_at: null,
-          updated_at: new Date()
-        })
-        .where(eq(projects.id, id))
-        .returning();
-      
-      if (!updated) {
-        throw new Error("Project not found");
-      }
-
-      const tags = await getProjectTagNames(id);
-      return { ...updated, tags };
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_OWN_PROJECTS, {});
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    return actionSuccess(mapDrizzleProjectToProject(restoredProject));
+    return unauthorizedError("You must be signed in to restore a project");
   } catch (error) {
     console.error("Failed to restore project:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to add a favorite to a project
+// Favorite and unfavorite. D05 (P08 R02): the caller comes from the session;
+// the second argument is the client's own idea of its user ID, ignored and
+// kept only so the callers don't change. Both are idempotent and move
+// total_favorites only when a row is really added or removed (R25). The
+// writes live in src/db/favorite-write.ts; under both development switches
+// they go to the Convex favorites:add/remove mutations instead.
 export async function addProjectFavorite(
   projectId: string,
-  userId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    if (!userId || !projectId) {
-      return unauthorizedError("Both user ID and project ID are required");
+    if (projectWritesToConvex()) {
+      const result = await changeFavoriteOnConvex("add", projectId);
+      if (!result.success) return result;
+      revalidateAfterFavorite();
+      return actionSuccess(undefined);
     }
-
-    // First get the profile ID for the user
-    const profile = await getProfileByUserId(userId);
-    if (!profile) {
-      return notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND);
-    }
-
-    await executeQuery(async (db) => {
-      // Check if favorite already exists
-      const existingFavorite = await db
-        .select()
-        .from(favorites)
-        .where(
-          and(
-            eq(favorites.project_id, projectId),
-            eq(favorites.profile_id, profile.id)
-          )
-        )
-        .limit(1);
-
-      if (existingFavorite.length === 0) {
-        // Create new favorite and increment total_favorites in a transaction
-        await db.transaction(async (tx) => {
-          // Add the favorite
-          await tx
-            .insert(favorites)
-            .values({
-              project_id: projectId,
-              profile_id: profile.id,
-            });
-
-          // Increment total_favorites
-          await tx
-            .update(projects)
-            .set({ 
-              total_favorites: sql`total_favorites + 1`,
-              updated_at: new Date()
-            })
-            .where(eq(projects.id, projectId));
-        });
-      }
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    return actionSuccess(undefined);
+    return unauthorizedError("You must be signed in to favorite a project");
   } catch (error) {
     console.error("Failed to add favorite:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-// Server action to remove a favorite from a project
 export async function removeProjectFavorite(
   projectId: string,
-  userId: string
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _clientUserId?: string | null
 ) {
   try {
-    if (!userId || !projectId) {
-      return unauthorizedError("Both user ID and project ID are required");
+    if (projectWritesToConvex()) {
+      const result = await changeFavoriteOnConvex("remove", projectId);
+      if (!result.success) return result;
+      revalidateAfterFavorite();
+      return actionSuccess(undefined);
     }
-
-    // First get the profile ID for the user
-    const profile = await getProfileByUserId(userId);
-    if (!profile) {
-      return notFoundError("User profile", ErrorCode.PROFILE_NOT_FOUND);
-    }
-
-    await executeQuery(async (db) => {
-      // Delete favorite and decrement total_favorites in a transaction
-      await db.transaction(async (tx) => {
-        // Remove the favorite
-        await tx
-          .delete(favorites)
-          .where(
-            and(
-              eq(favorites.project_id, projectId),
-              eq(favorites.profile_id, profile.id)
-            )
-          );
-
-        // Decrement total_favorites, ensuring it doesn't go below 0
-        await tx
-          .update(projects)
-          .set({ 
-            total_favorites: sql`GREATEST(total_favorites - 1, 0)`,
-            updated_at: new Date()
-          })
-          .where(eq(projects.id, projectId));
-      });
-    });
-
-    revalidatePath(pathToRevalidate);
-    revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
-    revalidateTag(CACHE_TAGS.PROJECTS, {});
-    revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
-    return actionSuccess(undefined);
+    return unauthorizedError("You must be signed in to favorite a project");
   } catch (error) {
     console.error("Failed to remove favorite:");
     return serverError(error, error instanceof Error ? error.message : "Unknown error occurred");
   }
 }
 
-export async function getProjectTagCounts(projectIds: string[]) {
-  return executeQuery(async (db) => {
-    if (projectIds.length === 0) return {};
-    
-    const tagCounts = await db
-      .select({
-        project_id: project_tags.project_id,
-        count: sql<number>`count(*)`,
-      })
-      .from(project_tags)
-      .where(sql`${project_tags.project_id} IN (${sql.join(projectIds.map(id => sql.raw(`'${id}'`)), sql.raw(', '))})`)
-      .groupBy(project_tags.project_id);
-
-    const result: Record<string, number> = {};
-    tagCounts.forEach(({ project_id, count }) => {
-      result[project_id] = Number(count);
-    });
-
-    return result;
-  });
+function revalidateAfterFavorite() {
+  revalidatePath(pathToRevalidate);
+  revalidateTag(CACHE_TAGS.PROJECT_DETAIL, {});
+  revalidateTag(CACHE_TAGS.PROJECTS, {});
+  revalidateTag(CACHE_TAGS.USER_PROJECTS, {});
 }

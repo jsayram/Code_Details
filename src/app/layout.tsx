@@ -1,14 +1,21 @@
-import { ClerkProvider } from "@clerk/nextjs";
 import "@/styles/globals.css";
+import type { Viewport } from "next";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { ToasterProvider } from "@/components/ui/toaster";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { SWRProvider } from "@/providers/swr-provider";
 import { DocChaptersProvider } from "@/providers/doc-chapters-provider";
+import { MotionProvider } from "@/providers/motion-provider";
 
 export const metadata = {
   title: "Code Details",
   description: "Demo of code based web app",
+};
+
+// UI03 (decision 10): no maximum-scale or user-scalable, so people can pinch to zoom.
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
 };
 
 export default function RootLayout({
@@ -17,16 +24,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en">
-      <head>
-        <meta
-          name="viewport"
-          content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"
-        />
-      </head>
+    <html lang="en" suppressHydrationWarning>
       <body className="overflow-x-hidden">
-        <ClerkProvider>
-          <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+        <ThemeProvider attribute="class" defaultTheme="system" enableSystem>
+          <MotionProvider>
             <SWRProvider>
               <DocChaptersProvider>
                 {/* Main content with centered container and responsive padding */}
@@ -36,8 +37,8 @@ export default function RootLayout({
                 <ToasterProvider />
               </DocChaptersProvider>
             </SWRProvider>
-          </ThemeProvider>
-        </ClerkProvider>
+          </MotionProvider>
+        </ThemeProvider>
       </body>
     </html>
   );

@@ -2,7 +2,7 @@
 
 Code Details is a place for developers to show their software projects. You add a project, file it under a category, tag the technologies it uses, and other people can browse, search and favorite it.
 
-> **Work in progress.** The current code lives on the `dev` branch. `main` still holds an earlier version (Supabase and Clerk) until `dev` is merged into it. It isn't hosted publicly yet.
+> **Work in progress.** `main` has the latest reviewed code; new work lands on `dev` first. It isn't hosted publicly yet.
 
 ## What it does
 
@@ -25,14 +25,13 @@ Code Details is a place for developers to show their software projects. You add 
 | Repo docs engine | `packages/repo-docs`: crawler, LLM clients (OpenAI, Anthropic, Google, Groq, DeepSeek, OpenRouter, xAI, Azure, Ollama), Mermaid diagrams |
 | Tests | Vitest, Playwright, axe accessibility checks |
 
-## Getting started (on the `dev` branch)
+## Getting started
 
 You need Node 20 or newer and Docker (the end-to-end tests use a throwaway Postgres container).
 
 ```bash
 git clone https://github.com/jsayram/Code_Details.git
 cd Code_Details
-git checkout dev
 npm install
 cp .env.example .env.local
 ```

@@ -1,32 +1,40 @@
 "use client";
 
+// UI06.3: the public profile's project list. Loading, failure and empty now
+// look different (UI02 defect 4): a failed request says so and offers Try
+// again instead of claiming the person has shared nothing.
 import React, { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ProjectCardView } from "./ProjectComponents/ProjectCardViewComponent";
+import { ProjectCardSkeleton } from "@/components/LoadingState/ProjectListLoadingState";
 import { Project } from "@/types/models/project";
 import { PaginationControls } from "@/components/navigation/Pagination/PaginationControlComponent";
 import { PROJECTS_PER_PAGE } from "@/components/navigation/Pagination/paginationConstants";
-import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
 import { API_ROUTES } from "@/constants/api-routes";
 import { SortBySelect, CategorySelect, SortByValue } from "@/components/filters";
 import { ProjectCategory } from "@/constants/project-categories";
 import { useUserCategoryCounts } from "@/hooks/use-user-category-counts";
+import { Button } from "@/components/ui/button";
 
 interface SharedProjectsGridProps {
   username: string;
   currentPage?: number;
   onPageChange?: (page: number) => void;
+  /** Reports the total once a page has loaded, so the page title can show it. */
+  onTotalChange?: (total: number | null) => void;
 }
 
 export function SharedProjectsGrid({
   username,
   currentPage = 1,
   onPageChange,
+  onTotalChange,
 }: SharedProjectsGridProps) {
   const router = useRouter();
   const { hasCategoryProjects } = useUserCategoryCounts(username);
   const [projects, setProjects] = useState<Project[]>([]);
   const [loading, setLoading] = useState(true);
+  const [failed, setFailed] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<
     ProjectCategory | "all"
   >("all");
@@ -40,6 +48,7 @@ export function SharedProjectsGrid({
   const fetchSharedProjects = useCallback(async () => {
     try {
       setLoading(true);
+      setFailed(false);
       const url = API_ROUTES.PROJECTS.SHARED(username, {
         page: currentPage,
         limit: PROJECTS_PER_PAGE,
@@ -63,7 +72,7 @@ export function SharedProjectsGrid({
       }
 
       const result = await response.json();
-      
+
       // Check if this is a redirect response (old username was used)
       if (result.redirect && result.currentUsername) {
         router.replace(`/shared-projects/${encodeURIComponent(result.currentUsername)}`);
@@ -72,7 +81,13 @@ export function SharedProjectsGrid({
 
       // Handle RFC 7807 success response format: { success: true, data: { data: [...], pagination: {...} } }
       const responseData = result.success ? result.data : result;
-      
+
+      // The redirect can also arrive inside the success wrapper.
+      if (responseData?.redirect && responseData.currentUsername) {
+        router.replace(`/shared-projects/${encodeURIComponent(responseData.currentUsername)}`);
+        return;
+      }
+
       if (!responseData.data || !Array.isArray(responseData.data)) {
         throw new Error("Invalid response format");
       }
@@ -116,13 +131,16 @@ export function SharedProjectsGrid({
         totalPages: responseData.pagination?.totalPages ?? 1,
         currentPage: responseData.pagination?.page ?? currentPage,
       });
+      onTotalChange?.(responseData.pagination?.total ?? 0);
     } catch (error) {
       console.error("❌ Error in fetchSharedProjects:", error);
       setProjects([]);
+      setFailed(true);
+      onTotalChange?.(null);
     } finally {
       setLoading(false);
     }
-  }, [username, currentPage, sortBy, selectedCategory, router]);
+  }, [username, currentPage, sortBy, selectedCategory, router, onTotalChange]);
 
   useEffect(() => {
     fetchSharedProjects();
@@ -140,37 +158,50 @@ export function SharedProjectsGrid({
     setSortBy(value);
   };
 
-  if (loading) {
-    return <ProjectListLoadingState />;
-  }
-
   return (
-    <div className="space-y-6">
-      {/* Controls Section */}
-      <div className="space-y-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          {/* Left side filters */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Category Filter */}
-            <CategorySelect
-              value={selectedCategory}
-              onValueChange={handleCategoryChange}
-              triggerClassName="w-[180px]"
-              hasCategoryProjects={hasCategoryProjects}
-            />
-
-            {/* Sort Filter */}
-            <SortBySelect
-              value={sortBy}
-              onValueChange={handleSortChange}
-              triggerClassName="w-[180px]"
-            />
-          </div>
-        </div>
+    <div className="cd-stack">
+      {/* Controls: labelled selects (UI07.2) */}
+      <div className="cd-filter-bar justify-start">
+        <CategorySelect
+          value={selectedCategory}
+          onValueChange={handleCategoryChange}
+          triggerClassName="w-full sm:w-[240px]"
+          hasCategoryProjects={hasCategoryProjects}
+        />
+        <SortBySelect
+          value={sortBy}
+          onValueChange={handleSortChange}
+          triggerClassName="w-full sm:w-[200px]"
+        />
       </div>
 
-      {/* Projects Display */}
-      {projects.length > 0 ? (
+      <p role="status" className="sr-only">
+        {loading ? "Loading projects" : ""}
+      </p>
+
+      {loading ? (
+        <div className="cd-card-grid" aria-hidden="true">
+          {Array.from({ length: Math.min(PROJECTS_PER_PAGE, 8) }).map((_, i) => (
+            <ProjectCardSkeleton key={i} delay={i * 20} />
+          ))}
+        </div>
+      ) : failed ? (
+        <div
+          role="alert"
+          className="cd-surface flex flex-wrap items-center justify-between gap-4"
+          style={{ borderColor: "var(--cd-danger)" }}
+        >
+          <div className="cd-stack-tight cd-reading">
+            <p className="cd-subheading">Projects didn&apos;t load</p>
+            <p className="cd-small cd-muted">
+              Something went wrong on our side, so we can&apos;t show {username}&apos;s projects right now.
+            </p>
+          </div>
+          <Button variant="outline" onClick={() => fetchSharedProjects()}>
+            Try again
+          </Button>
+        </div>
+      ) : projects.length > 0 ? (
         <>
           <ProjectCardView
             projects={projects}
@@ -180,19 +211,17 @@ export function SharedProjectsGrid({
             onUpdateProject={() => {}}
           />
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center mt-6">
-              <PaginationControls
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
           )}
         </>
       ) : (
-        <div className="text-center py-12">
-          <p className="text-xl font-semibold mb-2">No Projects Found</p>
-          <p className="text-muted-foreground">
+        <div className="cd-surface cd-stack-tight items-center py-12 text-center">
+          <p className="cd-subheading">No Projects Found</p>
+          <p className="cd-muted cd-wrap">
             {selectedCategory === "all"
               ? `${username} hasn't shared any projects yet.`
               : `${username} hasn't shared any projects in this category.`}

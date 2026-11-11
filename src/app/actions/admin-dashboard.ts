@@ -1,48 +1,15 @@
 'use server';
 
-import { getDashboardStats } from "@/db/operations/dashboardOperations";
-import { getPendingTagSubmissions } from "./tag-submissions";
-import { auth, clerkClient } from "@clerk/nextjs/server";
-import { isAdmin } from "@/lib/admin-utils";
-import { redirect } from "next/navigation";
-import { unstable_cache, revalidateTag } from 'next/cache';
+import { requireAdminForAction } from "@/lib/admin-action";
+import { revalidateTag } from 'next/cache';
 import { CACHE_TAGS } from "@/lib/swr-fetchers";
-
-// Cache admin dashboard stats for 2 minutes
-export const getCachedDashboardStats = unstable_cache(
-  async () => getDashboardStats(),
-  ['admin-dashboard-stats'],
-  {
-    revalidate: 120, // 2 minutes
-    tags: ['admin-dashboard']
-  }
-);
-
-export const getCachedTagSubmissions = unstable_cache(
-  async () => getPendingTagSubmissions(),
-  ['admin-tag-submissions'],
-  {
-    revalidate: 60, // 1 minute for more frequently changing data
-    tags: ['admin-dashboard', 'tag-submissions']
-  }
-);
+import { requireConvexData } from "@/backend/projects/personal";
+import { pendingSuggestionsOnConvex } from "@/backend/projects/tags";
+import { dashboardStatsOnConvex } from "@/backend/admin";
 
 export async function fetchAdminDashboardData(forceRefresh = false) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
-  }
-
-  // Get user email from Clerk
-  const client = await clerkClient();
-  const user = await client.users.getUser(userId);
-  const userEmail = user.emailAddresses[0]?.emailAddress;
-
-  // Check if user is admin
-  if (!isAdmin(userEmail)) {
-    redirect("/dashboard");
-  }
+  // D07: the shared admin check (src/lib/admin-action.ts), no Clerk reads here.
+  await requireAdminForAction();
 
   // If force refresh is requested, revalidate the cache first
   if (forceRefresh) {
@@ -53,10 +20,10 @@ export async function fetchAdminDashboardData(forceRefresh = false) {
     console.log('[fetchAdminDashboardData] 📦 Using server cache (if available)');
   }
 
-  const [submissions, stats] = await Promise.all([
-    getCachedTagSubmissions(),
-    getCachedDashboardStats(),
-  ]);
+  // D07-c/d: the pending list and the stats come from Convex, read as the
+  // admin (no shared cache: the reads need the session). E03: no Supabase fallback.
+  requireConvexData();
+  const [submissions, stats] = await Promise.all([pendingSuggestionsOnConvex(), dashboardStatsOnConvex()]);
 
   console.log('[fetchAdminDashboardData] ✅ Admin dashboard data returned from server');
 
@@ -64,4 +31,14 @@ export async function fetchAdminDashboardData(forceRefresh = false) {
     submissions,
     stats,
   };
+}
+
+// E03 (P08 R34): the admin "Clear cache" button. It used to POST client-chosen
+// tags to /api/revalidate, which any signed-in caller could call; now the admin
+// check runs first and the tag list is fixed (every server cache tag).
+export async function clearServerCaches(): Promise<{ cleared: number }> {
+  await requireAdminForAction();
+  const tags = Object.values(CACHE_TAGS);
+  for (const tag of tags) revalidateTag(tag, {});
+  return { cleared: tags.length };
 }

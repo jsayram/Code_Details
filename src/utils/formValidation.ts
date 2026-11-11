@@ -1,6 +1,6 @@
 import { FormEvent } from "react";
 import { PROJECT_CATEGORIES, ProjectCategory as BaseProjectCategory } from "@/constants/project-categories";
-import { TagInfo } from "@/db/operations/tag-operations";
+import { TagInfo } from "@/types/rows";
 import { 
   MAX_PROJECT_TAGS, 
   PROJECT_TEXT_LIMITS,

@@ -1,7 +1,24 @@
-import { SignInButton } from "@clerk/nextjs";
+"use client";
+
+import { Slot } from "@radix-ui/react-slot";
+import { usePathname, useRouter } from "next/navigation";
+import type { ReactElement } from "react";
 import { TextTypingEffectAnimation } from "@/animations/TextTypingEffectAnimation";
 import { cn } from "@/lib/utils";
 import { Button } from "../ui/button";
+
+// D08f3b: the button goes to the app's /sign-in screen (and back here
+// afterwards). D08g4e3: also used directly by pages that wrap their own
+// button. D08g4f2: Clerk's modal is gone; `mode` and `appearance` (Clerk's
+// props, still passed by callers) are ignored until the UI refresh.
+type SignInTriggerProps = { children: ReactElement; mode?: "modal" | "redirect"; appearance?: unknown; forceRedirectUrl?: string; fallbackRedirectUrl?: string };
+
+export function SignInTrigger({ children }: SignInTriggerProps) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const back = pathname && pathname !== "/" && !pathname.startsWith("/sign-") ? `?redirect_url=${encodeURIComponent(pathname)}` : "";
+  return <Slot onClick={() => router.push(`/sign-in${back}`)}>{children}</Slot>;
+}
 
 interface SignInButtonProps {
   text?: string;
@@ -17,7 +34,7 @@ export const SignInButtonComponent = ({
   variant = "terminal",
 }: SignInButtonProps) => {
   return (
-    <SignInButton
+    <SignInTrigger
       mode="modal"
       appearance={{
         elements: {
@@ -78,6 +95,6 @@ export const SignInButtonComponent = ({
           )}
         </Button>
       )}
-    </SignInButton>
+    </SignInTrigger>
   );
 };

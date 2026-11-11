@@ -9,13 +9,10 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { 
-  getProjectMeta, 
-  updateProjectMeta, 
-  listProjects,
-  findDocLinkedToProject 
-} from '@/lib/output-utils';
+import { routeDocOwner } from '@/lib/auth-server';
+import { isDocOwner } from '@/lib/docs-access';
+import { convexPersonalList, personalReadsFromConvex } from '@/backend/projects/personal';
+import { docStore, findDocLinkedToProject } from '@/lib/output-utils';
 import { 
   unauthorized, 
   notFound, 
@@ -26,9 +23,6 @@ import {
   success 
 } from '@/lib/api-errors';
 import { linkProjectSchema, formatZodErrors } from '@/lib/validations/docs';
-import { executeQuery } from '@/db/server';
-import { projects } from '@/db/schema';
-import { eq, and, isNull } from 'drizzle-orm';
 
 interface RouteParams {
   params: Promise<{
@@ -42,21 +36,21 @@ interface RouteParams {
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to link documentation');
     }
 
     const { slug } = await params;
 
     // Get the documentation metadata
-    const docMeta = await getProjectMeta(slug);
+    const docMeta = await docStore.readMeta(slug);
     if (!docMeta) {
       return notFound('documentation', { identifier: slug });
     }
 
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
 
@@ -71,24 +65,16 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    const { projectId, projectSlug, projectTitle, replace } = validation.data;
+    const { projectId, projectSlug, replace } = validation.data;
 
-    // Verify the target project exists and user owns it using Drizzle
-    const targetProject = await executeQuery(async (db) => {
-      const result = await db
-        .select()
-        .from(projects)
-        .where(
-          and(
-            eq(projects.id, projectId),
-            eq(projects.slug, projectSlug),
-            eq(projects.user_id, userId),
-            isNull(projects.deleted_at)
-          )
-        )
-        .limit(1);
-      return result.length > 0 ? result[0] : null;
-    });
+    // Verify the target project exists and the caller owns it. Projects live
+    // in Convex, and the caller's own active projects come from the session
+    // (the same list the picker shows); this is where a link's ownership is
+    // checked, since the read side can't see a Convex project's owner. E03:
+    // with no local Convex (no Supabase fallback) the caller owns none.
+    const targetProject = personalReadsFromConvex()
+      ? (await convexPersonalList('mine')).find((p) => p.id === projectId && p.slug === projectSlug) ?? null
+      : null;
 
     if (!targetProject) {
       return notFound('project', { 
@@ -107,7 +93,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       }
       
       // Unlink the existing doc first
-      await updateProjectMeta(existingLinkedDoc.projectSlug, {
+      await docStore.updateMeta(existingLinkedDoc.projectSlug, {
         linkedProjectId: undefined,
         linkedProjectSlug: undefined,
         linkedProjectTitle: undefined,
@@ -115,10 +101,11 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     }
 
     // Link the documentation to the project
-    const updatedMeta = await updateProjectMeta(slug, {
+    const updatedMeta = await docStore.updateMeta(slug, {
       linkedProjectId: projectId,
       linkedProjectSlug: projectSlug,
-      linkedProjectTitle: projectTitle,
+      // The project's own title, not the one the request sent
+      linkedProjectTitle: targetProject.title,
     });
 
     if (!updatedMeta) {
@@ -130,7 +117,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       docSlug: slug,
       projectId,
       projectSlug,
-      projectTitle,
+      projectTitle: targetProject.title,
       replacedDoc: existingLinkedDoc?.projectSlug !== slug ? existingLinkedDoc?.projectSlug : null,
     });
   } catch (error) {
@@ -145,21 +132,21 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to unlink documentation');
     }
 
     const { slug } = await params;
 
     // Get the documentation metadata
-    const docMeta = await getProjectMeta(slug);
+    const docMeta = await docStore.readMeta(slug);
     if (!docMeta) {
       return notFound('documentation', { identifier: slug });
     }
 
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
 
@@ -175,7 +162,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const previousProjectSlug = docMeta.linkedProjectSlug;
 
     // Unlink the documentation
-    const updatedMeta = await updateProjectMeta(slug, {
+    const updatedMeta = await docStore.updateMeta(slug, {
       linkedProjectId: undefined,
       linkedProjectSlug: undefined,
       linkedProjectTitle: undefined,

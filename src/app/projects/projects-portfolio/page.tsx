@@ -1,90 +1,63 @@
 "use client";
 
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
+// UI07: the portfolio on AppShell and the foundations. Still owner-only:
+// ProtectedPage sends signed-out visitors to sign in, and the provider never
+// fetches a personal list without a session. The list itself is unchanged.
+import "@/styles/foundations.css";
+import { AppShell } from "@/components/layout/AppShell";
+import { DiscoveryHeader, TierStatus } from "@/components/layout/DiscoveryHeader";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { useDisplayUser } from "@/components/auth/useDisplayUser";
 import { ProjectsProvider } from "@/providers/projects-provider";
 import { ProjectList } from "@/components/Projects";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
 import ProtectedPage from "@/app/auth/ProtectedPage";
 import { PROTECTED_PAGES_TIERS } from "@/app/auth/protectedPageConstants";
 import { useUserTier } from "@/hooks/use-user-tier";
 import { useState } from "react";
 import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
 import { CURRENT_PAGE } from "@/components/navigation/Pagination/paginationConstants";
-import { PageBanner } from "@/components/ui/page-banner";
-import { GemIcon } from "lucide-react";
 
 export default function MyProjectsShowcase() {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  const { userTier } = useUserTier(user?.id ?? null);
   const [currentPage, setCurrentPage] = useState(CURRENT_PAGE);
 
+  // D02r-c: Clerk's values by default; the Better Auth session under the switch.
+  const viewer = usePersonalPageViewer();
+  // D04f: keyed on the session's viewer; the route reads the tier from the session.
+  const { userTier } = useUserTier(viewer.userId);
+  const { user: displayUser } = useDisplayUser();
+  const firstName = (displayUser?.fullName || "User").split(" ")[0];
+
   // Determine overall loading state
-  const isLoading = !userLoaded || tokenLoading;
+  const isLoading = viewer.isLoading;
 
   return (
-    <>
-      {isLoading ? (
-        <div className="flex justify-center w-full mb-20">
-          <div className="w-full px-4 2xl:px-8 3xl:px-12">
-            <div className="flex flex-col gap-4 mb-6 py-3">
-              <ProjectListLoadingState />
-            </div>
-          </div>
-        </div>
-      ) : (
-        <ProjectsProvider
-          token={token}
-          userId={user?.id ?? null}
-          isLoading={isLoading}
-        >
-          <SidebarProvider>
-            <AppSidebar />
-            <SidebarInset>
-              <HeaderSection />
+    <AppShell>
+      <div className="cd-foundations cd-canvas">
+        <div className="cd-page cd-stack">
+          {isLoading ? (
+            <ProjectListLoadingState />
+          ) : (
+            <ProjectsProvider userId={viewer.userId} isLoading={isLoading}>
               <ProtectedPage allowedTiers={PROTECTED_PAGES_TIERS}>
-                <div className="flex justify-center w-full mb-20">
-                  <div className="w-full px-4 2xl:px-8 3xl:px-12">
-                    <div className="flex flex-col gap-4 mb-6 py-3">
-                      <div className="mb-8">
-                        <div className="flex flex-col space-y-4">
-                          <PageBanner
-                            icon={
-                              <GemIcon className="h-8 w-8 text-indigo-500" />
-                            }
-                            userName={user?.fullName || "User"}
-                            bannerTitle="Projects Portfolio"
-                            description="Showcase of your projects by sharing them individually or your entire portfolio to anyone."
-                            userTier={userTier}
-                            isUserBanner={true}
-                            gradientFrom="indigo-900"
-                            gradientVia="blue-800"
-                            gradientTo="purple-800"
-                            borderColor="border-indigo-700/40"
-                            tierBgColor="bg-indigo-700/60"
-                            textGradient="from-fuchsia-400 via-indigo-400 to-cyan-400"
-                          />
-                          <ProjectList
-                            currentPage={currentPage}
-                            showSortingFilters={true}
-                            onPageChange={setCurrentPage}
-                            showUserProjectsOnly={true}
-                          />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
+                <div className="cd-stack">
+                  <DiscoveryHeader
+                    eyebrow={`${firstName}'s projects`}
+                    title="Projects Portfolio"
+                    lead="Showcase of your projects by sharing them individually or your entire portfolio to anyone."
+                    aside={<TierStatus tier={userTier} />}
+                  />
+                  <ProjectList
+                    currentPage={currentPage}
+                    showSortingFilters={true}
+                    onPageChange={setCurrentPage}
+                    showUserProjectsOnly={true}
+                  />
                 </div>
               </ProtectedPage>
-              <FooterSection />
-            </SidebarInset>
-          </SidebarProvider>
-        </ProjectsProvider>
-      )}
-    </>
+            </ProjectsProvider>
+          )}
+        </div>
+      </div>
+    </AppShell>
   );
 }

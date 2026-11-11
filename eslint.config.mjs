@@ -10,6 +10,10 @@ const compat = new FlatCompat({
 });
 
 const eslintConfig = [
+  // Generated output and test artifacts (Phase A D-5: `eslint .` used to lint .next).
+  {
+    ignores: [".next/**", ".next-test/**", "test-results/**", "playwright-report/**", "blob-report/**", ".test-runtime/**"],
+  },
   ...compat.extends("next/core-web-vitals", "next/typescript"),
   {
     rules: {

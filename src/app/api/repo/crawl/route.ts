@@ -4,10 +4,10 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { serverGithubCrawler } from '@/repoScrapper/server-crawler';
-import type { CrawlerOptions, CrawlerResult } from '@/repoScrapper';
-import { RepoError } from '@/repoScrapper/errors';
+import { betterAuthRole, routeDocOwner } from '@/lib/auth-server';
+import { serverGithubCrawler } from 'repo-docs/server';
+import type { CrawlerOptions, CrawlerResult } from 'repo-docs/server';
+import { RepoError } from 'repo-docs/server';
 
 // Rate limiting
 const lastCrawlTimes = new Map<string, number>();
@@ -15,7 +15,7 @@ const RATE_LIMIT_MS = 10000; // 10 seconds between crawls
 
 export async function POST(request: NextRequest) {
   // 1. Authentication check
-  const { userId } = await auth();
+  const userId = (await routeDocOwner())?.writeKey ?? null;
   if (!userId) {
     return NextResponse.json(
       { 
@@ -23,6 +23,19 @@ export async function POST(request: NextRequest) {
         error: 'Authentication required' 
       },
       { status: 401 }
+    );
+  }
+
+  // F02: this returns file contents, and the fallback below would let the
+  // caller read anything the server's GitHub token can reach, so it's admins
+  // only. /scrapper-demo, an admin page, is its only caller.
+  if ((await betterAuthRole()) !== 'admin') {
+    return NextResponse.json(
+      {
+        success: false,
+        error: 'The repository crawler is limited to administrators'
+      },
+      { status: 403 }
     );
   }
 

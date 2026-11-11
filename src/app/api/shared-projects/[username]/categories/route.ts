@@ -1,9 +1,6 @@
 import { NextRequest } from "next/server";
-import { executeQuery } from "@/db/server";
-import { eq, and, isNull, sql } from "drizzle-orm";
-import { projects } from "@/db/schema/projects";
-import { profiles } from "@/db/schema/profiles";
 import { success, notFound, serverError } from "@/lib/api-errors";
+import { DATA_UNAVAILABLE, convexPublicCategoryCounts, personalReadsFromConvex } from "@/backend/projects/personal";
 
 /**
  * GET /api/shared-projects/[username]/categories
@@ -18,58 +15,13 @@ export async function GET(
   const username = params.username.toLowerCase();
 
   try {
-    const result = await executeQuery(async (db) => {
-      // First verify the user exists
-      const profileCheck = await db
-        .select({ username: profiles.username })
-        .from(profiles)
-        .where(eq(sql`lower(${profiles.username})`, username))
-        .limit(1);
-
-      if (profileCheck.length === 0) {
-        return { notFound: true };
-      }
-
-      // Get category counts for this user
-      const categoryCounts = await db
-        .select({
-          category: projects.category,
-          count: sql<number>`count(*)::int`,
-        })
-        .from(projects)
-        .leftJoin(profiles, eq(profiles.user_id, projects.user_id))
-        .where(
-          and(
-            eq(sql`lower(${profiles.username})`, username),
-            isNull(projects.deleted_at)
-          )
-        )
-        .groupBy(projects.category);
-
-      // Transform array to object for easier lookup
-      const countsMap = categoryCounts.reduce(
-        (acc, { category, count }) => {
-          if (category) {
-            acc[category] = count;
-          }
-          return acc;
-        },
-        {} as Record<string, number>
-      );
-
-      return { counts: countsMap };
-    });
-
-    if ("notFound" in result && result.notFound) {
-      return notFound("user", { identifier: username });
-    }
-
-    const response = success(result.counts);
-    response.headers.set(
-      "Cache-Control",
-      "public, s-maxage=300, stale-while-revalidate=600"
-    );
-
+    // D07x: from Convex: listed projects of an active account only (a
+    // deleting account's portfolio is not public). E03: no Supabase fallback.
+    if (!personalReadsFromConvex()) return serverError(undefined, DATA_UNAVAILABLE);
+    const counts = await convexPublicCategoryCounts(username);
+    if (!counts) return notFound("user", { identifier: username });
+    const response = success(counts);
+    response.headers.set("Cache-Control", "public, s-maxage=300, stale-while-revalidate=600");
     return response;
   } catch (error) {
     console.error("[GET /api/shared-projects/[username]/categories] Error:", error);

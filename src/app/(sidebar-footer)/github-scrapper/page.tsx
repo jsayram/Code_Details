@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { useAuth, SignedIn, SignedOut, SignInButton, useUser } from '@clerk/nextjs';
+import { SignInTrigger } from '@/components/auth/SignInButtonComponent';
+import { SignedIn, SignedOut, useViewerId } from '@/components/auth/AuthGate';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   FolderGit2,
@@ -35,15 +36,15 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import { LLMProviderSelector } from '@/components/llm/LLMProviderSelector';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
-import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { ProjectsProvider } from '@/providers/projects-provider';
-import { isValidGitHubUrl } from '@/repoScrapper';
+// The package's client-safe entry, never `repo-docs/server`: that one exports
+// the server crawler, whose SSRF guard (H1) imports node:dns, which a client
+// page can't bundle (through the old barrel this page answered 500). The
+// server entries are closed to browser bundles, so the build would fail.
+import { isValidGitHubUrl } from 'repo-docs';
 
 interface LLMConfig {
   providerId: string;
@@ -71,7 +72,8 @@ interface GeneratedDoc {
 }
 
 function GitHubScrapperContent() {
-  const { isSignedIn } = useAuth();
+  // Generator re-key: the active session (Clerk, or Better Auth behind the switch)
+  const isSignedIn = !!useViewerId();
   
   // Form state
   const [repoUrl, setRepoUrl] = useState('');
@@ -197,40 +199,22 @@ function GitHubScrapperContent() {
     <div className="flex justify-center w-full mb-10">
       <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
         <div className="flex flex-col gap-6 mb-6 py-3">
-          {/* Page Banner */}
+          {/* UI09.3: the shared header in place of the gradient banner. */}
           <div className="mb-4">
-            <PageBanner
-              icon={<FolderGit2 className="h-8 w-8 text-fuchsia-500" />}
-              bannerTitle="GitHub Scrapper"
-              description="Generate architecture documentation for any GitHub repository using AI"
-              isUserBanner={false}
-              gradientFrom="purple-900"
-              gradientVia="fuchsia-800"
-              gradientTo="pink-800"
-              borderColor="border-purple-700/40"
-              textGradient="from-purple-400 via-fuchsia-400 to-pink-400"
+            <DiscoveryHeader
+              eyebrow="AI documentation"
+              icon={<FolderGit2 className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+              title="GitHub Scrapper"
+              lead="Generate architecture documentation for any GitHub repository using AI"
             />
           </div>
 
-          {/* Code Particles Background */}
           <div className="relative">
-            <CodeParticlesElement
-              quantity="high"
-              speed="slow"
-              size="mixed"
-              includeEmojis={true}
-              includeKeywords={true}
-              includeSymbols={true}
-              syntaxHighlight="vscode"
-              depth="layered"
-              containerClassName="absolute inset-0 -z-5 pointer-events-none opacity-20"
-            />
-
             {/* Main Card */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
+              transition={{ duration: 0.3, delay: 0.05 }}
               className="relative z-10"
             >
             <Card className="backdrop-blur-sm bg-card/80">
@@ -252,11 +236,11 @@ function GitHubScrapperContent() {
                     <AlertTitle>Authentication Required</AlertTitle>
                     <AlertDescription>
                       Please sign in to generate documentation.
-                      <SignInButton mode="modal">
+                      <SignInTrigger mode="modal">
                         <Button variant="link" className="px-2 h-auto">
                           Sign In
                         </Button>
-                      </SignInButton>
+                      </SignInTrigger>
                     </AlertDescription>
                   </Alert>
                 </SignedOut>
@@ -398,9 +382,9 @@ function GitHubScrapperContent() {
 
             {/* Info Section */}
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
+              initial={{ opacity: 0.8, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4 }}
+              transition={{ duration: 0.3, delay: 0.1 }}
               className="mt-8 relative z-10"
             >
               <Card className="backdrop-blur-sm bg-card/80">
@@ -476,19 +460,16 @@ function GitHubScrapperContent() {
 }
 
 export default function GitHubScrapperPage() {
-  const { user } = useUser();
-  const { token } = useSupabaseToken();
+  // D08g4e3: the app's login (Clerk or Better Auth).
+  const viewerId = useViewerId();
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+    <ProjectsProvider userId={viewerId ?? null}>
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           <GitHubScrapperContent />
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

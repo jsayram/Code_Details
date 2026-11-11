@@ -1,22 +1,15 @@
 "use client";
 
-import React, { useState } from "react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-  UserButton,
-} from "@clerk/nextjs";
-import { Button } from "@/components/ui/button";
+import React from "react";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 import { DarkModeButton } from "@/components/DarkModeButtonComponent";
 import { Logo } from "@/components/CodeDetailsLogoComponent";
 import { Menu } from "lucide-react";
 import { UserProfileButton } from "@/components/UserProfileButton";
-import { Separator } from "@/components/ui/separator";
-import { SidebarTrigger } from "../ui/sidebar";
+import { SidebarTrigger, useSidebarOptional } from "../ui/sidebar";
 import { DynamicBreadcrumbs } from "../navigation/BreadCrumbsComponent";
 import { SignInButtonComponent } from "../auth/SignInButtonComponent";
+import "@/styles/shell-foundations";
 
 // Define the breadcrumb item interface
 interface BreadcrumbItemData {
@@ -34,143 +27,69 @@ interface HeaderSectionProps {
   breadcrumbs?: BreadcrumbItemData[]; // Dynamic breadcrumbs
 }
 
+/**
+ * UI05: the shared header, on the design foundations. It's solid, so content
+ * no longer scrolls under it with nothing behind. It scopes only itself;
+ * the page below keeps its own look until it adopts the foundations.
+ *
+ * Signed out, when the sidebar is a sheet (below 1024px), the header shows
+ * the logo and a menu button that opens that same sheet: the signed-out
+ * entries with Sign In in its footer (Jose, option A). When the sidebar is a
+ * visible panel it carries the only logo; pages without one (the signed-out
+ * home) keep the header's logo.
+ */
 export function HeaderSection({
   showDarkModeButton = true,
   showLogo = true,
-  showMobileMenu = true, // Default to showing mobile menu on small screens
+  showMobileMenu = true,
 }: HeaderSectionProps) {
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const showDebug = process.env.NODE_ENV === "development";
+  const sidebar = useSidebarOptional();
+  // A sidebar is on the page and shown as a sheet (below 1024px), or as a panel.
+  const sheet = !!sidebar?.hasSidebar && sidebar.isMobile;
+  const panel = !!sidebar?.hasSidebar && !sidebar.isMobile;
+  const menuButton = showMobileMenu && sidebar && sheet;
 
   return (
-    <header className="sticky top-5 z-50 border-b bg-transparent mx-7 mb-5">
-      {/* Header stays full width to maintain connection with sidebar when signed in */}
-      <SignedIn>
-        <div className="flex shrink-0 items-center gap-2 mb-4">
-          <SidebarTrigger className="-ml-1" />
-          <Separator orientation="vertical" className="h-6 mx-2" />
-          <div className="flex items-center gap-2">
+    <>
+      <header className="cd-foundations cd-shell-header" data-shell="header">
+        <SignedIn>
+          {sidebar && <SidebarTrigger />}
+          {sidebar && <span className="cd-shell-divider" aria-hidden="true" />}
+          <div className="cd-shell-crumbs">
             <DynamicBreadcrumbs />
           </div>
-          <div className="ml-auto mr-4 flex items-center gap-4">
+          <div className="cd-shell-actions">
             <DarkModeButton />
             <UserProfileButton />
           </div>
-        </div>
-      </SignedIn>
+        </SignedIn>
 
-      {/* Fixed top bar that won't be affected by transitions Signed out*/}
-      <SignedOut>
-        <div className="container mx-auto py-4 md:py-3">
-          {/* Fixed top bar that won't be affected by transitions */}
-          <div className="flex items-center justify-between">
-            {/* Logo section - always maintain space even when logo is hidden */}
-            <div className="flex items-center">
-              {showLogo ? (
-                <div className="flex items-center hover:scale-102 z-20 transition-transform">
-                  <Logo
-                    size="md"
-                    className="font-bold bg-clip-text text-transparent bg-gradient-to-r from-indigo-300 to-primary mx-auto text-center"
-                    showText={true}
-                    showTagline={false}
-                    href="/"
-                    mainLogoText="code.{ d }"
-                    tagLineText="The More You Know"
-                    showLogo={false}
-                  />
-                </div>
-              ) : (
-                <div className="w-8"></div> // placeholder for logo space if hidden
-              )}
+        <SignedOut>
+          {showLogo && !panel ? (
+            <Logo size="md" showTagline={false} href="/" />
+          ) : null}
+          <div className="cd-shell-actions">
+            {showDarkModeButton && <DarkModeButton />}
+            <div className={menuButton ? "hidden sm:block" : "block"}>
+              <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />
             </div>
-
-            {/* Right side items - always on the right */}
-            <div className="flex items-center space-x-4">
-              {/* Dark mode toggle - always visible if enabled */}
-              {showDarkModeButton && <DarkModeButton />}
-
-              {/* Auth section */}
-              <div className="flex items-center">
-                <SignedIn>
-                  <div className="flex items-center">
-                    {showDebug && (
-                      <div className="hidden lg:block">
-                        {/* <DebugJwt token={token} /> */}
-                      </div>
-                    )}
-                    <UserButton
-                      appearance={{
-                        elements: {
-                          userButtonAvatarBox: "w-9 h-9",
-                        },
-                      }}
-                    />
-                  </div>
-                </SignedIn>
-
-                <SignedOut>
-                  {/* Sign In button - conditionally visible based on showMobileMenu */}
-                  <div className={showMobileMenu ? "hidden sm:block" : "block"}>
-                      <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain"/>
-                  </div>
-                </SignedOut>
-              </div>
-
-              {/* Hamburger menu button - only visible on small screens if enabled */}
-              {showMobileMenu && (
-                <button
-                  className="p-2 rounded-md hover:bg-muted/10 transition-colors h-10 w-10 flex items-center justify-center xs:hidden cursor-pointer"
-                  onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                  aria-label="Toggle menu"
-                >
-                  <Menu className="h-6 w-6" />
-                </button>
-              )}
-            </div>
+            {menuButton && (
+              <button
+                type="button"
+                className="cd-shell-icon-button"
+                onClick={() => sidebar.setOpenMobile(true)}
+                aria-label="Open menu"
+                aria-haspopup="dialog"
+                aria-expanded={sidebar.openMobile}
+              >
+                <Menu aria-hidden="true" className="h-5 w-5" />
+              </button>
+            )}
           </div>
-
-          {/* Mobile menu - conditionally rendered and only visible on small screens */}
-          {showMobileMenu && (
-            <div
-              className={`sm:hidden absolute left-0 right-0 bg-background z-10 border-b transition-all duration-300 ease-in-out ${
-                mobileMenuOpen
-                  ? "opacity-100 translate-y-0"
-                  : "opacity-0 -translate-y-full pointer-events-none"
-              }`}
-              style={{
-                top: "calc(100% + 1px)",
-                boxShadow: mobileMenuOpen
-                  ? "0 4px 6px -1px rgba(0, 0, 0, 0.1)"
-                  : "none",
-              }}
-            >
-              <div className="container mx-auto py-4">
-                <div className="flex flex-col space-y-4 items-center text-center">
-                  <div className="w-full max-w-xs flex flex-col items-center space-y-3">
-                    <SignedIn>
-                      <div className="flex flex-col items-center gap-3 w-full">
-                        <UserButton
-                          afterSignOutUrl="/"
-                          appearance={{
-                            elements: {
-                              userButtonAvatarBox: "w-10 h-10",
-                            },
-                          }}
-                        />
-                         <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />
-                      </div>
-                    </SignedIn>
-
-                    <SignedOut>
-                    <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />
-                    </SignedOut>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-      </SignedOut>
-    </header>
+        </SignedOut>
+      </header>
+      {/* The skip link in the sidebar lands here, past the sidebar and header. */}
+      <span id="main-content" tabIndex={-1} data-shell="skip-target" className="cd-skip-target" />
+    </>
   );
 }

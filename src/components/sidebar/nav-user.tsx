@@ -6,8 +6,7 @@ import {
   LogOut,
   Sparkles,
 } from "lucide-react";
-import { useClerk } from "@clerk/nextjs";
-import { useRouter } from "next/navigation";
+import { useAccountSignOut } from "@/components/auth/AccountButton";
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -36,13 +35,7 @@ export function NavUser({
   };
 }) {
   const { isMobile } = useSidebar();
-  const { signOut } = useClerk();
-  const router = useRouter();
-
-  const handleSignOut = async () => {
-    await signOut();
-    router.push("/");
-  };
+  const handleSignOut = useAccountSignOut("/");
 
   // Create initials for avatar fallback
   const getInitials = (name: string) => {
@@ -116,11 +109,11 @@ export function NavUser({
             </DropdownMenuGroup>
             <DropdownMenuSeparator /> */}
             {/* TODO: Implement user management pages
-                - /user/account: Profile settings, email/password management (integrate with Clerk)
+                - /user/account: Profile settings, email/password management (Better Auth)
                 - /user/billing: Subscription management, payment methods, invoices (integrate with Stripe)
                 - /user/notifications: Notification preferences, email settings, push notifications
                 Priority: MEDIUM - Important for user experience
-                Dependencies: Clerk user management, Stripe customer portal, notification system
+                Dependencies: Better Auth account management, Stripe customer portal, notification system
             */}
             {/* <DropdownMenuGroup>
               <DropdownMenuItem asChild>

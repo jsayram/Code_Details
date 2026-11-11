@@ -8,12 +8,12 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import matter from 'gray-matter';
-import { auth } from '@clerk/nextjs/server';
-import { getProjectMeta } from '@/lib/output-utils';
+import { routeDocOwner } from '@/lib/auth-server';
+import { docStore } from '@/lib/output-utils';
 import { unauthorized, notFound, notOwner, serverError, success } from '@/lib/api-errors';
+import { isSafeChapterFilename, isSafeDocSlug } from '@/lib/docs-output-root';
+import { isDocOwner, readableDoc } from '@/lib/docs-access';
 
 interface RouteParams {
   params: Promise<{
@@ -22,65 +22,42 @@ interface RouteParams {
   }>;
 }
 
-// Output directory (relative to project root)
-const OUTPUT_DIR = path.join(process.cwd(), 'src', 'app', 'output');
+const chapterNotFound = () => NextResponse.json({ error: 'Chapter not found' }, { status: 404 });
+
+/** The chapter as stored, falling back to index.md for the overview; null if neither exists. */
+async function existingChapter(slug: string, filename: string): Promise<{ filename: string; raw: string } | null> {
+  const candidates = [filename];
+  if (filename === '-1_overview.md') candidates.push('index.md');
+  for (const candidate of candidates) {
+    const raw = await docStore.readChapter(slug, candidate);
+    if (raw !== null) return { filename: candidate, raw };
+  }
+  return null;
+}
 
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
+    // D11s: identity from the session only; signed out is refused before anything is read
+    const owner = await routeDocOwner();
+    if (!owner) {
+      return unauthorized('Authentication required to read documentation');
+    }
+
     const { slug, filename } = await params;
-    
-    if (!slug || !filename) {
-      return NextResponse.json(
-        { error: 'Project slug and filename are required' },
-        { status: 400 }
-      );
+
+    // A bad name, a doc this user can't read and a missing chapter all get the
+    // same 404, so the answer never says whether someone else's doc exists.
+    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename) || !(await readableDoc(slug, owner))) {
+      return chapterNotFound();
     }
-    
-    // Sanitize inputs to prevent path traversal
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '');
-    
-    // Ensure it's a markdown file
-    if (!safeFilename.endsWith('.md')) {
-      return NextResponse.json(
-        { error: 'Only markdown files are supported' },
-        { status: 400 }
-      );
+
+    const chapter = await existingChapter(slug, filename);
+    if (!chapter) {
+      return chapterNotFound();
     }
-    
-    let filePath = path.join(OUTPUT_DIR, safeSlug, safeFilename);
-    
-    // Check if file exists - fall back to index.md for overview
-    let fileExists = false;
-    try {
-      await fs.access(filePath);
-      fileExists = true;
-    } catch {
-      // If requesting overview and it doesn't exist, try index.md
-      if (safeFilename === '-1_overview.md') {
-        const indexPath = path.join(OUTPUT_DIR, safeSlug, 'index.md');
-        try {
-          await fs.access(indexPath);
-          filePath = indexPath;
-          fileExists = true;
-        } catch {
-          // index.md also doesn't exist
-        }
-      }
-    }
-    
-    if (!fileExists) {
-      return NextResponse.json(
-        { error: 'Chapter not found' },
-        { status: 404 }
-      );
-    }
-    
-    // Read file content
-    const fileContent = await fs.readFile(filePath, 'utf-8');
     
     // Parse frontmatter
-    const { content, data } = matter(fileContent);
+    const { content } = matter(chapter.raw);
     
     // Return just the content (without frontmatter) as plain text
     return new NextResponse(content, {
@@ -103,8 +80,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 export async function PUT(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to edit documentation');
     }
 
@@ -117,26 +94,21 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     
-    // Sanitize inputs to prevent path traversal
-    const safeSlug = slug.replace(/[^a-z0-9_-]/gi, '');
-    const safeFilename = filename.replace(/[^a-z0-9_.-]/gi, '');
-    
-    // Ensure it's a markdown file
-    if (!safeFilename.endsWith('.md')) {
-      return NextResponse.json(
-        { error: 'Only markdown files are supported' },
-        { status: 400 }
-      );
+    // D11s: refuse unsafe names instead of stripping them into some other doc's name
+    if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename)) {
+      return notFound('chapter', { identifier: 'invalid' });
     }
+    const safeSlug = slug;
+    const safeFilename = filename;
     
     // Get the documentation metadata to verify ownership
-    const docMeta = await getProjectMeta(safeSlug);
+    const docMeta = await docStore.readMeta(safeSlug);
     if (!docMeta) {
       return notFound('documentation', { identifier: safeSlug });
     }
     
     // Verify doc ownership
-    if (docMeta.userId !== userId) {
+    if (!isDocOwner(docMeta, owner)) {
       return notOwner('documentation');
     }
     
@@ -151,30 +123,14 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
       );
     }
     
-    let filePath = path.join(OUTPUT_DIR, safeSlug, safeFilename);
-    
-    // Check if file exists - fall back to index.md for overview
-    let targetPath = filePath;
-    try {
-      await fs.access(filePath);
-    } catch {
-      // If requesting overview and it doesn't exist, try index.md
-      if (safeFilename === '-1_overview.md') {
-        const indexPath = path.join(OUTPUT_DIR, safeSlug, 'index.md');
-        try {
-          await fs.access(indexPath);
-          targetPath = indexPath;
-        } catch {
-          return notFound('chapter', { identifier: safeFilename });
-        }
-      } else {
-        return notFound('chapter', { identifier: safeFilename });
-      }
+    // Check if the chapter exists - fall back to index.md for overview
+    const existing = await existingChapter(safeSlug, safeFilename);
+    if (!existing) {
+      return notFound('chapter', { identifier: safeFilename });
     }
     
-    // Read existing file to get frontmatter
-    const existingContent = await fs.readFile(targetPath, 'utf-8');
-    const { data: frontmatter } = matter(existingContent);
+    // Existing frontmatter
+    const { data: frontmatter } = matter(existing.raw);
     
     // Reconstruct file with frontmatter + new content
     let newFileContent: string;
@@ -187,7 +143,9 @@ export async function PUT(request: NextRequest, { params }: RouteParams) {
     }
     
     // Write the updated content
-    await fs.writeFile(targetPath, newFileContent, 'utf-8');
+    if (!(await docStore.writeChapter(safeSlug, existing.filename, newFileContent))) {
+      return notFound('chapter', { identifier: safeFilename });
+    }
     
     return success({
       updated: true,

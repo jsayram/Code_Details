@@ -164,6 +164,35 @@
   --border-dark: theme('colors.neutral.800/50');
 }
 
+/* C01: the three new categories, on the Tailwind hues nothing else here uses.
+   This sheet goes in UI11; chips on adopted screens use --cd-cat-* tokens. */
+.category-ai-agents {
+  --bg-light: theme('colors.slate.100');
+  --bg-dark: theme('colors.slate.950/50');
+  --text-light: theme('colors.slate.700');
+  --text-dark: theme('colors.slate.300');
+  --border-light: theme('colors.slate.200');
+  --border-dark: theme('colors.slate.800/50');
+}
+
+.category-generative-ai {
+  --bg-light: theme('colors.yellow.100');
+  --bg-dark: theme('colors.yellow.950/50');
+  --text-light: theme('colors.yellow.700');
+  --text-dark: theme('colors.yellow.300');
+  --border-light: theme('colors.yellow.200');
+  --border-dark: theme('colors.yellow.800/50');
+}
+
+.category-libraries-frameworks {
+  --bg-light: theme('colors.gray.100');
+  --bg-dark: theme('colors.gray.950/50');
+  --text-light: theme('colors.gray.700');
+  --text-dark: theme('colors.gray.300');
+  --border-light: theme('colors.gray.200');
+  --border-dark: theme('colors.gray.800/50');
+}
+
 .category-other {
   --bg-light: theme('colors.stone.100');
   --bg-dark: theme('colors.stone.950/50');

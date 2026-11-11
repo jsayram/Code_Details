@@ -23,7 +23,7 @@ import {
   SidebarMenuItem,
   useSidebar,
 } from "@/components/ui/sidebar";
-import { SignedIn, SignedOut } from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
 
 export function NavProjects({
   projects,

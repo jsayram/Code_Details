@@ -1,27 +1,28 @@
 "use client";
 
-import { AppSidebar } from "@/components/sidebar/app-sidebar";
-import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
-import { useUser } from "@clerk/nextjs";
-import { useSupabaseToken } from "@/hooks/use-SupabaseClerkJWTToken";
-import { ProjectsProvider } from "@/providers/projects-provider";
-import { HeaderSection } from "@/components/layout/HeaderSection";
-import { FooterSection } from "@/components/layout/FooterSection";
-import { PageBanner } from "@/components/ui/page-banner";
-import { Hash, Search } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { useTags } from "@/hooks/use-tags";
-import { useRouter } from "next/navigation";
-import { Input } from "@/components/ui/input";
+// UI07.2: /tags on the foundations. Tags with projects are real links to
+// /tags/<name> (they were Badges with click handlers, out of keyboard reach);
+// tags without projects stay listed, readable and not clickable, as before.
+// The filter box, its 400ms debounce, the sort (most used, then A to Z) and
+// the two groups are unchanged.
+import "@/styles/foundations.css";
+import Link from "next/link";
 import { useState, useEffect } from "react";
+import { Hash, Search, X } from "lucide-react";
+import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
+import { ProjectsProvider } from "@/providers/projects-provider";
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { useTags } from "@/hooks/use-tags";
 import { HighlightText } from "@/components/HighlightText";
+import { AppShell } from "@/components/layout/AppShell";
+import { isPlainClick } from "@/lib/plain-click";
+import { DiscoveryHeader } from "@/components/layout/DiscoveryHeader";
 
 export default function TagsIndexPage() {
-  const { user, isLoaded: userLoaded } = useUser();
-  const { token, loading: tokenLoading } = useSupabaseToken();
-  const router = useRouter();
-  const { tags: allTags, isLoading: tagsLoading } = useTags();
+  // D07x/D08g4e3: the app's login (Better Auth).
+  const viewer = usePersonalPageViewer();
+  const { tags: allTags, isLoading: tagsLoading, isValidating, error, refreshTags } = useTags();
   const [searchQuery, setSearchQuery] = useState("");
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
   const [clickedTag, setClickedTag] = useState<string | null>(null);
@@ -31,7 +32,6 @@ export default function TagsIndexPage() {
     const timer = setTimeout(() => {
       setDebouncedSearchQuery(searchQuery);
     }, 400);
-
     return () => clearTimeout(timer);
   }, [searchQuery]);
 
@@ -52,167 +52,133 @@ export default function TagsIndexPage() {
   // Separate active and inactive tags
   const activeTags = filteredTags.filter((tag) => (tag.count ?? 0) > 0);
   const inactiveTags = filteredTags.filter((tag) => !tag.count || tag.count === 0);
-
-  const handleTagClick = (tagName: string) => {
-    setClickedTag(tagName);
-    router.push(`/tags/${encodeURIComponent(tagName)}`);
-  };
+  const failed = Boolean(error) && !tagsLoading && (allTags?.length ?? 0) === 0;
 
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
-          <div className="flex justify-center w-full mb-20">
-            <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
-              <div className="flex flex-col gap-6 mb-6 py-3">
-                <PageBanner
-                  icon={<Hash className="h-8 w-8 text-primary" />}
-                  bannerTitle="Browse All Tags"
-                  description="Discover projects by technology stack and features"
-                  isUserBanner={false}
-                  gradientFrom="purple-900"
-                  gradientVia="indigo-800"
-                  gradientTo="blue-800"
-                  borderColor="border-purple-700/40"
-                  textGradient="from-fuchsia-400 via-purple-400 to-indigo-400"
-                />
+    <ProjectsProvider userId={viewer.userId}>
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
+          <div className="cd-page cd-stack">
+            <DiscoveryHeader
+              eyebrow="Browse"
+              title="Browse All Tags"
+              lead="Discover projects by technology stack and features"
+            />
 
-                {/* Main Card with Title and Search */}
-                <Card>
-                  <CardHeader className="text-center space-y-4 pb-4">
-                    <CardTitle className="text-3xl font-bold">
-                      All Project Tags
-                    </CardTitle>
-                    <p className="text-muted-foreground text-base">
-                      Browse and search through all available tags
-                    </p>
-                  </CardHeader>
-                  <CardContent className="space-y-6">
-                    {/* Search Input */}
-                    <div className="relative w-full max-w-2xl mx-auto">
-                      <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
-                      <Input
-                        type="search"
-                        placeholder="Search tags..."
-                        value={searchQuery}
-                        onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-12 h-12 text-base rounded-xl border-2 border-primary/20 hover:border-primary/40 focus:border-primary focus:ring-2 focus:ring-primary/20 shadow-md transition-all duration-200"
-                      />
-                    </div>
-
-                <div className="space-y-6">
-
-                  {/* Active Tags Section */}
-                  {(searchQuery || activeTags.length > 0) && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between">
-                          <span>Active Tags</span>
-                          <Badge variant="secondary" className="font-mono">
-                            {activeTags.length}
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {tagsLoading ? (
-                          <div className="flex flex-wrap gap-2">
-                            {[1, 2, 3, 4, 5].map((i) => (
-                              <div
-                                key={i}
-                                className="h-8 w-24 animate-pulse rounded-full bg-muted"
-                              />
-                            ))}
-                          </div>
-                        ) : activeTags.length > 0 ? (
-                          <div className="flex flex-wrap gap-2">
-                            {activeTags.map((tag) => (
-                              <Badge
-                                key={tag.name}
-                                variant="secondary"
-                                className="group relative text-base py-2 pl-2.5 pr-3 transition-all duration-200 
-                                  hover:bg-primary hover:text-primary-foreground cursor-pointer
-                                  transform hover:scale-105"
-                                onClick={() => handleTagClick(tag.name)}
-                              >
-                                <Hash className="inline-block h-4 w-4 mr-1 text-primary/60 group-hover:text-primary-foreground transition-colors"/>{clickedTag === tag.name ? (<span className="flex items-center gap-2"><div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin"></div><HighlightText text={tag.name} highlight={debouncedSearchQuery}/></span>) : (<HighlightText text={tag.name} highlight={debouncedSearchQuery}/>)}<span className="ml-2 text-xs px-1.5 py-0.5 rounded-full bg-primary/10 text-primary group-hover:bg-primary-foreground/20 group-hover:text-primary-foreground">
-                                  {tag.count}
-                                </span>
-                              </Badge>
-                            ))}
-                          </div>
-                        ) : searchQuery ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No active tags found matching "{searchQuery}"
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* Inactive Tags Section */}
-                  {(searchQuery || inactiveTags.length > 0) && (
-                    <Card>
-                      <CardHeader className="pb-3">
-                        <CardTitle className="flex items-center justify-between">
-                          <span className="text-muted-foreground">
-                            Available Tags
-                          </span>
-                          <Badge
-                            variant="secondary"
-                            className="font-mono text-muted-foreground"
-                          >
-                            {inactiveTags.length}
-                          </Badge>
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        {inactiveTags.length > 0 ? (
-                          <>
-                            {!searchQuery && (
-                              <p className="text-sm text-muted-foreground mb-4">
-                                Be the first to create projects for these tags!
-                                🚀
-                              </p>
-                            )}
-                            <div className="flex flex-wrap gap-2">
-                              {inactiveTags.map((tag) => (
-                                <Badge
-                                  key={tag.name}
-                                  variant="outline"
-                                  className="group relative text-base py-2 pl-2.5 pr-3 
-                                    opacity-60 cursor-not-allowed select-none"
-                                >
-                                  <Hash className="inline-block h-4 w-4 mr-1 text-muted-foreground"/><HighlightText text={tag.name} highlight={debouncedSearchQuery}/>
-                                </Badge>
-                              ))}
-                            </div>
-                          </>
-                        ) : searchQuery ? (
-                          <div className="text-center py-8 text-muted-foreground">
-                            No available tags found matching "{searchQuery}"
-                          </div>
-                        ) : null}
-                      </CardContent>
-                    </Card>
-                  )}
-
-                  {/* No results message when searching */}
-                  {searchQuery && filteredTags.length === 0 && (
-                    <div className="text-center py-8 text-muted-foreground">
-                      No tags found matching "{searchQuery}"
-                    </div>
-                  )}
-                </div>
-                  </CardContent>
-                </Card>
-              </div>
+            <div className="cd-search-field cd-search-field-compact cd-reading" style={{ maxWidth: "36rem" }}>
+              <Search className="h-5 w-5" aria-hidden="true" />
+              <Input
+                type="text"
+                aria-label="Search tags"
+                placeholder="Search tags..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button type="button" className="cd-search-field-end" onClick={() => setSearchQuery("")} aria-label="Clear tag search">
+                  <X className="h-5 w-5" aria-hidden="true" />
+                </button>
+              )}
             </div>
+
+            <p role="status" className="sr-only">
+              {tagsLoading ? "Loading tags" : debouncedSearchQuery ? `${filteredTags.length} tags match` : ""}
+            </p>
+
+            {failed && (
+              <div role="alert" className="cd-surface flex flex-wrap items-center justify-between gap-4" style={{ borderColor: "var(--cd-danger)" }}>
+                <div className="cd-stack-tight cd-reading">
+                  <p className="cd-subheading">Tags didn&apos;t load</p>
+                  <p className="cd-small cd-muted">Try again to see every tag and how many projects use it.</p>
+                </div>
+                <Button variant="outline" onClick={() => refreshTags()} disabled={isValidating}>
+                  {isValidating ? (
+                    <>
+                      <span aria-hidden="true" className="cd-spinner animate-spin" />
+                      Trying again…
+                    </>
+                  ) : (
+                    "Try again"
+                  )}
+                </Button>
+              </div>
+            )}
+
+            {/* Active Tags Section */}
+            {!failed && (searchQuery || activeTags.length > 0 || tagsLoading) && (
+              <section className="cd-surface cd-stack" aria-labelledby="active-tags-title">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="active-tags-title" className="cd-heading">Active Tags</h2>
+                  <span className="cd-status cd-number" data-tone="selected">{activeTags.length}</span>
+                </div>
+                {tagsLoading ? (
+                  <div className="cd-cluster" aria-hidden="true">
+                    {[1, 2, 3, 4, 5].map((i) => (
+                      <span key={i} className="cd-skeleton-block animate-pulse h-11 w-24 rounded-full" />
+                    ))}
+                  </div>
+                ) : activeTags.length > 0 ? (
+                  <ul className="cd-cluster" style={{ gap: "var(--cd-space-2)" }}>
+                    {activeTags.map((tag) => (
+                      <li key={tag.name} className="max-w-full">
+                        <Link
+                          href={`/tags/${encodeURIComponent(tag.name)}`}
+                          className="cd-pill-link"
+                          onClick={(e) => isPlainClick(e) && setClickedTag(tag.name)}
+                          aria-busy={clickedTag === tag.name || undefined}
+                        >
+                          {clickedTag === tag.name ? (
+                            <span aria-hidden="true" className="cd-spinner animate-spin" />
+                          ) : (
+                            <Hash className="h-4 w-4 shrink-0" aria-hidden="true" />
+                          )}
+                          <HighlightText text={tag.name} highlight={debouncedSearchQuery} />
+                          <span className="cd-pill-count">{tag.count}</span>
+                        </Link>
+                      </li>
+                    ))}
+                  </ul>
+                ) : searchQuery ? (
+                  <p className="cd-muted">No active tags found matching &ldquo;{searchQuery}&rdquo;</p>
+                ) : null}
+              </section>
+            )}
+
+            {/* Inactive Tags Section */}
+            {!failed && (searchQuery || inactiveTags.length > 0) && (
+              <section className="cd-surface cd-stack" aria-labelledby="available-tags-title">
+                <div className="flex items-center justify-between gap-3">
+                  <h2 id="available-tags-title" className="cd-heading">Available Tags</h2>
+                  <span className="cd-status cd-number" style={{ background: "var(--cd-raised)" }}>{inactiveTags.length}</span>
+                </div>
+                {inactiveTags.length > 0 ? (
+                  <>
+                    {!searchQuery && <p className="cd-small cd-muted">Be the first to create projects for these tags! 🚀</p>}
+                    <ul className="cd-cluster" style={{ gap: "var(--cd-space-2)" }}>
+                      {inactiveTags.map((tag) => (
+                        <li key={tag.name} className="max-w-full">
+                          <span className="cd-pill-link" data-inactive="">
+                            <Hash className="h-4 w-4 shrink-0" aria-hidden="true" />
+                            <HighlightText text={tag.name} highlight={debouncedSearchQuery} />
+                            <span className="sr-only">, no projects yet</span>
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+                  </>
+                ) : searchQuery ? (
+                  <p className="cd-muted">No available tags found matching &ldquo;{searchQuery}&rdquo;</p>
+                ) : null}
+              </section>
+            )}
+
+            {/* No results message when searching */}
+            {!failed && searchQuery && filteredTags.length === 0 && !tagsLoading && (
+              <p className="cd-muted text-center">No tags found matching &ldquo;{searchQuery}&rdquo;</p>
+            )}
           </div>
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { getTags } from "@/app/actions/tags";
-import type { TagInfo } from "@/db/operations/tag-operations";
+import type { TagInfo } from "@/types/rows";
 import { GenericLoadingState } from "@/components/LoadingState/GenericLoadingState";
 import { Input } from "@/components/ui/input";
 import { Search } from "lucide-react";
@@ -81,6 +81,7 @@ export function TagList() {
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground transition-colors duration-200" />
         <Input
           type="search"
+          aria-label="Search tags"
           placeholder="Search tags..."
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
@@ -107,7 +108,7 @@ export function TagList() {
               onClick={() => handleTagClick(tag.name)}
             >
               <div className="flex items-center justify-between min-w-0">
-                <h3 className="text-sm font-medium group-hover:text-primary transition-colors truncate">
+                <h3 className="text-sm font-medium group-hover:text-primary transition-colors truncate min-w-0">
                   {clickedTag === tag.name ? (
                     <span className="flex items-center gap-2">
                       <div className="w-3 h-3 border-2 border-current border-t-transparent rounded-full animate-spin flex-shrink-0"></div>

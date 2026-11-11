@@ -1,8 +1,11 @@
 "use client";
+// UI07: the list controls, states and pagination on the foundations. The
+// list logic (filters, sort, favorites, delete, paging) is unchanged.
+import "@/styles/foundations.css";
 import React, { useState, useCallback, useMemo, useEffect } from "react";
 import { useProjects } from "@/providers/projects-provider";
 import { Button } from "@/components/ui/button";
-import { GridIcon, TableIcon, Plus, ExternalLink } from "lucide-react";
+import { GridIcon, TableIcon, Plus } from "lucide-react";
 import { ProjectCardView } from "./ProjectCardViewComponent";
 import { ProjectTableView } from "./ProjectTableViewComponent";
 import { ProjectForm } from "../ProjectComponents/ProjectFormComponent";
@@ -18,7 +21,6 @@ import { toast } from "sonner";
 import { Project } from "@/types/models/project";
 import { DeleteConfirmationModal } from "./DeleteConfirmationModal";
 import { UnfavoriteConfirmationModal } from "./UnfavoriteConfirmationModal";
-import { useAuth, SignInButton } from "@clerk/nextjs";
 import { PaginationControls } from "@/components/navigation/Pagination/PaginationControlComponent";
 import Image from "next/image";
 import {
@@ -32,10 +34,9 @@ import { ProjectFilters } from "@/providers/projects-provider";
 import { SortBySelect, CategorySelect, SortByValue } from "@/components/filters";
 import { useCategoryCounts } from "@/hooks/use-category-counts";
 import { ProjectListLoadingState } from "@/components/LoadingState/ProjectListLoadingState";
-import { CodeParticlesElement } from "@/components/Elements/CodeParticlesElement";
 import { SignInButtonComponent } from "@/components/auth/SignInButtonComponent";
 import ShareProjectsButton from "../ShareProjectsButton";
-import { useSession } from "@clerk/nextjs";
+import { useViewerId } from "@/components/auth/AuthGate";
 import { useRouter } from "next/navigation";
 
 interface ProjectListProps {
@@ -77,25 +78,37 @@ export const ProjectList = React.memo(function ProjectList({
     setFilters,
     setProjects,
     pagination,
+    error,
+    staleAfterError,
+    refreshing,
+    retry,
+    retrying,
   } = useProjects();
 
-  const { userId } = useAuth();
+  // D02r-c: the category-count filters follow the session (Clerk's userId by
+  // default, the Better Auth session's under the switch). D03: so does the
+  // delete control, whose action now takes the user from the session. D05:
+  // and the favorite controls; their actions take the user from the session
+  // too and are no longer sent an ID.
+  // D08g4e2: and the create/share buttons.
+  const viewerId = useViewerId();
+  const userId = viewerId;
   const router = useRouter();
 
   // Determine category counts filter based on current view
   const categoryCountsFilters = React.useMemo(() => {
-    if (showDeletedOnly && userId) {
-      return { userId, deleted: true };
+    if (showDeletedOnly && viewerId) {
+      return { userId: viewerId, deleted: true };
     }
-    if (showFavoritesOnly && userId) {
-      return { userId, favorites: true };
+    if (showFavoritesOnly && viewerId) {
+      return { userId: viewerId, favorites: true };
     }
-    if (showUserProjectsOnly && userId) {
-      return { userId };
+    if (showUserProjectsOnly && viewerId) {
+      return { userId: viewerId };
     }
     // Community view - global counts
     return undefined;
-  }, [showUserProjectsOnly, showFavoritesOnly, showDeletedOnly, userId]);
+  }, [showUserProjectsOnly, showFavoritesOnly, showDeletedOnly, viewerId]);
 
   const { hasCategoryProjects } = useCategoryCounts(categoryCountsFilters);
   const [viewMode, setViewMode] = useState("card");
@@ -113,7 +126,6 @@ export const ProjectList = React.memo(function ProjectList({
   } | null>(null);
   const [isUnfavoriting, setIsUnfavoriting] = useState(false);
   const [layoutReady, setLayoutReady] = useState(false);
-  const user = useSession();
 
   // Wait for layout to be ready before showing skeleton
   useEffect(() => {
@@ -214,7 +226,7 @@ export const ProjectList = React.memo(function ProjectList({
 
   const handleToggleFavorite = useCallback(
     async (id: string, isFavorite: boolean) => {
-      if (!userId) return;
+      if (!viewerId) return;
 
       try {
         if (!isFavorite) {
@@ -232,15 +244,17 @@ export const ProjectList = React.memo(function ProjectList({
         toast.error("Failed to update favorite status");
       }
     },
-    [userId, setProjects, projects]
+    [viewerId, setProjects, projects]
   );
 
   const handleFavoriteAction = async (id: string, isFavorite: boolean) => {
     try {
-      if (isFavorite) {
-        await addProjectFavorite(id, userId!);
-      } else {
-        await removeProjectFavorite(id, userId!);
+      // D07x: the actions answer { success: false } rather than throwing; a
+      // refused change used to show "Added to favorites" and move the count.
+      const result = isFavorite ? await addProjectFavorite(id) : await removeProjectFavorite(id);
+      if (!result.success) {
+        toast.error(result.error || "Failed to update favorite status");
+        return;
       }
 
       // If we're unfavoriting and on the favorites page, remove from UI immediately
@@ -324,13 +338,14 @@ export const ProjectList = React.memo(function ProjectList({
   );
 
   const handleDeleteConfirm = useCallback(async () => {
-    if (!projectToDelete || !userId) return;
+    if (!projectToDelete || !viewerId) return;
 
     try {
       setDeletingProjectId(projectToDelete.id);
       setShowDeleteDialog(false);
 
-      const result = await removeProject(projectToDelete.id, userId);
+      // D03: the server takes the user from the session; the ID is ignored.
+      const result = await removeProject(projectToDelete.id, viewerId);
 
       if (!result.success) {
         toast.error(result.error || "Failed to delete project");
@@ -353,7 +368,7 @@ export const ProjectList = React.memo(function ProjectList({
       setDeletingProjectId(null);
       setProjectToDelete(null);
     }
-  }, [projectToDelete, handleProjectDeleted, userId, setProjects]);
+  }, [projectToDelete, handleProjectDeleted, viewerId, setProjects]);
 
   // Category change handler with proper typing
   const handleCategoryChange = useCallback(
@@ -427,19 +442,10 @@ export const ProjectList = React.memo(function ProjectList({
   // Show projects even when not authenticated if allowAnonymousView is true
   if (!isAuthenticated && !allowAnonymousView) {
     return (
-      <div className="h-[500px] flex items-center justify-center text-center flex-col gap-4">
-        <Image
-          src="/images/mascot.png"
-          alt="code details mascot"
-          width={128}
-          height={128}
-        />
-        <p>Please sign in to view projects 🔐</p>
-        <SignInButtonComponent
-          text="Sign In"
-          useTypingEffect={false}
-          variant="plain"
-        />
+      <div className="cd-foundations cd-empty">
+        <Image src="/images/mascot.png" alt="" width={128} height={166} sizes="128px" />
+        <p className="cd-lead">Please sign in to view projects 🔐</p>
+        <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />
       </div>
     );
   }
@@ -453,132 +459,147 @@ export const ProjectList = React.memo(function ProjectList({
     return <ProjectListLoadingState />;
   }
 
+  // UI07.3: one message per situation. A failed request says so and offers
+  // Try again; it used to look exactly like an empty list.
+  const emptyTitle = showDeletedOnly
+    ? "The Project Graveyard is Empty! 🪦"
+    : showFavoritesOnly
+    ? "Your Collection Awaits! ⭐"
+    : showUserProjectsOnly
+    ? "Time to Showcase Your Genius! 🚀"
+    : "It's your time to shine! 💫";
+  const emptyText = showDeletedOnly
+    ? "Looks like all projects are alive and kicking!"
+    : showFavoritesOnly
+    ? "Start exploring and mark your favorite projects"
+    : showUserProjectsOnly
+    ? "Share your coding adventures with the community"
+    : "Be the creator and let the world see your brilliance!";
+
   return (
-    <div className="flex flex-col py-6 sm:py-10 sm:-mt-10">
+    <div className="cd-foundations cd-stack">
       {/* Controls Section */}
-      <div className="space-y-4 mb-6">
-        <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
-          {/* Left side buttons */}
-          <div className="flex flex-col sm:flex-row gap-3">
-            {/* Create Project Button - only show for authenticated users */}
-            {!showDeletedOnly && userId && (
-              <Button
-                variant="default"
-                size="sm"
-                onClick={() => router.push("/projects/new")}
-                className="w-full sm:w-auto hover:bg-primary/90 cursor-pointer"
-              >
-                <Plus size={16} className="mr-2" />
-                Create Project
-              </Button>
-            )}
-            {/* Share Projects Button - only show for authenticated users */}
-            {userId && showUserProjectsOnly && (
-              <ShareProjectsButton userId={userId} />
-            )}
-          </div>
+      <div className="cd-filter-bar">
+        {/* Left side buttons */}
+        <div className="cd-cluster">
+          {/* Create Project Button - only show for authenticated users */}
+          {!showDeletedOnly && userId && (
+            <Button variant="default" onClick={() => router.push("/projects/new")} className="cursor-pointer">
+              <Plus size={16} aria-hidden="true" />
+              Create Project
+            </Button>
+          )}
+          {/* Share Projects Button - only show for authenticated users */}
+          {userId && showUserProjectsOnly && <ShareProjectsButton userId={userId} />}
+        </div>
 
-          {/* Right side controls */}
-          {showSortingFilters && (
-            <div className="flex flex-col w-full sm:w-auto sm:flex-row items-center justify-center sm:justify-end gap-3">
-              {/* Sort Controls */}
-              <SortBySelect
-                value={filters.sortBy as SortByValue}
-                onValueChange={handleSortChange}
-                triggerClassName="w-full sm:w-[180px]"
+        {/* Right side controls */}
+        {showSortingFilters && (
+          <div className="cd-cluster items-end">
+            <SortBySelect
+              value={filters.sortBy as SortByValue}
+              onValueChange={handleSortChange}
+              triggerClassName="w-full sm:w-[200px]"
+            />
+
+            {/* Category Filter - only show if not hidden */}
+            {!hideCategoryFilter && (
+              <CategorySelect
+                value={filters.category}
+                onValueChange={handleCategoryChange}
+                triggerClassName="w-full sm:w-[240px]"
+                hasCategoryProjects={hasCategoryProjects}
               />
+            )}
 
-              {/* Category Filter - only show if not hidden */}
-              {!hideCategoryFilter && (
-                <CategorySelect
-                  value={filters.category}
-                  onValueChange={handleCategoryChange}
-                  triggerClassName="w-full sm:w-auto"
-                  hasCategoryProjects={hasCategoryProjects}
-                />
-              )}
-
-              {/* View Mode Toggle */}
-              <div className="hidden md:flex rounded-md">
+            {/* View Mode Toggle (wider screens; phones always get cards) */}
+            <div className="hidden md:flex cd-field">
+              <span className="cd-field-label" id="project-view-label">View</span>
+              <div className="cd-segmented" role="group" aria-labelledby="project-view-label">
                 <Button
-                  variant={viewMode === "card" ? "default" : "outline"}
-                  className="rounded-r-none cursor-pointer"
+                  variant="ghost"
+                  className="cursor-pointer"
+                  aria-pressed={viewMode === "card"}
                   onClick={() => setViewMode("card")}
-                  size="sm"
                 >
-                  <GridIcon className="h-4 w-4 mr-1" />
+                  <GridIcon className="h-4 w-4" aria-hidden="true" />
                   Cards
                 </Button>
                 <Button
-                  variant={viewMode === "table" ? "default" : "outline"}
-                  className="rounded-l-none cursor-pointer"
+                  variant="ghost"
+                  className="cursor-pointer"
+                  aria-pressed={viewMode === "table"}
                   onClick={() => setViewMode("table")}
-                  size="sm"
                 >
-                  <TableIcon className="h-4 w-4 mr-1" />
+                  <TableIcon className="h-4 w-4" aria-hidden="true" />
                   Table
                 </Button>
               </div>
             </div>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      {/* Projects Display */}
-      {projects.length === 0 ? (
-        <>
-          <CodeParticlesElement
-            quantity={"medium"}
-            speed={"fast"}
-            size={"large"}
-            containerClassName={"w-full h-[800px] relative top-0 "}
-            includeEmojis={true}
-            includeSymbols={true}
-            includeKeywords={true}
-            depth="layered"
-            opacityRange={[0.1, 0.3]}
-            lightModeOpacityRange={[0.1, 0.4]}
-          />
-          <div
-            className={`aboslute flex items-center justify-center text-center flex-col `}
-          >
-            <div className="absolute w-[800px] h-[800px] flex items-center justify-center px-4">
-              <Image
-                src="/images/mascot.png"
-                alt="code details mascot"
-                className="absolute -top-55"
-                width={300}
-                height={300}
-              />
-            </div>
-            <div className="text-2xl font-bold text-primary/90 dark:text-primary/80 -mt-90 px-2 border-1 rounded-2xl p-5 backdrop-blur-sm shadow-lg">
-              {showDeletedOnly
-                ? "The Project Graveyard is Empty! 🪦"
-                : showFavoritesOnly
-                ? "Your Collection Awaits! ⭐"
-                : showUserProjectsOnly
-                ? "Time to Showcase Your Genius! 🚀"
-                : "It's your time to shine! 💫"}
+      {/* How many, announced when a filter or page changes */}
+      <p className="cd-small cd-muted cd-number" role="status">
+        {error
+          ? ""
+          : refreshing
+          ? "Loading projects…"
+          : pagination.total > 0
+          ? `${pagination.total} ${pagination.total === 1 ? "project" : "projects"}${pagination.totalPages > 1 ? `, page ${pagination.currentPage} of ${pagination.totalPages}` : ""}`
+          : ""}
+      </p>
 
-              <p className="text-xl font-medium text-muted-foreground dark:text-muted-foreground/90">
-                {showDeletedOnly
-                  ? "Looks like all projects are alive and kicking!"
-                  : showFavoritesOnly
-                  ? "Start exploring and mark your favorite projects"
-                  : showUserProjectsOnly
-                  ? "Share your coding adventures with the community"
-                  : "Be the creator and let the world see your brilliance!"}
-              </p>
-            </div>
-            {filter?.userId === userId && !showDeletedOnly && (
-              <Button variant="default" onClick={() => setShowAddForm(true)}>
-                Create Your First Project or Keep Exploring
-              </Button>
-            )}
+      {/* UI07.3: the current page or filter failed while an older list is on screen. */}
+      {staleAfterError && (
+        <div role="alert" className="cd-surface flex flex-wrap items-center justify-between gap-4" style={{ borderColor: "var(--cd-danger)" }}>
+          <div className="cd-stack-tight cd-reading">
+            <p className="cd-subheading">Couldn&apos;t refresh the projects</p>
+            <p className="cd-small cd-muted">The list below is from before your last change. Try again to load the one you asked for.</p>
           </div>
-        </>
+          <Button variant="outline" onClick={() => retry?.()} disabled={retrying}>
+            {retrying ? (
+              <>
+                <span aria-hidden="true" className="cd-spinner animate-spin" />
+                Trying again…
+              </>
+            ) : (
+              "Try again"
+            )}
+          </Button>
+        </div>
+      )}
+
+      {/* Projects Display */}
+      {error && !staleAfterError ? (
+        <div role="alert" className="cd-surface cd-empty" style={{ borderColor: "var(--cd-danger)" }}>
+          <p className="cd-subheading">Projects didn&apos;t load</p>
+          <p className="cd-small cd-muted cd-reading">Something went wrong on our side. Your projects are safe; try again in a moment.</p>
+          <Button variant="outline" onClick={() => retry?.()} disabled={retrying}>
+            {retrying ? (
+              <>
+                <span aria-hidden="true" className="cd-spinner animate-spin" />
+                Trying again…
+              </>
+            ) : (
+              "Try again"
+            )}
+          </Button>
+        </div>
+      ) : projects.length === 0 ? (
+        <div className="cd-surface cd-empty">
+          <Image src="/images/mascot.png" alt="" width={160} height={207} sizes="160px" />
+          <p className="cd-heading">{emptyTitle}</p>
+          <p className="cd-lead cd-muted cd-reading">{emptyText}</p>
+          {filter?.userId === userId && !showDeletedOnly && (
+            <Button variant="default" onClick={() => setShowAddForm(true)}>
+              Create Your First Project or Keep Exploring
+            </Button>
+          )}
+        </div>
       ) : (
-        <>
+        <div className="cd-stack" aria-busy={refreshing || undefined}>
           {viewMode === "card" || isMobile ? (
             <ProjectCardView
               projects={projects}
@@ -600,15 +621,13 @@ export const ProjectList = React.memo(function ProjectList({
 
           {/* Pagination */}
           {pagination.totalPages > 1 && (
-            <div className="flex justify-center items-center mt-4">
-              <PaginationControls
-                currentPage={pagination.currentPage}
-                totalPages={pagination.totalPages}
-                onPageChange={handlePageChange}
-              />
-            </div>
+            <PaginationControls
+              currentPage={pagination.currentPage}
+              totalPages={pagination.totalPages}
+              onPageChange={handlePageChange}
+            />
           )}
-        </>
+        </div>
       )}
 
       {/* Modals */}

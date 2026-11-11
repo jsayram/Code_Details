@@ -1,0 +1,396 @@
+// Convex schema: the full accepted P07 model (D00a), shared by the importer
+// (D00b) and every later operation. Field names, types and index names follow
+// p07-model/P07_REPORT.md §3; where P07 leaves a type open, the choice is
+// recorded in phase-d00a/D00A_REPORT.md. Conventions (§6): schema validation
+// stays on (the default); "absent" is a missing field, never null; timestamps
+// are explicit ms-since-epoch numbers so imported dates survive; a tightening
+// on a table that already holds documents goes through .staged() first.
+// Better Auth's component tables arrive with D08. The search index
+// `search_public` arrived with D09 S02a; the search event tables follow in S02d.
+import { defineSchema, defineTable } from "convex/server";
+import { v } from "convex/values";
+
+const live = v.union(v.literal("current"), v.literal("previous"));
+
+export default defineSchema({
+  // §3.1 Private account record. No public query returns it.
+  users: defineTable({
+    authUserId: v.optional(v.string()),
+    role: v.union(v.literal("user"), v.literal("admin")),
+    tier: v.union(v.literal("free"), v.literal("pro"), v.literal("diamond")),
+    status: v.union(v.literal("active"), v.literal("deleting"), v.literal("deleted"), v.literal("system")),
+    createdAt: v.number(),
+    deletionRequestedAt: v.optional(v.number()),
+    deleteAfter: v.optional(v.number()),
+  })
+    .index("by_authUserId", ["authUserId"])
+    .index("by_status_deleteAfter", ["status", "deleteAfter"]),
+
+  // §3.2 Provider subjects (D01). The only way from a signed-in token to a
+  // users row; a mutation keeps (provider, subject) unique. Never linked by email.
+  authLinks: defineTable({
+    userId: v.id("users"),
+    // E03: "better-auth" only; the Clerk-era "clerk" links are gone (3220 and 3240 held none).
+    provider: v.literal("better-auth"),
+    subject: v.string(),
+    linkedAt: v.number(),
+  })
+    .index("by_provider_subject", ["provider", "subject"])
+    .index("by_user", ["userId"]),
+
+  // §3.3 Public profile, a separate table so public reads can't touch users.
+  // No bio field (Jose, 2026-10-28).
+  profiles: defineTable({
+    userId: v.id("users"),
+    username: v.string(),
+    usernameKey: v.string(),
+    firstName: v.optional(v.string()),
+    lastName: v.optional(v.string()),
+    fullName: v.optional(v.string()),
+    avatar: v.optional(
+      v.union(
+        v.object({ kind: v.literal("external"), url: v.string() }),
+        v.object({ kind: v.literal("stored"), storageId: v.id("_storage") }),
+      ),
+    ),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_userId", ["userId"])
+    .index("by_usernameKey", ["usernameKey"]),
+
+  // §3.4 Username claims and history. A previous name stays reserved for its
+  // user until reservedUntil (90 days, §5.3).
+  usernames: defineTable({
+    usernameKey: v.string(),
+    userId: v.id("users"),
+    state: live,
+    claimedAt: v.number(),
+    releasedAt: v.optional(v.number()),
+    reservedUntil: v.optional(v.number()),
+  })
+    .index("by_usernameKey_state", ["usernameKey", "state"])
+    .index("by_userId_state", ["userId", "state"])
+    .index("by_state_reservedUntil", ["state", "reservedUntil"]),
+
+  // §3.5 Projects. listed = status active AND visibility public.
+  // links.type is C's addition (the C02 contract carries it); P07 lists url and label.
+  projects: defineTable({
+    ownerId: v.id("users"),
+    title: v.string(),
+    titleSortKey: v.string(),
+    slug: v.string(),
+    description: v.optional(v.string()),
+    category: v.string(),
+    categoryData: v.optional(
+      v.record(v.string(), v.union(v.string(), v.number(), v.boolean(), v.array(v.string()))),
+    ),
+    categoryDataVersion: v.optional(v.number()),
+    fieldOrder: v.optional(v.array(v.string())),
+    links: v.array(v.object({ url: v.string(), label: v.optional(v.string()), type: v.optional(v.string()) })),
+    visibility: v.union(v.literal("public"), v.literal("private")),
+    status: v.union(v.literal("active"), v.literal("deleted")),
+    deletedAt: v.optional(v.number()),
+    listed: v.boolean(),
+    tagIds: v.array(v.id("tags")),
+    tagCount: v.number(),
+    favoriteCount: v.number(),
+    rankingFavoriteCount: v.number(),
+    contentVersion: v.number(),
+    shuffleKey: v.number(),
+    // D09: set on listed projects only, by convex/searchSync.ts (S01 picked native search).
+    searchText: v.optional(v.string()),
+    createdAt: v.number(),
+    updatedAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_owner_status_created", ["ownerId", "status", "createdAt"])
+    .index("by_owner_listed_created", ["ownerId", "listed", "createdAt"])
+    .index("by_owner_listed_ranking", ["ownerId", "listed", "rankingFavoriteCount"])
+    .index("by_listed_created", ["listed", "createdAt"])
+    .index("by_listed_updated", ["listed", "updatedAt"])
+    .index("by_listed_ranking", ["listed", "rankingFavoriteCount"])
+    .index("by_listed_title", ["listed", "titleSortKey"])
+    .index("by_listed_tagCount", ["listed", "tagCount"])
+    .index("by_listed_shuffle", ["listed", "shuffleKey"])
+    .index("by_listed_category_created", ["listed", "category", "createdAt"])
+    .index("by_listed_category_ranking", ["listed", "category", "rankingFavoriteCount"])
+    // D09 S02a: the public search index (P07 §5.14). searchText is set only on
+    // listed projects (convex/searchSync.ts); `listed` is filtered as well.
+    .searchIndex("search_public", { searchField: "searchText", filterFields: ["listed", "category", "ownerId"] }),
+
+  // §3.6 Slug history. Every slug, current or previous, stays reserved until purge.
+  projectSlugs: defineTable({
+    slug: v.string(),
+    projectId: v.id("projects"),
+    state: live,
+    createdAt: v.number(),
+  })
+    .index("by_slug", ["slug"])
+    .index("by_project_state", ["projectId", "state"]),
+
+  // §3.7 Tags. listedProjectCount was staged in D00a and promoted in D00b:
+  // the fixtures and the importer write it on every insert, and Convex refuses
+  // a staged validator on a fresh deployment whose enforced change needs a
+  // document walk, which is exactly what the import target is.
+  tags: defineTable({
+    name: v.string(),
+    nameKey: v.string(),
+    description: v.optional(v.string()),
+    status: v.union(v.literal("active"), v.literal("retired")),
+    listedProjectCount: v.number(),
+    createdAt: v.number(),
+  })
+    .index("by_nameKey", ["nameKey"])
+    .index("by_status_name", ["status", "nameKey"])
+    .index("by_status_count", ["status", "listedProjectCount"]),
+
+  // §3.7 Reviewed aliases only; starts empty (content belongs to S03).
+  tagAliases: defineTable({
+    aliasKey: v.string(),
+    tagId: v.id("tags"),
+    reviewedBy: v.id("users"),
+    reviewedAt: v.number(),
+  }).index("by_aliasKey", ["aliasKey"]),
+
+  // §3.8 The authoritative project-tag join; projects.tagIds is its copy.
+  projectTags: defineTable({
+    projectId: v.id("projects"),
+    tagId: v.id("tags"),
+    position: v.number(),
+    listed: v.boolean(),
+  })
+    .index("by_project_position", ["projectId", "position"])
+    .index("by_project_tag", ["projectId", "tagId"])
+    .index("by_tag_listed", ["tagId", "listed"]),
+
+  // §3.9 Favorites. Lists are private (§8); listed is copied from the project.
+  favorites: defineTable({
+    userId: v.id("users"),
+    projectId: v.id("projects"),
+    createdAt: v.number(),
+    listed: v.boolean(),
+  })
+    .index("by_user_project", ["userId", "projectId"])
+    .index("by_user_listed_created", ["userId", "listed", "createdAt"])
+    .index("by_project_created", ["projectId", "createdAt"]),
+
+  // §3.10 Project images on _storage. URLs are computed on read, never stored.
+  projectImages: defineTable({
+    projectId: v.id("projects"),
+    storageId: v.id("_storage"),
+    kind: v.union(v.literal("cover"), v.literal("screenshot"), v.literal("diagram"), v.literal("logo")),
+    displayOrder: v.number(),
+    altText: v.optional(v.string()),
+    caption: v.optional(v.string()),
+    width: v.optional(v.number()),
+    height: v.optional(v.number()),
+    aspectRatio: v.optional(v.string()),
+    fileName: v.string(),
+    mimeType: v.string(),
+    size: v.number(),
+    uploadedBy: v.id("users"),
+    status: v.union(v.literal("active"), v.literal("deleted")),
+    deletedAt: v.optional(v.number()),
+    createdAt: v.number(),
+  })
+    .index("by_project_status_order", ["projectId", "status", "displayOrder"])
+    .index("by_project_kind_status", ["projectId", "kind", "status"])
+    .index("by_storageId", ["storageId"]),
+
+  // §3.11 Tag suggestions. The submitter comes from the session. It is
+  // optional because account deletion keeps reviewed suggestions but removes
+  // their submitter (§5.7).
+  tagSuggestions: defineTable({
+    projectId: v.id("projects"),
+    submitterId: v.optional(v.id("users")),
+    proposedName: v.string(),
+    nameKey: v.string(),
+    note: v.optional(v.string()),
+    status: v.union(v.literal("pending"), v.literal("approved"), v.literal("rejected")),
+    resolvedTagId: v.optional(v.id("tags")),
+    reviewerId: v.optional(v.id("users")),
+    reviewedAt: v.optional(v.number()),
+    adminNotes: v.optional(v.string()),
+    createdAt: v.number(),
+  })
+    .index("by_status_created", ["status", "createdAt"])
+    .index("by_project_status", ["projectId", "status"])
+    .index("by_project_nameKey", ["projectId", "nameKey"])
+    .index("by_submitter_created", ["submitterId", "createdAt"]),
+
+  // §3.12 Audit events, kept 1 year. details holds small scalars only: no
+  // emails, no free text.
+  auditEvents: defineTable({
+    kind: v.union(
+      v.literal("project.deleted"),
+      v.literal("project.restored"),
+      v.literal("project.purged"),
+      v.literal("image.purged"),
+      v.literal("account.deletion_requested"),
+      // D04d: the user cancelled inside the 14-day grace period.
+      v.literal("account.deletion_cancelled"),
+      v.literal("account.deleted"),
+      v.literal("role.changed"),
+      v.literal("username.changed"),
+      v.literal("slug.changed"),
+      // D08d: a Clerk-era account took over a Better Auth login (handover).
+      // The handover is gone (D08g4b); the literal stays so old rows still validate.
+      v.literal("account.linked"),
+      // D07-d: an admin changed another account's username, name or tier
+      // (admin:updateUser). details: the fields changed and tier from/to.
+      v.literal("admin.user_updated"),
+    ),
+    actorId: v.optional(v.id("users")),
+    subjectTable: v.string(),
+    subjectId: v.string(),
+    at: v.number(),
+    details: v.optional(v.record(v.string(), v.union(v.string(), v.number(), v.boolean()))),
+  })
+    .index("by_subject", ["subjectTable", "subjectId"])
+    .index("by_at", ["at"]),
+
+  // §3.13 Search and analytics outbox, written in the same transaction as the
+  // change. The consumer is deferred to S01/S02.
+  contentChanges: defineTable({
+    entityType: v.union(v.literal("project"), v.literal("profile"), v.literal("tag")),
+    entityId: v.string(),
+    change: v.union(v.literal("upsert"), v.literal("remove")),
+    sourceVersion: v.number(),
+    projectionVersion: v.number(),
+    createdAt: v.number(),
+    processedAt: v.optional(v.number()),
+    attempts: v.number(),
+  })
+    .index("by_processed_created", ["processedAt", "createdAt"])
+    .index("by_entity", ["entityType", "entityId"]),
+
+  // D10 day one (§3.14, S00.3 §6–§9): search analytics. Written only where
+  // the deployment sets CODEDETAILS_SEARCH_ANALYTICS_ALLOWED=1 (the test
+  // backends; real collection needs Jose's go). No user ID, email or IP in any
+  // of them; `visit` is a random per-site token the browser renews.
+  searchReceipts: defineTable({
+    receiptId: v.string(),
+    visit: v.string(),
+    query: v.string(),
+    scope: v.union(v.literal("global"), v.literal("creator")),
+    hits: v.array(v.object({ entityId: v.string(), position: v.number() })),
+    createdAt: v.number(),
+    expiresAt: v.number(),
+  })
+    .index("by_receiptId", ["receiptId"])
+    .index("by_expires", ["expiresAt"]),
+
+  searchEvents: defineTable({
+    eventId: v.string(),
+    type: v.union(
+      v.literal("search_executed"),
+      v.literal("browse_executed"),
+      v.literal("results_presented"),
+      v.literal("result_clicked"),
+      v.literal("favorite_created"),
+    ),
+    channel: v.string(),
+    day: v.string(),
+    acceptedAt: v.number(),
+    clientAt: v.optional(v.number()),
+    skewed: v.optional(v.boolean()),
+    receiptId: v.optional(v.string()),
+    visit: v.optional(v.string()),
+    interactionId: v.optional(v.string()),
+    product: v.optional(v.boolean()),
+    query: v.optional(v.string()),
+    scope: v.optional(v.union(v.literal("global"), v.literal("creator"))),
+    sort: v.optional(v.string()),
+    filterCount: v.optional(v.number()),
+    page: v.optional(v.number()),
+    status: v.optional(v.union(v.literal("ok"), v.literal("error"))),
+    hitCount: v.optional(v.number()),
+    zero: v.optional(v.boolean()),
+    low: v.optional(v.boolean()),
+    latencyMs: v.optional(v.number()),
+    entityId: v.optional(v.string()),
+    position: v.optional(v.number()),
+    positions: v.optional(v.array(v.number())),
+  })
+    .index("by_eventId", ["eventId"])
+    .index("by_day", ["day"])
+    .index("by_accepted", ["acceptedAt"])
+    .index("by_receipt_type", ["receiptId", "type"]),
+
+  searchDaily: defineTable({
+    day: v.string(),
+    query: v.string(),
+    scope: v.union(v.literal("global"), v.literal("creator")),
+    channel: v.string(),
+    searches: v.number(),
+    requests: v.number(),
+    zeroResults: v.number(),
+    lowResults: v.number(),
+    errors: v.number(),
+    presented: v.number(),
+    clickedSearches: v.number(),
+    clicks: v.number(),
+    favorites: v.number(),
+    browses: v.number(),
+    updatedAt: v.number(),
+  }).index("by_day", ["day"]),
+
+  searchDrops: defineTable({
+    day: v.string(),
+    reason: v.string(),
+    count: v.number(),
+  }).index("by_day_reason", ["day", "reason"]),
+
+  // §3.15 Import bookkeeping, local development deployment only. Emptied or
+  // exported to the private archive before any production data exists (§10).
+  importRuns: defineTable({
+    sourceCapture: v.string(),
+    sourceFingerprint: v.string(),
+    startedAt: v.number(),
+    step: v.string(),
+    // §10: the last source ID of the current step, so a failed run resumes.
+    cursor: v.optional(v.string()),
+    status: v.union(v.literal("running"), v.literal("failed"), v.literal("complete")),
+    counts: v.record(v.string(), v.number()),
+  }),
+
+  importMap: defineTable({
+    runId: v.id("importRuns"),
+    sourceTable: v.string(),
+    sourceId: v.string(),
+    targetTable: v.string(),
+    targetId: v.string(),
+    rowHash: v.string(),
+  })
+    .index("by_source", ["sourceTable", "sourceId"])
+    .index("by_run", ["runId"]),
+
+  importRejects: defineTable({
+    runId: v.id("importRuns"),
+    sourceTable: v.string(),
+    sourceId: v.string(),
+    reason: v.string(),
+  }).index("by_run", ["runId"]),
+
+  // D08 /api/llm gate (Jose, 2026-10-30): calls per UTC day, per user
+  // ("user:<id>") and for everyone ("global"), so the caps survive restarts.
+  llmDailyUsage: defineTable({
+    day: v.string(),
+    scope: v.string(),
+    count: v.number(),
+  }).index("by_day_scope", ["day", "scope"]),
+
+  // One row per /api/llm call: who, when, which provider and model, how it
+  // ended. Never the prompt or the answer.
+  llmCalls: defineTable({
+    userId: v.id("users"),
+    day: v.string(),
+    startedAt: v.number(),
+    provider: v.string(),
+    model: v.optional(v.string()),
+    status: v.union(v.literal("started"), v.literal("ok"), v.literal("error")),
+    latencyMs: v.optional(v.number()),
+    errorStatus: v.optional(v.number()),
+  }).index("by_user_day", ["userId", "day"]),
+});

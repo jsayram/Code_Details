@@ -8,8 +8,9 @@
  */
 
 import { NextRequest } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { getProjectMeta, deleteProject } from '@/lib/output-utils';
+import { routeDocOwner } from '@/lib/auth-server';
+import { isDocOwner } from '@/lib/docs-access';
+import { docStore } from '@/lib/output-utils';
 import { 
   unauthorized, 
   notFound, 
@@ -29,8 +30,8 @@ interface RouteParams {
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     // Authenticate user
-    const { userId } = await auth();
-    if (!userId) {
+    const owner = await routeDocOwner();
+    if (!owner) {
       return unauthorized('Authentication required to delete documentation');
     }
 
@@ -43,19 +44,19 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get project metadata to verify ownership
-    const meta = await getProjectMeta(slug);
+    const meta = await docStore.readMeta(slug);
     
     if (!meta) {
       return notFound('documentation', { identifier: slug });
     }
 
     // Verify ownership
-    if (meta.userId !== userId) {
+    if (!isDocOwner(meta, owner)) {
       return notOwner('documentation');
     }
 
     // Delete the project
-    const deleted = await deleteProject(slug);
+    const deleted = await docStore.deleteDoc(slug);
     
     if (!deleted) {
       return serverError(undefined, 'Failed to delete documentation');

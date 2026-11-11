@@ -9,10 +9,8 @@ import React, {
 } from "react";
 import useSWR, { mutate } from "swr";
 import { Project } from "@/types/models/project";
-import { useAuthState } from "@/hooks/use-auth-state";
 import { API_ROUTES } from "@/constants/api-routes";
 import { ProjectCategory } from "@/constants/project-categories";
-import { revalidateProjectCache } from "@/lib/swr-fetchers";
 import { PROJECTS_PER_PAGE } from "@/components/navigation/Pagination/paginationConstants";
 import { projectsFetcher } from "@/lib/swr-fetchers";
 import { SortByValue, DEFAULT_SORT_BY } from "@/constants/sort-options";
@@ -46,6 +44,16 @@ interface ProjectsContextType {
     totalPages: number;
     currentPage: number;
   };
+  /** UI07.3: the request for the current filters and page failed. */
+  error?: boolean;
+  /** UI07.3: it failed, but an earlier list is still on screen (SWR keeps previous data), so the list says it couldn't refresh. */
+  staleAfterError?: boolean;
+  /** UI07.3: a new page or filter is loading while the previous list stays on screen. */
+  refreshing?: boolean;
+  /** UI07.3: asks for the same list again. */
+  retry?: () => void;
+  /** UI07.3: a retry is in flight. */
+  retrying?: boolean;
 }
 
 const ProjectsContext = createContext<ProjectsContextType | undefined>(
@@ -62,10 +70,14 @@ export function useProjects() {
 
 interface ProjectsProviderProps {
   children: React.ReactNode;
-  token: string | null;
   userId: string | null;
   isLoading?: boolean;
   initialFilters?: Partial<ProjectFilters>;
+  /**
+   * F02: a public list (/projects, /categories/<name>, /tags/<name>) loads
+   * signed out too. Personal lists never do, even with this set.
+   */
+  allowAnonymousView?: boolean;
 }
 
 /**
@@ -96,10 +108,10 @@ function getProjectsCacheKey(
 
 export function ProjectsProvider({
   children,
-  token,
   userId,
   isLoading,
   initialFilters = {},
+  allowAnonymousView = false,
 }: ProjectsProviderProps) {
   // Local state for optimistic updates
   const [localProjects, setLocalProjects] = useState<Project[] | null>(null);
@@ -116,19 +128,22 @@ export function ProjectsProvider({
     ...initialFilters,
   });
 
-  const {
-    isAuthenticated,
-    isReady: authReady,
-  } = useAuthState(userId, token);
+  // D02r-c: with Better Auth there is no Supabase token; a session user ID is
+  // enough, because the server reads the user from the session cookie.
+  // D08g4g: Better Auth is the only login, so that is always the case.
+  const isAuthenticated = !!userId;
+  const authReady = true;
 
   // Determine if we should fetch
-  const shouldFetch = authReady && !isLoading && (isAuthenticated || !!filters.username);
+  const isPersonalList = filters.showMyProjects || filters.showFavorites || filters.showDeleted;
+  const shouldFetch =
+    authReady && !isLoading && (isAuthenticated || !!filters.username || (allowAnonymousView && !isPersonalList));
 
   // Generate cache key for SWR
   const cacheKey = getProjectsCacheKey(filters, userId, shouldFetch);
 
   // Use SWR for data fetching with built-in caching
-  const { data, isLoading: swrLoading } = useSWR(
+  const { data, error: swrError, isLoading: swrLoading, isValidating, mutate: revalidate } = useSWR(
     cacheKey,
     projectsFetcher,
     {
@@ -150,8 +165,24 @@ export function ProjectsProvider({
 
   // Use local projects if set (for optimistic updates), otherwise use SWR data
   const projects = localProjects ?? swrProjects;
-  const loading = !cacheKey ? false : swrLoading;
+  // F02: while the session is still loading a public list stays on its
+  // skeleton, instead of flashing the empty message before the fetch starts.
+  // UI07.3: the skeleton is for the first load only. SWR's isLoading is true
+  // for any key it hasn't cached, even while keepPreviousData shows the last
+  // list, so a page change used to unmount the list and pager and drop focus
+  // to <body>. Now the previous list stays (marked as refreshing) until the
+  // new one arrives.
+  const loading = !!isLoading || (!cacheKey ? false : swrLoading && !data);
+  const refreshing = !!cacheKey && swrLoading && !!data;
   const pagination = swrPagination;
+  // UI07.3: SWR's error belongs to the current key. With keepPreviousData the
+  // data can still be the previous key's list, so a failed page or filter
+  // change must say so instead of passing the old list off as current.
+  const error = !!cacheKey && !!swrError;
+  const staleAfterError = error && !!data;
+  const retry = useCallback(() => {
+    void revalidate();
+  }, [revalidate]);
 
   // Update filters with page bounds checking
   const updateFilters = useCallback((newFilters: Partial<ProjectFilters>) => {
@@ -211,15 +242,9 @@ export function ProjectsProvider({
   const handleProjectDeleted = useCallback(async (projectId: string) => {
     console.log("🗑️ Deleting project:", projectId);
     
-    // Invalidate cache (this clears localProjects and refetches)
+    // Invalidate cache (this clears localProjects and refetches). The delete
+    // action revalidates the server cache itself (E03: /api/revalidate is gone).
     invalidateAllProjectsCache();
-    
-    // Also revalidate server cache
-    try {
-      await revalidateProjectCache();
-    } catch (error) {
-      console.error("Error revalidating after deletion:", error);
-    }
   }, [invalidateAllProjectsCache]);
 
   // Handle project updated - invalidate cache to get fresh data
@@ -228,16 +253,7 @@ export function ProjectsProvider({
     
     // Invalidate cache (this clears localProjects and refetches)
     invalidateAllProjectsCache();
-    
-    // If unfavoriting on favorites page, also revalidate server cache
-    if (filters.showFavorites && !updatedProject.isFavorite) {
-      try {
-        await revalidateProjectCache();
-      } catch (error) {
-        console.error("Error revalidating after unfavorite:", error);
-      }
-    }
-  }, [filters.showFavorites, invalidateAllProjectsCache]);
+  }, [invalidateAllProjectsCache]);
 
   // Sort projects client-side
   const sortedProjects = useMemo(() => {
@@ -322,6 +338,11 @@ export function ProjectsProvider({
       setFilters: updateFilters,
       setProjects: setLocalProjects,
       pagination,
+      error,
+      staleAfterError,
+      refreshing,
+      retry,
+      retrying: error && isValidating,
     }),
     [
       sortedProjects,
@@ -334,6 +355,11 @@ export function ProjectsProvider({
       filters,
       updateFilters,
       pagination,
+      error,
+      staleAfterError,
+      refreshing,
+      retry,
+      isValidating,
     ]
   );
 

@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import { moveFocusTo, scrollMotion } from "@/lib/reduced-motion";
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -26,20 +27,18 @@ import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Textarea } from '@/components/ui/textarea';
 import { DocumentationViewer } from '@/components/created_mds';
-import { CodeParticlesElement } from '@/components/Elements/CodeParticlesElement';
 import { cn } from '@/lib/utils';
-import { AppSidebar } from '@/components/sidebar/app-sidebar';
-import { SidebarInset, SidebarProvider } from '@/components/ui/sidebar';
-import { HeaderSection } from '@/components/layout/HeaderSection';
-import { FooterSection } from '@/components/layout/FooterSection';
-import { PageBanner } from '@/components/ui/page-banner';
-import { useUser } from '@clerk/nextjs';
-import { useSupabaseToken } from '@/hooks/use-SupabaseClerkJWTToken';
+import '@/styles/foundations.css';
+import { AppShell } from '@/components/layout/AppShell';
+import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
+import { useViewerId } from '@/components/auth/AuthGate';
 import { ProjectsProvider } from '@/providers/projects-provider';
 import { useDocChapters } from '@/providers/doc-chapters-provider';
 
 interface ProjectMeta {
-  userId: string;
+  userId: string | null;
+  // D11s: computed by the meta route from the session
+  isOwner?: boolean;
   repoUrl: string;
   projectName: string;
   createdAt: string;
@@ -61,8 +60,8 @@ interface TOCHeading {
 }
 
 export default function DocViewerPage() {
-  const { user } = useUser();
-  const { token } = useSupabaseToken();
+  // D08g4e3: the app's login (Clerk or Better Auth).
+  const viewerId = useViewerId();
   const params = useParams();
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -81,8 +80,10 @@ export default function DocViewerPage() {
   const [saveError, setSaveError] = useState<string | null>(null);
   const [activeHeading, setActiveHeading] = useState<string>('');
   
-  // Check if user owns this documentation
-  const isOwner = meta?.userId === user?.id;
+  // Check if user owns this documentation. Generator re-key: the server
+  // decides (the meta route's isOwner), since a doc's key may be the account's
+  // ID rather than the client's Clerk user ID.
+  const isOwner = meta?.isOwner === true;
   
   // Use the doc chapters context to share with sidebar
   const { setChapters, setCurrentChapter, setProjectMeta, setIsDocPage } = useDocChapters();
@@ -167,7 +168,8 @@ export default function DocViewerPage() {
   const scrollToHeading = useCallback((id: string) => {
     const element = document.getElementById(id);
     if (element) {
-      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      element.scrollIntoView({ behavior: scrollMotion(), block: 'start' });
+      moveFocusTo(element);
       setActiveHeading(id);
     }
   }, []);
@@ -288,13 +290,13 @@ export default function DocViewerPage() {
   // Error state - still wrap in proper layout
   if (error && !meta) {
     return (
-      <ProjectsProvider token={token} userId={user?.id ?? null}>
-        <SidebarProvider>
-          <AppSidebar />
-          <SidebarInset>
-            <HeaderSection />
-            <main className="flex-1 px-4 py-12">
+      <ProjectsProvider userId={viewerId ?? null}>
+        <AppShell>
+          <div className="cd-foundations cd-canvas">
+            <div className="flex-1 px-4 py-12">
               <div className="container mx-auto max-w-4xl">
+                {/* UI09.3: the page keeps its one h1 when the docs can't be opened. */}
+                <h1 className="cd-title mb-4">Generated documentation</h1>
                 <Alert variant="destructive">
                   <AlertCircle className="h-4 w-4" />
                   <AlertTitle>Error</AlertTitle>
@@ -309,29 +311,27 @@ export default function DocViewerPage() {
                   </Button>
                 </div>
               </div>
-            </main>
-            <FooterSection />
-          </SidebarInset>
-        </SidebarProvider>
+            </div>
+          </div>
+        </AppShell>
       </ProjectsProvider>
     );
   }
   
   return (
-    <ProjectsProvider token={token} userId={user?.id ?? null}>
-      <SidebarProvider>
-        <AppSidebar />
-        <SidebarInset>
-          <HeaderSection />
+    <ProjectsProvider userId={viewerId ?? null}>
+      <AppShell>
+        <div className="cd-foundations cd-canvas">
           
           <div className="flex justify-center w-full mb-20">
             <div className="w-full max-w-7xl mx-auto px-4 2xl:px-8 3xl:px-12">
               <div className="flex flex-col gap-6 mb-6 py-3">
-                {/* Page Banner - Matching tags page style (purple/indigo theme) */}
-                <PageBanner
-                  icon={<FolderGit2 className="h-8 w-8 text-primary" />}
-                  bannerTitle={meta?.projectName || projectSlug}
-                  description={
+                {/* UI09.3: the shared header in place of the gradient banner. */}
+                <DiscoveryHeader
+                  eyebrow="Generated documentation"
+                  icon={<FolderGit2 className="h-8 w-8" style={{ color: "var(--cd-action)" }} />}
+                  title={meta?.projectName || projectSlug}
+                  lead={
                     <div className="flex flex-wrap items-center gap-4 mt-1">
                       {meta?.repoUrl && (
                         <a 
@@ -358,26 +358,9 @@ export default function DocViewerPage() {
                       </span>
                     </div>
                   }
-                  isUserBanner={false}
-                  gradientFrom="purple-900"
-                  gradientVia="indigo-800"
-                  gradientTo="blue-800"
-                  borderColor="border-purple-700/40"
-                  textGradient="from-fuchsia-400 via-purple-400 to-indigo-400"
                 />
               </div>
               
-              <CodeParticlesElement
-                quantity="medium"
-                speed="slow"
-                size="medium"
-                includeKeywords={true}
-                syntaxHighlight="vscode"
-                depth="layered"
-                opacityRange={[0.01, 0.1]}
-                lightModeOpacityRange={[0.01, 0.2]}
-                containerClassName="pointer-events-none"
-              />
               
               {/* Main Content Area with TOC */}
               <div className="relative z-10 flex gap-8 items-start">
@@ -410,10 +393,10 @@ export default function DocViewerPage() {
                     ) : (
                       <motion.div
                         key="content"
-                        initial={{ opacity: 0, y: 20 }}
+                        initial={{ opacity: 0.8, y: 16 }}
                         animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        transition={{ duration: 0.3 }}
+                        exit={{ opacity: 0, transition: { duration: 0.12 } }}
+                        transition={{ duration: 0.24 }}
                         className="space-y-4"
                       >
                         {/* Edit/View Toggle for Owner */}
@@ -524,7 +507,8 @@ export default function DocViewerPage() {
                         )}
                       </div>
                       
-                      {/* Download Button - Hidden on mobile, centered */}
+                      {/* Download Button - Hidden on mobile, centered; owner only (D11s: the ZIP route is owner-only) */}
+                      {meta?.isOwner === true ? (
                       <Button
                         variant="outline"
                         size="sm"
@@ -539,6 +523,9 @@ export default function DocViewerPage() {
                         <Download className="h-4 w-4 mr-2" />
                         Download All
                       </Button>
+                      ) : (
+                        <div className="hidden sm:block order-3 sm:order-2" />
+                      )}
                       
                       {/* Next Button */}
                       <div className="w-full sm:w-auto order-1 sm:order-3">
@@ -598,9 +585,8 @@ export default function DocViewerPage() {
             </div>
           </div>
           
-          <FooterSection />
-        </SidebarInset>
-      </SidebarProvider>
+        </div>
+      </AppShell>
     </ProjectsProvider>
   );
 }

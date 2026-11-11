@@ -1,0 +1,122 @@
+// Browser tests (Phase B, B04+). They run against a `next dev` server started
+// with a fully synthetic environment (tests/support/isolation.ts) on top of the
+// task-owned test database with synthetic fixtures loaded. Pages may only reach
+// the test server; see tests/e2e/support.ts.
+//
+// Test slots: set CODEDETAILS_TEST_SLOT=n (1-9) on every test command
+// (test:convex:up/push/down, test:db:up/down, npm test, playwright test) to
+// run a worktree's suites on their own ports, without the shared lock: Convex
+// on 3300+10n/3301+10n, test DB on 55432+n, Next on 3100+n, fake mail on
+// 3302+10n, container codedetails-phaseb-testdb-slot<n>, state under
+// .test-runtime/slot-<n>/. Unset or 0 is the original layout (3210/3211,
+// 55432, 3100, 3299). Every guard refuses the other slots' ports and 3000,
+// 3220/3221, 3230/3231, 3240/3241 and 54320-54329. The mapping is tests/support/slot.cjs.
+import fs from "node:fs";
+import path from "node:path";
+import { defineConfig, devices } from "@playwright/test";
+import { TEST_CONVEX_SITE_URL, TEST_CONVEX_URL, isolatedEnv } from "./tests/support/isolation";
+import { convexAvailable } from "./tests/fixtures/convex";
+import { RUNTIME_DIR, readTestDbPassword } from "./tests/support/test-db";
+import { ACTIVE } from "./tests/support/slot.cjs";
+import { installSlotNetGuard } from "./tests/support/slot-net-guard.cjs";
+
+// This config loads in the runner and in every worker: from here on, none of
+// them can open a socket to another test slot's ports or a real-data port.
+installSlotNetGuard();
+
+// The active test slot's Next port (tests/support/slot.cjs; slot 0: 3100).
+const PORT = ACTIVE.nextPort;
+const password = readTestDbPassword();
+if (!password) throw new Error("Browser tests need the isolated test database: run tests/db/provision.sh");
+
+// Phase C added CODEDETAILS_E2E_READ_BACKEND=convex beside a Supabase-read
+// default. E03: the Supabase reads are gone, so there is one mode: the project
+// reads come from the task-owned local Convex backend. No spec reads the
+// variable any more; a leftover value other than convex is refused so a run
+// never looks like it tested a mode that no longer exists.
+if ((process.env.CODEDETAILS_E2E_READ_BACKEND ?? "convex") !== "convex") {
+  throw new Error("CODEDETAILS_E2E_READ_BACKEND can only be convex: the Supabase-read mode was removed in E03");
+}
+if (!convexAvailable()) {
+  throw new Error("Browser tests need the local Convex backend: run tests/convex/up.sh and tests/convex/push.mjs");
+}
+const readBackendEnv: Record<string, string> = { CODEDETAILS_PROJECT_READ_BACKEND: "convex", CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL };
+
+// D08b, D08g4a: Better Auth is the login (/api/auth/* and /api/dev/viewer
+// served through the local backend), the only login since D08g4f2.
+export const AUTH_BACKEND = "better-auth";
+if (!convexAvailable()) {
+  throw new Error("Better Auth browser tests need the local backend: run tests/convex/up.sh and tests/convex/push.mjs");
+}
+// SEC-D08-RL: the same throwaway internal secret tests/convex/push.mjs gave the
+// test backend, for the server's own token calls.
+const internalSecretFile = path.join(RUNTIME_DIR, "convex", "internal-auth-secret");
+const authBackendEnv: Record<string, string> = {
+  CODEDETAILS_AUTH_BACKEND: "better-auth",
+  CODEDETAILS_CONVEX_URL: TEST_CONVEX_URL,
+  CODEDETAILS_CONVEX_SITE_URL: TEST_CONVEX_SITE_URL,
+  ...(fs.existsSync(internalSecretFile) ? { CODEDETAILS_INTERNAL_AUTH_SECRET: fs.readFileSync(internalSecretFile, "utf8").trim() } : {}),
+};
+
+// D09 S02f: search is on by default (as it ships); CODEDETAILS_E2E_SEARCH=off
+// runs the server with CODEDETAILS_SEARCH=off, to check the rollback position.
+const searchEnv: Record<string, string> = process.env.CODEDETAILS_E2E_SEARCH === "off" ? { CODEDETAILS_SEARCH: "off" } : {};
+
+const serverEnv = isolatedEnv(
+  {
+    CODEDETAILS_TEST_DIST_DIR: ".next-test",
+    ...readBackendEnv,
+    ...authBackendEnv,
+    ...searchEnv,
+  },
+  undefined, // E03: the app has no database client, so the server gets no DATABASE_URL
+  { devServer: true },
+);
+fs.mkdirSync(RUNTIME_DIR, { recursive: true, mode: 0o700 });
+fs.writeFileSync(path.join(RUNTIME_DIR, "server-env.json"), JSON.stringify(serverEnv), { mode: 0o600 });
+
+const common = {
+  baseURL: `http://localhost:${PORT}`,
+  channel: "chrome", // the installed Chrome; no Playwright browser download
+  locale: "en-US",
+  timezoneId: "UTC",
+  colorScheme: "light" as const,
+  reducedMotion: "reduce" as const,
+  serviceWorkers: "block" as const,
+  trace: "retain-on-failure" as const,
+};
+
+export default defineConfig({
+  testDir: "tests/e2e",
+  outputDir: "test-results",
+  fullyParallel: false,
+  workers: 1,
+  forbidOnly: !!process.env.CI,
+  retries: 0,
+  // Visual baselines change only on an explicit --update-snapshots, after review.
+  updateSnapshots: "none",
+  snapshotPathTemplate: "tests/e2e/__screenshots__/{testFilePath}/{arg}-{projectName}-{platform}{ext}",
+  reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report" }]],
+  globalSetup: "./tests/e2e/global-setup.ts",
+  globalTeardown: "./tests/e2e/global-teardown.ts",
+  expect: { timeout: 15_000 },
+  timeout: 120_000,
+  projects: [
+    { name: "desktop-chrome", use: { ...common, viewport: { width: 1280, height: 800 } }, testIgnore: /\.mobile\.spec\.ts$/ },
+    {
+      name: "mobile-chrome",
+      // Pixel 7 emulation in Chrome: mobile viewport, touch, device scale factor and UA.
+      use: { ...devices["Pixel 7"], ...common },
+      testMatch: /\.mobile\.spec\.ts$/,
+    },
+  ],
+  webServer: {
+    command: `node tests/e2e/start-isolated-server.mjs ${PORT}`,
+    url: `http://localhost:${PORT}/favicon.ico`,
+    // Never attach to some other server that happens to be on this port.
+    reuseExistingServer: false,
+    timeout: 180_000,
+    stdout: "pipe",
+    stderr: "pipe",
+  },
+});

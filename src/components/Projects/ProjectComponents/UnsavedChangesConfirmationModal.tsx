@@ -1,5 +1,8 @@
 "use client";
 
+// UI08.2: on the foundations (the yellow-on-black text failed contrast), with
+// the same words, mascot and two choices. Focus goes back to whatever opened
+// the dialog when it closes without leaving (UI02 defect 15: it fell to body).
 import React from "react";
 import { AlertTriangle } from "lucide-react";
 import Image from "next/image";
@@ -19,6 +22,10 @@ interface UnsavedChangesConfirmationModalProps {
   onConfirm: () => void;
   /** Number of pending (unsaved) image uploads */
   pendingImageCount?: number;
+  /** The control that opened the dialog; focus returns to it on close. */
+  returnFocusRef?: React.RefObject<HTMLElement | null>;
+  /** True when discarding also leaves the page (a link, or Cancel on create). */
+  leaving?: boolean;
 }
 
 export function UnsavedChangesConfirmationModal({
@@ -26,80 +33,70 @@ export function UnsavedChangesConfirmationModal({
   onClose,
   onConfirm,
   pendingImageCount = 0,
+  returnFocusRef,
+  leaving = false,
 }: UnsavedChangesConfirmationModalProps) {
   return (
-    <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[600px] bg-gray-950/95 border-yellow-900/30">
+    <Dialog open={isOpen} onOpenChange={(open) => { if (!open) onClose(); }}>
+      <DialogContent
+        className="cd-foundations sm:max-w-[600px]"
+        onCloseAutoFocus={(e) => {
+          const el = returnFocusRef?.current;
+          if (el && el.isConnected) {
+            e.preventDefault();
+            el.focus();
+          }
+        }}
+      >
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2 text-yellow-500">
-            <AlertTriangle className="h-6 w-6" />
+          <DialogTitle className="flex items-center gap-2 cd-subheading">
+            <AlertTriangle className="h-6 w-6" aria-hidden="true" style={{ color: "var(--cd-warning)" }} />
             Unsaved Changes
           </DialogTitle>
-          <DialogDescription className="text-yellow-200/70">
+          <DialogDescription>
             You have unsaved changes that will be lost if you continue.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="py-4 flex flex-col items-center gap-4">
+        <div className="py-2 flex flex-col items-center gap-4">
           {/* Mascot with speech bubble */}
-          <div className="relative w-[150px]">
+          <div className="relative w-[120px] pt-6">
             <Image
               src="/images/mascot.png"
-              alt="Code Details Mascot"
-              width={150}
-              height={150}
-              priority
+              alt=""
+              width={120}
+              height={120}
               className="transform -scale-x-100"
             />
-            {/* Speech bubble */}
-            <div className="absolute -top-5 left-0 bg-card p-3 rounded-lg shadow-lg border border-yellow-500/30">
-              <p className="text-xs font-medium text-yellow-200">
+            <div className="absolute top-0 left-0 cd-surface px-3 py-2" style={{ padding: "0.375rem 0.75rem" }}>
+              <p className="cd-caption font-medium" style={{ color: "var(--cd-text)" }}>
                 Don&apos;t lose your work!
               </p>
-              <div className="absolute -bottom-2 left-8 w-3 h-3 bg-card border-r border-b border-yellow-500/30 transform rotate-45" />
             </div>
           </div>
 
-          {/* Warning message */}
-          <div className="rounded-lg border-2 border-yellow-500/50 bg-yellow-500/10 p-4 w-full">
-            <div className="flex items-start gap-3">
-              <div className="rounded-full bg-yellow-500/20 p-2">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-yellow-600 dark:text-yellow-500" viewBox="0 0 20 20" fill="currentColor">
-                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
-                </svg>
-              </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-yellow-600 dark:text-yellow-500">
-                  Changes Detected
-                </p>
-                <p className="text-sm text-yellow-700 dark:text-yellow-400 mt-1">
-                  Your edits to title, description, category, tags, links, or images have not been saved.
-                  {pendingImageCount > 0 && (
-                    <span className="block mt-1 font-medium">
-                      {pendingImageCount} uploaded {pendingImageCount === 1 ? 'image' : 'images'} will be deleted.
-                    </span>
-                  )}
-                  Are you sure you want to discard these changes?
-                </p>
-              </div>
-            </div>
+          <div className="cd-surface w-full" style={{ borderColor: "var(--cd-warning)", background: "var(--cd-warning-soft)" }}>
+            <p className="cd-small font-semibold" style={{ color: "var(--cd-warning)" }}>
+              Changes Detected
+            </p>
+            <p className="cd-small mt-1" style={{ color: "var(--cd-text)" }}>
+              Your edits to title, description, category, tags, links, or images have not been saved.
+              {pendingImageCount > 0 && (
+                <span className="block mt-1 font-medium">
+                  {pendingImageCount} uploaded {pendingImageCount === 1 ? "image" : "images"} will be deleted.
+                </span>
+              )}{" "}
+              Are you sure you want to discard these changes{leaving ? " and leave this page" : ""}?
+            </p>
           </div>
         </div>
 
-        <DialogFooter className="sm:justify-end gap-2">
-          <Button 
-            variant="outline" 
-            onClick={onClose}
-            className="border-yellow-900/30 hover:bg-yellow-950/30 text-yellow-200/70 cursor-pointer"
-          >
+        <DialogFooter className="gap-2">
+          <Button variant="outline" onClick={onClose}>
             Continue Editing
           </Button>
-          <Button
-            variant="destructive"
-            onClick={onConfirm}
-            className="flex items-center gap-2 bg-yellow-950/80 hover:bg-yellow-900/80 cursor-pointer"
-          >
-            <AlertTriangle className="h-4 w-4" />
+          <Button variant="destructive" onClick={onConfirm} className="flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" aria-hidden="true" />
             Discard Changes
           </Button>
         </DialogFooter>

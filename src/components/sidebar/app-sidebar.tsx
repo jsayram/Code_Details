@@ -1,11 +1,7 @@
 "use client";
 import * as React from "react";
-import {
-  SignedIn,
-  SignedOut,
-  SignInButton,
-  SignOutButton,
-} from "@clerk/nextjs";
+import { SignedIn, SignedOut } from "@/components/auth/AuthGate";
+import { AccountSignOutButton } from "@/components/auth/AccountButton";
 import {
   Code,
   Database,
@@ -26,22 +22,18 @@ import {
 } from "lucide-react";
 
 import { NavMain } from "@/components/sidebar/nav-main";
-import { NavProjects } from "@/components/sidebar/nav-projects";
 import { NavSecondary } from "@/components/sidebar/nav-secondary";
 import {
   Sidebar,
   SidebarContent,
   SidebarFooter,
   SidebarHeader,
-  SidebarMenu,
-  SidebarMenuButton,
-  SidebarMenuItem,
 } from "@/components/ui/sidebar";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import "@/styles/shell-foundations";
 import { Logo } from "../CodeDetailsLogoComponent";
-import { API_ROUTES } from "../../constants/api-routes";
 import { SignInButtonComponent } from "../auth/SignInButtonComponent";
-import { is } from "drizzle-orm";
 
 const data = {
   navMain: [
@@ -50,6 +42,7 @@ const data = {
       url: "/dashboard",
       icon: PieChart,
       isActive: true,
+      signedInOnly: true,
     },
     {
       title: "Search",
@@ -82,21 +75,25 @@ const data = {
         {
           title: "My Projects Portfolio",
           url: "/projects/projects-portfolio",
+          signedInOnly: true,
         },
         {
           title: "My Favorites",
           url: "/projects/favorites",
+          signedInOnly: true,
         },
         {
-          title: "My Deleted",
+          title: "Graveyard",
           url: "/projects/deleted",
+          signedInOnly: true,
         },
       ],
     },
     {
-      title: "GitHub Scrapper",
+      title: "GitHub Scraper",
       url: "/github-scrapper",
       icon: FolderGit2,
+      signedInOnly: true,
       items: [
         {
           title: "Generate Docs",
@@ -235,57 +232,40 @@ const data = {
   // ],
 };
 
-export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
+/** The main navigation entries, exported for tests. */
+export const NAV_MAIN = data.navMain;
+
+export function AppSidebar({ className, ...props }: React.ComponentProps<typeof Sidebar>) {
+  // UI05: the sidebar scopes only itself (desktop panel and phone sheet), so
+  // page content keeps its own look until it adopts the foundations.
   return (
-    <Sidebar variant="inset" {...props}>
+    <>
+      <a href="#main-content" className="cd-foundations cd-skip-link" data-shell="skip">
+        Skip to content
+      </a>
+      <Sidebar variant="inset" className={cn("cd-foundations cd-shell-sidebar", className)} {...props}>
         <SidebarHeader>
-          <SidebarMenu>
-            <SidebarMenuItem>
-              <SidebarMenuButton size="sm" asChild>
-                <div className="flex items-center justify-center w-full h-15 mt-1 rounded-lg">
-                  <Logo
-                    size="md"
-                    showTagline={false}
-                    taglineSize="xs"
-                    className="flex items-center justify-center mt-4 mb-4"
-                  />
-                </div>
-              </SidebarMenuButton>
-            </SidebarMenuItem>
-          </SidebarMenu>
+          <div className="cd-shell-sidebar-logo">
+            <Logo size="md" showTagline={false} />
+          </div>
         </SidebarHeader>
         <SidebarContent>
           <NavMain items={data.navMain} />
-          {/* COMMENTED OUT: NavProjects - Sample projects not linked to real pages */}
-          {/* <NavProjects projects={data.projects} /> */}
           <NavSecondary items={data.navSecondary} className="mt-auto" />
         </SidebarContent>
-        <SidebarFooter>
+        <SidebarFooter className="cd-shell-sidebar-footer">
           <SignedIn>
-            {/* <NavUser user={userData} /> */}
-            <SignOutButton>
-              <Button
-                size="sm"
-                className="hover:scale-105 transition-transform cursor-pointer"
-              >
+            <AccountSignOutButton>
+              <Button variant="outline" className="w-full">
                 Sign out
               </Button>
-            </SignOutButton>
+            </AccountSignOutButton>
           </SignedIn>
           <SignedOut>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <SidebarMenuButton size="lg" asChild>
-                  <SignInButtonComponent
-                    text="Sign In"
-                    useTypingEffect={false}
-                    variant="plain"
-                  />
-                </SidebarMenuButton>
-              </SidebarMenuItem>
-            </SidebarMenu>
+            <SignInButtonComponent text="Sign In" useTypingEffect={false} variant="plain" />
           </SignedOut>
         </SidebarFooter>
       </Sidebar>
+    </>
   );
 }

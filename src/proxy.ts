@@ -1,129 +1,28 @@
-import { clerkMiddleware, createRouteMatcher } from "@clerk/nextjs/server";
-import { NextResponse } from "next/server";
-import { clerkClient } from "@clerk/nextjs/server";
+import { NextResponse, type NextRequest } from "next/server";
+import { betterAuthEnabled } from "@/backend/auth";
+import { betterAuthDecision, hasSessionCookie, isAdminPath, isBetterAuthPath, isPublicPath } from "@/backend/auth/proxy-rules";
+import { viewerForCookies } from "@/lib/auth-server";
 
-const isPublicRoute = createRouteMatcher([
-        "/",  // Allow access to the root page
-        "/sign-in(.*)", 
-        "/sign-up(.*)",
-        "/shared-projects/(.*)",  // Added (.*) to handle any trailing segments
-        "/projects/:slug",
-        "/projects/users/:username(.*)",  // Added (.*) to handle any trailing segments
-        "/api/shared-projects/(.*)",  // Added (.*) to handle any trailing segments
-        "/api/webhook/clerk", // Allow Clerk webhook endpoint
-        "/api/auth/sync-user", // Allow sync endpoint (prevent auth loop)
-]);
-
-const isAdminRoute = createRouteMatcher([
-  "/dashboard/admin(.*)",
-  "/api/projects/test(.*)",
-  "/api/darkmodetest(.*)",
-  "/api/toasttest(.*)",
-]);
-
-import { ADMIN_CACHE_TTL_MS, USER_SYNC_DEBOUNCE_MS } from "@/constants/project-limits";
-
-// Simple in-memory cache for admin checks (expires after 5 minutes)
-const adminCache = new Map<string, { isAdmin: boolean; timestamp: number }>();
-const CACHE_TTL = ADMIN_CACHE_TTL_MS;
-
-// Sync deduplication cache - prevents redundant user sync calls
-const syncCache = new Map<string, number>(); // userId -> last sync timestamp
-const SYNC_DEBOUNCE_TIME = USER_SYNC_DEBOUNCE_MS;
-
-function isAdminCached(userId: string, userEmail: string | undefined): boolean {
-  const cached = adminCache.get(userId);
-  const now = Date.now();
-  
-  if (cached && (now - cached.timestamp) < CACHE_TTL) {
-    return cached.isAdmin;
-  }
-  
-  const adminEmail = process.env.ADMIN_DASHBOARD_MODERATOR;
-  const isAdmin = !!(adminEmail && userEmail?.toLowerCase().trim() === adminEmail.toLowerCase().trim());
-  
-  adminCache.set(userId, { isAdmin, timestamp: now });
-  return isAdmin;
-}
-
-function shouldSyncUser(userId: string): boolean {
-  const lastSync = syncCache.get(userId);
-  const now = Date.now();
-  
-  if (lastSync && (now - lastSync) < SYNC_DEBOUNCE_TIME) {
-    return false; // Recently synced, skip
-  }
-  
-  syncCache.set(userId, now);
-  return true;
-}
-
-export default clerkMiddleware(async (auth, req) => {
-  const { userId } = await auth();
-
-  // Check admin routes first
-  if (isAdminRoute(req)) {
-    if (!userId) {
-      // Not signed in, redirect to sign-in
-      return NextResponse.redirect(new URL("/sign-in", req.url));
-    }
-
-    try {
-      // Get user's email from Clerk with error handling
-      const client = await clerkClient();
-      const user = await client.users.getUser(userId);
-      const userEmail = user.emailAddresses[0]?.emailAddress;
-
-      // Check if user is admin using cache
-      if (!isAdminCached(userId, userEmail)) {
-        // Not admin, redirect to regular dashboard or home
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-      // Admin verified, continue to admin route
-    } catch (error) {
-      // If Clerk API fails (rate limit or other error), check cache
-      const cached = adminCache.get(userId);
-      if (cached && cached.isAdmin) {
-        // Use cached admin status if available
-        console.warn('Using cached admin status due to Clerk API error');
-      } else {
-        // If no cache and API fails, redirect to dashboard for safety
-        console.error('Clerk API error in middleware:', error);
-        return NextResponse.redirect(new URL("/dashboard", req.url));
-      }
-    }
-  }
-
-  // Only trigger sync for actual page navigation requests
-  // Skip API routes, Server Actions, data requests, and other internal Next.js paths
+// D08g1: protected routes need a live Better Auth session, and admin routes
+// need users.role "admin". D08g4f2: Clerk's middleware and its user sync are
+// gone, so this is the only path. With Better Auth off (production builds,
+// development without local Convex URLs) nobody is signed in: public routes
+// pass, protected pages go to /sign-in, protected APIs answer 401.
+export default async function proxy(req: NextRequest) {
+  const enabled = betterAuthEnabled();
   const pathname = req.nextUrl.pathname;
-  const shouldSkipSync = 
-    pathname.startsWith('/api') ||           // API routes
-    pathname.startsWith('/_next/') ||        // Next.js internals (includes Server Actions)
-    pathname.includes('__nextDataReq') ||    // Data requests
-    pathname.startsWith('/_vercel/') ||      // Vercel internals
-    pathname.match(/\.(ico|png|jpg|jpeg|svg|css|js|json|woff|woff2|ttf|eot)$/); // Static files
-  
-  // Only sync if:
-  // 1. User is authenticated
-  // 2. Not a skipped path type
-  // 3. User hasn't been synced recently (deduplication)
-  if (userId && !shouldSkipSync && shouldSyncUser(userId)) {
-    fetch(`${req.nextUrl.origin}/api/auth/sync-user`, {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ userId })
-    }).catch(() => {
-      // Silently fail - sync will happen on next request
-    });
-  }
-
-  if (!isPublicRoute(req)) {
-    await auth.protect();
-  }
-}) as any; // Type assertion for Next.js 16 proxy compatibility
+  const isPublic = isPublicPath(pathname) || (enabled && isBetterAuthPath(pathname));
+  const cookie = req.headers.get("cookie");
+  const viewer = !enabled || isPublic || !hasSessionCookie(cookie) ? null : await viewerForCookies(cookie);
+  const decision = betterAuthDecision({ pathname, search: req.nextUrl.search, isPublic, isAdmin: isAdminPath(pathname), viewer });
+  if (decision.kind === "redirect") return NextResponse.redirect(new URL(decision.location, req.url));
+  if (decision.kind === "unauthorized") return NextResponse.json({ error: "Unauthorized" }, { status: 401, headers: { "cache-control": "no-store" } });
+  const next = NextResponse.next();
+  // H1: an API answer behind sign-in is never for a shared cache (CDN, proxy).
+  // Public and auth routes set their own headers.
+  if (!isPublic && (pathname === "/api" || pathname.startsWith("/api/"))) next.headers.set("cache-control", "private, no-store");
+  return next;
+}
 
 export const config = {
   matcher: [

@@ -1,45 +1,14 @@
 'use server';
 
-import { getUserDashboardStats } from "@/db/operations/userDashboardOperations";
-import { auth } from "@clerk/nextjs/server";
-import { unstable_cache, revalidateTag } from 'next/cache';
-import { CACHE_TAGS } from "@/lib/swr-fetchers";
+import { personalReadsFromConvex } from "@/backend/projects/personal";
+import { convexDashboardStats } from "@/backend/projects/dashboard";
 
-// Cache user dashboard stats for 2 minutes
-export const getCachedUserDashboardStats = unstable_cache(
-  async (userId: string) => {
-    console.log('[getCachedUserDashboardStats] 🗄️ Querying database for user:', userId);
-    const result = await getUserDashboardStats(userId);
-    console.log('[getCachedUserDashboardStats] ✅ Database query complete');
-    return result;
-  },
-  ['user-dashboard-stats'],
-  {
-    revalidate: 120, // 2 minutes
-    tags: ['user-dashboard']
-  }
-);
-
-export async function fetchUserDashboardData(forceRefresh = false) {
-  const { userId } = await auth();
-  
-  if (!userId) {
-    throw new Error("Unauthorized: User not logged in");
-  }
-
-  // If force refresh is requested, revalidate the cache first
-  if (forceRefresh) {
-    console.log('[fetchUserDashboardData] 🔄 Force refresh - revalidating server cache');
-    revalidateTag(CACHE_TAGS.USER_DASHBOARD, {});
-  } else {
-    console.log('[fetchUserDashboardData] 📦 Checking Next.js server cache...');
-  }
-
-  const stats = await getCachedUserDashboardStats(userId);
-  console.log('[fetchUserDashboardData] ✅ Data returned from server');
-
-  return {
-    stats,
-    userId,
-  };
+export async function fetchUserDashboardData() {
+  // DEF-FLIP-FRESHACCT (D08g4f2): the stats come from the session's own Convex
+  // lists. Not cached: each call is the session's own. E03: the Supabase path
+  // (and its per-user cache) is gone; with no local Convex there is no data.
+  if (!personalReadsFromConvex()) throw new Error("Unauthorized: User not logged in");
+  const stats = await convexDashboardStats();
+  if (!stats) throw new Error("Unauthorized: User not logged in");
+  return { stats };
 }

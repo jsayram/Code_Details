@@ -1,9 +1,14 @@
 import { NextRequest } from "next/server";
-import { executeQuery } from "@/db/server";
-import { tag_submissions } from "@/db/schema/tag_submissions";
-import { eq, and } from "drizzle-orm";
-import { success, invalidInput, databaseError } from "@/lib/api-errors";
+import { success, invalidInput, databaseError, serverError, unauthorized } from "@/lib/api-errors";
+import { betterAuthSignedIn } from "@/lib/auth-server";
+import { DATA_UNAVAILABLE, personalReadsFromConvex } from "@/backend/projects/personal";
+import { mySuggestionsOnConvex } from "@/backend/projects/tags";
 
+const STATUSES = new Set(["pending", "approved", "rejected"]);
+
+// D07 (P08 R04): the viewer's own suggestions only. The ?email= the callers
+// send used to pick whose submissions (and admin notes) came back; it is
+// ignored now, and the email is the session viewer's profile address.
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -14,27 +19,14 @@ export async function GET(
 
     const { searchParams } = new URL(request.url);
     const status = searchParams.get("status") || "pending";
-    const submitterEmail = searchParams.get("email");
-
-    if (!submitterEmail) {
-      return invalidInput("Submitter email is required");
+    if (!STATUSES.has(status)) {
+      return invalidInput("Invalid status");
     }
-
-    const submissions = await executeQuery(async (db) => {
-      return db
-        .select()
-        .from(tag_submissions)
-        .where(
-          and(
-            eq(tag_submissions.project_id, projectId),
-            eq(tag_submissions.status, status),
-            eq(tag_submissions.submitter_email, submitterEmail)
-          )
-        )
-        .orderBy(tag_submissions.created_at);
-    });
-
-    return success(submissions);
+    // D07-c: the viewer's own Convex suggestions. E03: the Supabase read is gone.
+    if (!personalReadsFromConvex()) return serverError(undefined, DATA_UNAVAILABLE);
+    if (projectId.length > 64) return invalidInput("Invalid project ID");
+    if (!(await betterAuthSignedIn())) return unauthorized();
+    return success(await mySuggestionsOnConvex(projectId, status));
   } catch (error) {
     return databaseError(error, "Failed to fetch tag submissions");
   }

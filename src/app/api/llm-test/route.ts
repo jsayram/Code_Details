@@ -1,25 +1,27 @@
 /**
  * LLM Test API
  * Tests connection to an LLM provider
+ *
+ * D08 gate: a connection test is a real provider call on the server's keys,
+ * so it gets the /api/llm rules (src/backend/llm/gate.ts): admins only, one
+ * unit of the daily caps per test, logged without any prompt or key, and a
+ * custom base URL only to a local model server. Nothing about keys (not even
+ * whether one is set, or its length) is logged.
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import { auth } from '@clerk/nextjs/server';
-import { testProviderConnection } from '@/llm';
+import { baseUrlProblem, requireLlmAdmin, reserveLlmCall } from '@/backend/llm/gate';
+import { testProviderConnection } from 'repo-docs/llm/server';
 
 // Rate limiting: Track last test time per user
 const lastTestTimes = new Map<string, number>();
 const RATE_LIMIT_MS = 5000; // 5 seconds between tests
 
 export async function POST(request: NextRequest) {
-  // 1. Authentication check
-  const { userId } = await auth();
-  if (!userId) {
-    return NextResponse.json(
-      { success: false, message: 'Authentication required' },
-      { status: 401 }
-    );
-  }
+  // 1. Admins only (users.role from the session).
+  const admin = await requireLlmAdmin();
+  if (!admin.ok) return NextResponse.json({ success: false, message: admin.detail }, { status: admin.status });
+  const userId = admin.accountId;
 
   // 2. Rate limiting
   const lastTest = lastTestTimes.get(userId) || 0;
@@ -49,40 +51,37 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { provider, model, apiKey, baseUrl } = body;
     
-    // Verbose logging for debugging
-    console.log('=== LLM Test Request ===');
-    console.log('Provider:', provider);
-    console.log('Model:', model);
-    console.log('Custom API Key provided:', apiKey ? `Yes (length: ${apiKey.length})` : 'No');
-    console.log('Custom Base URL:', baseUrl || 'None (using default)');
-    
-    // Log environment variable status
-    console.log('--- Environment Variables Check ---');
-    console.log('OPENAI_API_KEY:', process.env.OPENAI_API_KEY ? `Set (length: ${process.env.OPENAI_API_KEY.length})` : 'NOT SET');
-    console.log('OPEN_AI_API_KEY:', process.env.OPEN_AI_API_KEY ? `Set (length: ${process.env.OPEN_AI_API_KEY.length})` : 'NOT SET');
-    console.log('OPENAI_KEY:', process.env.OPENAI_KEY ? `Set (length: ${process.env.OPENAI_KEY.length})` : 'NOT SET');
-    console.log('ANTHROPIC_API_KEY:', process.env.ANTHROPIC_API_KEY ? `Set (length: ${process.env.ANTHROPIC_API_KEY.length})` : 'NOT SET');
-    console.log('GOOGLE_AI_API_KEY:', process.env.GOOGLE_AI_API_KEY ? `Set (length: ${process.env.GOOGLE_AI_API_KEY.length})` : 'NOT SET');
-    console.log('GROQ_API_KEY:', process.env.GROQ_API_KEY ? `Set (length: ${process.env.GROQ_API_KEY.length})` : 'NOT SET');
-    console.log('-----------------------------------');
-    
+    console.log('[LLM Test] provider:', provider, 'model:', model);
+
     if (!provider || !model) {
-      console.log('ERROR: Missing provider or model');
       return NextResponse.json(
         { success: false, message: 'Provider and model are required' },
         { status: 400 }
       );
     }
-    
-    console.log('Calling testProviderConnection...');
-    const result = await testProviderConnection({
-      providerId: provider,
-      modelId: model,
-      apiKey,
-      baseUrl,
-    });
-    
-    console.log('Test Result:', JSON.stringify(result, null, 2));
+    const badBaseUrl = baseUrlProblem(baseUrl);
+    if (badBaseUrl) return NextResponse.json({ success: false, message: badBaseUrl.detail }, { status: 400 });
+
+    // One unit of today's caps per test; refused or unchecked: no provider call.
+    const ticket = await reserveLlmCall(provider, model);
+    if (!ticket.ok) return NextResponse.json({ success: false, message: ticket.detail }, { status: ticket.status });
+
+    const startTime = Date.now();
+    let result: Awaited<ReturnType<typeof testProviderConnection>>;
+    try {
+      result = await testProviderConnection({
+        providerId: provider,
+        modelId: model,
+        apiKey,
+        baseUrl,
+      });
+    } catch (error) {
+      await ticket.finish(false, Date.now() - startTime);
+      throw error;
+    }
+    await ticket.finish(!!(result as { success?: boolean })?.success, Date.now() - startTime);
+
+    console.log('[LLM Test] result:', (result as { success?: boolean })?.success ? 'ok' : 'failed');
     return NextResponse.json(result);
     
   } catch (error: unknown) {

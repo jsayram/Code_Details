@@ -32,7 +32,8 @@ export function Overview({ data }: OverviewProps) {
     <>
       {/* Chart view - Hidden on mobile */}
       <div className="hidden md:block">
-        <div className="overflow-x-auto">
+        {/* UI09.3: a scrollable chart is focusable, so the keyboard can scroll it. */}
+        <div className="overflow-x-auto" tabIndex={0} role="region" aria-label="Projects chart">
           <div className="min-w-full" style={{ width: `${Math.max(data.length * 40, 100)}px` }}>
             <ResponsiveContainer width="100%" height={350}>
               <BarChart
@@ -160,7 +161,7 @@ export function Overview({ data }: OverviewProps) {
 
       {/* Table view - Visible on mobile */}
       <div className="md:hidden">
-        <div className="space-y-3 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
+        <div tabIndex={0} role="region" aria-label="Projects list" className="space-y-3 max-h-[500px] overflow-y-auto overscroll-behavior-y-contain scrollbar-thin scrollbar-thumb-muted-foreground/20 scrollbar-track-transparent hover:scrollbar-thumb-muted-foreground/40">
           {data.map((project, index) => (
             <div
               key={index}

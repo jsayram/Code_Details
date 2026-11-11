@@ -19,14 +19,11 @@ import {
  * Schema for updating a user profile
  */
 export const updateProfileSchema = z.object({
+  // D04b: the shared rules (src/backend/profiles/username-rules.ts) decide,
+  // and only when the name actually changes; this is just a size cap.
   username: z
     .string()
-    .min(MIN_USERNAME_LENGTH, `Username must be at least ${MIN_USERNAME_LENGTH} characters`)
-    .max(MAX_USERNAME_LENGTH, `Username must be at most ${MAX_USERNAME_LENGTH} characters`)
-    .regex(
-      /^[a-zA-Z0-9_-]+$/,
-      "Username can only contain letters, numbers, underscores, and hyphens"
-    )
+    .max(200, "Username is too long")
     .optional(),
   
   email_address: z
@@ -68,7 +65,7 @@ export const updateProfileSchema = z.object({
 export type UpdateProfileInput = z.infer<typeof updateProfileSchema>;
 
 /**
- * Schema for creating a new profile (typically done via Clerk webhook)
+ * Schema for creating a new profile
  */
 export const createProfileSchema = z.object({
   user_id: z

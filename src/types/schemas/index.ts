@@ -39,14 +39,6 @@ export {
   type RemoveProjectTagInput,
 } from './tag';
 
-// Revalidate schemas
-export {
-  cacheTagSchema,
-  revalidateRequestSchema,
-  formatRevalidateZodErrors,
-  type RevalidateRequest,
-} from './revalidate';
-
 // URL validation schemas
 export {
   urlValidationRequestSchema,
