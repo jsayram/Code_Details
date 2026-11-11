@@ -31,12 +31,12 @@
     "typecheck": "tsc --noEmit -p tsconfig.json"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "0.71.0",
-    "@google/generative-ai": "0.24.1",
-    "js-yaml": "4.1.1",
-    "minimatch": "10.1.1",
-    "openai": "6.9.1",
-    "pocketflow": "1.0.4"
+    "@anthropic-ai/sdk": "^0.71.0",
+    "@google/generative-ai": "^0.24.1",
+    "js-yaml": "^4.1.1",
+    "minimatch": "^10.1.1",
+    "openai": "^6.9.1",
+    "pocketflow": "^1.0.4"
   },
   "devDependencies": {
     "@types/js-yaml": "^4.0.9",
