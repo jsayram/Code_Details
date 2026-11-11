@@ -53,22 +53,29 @@ export function SearchContentSkeleton() {
   );
 }
 
+/** The whole page's placeholder, inside the shell (also the page's Suspense fallback, S04-URL). */
+export function SearchPlaceholder() {
+  return (
+    <div className="cd-foundations cd-canvas">
+      <div className="cd-page cd-stack">
+        <div className="cd-surface flex flex-col items-center gap-6 lg:flex-row" aria-hidden="true">
+          <Block className="h-36 w-28 shrink-0 lg:h-52 lg:w-40" />
+          <div className="cd-stack w-full">
+            <Block className="h-9 w-72 max-w-full" />
+            <Block className="h-5 w-full max-w-xl" />
+            <Block className="h-14 w-full rounded-[0.625rem]" />
+          </div>
+        </div>
+        <SearchContentSkeleton />
+      </div>
+    </div>
+  );
+}
+
 export default function SearchPageLoading() {
   return (
     <AppShell>
-      <div className="cd-foundations cd-canvas">
-        <div className="cd-page cd-stack">
-          <div className="cd-surface flex flex-col items-center gap-6 lg:flex-row" aria-hidden="true">
-            <Block className="h-36 w-28 shrink-0 lg:h-52 lg:w-40" />
-            <div className="cd-stack w-full">
-              <Block className="h-9 w-72 max-w-full" />
-              <Block className="h-5 w-full max-w-xl" />
-              <Block className="h-14 w-full rounded-[0.625rem]" />
-            </div>
-          </div>
-          <SearchContentSkeleton />
-        </div>
-      </div>
+      <SearchPlaceholder />
     </AppShell>
   );
 }

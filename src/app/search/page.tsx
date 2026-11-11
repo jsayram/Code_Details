@@ -8,13 +8,22 @@
 //   (UI02 defect 9), and the full-screen particles are gone (DESIGN: particles
 //   on home only).
 // - The result count is announced, and a list that failed to load says so.
-// Unchanged: the query lives in component state (no URL), the 400ms debounce,
-// local filtering of categories, tags and people, the project results and
-// their ranking from /api/search, the tabs, and every limit and order.
+// Unchanged: the 400ms debounce, local filtering of categories, tags and
+// people, the project results and their ranking from /api/search, the tabs,
+// and every limit and order.
+//
+// S04-URL: the query, the active tab and the project category filter live in
+// the address (?q=…&tab=…&category=…), checked by search-url-state.ts. The
+// address follows the debounced query with history.replaceState, so typing
+// adds no history entries; reload, back/forward and a shared link restore
+// all three. A change to the address from outside (a link to /search, back or
+// forward) is read back into the page. Clearing the query clears all three,
+// as clearing it reset the tab before.
 import "@/styles/foundations.css";
 import Image from "next/image";
 import Link from "next/link";
-import { useState, useMemo, useEffect, useRef, type ReactNode } from "react";
+import { Suspense, useState, useMemo, useEffect, useRef, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { Search, Hash, Folder, Users, X } from "lucide-react";
 import { usePersonalPageViewer } from "@/components/auth/usePersonalPageViewer";
 import { ProjectsProvider } from "@/providers/projects-provider";
@@ -28,7 +37,9 @@ import { useProfiles } from "@/hooks/use-profiles";
 import { HighlightText } from "@/components/HighlightText";
 import { ProjectSearchResults } from "@/components/search/ProjectSearchResults";
 import { AppShell } from "@/components/layout/AppShell";
-import { SearchContentSkeleton } from "./loading";
+import { SearchContentSkeleton, SearchPlaceholder } from "./loading";
+import { parseSearchUrl, parseTab, searchUrlString, type SearchTab, type SearchUrlState } from "@/components/search/search-url-state";
+import type { ProjectCategory } from "@/constants/project-categories";
 import { isPlainClick } from "@/lib/plain-click";
 
 type UserRow = {
@@ -185,11 +196,17 @@ function SearchContent({ signedIn }: { signedIn: boolean }) {
   const { tags: allTags, isLoading: tagsLoading, error: tagsError, refreshTags } = useTags();
   const { categoryCounts, isLoading: categoryCountsLoading, error: countsError, refreshCounts } = useCategoryCounts();
   const { profiles, isLoading: profilesLoading, error: profilesError, refreshProfiles } = useProfiles();
-  const [searchQuery, setSearchQuery] = useState("");
+  // S04-URL: the first render starts from the address, so a shared link or a
+  // reload shows its results without waiting for the debounce.
+  const searchParams = useSearchParams();
+  const [initial] = useState(() => parseSearchUrl(searchParams));
+  const [searchQuery, setSearchQuery] = useState(initial.q);
   const [projectCount, setProjectCount] = useState(0);
-  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState("");
+  const [debouncedSearchQuery, setDebouncedSearchQuery] = useState(initial.q);
   const [loadingItem, setLoadingItem] = useState<string | null>(null);
-  const [hasSearched, setHasSearched] = useState(false);
+  const [hasSearched, setHasSearched] = useState(Boolean(initial.q.trim()));
+  const [tab, setTab] = useState<SearchTab>(initial.tab);
+  const [category, setCategory] = useState<ProjectCategory | undefined>(initial.category);
 
   // Debounce search query
   useEffect(() => {
@@ -197,9 +214,38 @@ function SearchContent({ signedIn }: { signedIn: boolean }) {
       setDebouncedSearchQuery(searchQuery);
       // Reset to the initial state when the search is cleared
       setHasSearched(Boolean(searchQuery.trim()));
+      if (!searchQuery.trim()) {
+        setTab("all");
+        setCategory(undefined);
+      }
     }, 400);
     return () => clearTimeout(timer);
   }, [searchQuery]);
+
+  // The address the page last wrote or read, as its q/tab/category string.
+  const inAddress = useRef(searchUrlString(initial));
+  // Page -> address: replaced, never pushed, once the query has settled.
+  useEffect(() => {
+    const state: SearchUrlState = { q: debouncedSearchQuery, tab, ...(category ? { category } : {}) };
+    const ours = searchUrlString(state);
+    inAddress.current = ours;
+    const next = searchUrlString(state, window.location.search);
+    if (next === window.location.search.replace(/^\?/, "")) return;
+    window.history.replaceState(null, "", next ? `?${next}` : window.location.pathname);
+  }, [debouncedSearchQuery, tab, category]);
+  // Address -> page: a link to /search, or back/forward to another search.
+  const addressString = searchParams.toString();
+  useEffect(() => {
+    const read = parseSearchUrl(new URLSearchParams(addressString));
+    const ours = searchUrlString(read);
+    if (ours === inAddress.current) return;
+    inAddress.current = ours;
+    setSearchQuery(read.q);
+    setDebouncedSearchQuery(read.q);
+    setHasSearched(Boolean(read.q.trim()));
+    setTab(read.tab);
+    setCategory(read.category);
+  }, [addressString]);
 
   const filteredCategories = useMemo(() => {
     const searchLower = debouncedSearchQuery.toLowerCase().trim();
@@ -422,9 +468,9 @@ function SearchContent({ signedIn }: { signedIn: boolean }) {
         ) : (
           <>
             {/* D09 S02e: project results, only while search is switched on */}
-            {q && <ProjectSearchResults query={q} onCount={setProjectCount} />}
+            {q && <ProjectSearchResults query={q} onCount={setProjectCount} category={category} onCategoryChange={setCategory} />}
 
-            <Tabs defaultValue="all" className="w-full cd-stack">
+            <Tabs value={tab} onValueChange={(v) => setTab(parseTab(v))} className="w-full cd-stack">
               <TabsList className="mx-auto grid w-full max-w-md grid-cols-4 h-auto">
                 {[["all", "All"], ["categories", "Categories"], ["tags", "Tags"], ["users", "Users"]].map(([v, label]) => (
                   <TabsTrigger key={v} value={v} className="cursor-pointer min-h-11">
@@ -535,7 +581,10 @@ export default function SearchPage() {
   return (
     <ProjectsProvider userId={viewer.userId}>
       <AppShell>
-        <SearchContent signedIn={!!viewer.userId} />
+        {/* S04-URL: the address is read on the client; until then the route's placeholder shows. */}
+        <Suspense fallback={<SearchPlaceholder />}>
+          <SearchContent signedIn={!!viewer.userId} />
+        </Suspense>
       </AppShell>
     </ProjectsProvider>
   );
