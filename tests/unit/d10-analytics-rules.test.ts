@@ -20,7 +20,7 @@ describe("redactQuery", () => {
     ["see https://x.test/p?token=abc123", "see [url]"],
     ["www.example.test/docs", "[url]"],
     ["call 555 123 4567 now", "call [number] now"],
-    ["key sk_live_4eC39HqLyjWDarjtT1zdp7dc", "key [key]"],
+    ["key fake0token0for0redaction0test1", "key [key]"],
     ["c++ c# .net", "c++ c# .net"],
     ["typescriptreactnativeexpo", "typescriptreactnativeexpo"],
   ])("%j -> %j", (q, out) => {
