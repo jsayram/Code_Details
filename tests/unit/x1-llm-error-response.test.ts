@@ -1,0 +1,48 @@
+// X1: the engine's LLMError becomes the app's problem response in
+// src/backend/llm/errors.ts. Pins the shape /api/llm sent before the move.
+import { describe, expect, it } from "vitest";
+import { createLLMErrorResponse, toLLMError } from "@/backend/llm/errors";
+import { LLMError, LLM_ERROR_CODES, UNKNOWN_PROVIDER_ERROR_DETAIL } from "repo-docs/llm";
+
+const req = new Request("http://localhost:3000/api/llm", { method: "POST" });
+
+describe("LLM error to app response", () => {
+  it("a provider 429 becomes a 429 problem+json with the engine's code", async () => {
+    const res = createLLMErrorResponse(toLLMError(Object.assign(new Error("slow down"), { status: 429 }), "openai", "m"), req);
+    expect(res.status).toBe(429);
+    expect(res.headers.get("content-type")).toBe("application/problem+json");
+    const body = await res.json();
+    expect(body.success).toBe(false);
+    expect(body.error).toMatchObject({
+      type: "error://llm/LLM_RATE_LIMITED",
+      title: "Llm Rate Limited",
+      status: 429,
+      code: "LLM_RATE_LIMITED",
+      instance: "http://localhost:3000/api/llm",
+      provider: "openai",
+    });
+    expect(typeof body.error.hint).toBe("string");
+    expect(typeof body.error.timestamp).toBe("string");
+  });
+
+  it("an unknown failure is a 502 provider error with a generic detail; the raw text stays server-side", async () => {
+    const raw = new Error("boom at https://internal.example/v1 for org-synthetic");
+    const err = toLLMError(raw);
+    const res = createLLMErrorResponse(err, req);
+    expect(res.status).toBe(502);
+    const body = await res.json();
+    expect(body.error).toMatchObject({ code: "LLM_PROVIDER_ERROR", detail: UNKNOWN_PROVIDER_ERROR_DETAIL("unknown"), provider: "unknown" });
+    expect(JSON.stringify(body)).not.toMatch(/boom|internal\.example|org-synthetic/);
+    expect(err.cause).toBe(raw);
+  });
+
+  it("known provider errors keep their messages", async () => {
+    const res = createLLMErrorResponse(toLLMError(Object.assign(new Error("x"), { status: 401 }), "openai"), req);
+    expect((await res.json()).error.detail).toBe("Authentication failed for openai. Please check your API key.");
+  });
+
+  it("an LLMError passes through unchanged", () => {
+    const e = new LLMError(LLM_ERROR_CODES.LLM_TIMEOUT, "late");
+    expect(toLLMError(e)).toBe(e);
+  });
+});

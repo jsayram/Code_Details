@@ -15,7 +15,6 @@ vi.mock("@/lib/auth-server", () => ({
 
 import { POST as analyze } from "@/app/api/repo/analyze/route";
 import { POST as validateUrl } from "@/app/api/validate-url/route";
-import { serverGithubCrawler } from "@/repoScrapper/server-crawler";
 
 const post = (path: string, body: unknown) =>
   new NextRequest(`http://localhost${path}`, { method: "POST", body: JSON.stringify(body) });
@@ -60,15 +59,6 @@ describe("/api/validate-url internal hosts", () => {
   });
 });
 
-describe("serverGithubCrawler path parts", () => {
-  it.each(["owner/repo#../../user", "owner/repo@a/../../b", "owner/repo#a//b", "owner/repo#a?b"])(
-    "%s: refused before any request",
-    async (repoUrl) => {
-      await expect(serverGithubCrawler({ repoUrl } as never)).rejects.toMatchObject({ detail: expect.stringMatching(/Invalid GitHub URL/) });
-    },
-  );
-});
-
 describe("no plain fetch for visitor-influenced URLs", () => {
   // The ui-refresh merge conflicts in analyze/route.ts; taking the wrong side
   // would silently swap safeFetch back to fetch. Parsed with the TypeScript
@@ -107,7 +97,7 @@ describe("no plain fetch for visitor-influenced URLs", () => {
     expect(outboundCalls('// fetch(u)\n/* fetch(u) */ const s = "fetch(u)"; await safeFetch(u)')).toEqual([]);
   });
 
-  it.each(["src/app/api/repo/analyze/route.ts", "src/app/api/validate-url/route.ts", "src/repoScrapper/server-crawler.ts"])(
+  it.each(["src/app/api/repo/analyze/route.ts", "src/app/api/validate-url/route.ts", "packages/repo-docs/src/repoScrapper/server-crawler.ts"])(
     "%s only uses safeFetch",
     (file) => {
       const src = fs.readFileSync(path.resolve(__dirname, "../..", file), "utf8");

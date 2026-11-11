@@ -5,9 +5,9 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { betterAuthRole, routeDocOwner } from '@/lib/auth-server';
-import { serverGithubCrawler } from '@/repoScrapper/server-crawler';
-import type { CrawlerOptions, CrawlerResult } from '@/repoScrapper';
-import { RepoError } from '@/repoScrapper/errors';
+import { serverGithubCrawler } from 'repo-docs/server';
+import type { CrawlerOptions, CrawlerResult } from 'repo-docs/server';
+import { RepoError } from 'repo-docs/server';
 
 // Rate limiting
 const lastCrawlTimes = new Map<string, number>();

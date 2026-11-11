@@ -1,4 +1,4 @@
-// D08 /api/llm gate, route side. No real provider: @/llm is a double. Only an
+// D08 /api/llm gate, route side. No real provider: repo-docs/llm/server is a double. Only an
 // admin session reaches a provider, and only after Convex reserved a unit of
 // today's caps; a refusal, a missing check or a bad body calls nothing. The
 // usage log gets the outcome, never the prompt.
@@ -25,7 +25,7 @@ vi.mock("@/lib/auth-server", () => ({
     return { result: true };
   },
 }));
-vi.mock("@/llm", () => ({
+vi.mock("repo-docs/llm/server", () => ({
   PROVIDER_IDS: { OPENAI: "openai" },
   callLLM: async (args: unknown) => {
     h.llmCalls.push(args);

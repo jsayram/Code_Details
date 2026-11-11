@@ -40,10 +40,11 @@ import '@/styles/foundations.css';
 import { AppShell } from '@/components/layout/AppShell';
 import { DiscoveryHeader } from '@/components/layout/DiscoveryHeader';
 import { ProjectsProvider } from '@/providers/projects-provider';
-// The crawler module, not the @/repoScrapper barrel: the barrel also exports the
-// server crawler, whose SSRF guard (H1) imports node:dns, which a client page
-// can't bundle. Through the barrel this page answered 500.
-import { isValidGitHubUrl } from '@/repoScrapper/crawler';
+// The package's client-safe entry, never `repo-docs/server`: that one exports
+// the server crawler, whose SSRF guard (H1) imports node:dns, which a client
+// page can't bundle (through the old barrel this page answered 500). The
+// server entries are closed to browser bundles, so the build would fail.
+import { isValidGitHubUrl } from 'repo-docs';
 
 interface LLMConfig {
   providerId: string;

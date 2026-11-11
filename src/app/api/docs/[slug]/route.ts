@@ -10,7 +10,7 @@
 import { NextRequest } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { isDocOwner } from '@/lib/docs-access';
-import { getProjectMeta, deleteProject } from '@/lib/output-utils';
+import { docStore } from '@/lib/output-utils';
 import { 
   unauthorized, 
   notFound, 
@@ -44,7 +44,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Get project metadata to verify ownership
-    const meta = await getProjectMeta(slug);
+    const meta = await docStore.readMeta(slug);
     
     if (!meta) {
       return notFound('documentation', { identifier: slug });
@@ -56,7 +56,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Delete the project
-    const deleted = await deleteProject(slug);
+    const deleted = await docStore.deleteDoc(slug);
     
     if (!deleted) {
       return serverError(undefined, 'Failed to delete documentation');

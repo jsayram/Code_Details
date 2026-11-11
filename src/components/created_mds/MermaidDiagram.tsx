@@ -2,6 +2,25 @@
 
 import React, { useEffect, useId, useState, useCallback } from 'react';
 
+/**
+ * Mermaid settings for generated docs. Diagram text is untrusted (LLM output
+ * over repo files, or an owner's edit, read by other users under D11s), so
+ * securityLevel stays 'strict': link URLs go through sanitizeUrl, labels are
+ * sanitized and the SVG passes DOMPurify. 'loose' skipped all three and let a
+ * `click X href "javascript:..."` run script on click (X1).
+ */
+export function mermaidConfig(isDark: boolean) {
+  return {
+    startOnLoad: false,
+    theme: isDark ? 'dark' : 'default',
+    securityLevel: 'strict',
+    fontFamily: 'ui-sans-serif, system-ui, sans-serif',
+    flowchart: { htmlLabels: true, curve: 'basis' },
+    suppressErrorRendering: true, // Don't render error messages in DOM
+    logLevel: 5, // Fatal only - suppress all other logs including errors
+  } as const;
+}
+
 interface MermaidDiagramProps {
   chart: string;
   className?: string;
@@ -129,15 +148,7 @@ export const MermaidDiagram: React.FC<MermaidDiagramProps> = ({ chart, className
         
         const isDark = document.documentElement.classList.contains('dark');
 
-        mermaid.initialize({
-          startOnLoad: false,
-          theme: isDark ? 'dark' : 'default',
-          securityLevel: 'loose',
-          fontFamily: 'ui-sans-serif, system-ui, sans-serif',
-          flowchart: { htmlLabels: true, curve: 'basis' },
-          suppressErrorRendering: true, // Don't render error messages in DOM
-          logLevel: 5, // Fatal only - suppress all other logs including errors
-        });
+        mermaid.initialize(mermaidConfig(isDark));
 
         // Sanitize the chart to fix common syntax issues
         const sanitizedChart = sanitizeMermaidChart(chart);

@@ -56,7 +56,7 @@ function loadLLM(env = {}, local = false) {
       } } };
     }
   }
-  const loaded = loadModule('src/llm/client.ts', {
+  const loaded = loadModule('packages/repo-docs/src/llm/client.ts', {
     openai: { OpenAI: FakeOpenAI },
     './providers': {
       getProvider: () => ({
@@ -112,7 +112,7 @@ function loadCrawler(env = {}) {
     requests.push({ url, options });
     return { ok: true, headers: new Headers(), json: async () => ({ tree: [] }) };
   };
-  const loaded = loadModule('src/repoScrapper/server-crawler.ts', {
+  const loaded = loadModule('packages/repo-docs/src/repoScrapper/server-crawler.ts', {
     './crawler': {
       parseGitHubUrl: () => ({ owner: 'offline-owner', repo: 'offline-repo', branch: 'main' }),
       DEFAULT_MAX_FILE_SIZE: 1024,

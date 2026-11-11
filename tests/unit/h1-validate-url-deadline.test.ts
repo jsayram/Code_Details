@@ -4,8 +4,8 @@ import { NextRequest } from "next/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({ calls: [] as { method: string; timeoutMs: number }[] }));
-vi.mock("@/backend/net/safe-fetch", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/backend/net/safe-fetch")>();
+vi.mock("repo-docs/safe-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("repo-docs/safe-fetch")>();
   return {
     ...actual,
     safeFetch: async (_url: string, init: { method: string }, opts: { timeoutMs: number }) => {

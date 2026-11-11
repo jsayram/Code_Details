@@ -12,18 +12,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { baseUrlProblem, LlmGateError, requireLlmAdmin, reserveLlmCall } from '@/backend/llm/gate';
-import type { LlmGuard } from '@/repoScrapper/nodes';
+import type { LlmGuard } from 'repo-docs/server';
 import {
   runDocumentationFlowWithProgress,
   isValidGitHubUrl,
   parseGitHubUrl,
   type SharedData,
   type ProgressCallback,
-} from '@/repoScrapper';
+} from 'repo-docs/server';
 import {
+  docStore,
   generateProjectSlug,
-  saveChapter,
-  saveProjectMeta,
   type ChapterInfo,
 } from '@/lib/output-utils';
 
@@ -156,20 +155,18 @@ export async function POST(request: NextRequest) {
         // Run the documentation generation flow
         const result = await runDocumentationFlowWithProgress(shared, onProgress);
 
-        // Save generated chapters to disk
+        // Save the generated chapters through the doc store (src/app/output on disk)
         const savedChapters: ChapterInfo[] = [];
 
         for (let i = 0; i < result.generatedChapters.length; i++) {
           const chapter = result.generatedChapters[i];
           
-          // Save chapter with proper signature
-          const filename = await saveChapter(
-            projectSlug,
-            i,
-            chapter.title,
-            chapter.content,
-            [] // abstractionsCovered could be extracted from the chapter
-          );
+          const filename = await docStore.saveChapter(projectSlug, {
+            order: i,
+            title: chapter.title,
+            content: chapter.content,
+            abstractionsCovered: [], // could be extracted from the chapter
+          });
           
           savedChapters.push({
             filename,
@@ -180,16 +177,15 @@ export async function POST(request: NextRequest) {
         }
 
         // Save index as a separate file with order -1
-        await saveChapter(
-          projectSlug,
-          -1,
-          'Overview',
-          result.generatedIndex,
-          []
-        );
+        await docStore.saveChapter(projectSlug, {
+          order: -1,
+          title: 'Overview',
+          content: result.generatedIndex,
+          abstractionsCovered: [],
+        });
 
         // Save project metadata
-        await saveProjectMeta(projectSlug, {
+        await docStore.saveMeta(projectSlug, {
           userId,
           repoUrl,
           repoOwner: repoInfo.owner,

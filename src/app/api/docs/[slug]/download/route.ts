@@ -7,13 +7,11 @@
  */
 
 import { NextRequest, NextResponse } from 'next/server';
-import fs from 'node:fs/promises';
-import path from 'node:path';
 import JSZip from 'jszip';
 import { routeDocOwner } from '@/lib/auth-server';
 import { unauthorized } from '@/lib/api-errors';
 import { ownerMeta, readableDoc } from '@/lib/docs-access';
-import { docDir } from '@/lib/docs-output-root';
+import { docStore } from '@/lib/output-utils';
 
 interface RouteParams {
   params: Promise<{
@@ -40,24 +38,18 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         { status: 404 }
       );
     }
-    const projectDir = docDir(slug);
     const projectName = doc.meta.repoName || slug;
     
     // Create ZIP archive
     const zip = new JSZip();
     
-    // Read all files in the project directory
-    const files = await fs.readdir(projectDir);
-    
-    for (const file of files) {
-      if (file.endsWith('.md') || file.endsWith('.json')) {
-        const filePath = path.join(projectDir, file);
-        // The metadata goes in without its server-only fields (no Clerk-era subject)
-        const content = file === '_meta.json'
-          ? JSON.stringify(ownerMeta(doc.meta), null, 2)
-          : await fs.readFile(filePath, 'utf-8');
-        zip.file(file, content);
-      }
+    // Every Markdown and JSON file of the doc
+    for (const file of await docStore.exportFiles(slug)) {
+      // The metadata goes in without its server-only fields (no Clerk-era subject)
+      const content = file.name === '_meta.json'
+        ? JSON.stringify(ownerMeta(doc.meta), null, 2)
+        : file.content;
+      zip.file(file.name, content);
     }
     
     // Generate ZIP buffer

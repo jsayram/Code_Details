@@ -10,7 +10,7 @@
 import { NextRequest } from 'next/server';
 import { routeDocOwner } from '@/lib/auth-server';
 import { isDocOwner } from '@/lib/docs-access';
-import { listProjects } from '@/lib/output-utils';
+import { docStore } from '@/lib/output-utils';
 import { unauthorized, serverError, success } from '@/lib/api-errors';
 
 export async function GET(request: NextRequest) {
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all projects
-    const allProjects = await listProjects();
+    const allProjects = await docStore.listDocs();
     console.log('[docs-list] All projects found:', allProjects.length);
     
     // Filter to only show user's projects

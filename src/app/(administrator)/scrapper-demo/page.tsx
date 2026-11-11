@@ -34,8 +34,8 @@ import {
 import {
   includedPatternCategories,
   excludedPatternCategories,
-} from '@/repoScrapper/patterns';
-import type { PatternCategory } from '@/repoScrapper';
+} from 'repo-docs';
+import type { PatternCategory } from 'repo-docs';
 
 interface CrawlResult {
   success: boolean;

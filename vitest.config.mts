@@ -9,7 +9,8 @@ export default defineConfig({
   envDir: false,
   resolve: { tsconfigPaths: true },
   test: {
-    include: ["tests/{unit,component,integration}/**/*.test.{ts,tsx}"],
+    // X3: the engine package's own tests run here too, under the same isolation.
+    include: ["tests/{unit,component,integration}/**/*.test.{ts,tsx}", "packages/*/test/**/*.test.ts"],
     environment: "node",
     // Fail-closed isolation (B08): synthetic env, sockets only to the test DB.
     setupFiles: ["tests/support/vitest-setup.ts"],
