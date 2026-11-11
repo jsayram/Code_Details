@@ -12,12 +12,20 @@
 //
 // UI07.1: drawn with the foundations (the page carries the scope). Results
 // are link tiles; the category shows its label in its own color.
+//
+// S04-URL: a category filter (the shared CategorySelect, labelled and
+// keyboard-usable). The page owns the value and keeps it in the address; the
+// results come from /api/search with category=, which refuses unknown keys.
+// /api/search/facets for the same query, without the category, says which
+// categories have matches: the others stay listed but disabled, as on the
+// project lists. If the facets don't load, every category stays selectable.
 
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { FolderSearch } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { PROJECT_CATEGORIES } from "@/constants/project-categories";
+import { PROJECT_CATEGORIES, type ProjectCategory } from "@/constants/project-categories";
+import { CategorySelect } from "@/components/filters/CategorySelect";
 import { HighlightText } from "@/components/HighlightText";
 import { visitToken } from "./visit-token";
 
@@ -43,8 +51,9 @@ type Page = {
 const SETTLE_MS = 600;
 const PAGE_SIZE = 12;
 
-async function fetchPage(q: string, opts: { cursor?: string | null; final?: boolean; signal?: AbortSignal }): Promise<Page | "off" | "error"> {
+async function fetchPage(q: string, opts: { category?: string; cursor?: string | null; final?: boolean; signal?: AbortSignal }): Promise<Page | "off" | "error"> {
   const params = new URLSearchParams({ q, pageSize: String(PAGE_SIZE) });
+  if (opts.category) params.set("category", opts.category);
   if (opts.cursor) params.set("cursor", opts.cursor);
   if (opts.final) params.set("final", "1");
   const visit = visitToken();
@@ -56,6 +65,18 @@ async function fetchPage(q: string, opts: { cursor?: string | null; final?: bool
   } catch (e) {
     if ((e as Error).name === "AbortError") throw e;
     return "error";
+  }
+}
+
+/** Matches per category for the query, or null when the facets didn't load. */
+async function fetchCategoryFacets(q: string, signal: AbortSignal): Promise<Record<string, number> | null> {
+  try {
+    const res = await fetch(`/api/search/facets?${new URLSearchParams({ q })}`, { signal });
+    if (!res.ok) return null;
+    const category = ((await res.json()) as { data?: { category?: unknown } }).data?.category;
+    return category && typeof category === "object" ? (category as Record<string, number>) : null;
+  } catch {
+    return null;
   }
 }
 
@@ -72,9 +93,23 @@ function sendEvents(events: Record<string, unknown>[]) {
 
 const eventId = () => `ev-${crypto.randomUUID()}`;
 
-/** onCount: how many projects are shown now (0 while off, loading or failed), for the page's summary. */
-export function ProjectSearchResults({ query, onCount }: { query: string; onCount?: (n: number) => void }) {
+/**
+ * onCount: how many projects are shown now (0 while off, loading or failed), for the page's summary.
+ * category / onCategoryChange: the category filter, owned by the page.
+ */
+export function ProjectSearchResults({
+  query,
+  onCount,
+  category,
+  onCategoryChange,
+}: {
+  query: string;
+  onCount?: (n: number) => void;
+  category?: ProjectCategory;
+  onCategoryChange?: (category: ProjectCategory | undefined) => void;
+}) {
   const q = query.trim();
+  const [facets, setFacets] = useState<Record<string, number> | null>(null);
   const [state, setState] = useState<"off" | "idle" | "loading" | "ready" | "error">("idle");
   const [hits, setHits] = useState<Hit[]>([]);
   const [page, setPage] = useState<Page | null>(null);
@@ -90,7 +125,7 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
     receipt.current = null;
     setState("loading");
     let settle: ReturnType<typeof setTimeout> | undefined;
-    fetchPage(q, { signal: controller.signal })
+    fetchPage(q, { category, signal: controller.signal })
       .then((r) => {
         if (r === "off") return setState("off");
         setKnown(true);
@@ -99,7 +134,7 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
         setHits(r.hits);
         setState("ready");
         settle = setTimeout(async () => {
-          const settled = await fetchPage(q, { final: true, signal: controller.signal }).catch(() => "error" as const);
+          const settled = await fetchPage(q, { category, final: true, signal: controller.signal }).catch(() => "error" as const);
           if (typeof settled === "string" || !settled.receipt) return;
           receipt.current = settled.receipt.id;
           sendEvents([{ type: "results_presented", eventId: eventId(), receiptId: settled.receipt.id, positions: settled.hits.map((_, i) => i) }]);
@@ -112,12 +147,25 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
     };
     // state is read only to stop asking once the route says search is off.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [q]);
+  }, [q, category]);
+
+  // Which categories have matches for this query: asked once per query, only
+  // after the search route has answered (so never while search is off).
+  useEffect(() => {
+    if (!q || !known || state === "off" || !onCategoryChange) return;
+    const controller = new AbortController();
+    setFacets(null);
+    void fetchCategoryFacets(q, controller.signal).then((f) => {
+      if (!controller.signal.aborted) setFacets(f);
+    });
+    return () => controller.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [q, known]);
 
   const loadMore = useCallback(async () => {
     if (!page?.nextCursor) return;
     setLoadingMore(true);
-    const r = await fetchPage(q, { cursor: page.nextCursor }).catch(() => "error" as const);
+    const r = await fetchPage(q, { category, cursor: page.nextCursor }).catch(() => "error" as const);
     setLoadingMore(false);
     if (typeof r === "string") return;
     setPage(r);
@@ -125,7 +173,7 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
       const seen = new Set(prev.map((h) => h.entityId));
       return [...prev, ...r.hits.filter((h) => !seen.has(h.entityId))];
     });
-  }, [page, q]);
+  }, [page, q, category]);
 
   const shown = q && known && state === "ready" ? hits.length : 0;
   useEffect(() => {
@@ -158,6 +206,16 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
           <p className="cd-small cd-muted">Showing results for “{page.applied.correctedQuery}”</p>
         )}
       </div>
+      {onCategoryChange && (
+        <div className="cd-filter-bar" style={{ justifyContent: "flex-start" }}>
+          <CategorySelect
+            value={category ?? "all"}
+            onValueChange={(v) => onCategoryChange(v === "all" ? undefined : v)}
+            hasCategoryProjects={facets ? (key) => (facets[key] ?? 0) > 0 || key === category : undefined}
+            triggerClassName="w-full sm:w-[240px]"
+          />
+        </div>
+      )}
       {state === "loading" && (
         <p className="cd-small cd-muted flex items-center gap-2" role="status">
           <span aria-hidden="true" className="cd-spinner animate-spin" />
@@ -165,7 +223,11 @@ export function ProjectSearchResults({ query, onCount }: { query: string; onCoun
         </p>
       )}
       {state === "error" && <p className="cd-small cd-muted" role="status">Project search is unavailable right now.</p>}
-      {state === "ready" && hits.length === 0 && <p className="cd-small cd-muted">No projects match “{q}”.</p>}
+      {state === "ready" && hits.length === 0 && (
+        <p className="cd-small cd-muted">
+          {category ? `No projects in ${PROJECT_CATEGORIES[category]?.label ?? category} match “${q}”.` : `No projects match “${q}”.`}
+        </p>
+      )}
       {state === "ready" && hits.length > 0 && (
         <ul className="cd-grid">
           {hits.map((hit, i) => (
