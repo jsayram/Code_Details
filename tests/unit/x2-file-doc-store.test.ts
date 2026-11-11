@@ -3,6 +3,7 @@
 // same D11s name checks, and fields the app keeps in the metadata (owner key,
 // linked project) pass through untouched. Runs against a temp directory.
 import fs from "node:fs/promises";
+import { readFileSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -164,5 +165,15 @@ describe("FileDocStore path checks (D11s)", () => {
     expect(await store.readChapter("no-such-doc", "00_intro.md")).toBeNull();
     await fs.mkdir(path.join(store.root, SLUG, "01_folder.md"));
     await expect(store.readChapter(SLUG, "01_folder.md")).rejects.toThrow();
+  });
+});
+
+describe("what loads the disk", () => {
+  // docs-output-root is imported widely by the app; it and the engine's
+  // interface module must not pull node:fs in. Only file-doc-store may.
+  const source = (rel: string) => readFileSync(path.resolve(__dirname, "../..", rel), "utf8");
+  it.each(["src/repoScrapper/store/doc-store.ts", "src/lib/docs-output-root.ts"])("%s imports neither fs nor file-doc-store", (rel) => {
+    const imports = [...source(rel).matchAll(/\bfrom\s+["']([^"']+)["']/g)].map((m) => m[1]);
+    expect(imports.filter((s) => /^(node:)?fs(\/|$)|file-doc-store/.test(s))).toEqual([]);
   });
 });

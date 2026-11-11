@@ -4,9 +4,10 @@
 // .test-runtime/ and can never touch a real generated doc.
 //
 // X2: the slug and chapter-name checks live with the engine's DocStore
-// (src/repoScrapper/store); they are re-exported here for the app.
+// (src/repoScrapper/store/doc-store.ts, which has no disk access); they are
+// re-exported here for the app. This module needs only node:path.
 import path from "node:path";
-import { docDir as storeDocDir } from "@/repoScrapper/store/file-doc-store";
+import { isSafeDocSlug } from "@/repoScrapper/store/doc-store";
 
 export { isSafeChapterFilename, isSafeDocSlug } from "@/repoScrapper/store/doc-store";
 
@@ -16,5 +17,6 @@ export function docsOutputRoot(env: Record<string, string | undefined> = process
 
 /** The doc's directory under `root`; throws for an unsafe slug. */
 export function docDir(slug: string, root: string = docsOutputRoot()): string {
-  return storeDocDir(slug, root);
+  if (!isSafeDocSlug(slug)) throw new Error("unsafe doc slug");
+  return path.join(root, slug);
 }

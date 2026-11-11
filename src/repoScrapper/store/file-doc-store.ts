@@ -120,13 +120,20 @@ export class FileDocStore<TMeta extends DocMeta = DocMeta> implements DocStore<T
 
   async writeChapter(slug: string, filename: string, raw: string): Promise<boolean> {
     if (!isSafeDocSlug(slug) || !isSafeChapterFilename(filename)) return false;
-    const filepath = this.chapterPath(slug, filename);
+    // r+ opens only an existing file, so a missing chapter is never created
+    let handle: fs.FileHandle;
     try {
-      await fs.access(filepath);
-    } catch {
-      return false;
+      handle = await fs.open(this.chapterPath(slug, filename), "r+");
+    } catch (error) {
+      if (isMissing(error)) return false;
+      throw error;
     }
-    await fs.writeFile(filepath, raw, "utf-8");
+    try {
+      await handle.truncate(0);
+      await handle.writeFile(raw, "utf-8");
+    } finally {
+      await handle.close();
+    }
     return true;
   }
 
