@@ -32,7 +32,13 @@ const isMissing = (error: unknown) => {
 };
 
 export class FileDocStore<TMeta extends DocMeta = DocMeta> implements DocStore<TMeta> {
-  constructor(readonly root: string) {}
+  // A plain field rather than a parameter property, so Node's built-in type
+  // stripping can load this file (the CLI runs the source without a build).
+  readonly root: string;
+
+  constructor(root: string) {
+    this.root = root;
+  }
 
   private dir(slug: string): string {
     return docDir(slug, this.root);
