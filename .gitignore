@@ -49,6 +49,9 @@ public/workbox-*.json
 # Generated documentation output (keep .gitkeep)
 src/app/output/*
 !src/app/output/.gitkeep
+# repo-docs CLI: its settings file and its default output folder (X4)
+packages/repo-docs/.env
+docs-output/
 
 # Ignore build artifacts
 build/

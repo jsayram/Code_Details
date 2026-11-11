@@ -18,7 +18,7 @@
     "test:convex:push": "node tests/convex/push.mjs",
     "test:convex:down": "tests/convex/down.sh",
     "typecheck": "tsc --noEmit -p tsconfig.json && tsc --noEmit -p convex/tsconfig.json && tsc --noEmit -p packages/repo-docs/tsconfig.json",
-    "lint:tests": "eslint tests packages/repo-docs/test packages/repo-docs/vitest.config.mts playwright.config.ts vitest.config.mts next.config.ts eslint.config.mjs scripts/setEnv.ts",
+    "lint:tests": "eslint tests packages/repo-docs/test packages/repo-docs/src/cli packages/repo-docs/bin packages/repo-docs/vitest.config.mts playwright.config.ts vitest.config.mts next.config.ts eslint.config.mjs scripts/setEnv.ts",
     "build:isolated": "node tests/ci/isolated-build.mjs",
     "test:bundle": "node tests/ci/client-bundle-check.mjs .next-test",
     "test:scripts": "node --test scripts/test-credential-logging.cjs && node -r ts-node/register scripts/test-repo-analyzer.ts",
