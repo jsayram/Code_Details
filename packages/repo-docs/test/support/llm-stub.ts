@@ -55,8 +55,8 @@ const REPLIES: Record<PromptKind, (n: number) => string> = {
   chapter: (n) => `# Chapter ${n}\n\nThis chapter explains one part of the stub project.\n`,
 };
 
-/** Starts the stub. `status` makes every reply that HTTP error instead. */
-export async function startLlmStub(opts: { status?: number } = {}): Promise<LlmStub> {
+/** Starts the stub. `status` makes every reply that HTTP error instead; `echo` goes into its message. */
+export async function startLlmStub(opts: { status?: number; echo?: string } = {}): Promise<LlmStub> {
   const requests: StubRequest[] = [];
   let chapters = 0;
   const server = http.createServer((req, res) => {
@@ -74,7 +74,7 @@ export async function startLlmStub(opts: { status?: number } = {}): Promise<LlmS
       res.setHeader("content-type", "application/json");
       if (opts.status) {
         res.statusCode = opts.status;
-        res.end(JSON.stringify({ error: { message: "stub refusal", type: "invalid_request_error", code: "invalid_api_key" } }));
+        res.end(JSON.stringify({ error: { message: `stub refusal${opts.echo ? ` for ${opts.echo}` : ""}`, ...(opts.status === 401 ? { type: "invalid_request_error", code: "invalid_api_key" } : { type: "server_error", code: null }) } }));
         return;
       }
       const content = REPLIES[kind](kind === "chapter" ? ++chapters : 0);

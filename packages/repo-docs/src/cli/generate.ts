@@ -92,6 +92,9 @@ export async function runGenerate(
     llm_model: options.model,
     llm_api_key: config.apiKey,
     llm_base_url: config.baseUrl,
+    // No retries inside the SDK: each guarded call is one HTTP request, so the
+    // cap counts requests. The flow retries a failed step through the guard.
+    llm_sdk_max_retries: 0,
     max_abstraction_num: options.maxChapters,
     language: options.language,
     // Only the crawler reads this, and it only calls api.github.com.

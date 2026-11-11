@@ -7,7 +7,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { format } from "node:util";
 import { parseCommand, UsageError, USAGE, type GenerateOptions } from "./args";
-import { loadSettings, Redactor, resolveRunConfig, secretValues } from "./config";
+import { loadSettings, Redactor, resolveRunConfig, sdkEnvRefusal, secretValues } from "./config";
 import { outputTarget, runGenerate, type RunEvent } from "./generate";
 
 export interface CliIO {
@@ -30,6 +30,16 @@ function captureConsole(verbose: boolean, write: (line: string) => void): () => 
   return () => {
     for (const [m, fn] of saved) console[m] = fn;
   };
+}
+
+/** Scrubs every string field before JSON.stringify, whose escaping could hide a secret from a line-level scrub. */
+function scrubFields<T>(value: T, redactor: Redactor): T {
+  if (typeof value === "string") return redactor.scrub(value) as T;
+  if (Array.isArray(value)) return value.map((v) => scrubFields(v, redactor)) as T;
+  if (value && typeof value === "object") {
+    return Object.fromEntries(Object.entries(value).map(([k, v]) => [k, scrubFields(v, redactor)])) as T;
+  }
+  return value;
 }
 
 function errorMessage(error: unknown): string {
@@ -62,7 +72,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
   const out = (line: string) => io.stdout.write(`${redactor.scrub(line)}\n`);
   const err = (line: string) => io.stderr.write(`${redactor.scrub(line)}\n`);
   const fail = (code: number, message: string): number => {
-    if (json) out(JSON.stringify({ type: "error", exitCode: code, message: redactor.scrub(message) }));
+    if (json) out(JSON.stringify(scrubFields({ type: "error", exitCode: code, message }, redactor)));
     else err(`repo-docs: ${message}`);
     return code;
   };
@@ -93,6 +103,8 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     try {
       const loaded = loadSettings({ envFile: options.envFile, packageDir: io.packageDir, cwd: io.cwd, env: io.env });
       redactor.add(...secretValues(loaded.settings));
+      const envRefusal = sdkEnvRefusal(io.env);
+      if (envRefusal) throw new UsageError(envRefusal);
       config = resolveRunConfig(options, loaded.settings);
       redactor.add(...config.secrets);
       if (verbose) err(`Settings: ${loaded.file ?? "shell variables only"}`);
@@ -103,7 +115,7 @@ export async function main(argv: string[], io: CliIO): Promise<number> {
     }
 
     const emit = (event: RunEvent) => {
-      if (json) out(JSON.stringify(event));
+      if (json) out(JSON.stringify(scrubFields(event, redactor)));
       else {
         const line = plainLine(event, verbose);
         if (line !== null) out(line);

@@ -113,6 +113,22 @@ export function baseUrlRefusal(value: string, allowlist: string | undefined, all
   return "The base URL is not on REPO_DOCS_LLM_BASE_URL_ALLOWLIST";
 }
 
+/**
+ * Variables the provider SDKs read on their own to change where a call goes or
+ * which credential it carries. The engine now passes its own values, but the
+ * CLI still refuses to run with them set, so they can't route around the
+ * base-URL rule if that ever regresses.
+ */
+export const SDK_ENV_OVERRIDES = ["OPENAI_BASE_URL", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"] as const;
+
+/** The first SDK override set in the environment, by name (never its value), or null. */
+export function sdkEnvRefusal(env: NodeJS.ProcessEnv): string | null {
+  const found = SDK_ENV_OVERRIDES.find((name) => env[name]?.trim());
+  return found
+    ? `${found} is set in the environment. The provider SDKs read it on their own, so repo-docs won't run with it; unset it (and use --base-url for a custom server).`
+    : null;
+}
+
 export interface RunConfig {
   apiKey?: string;
   baseUrl?: string;
@@ -137,6 +153,10 @@ export function resolveRunConfig(options: GenerateOptions, settings: Settings): 
   if (baseUrl !== undefined) {
     const refusal = baseUrlRefusal(baseUrl, settings.REPO_DOCS_LLM_BASE_URL_ALLOWLIST, options.allowLoopbackLlm);
     if (refusal) throw new UsageError(refusal);
+  } else if (getProvider(options.provider)?.isLocal && !options.allowLoopbackLlm) {
+    // A local provider's built-in server is on loopback too: same rule, same flag.
+    const builtIn = getProvider(options.provider)?.baseUrl ?? "this machine";
+    throw new UsageError(`--provider ${options.provider} calls a model server on loopback (${builtIn}); pass --allow-loopback-llm`);
   }
 
   return { apiKey, baseUrl, githubToken: settings.GITHUB_TOKEN, secrets: secretValues(settings) };

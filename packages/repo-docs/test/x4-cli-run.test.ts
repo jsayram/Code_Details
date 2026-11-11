@@ -8,40 +8,18 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { main } from "../src/cli/main";
 import { FileDocStore } from "../src/repoScrapper/store/file-doc-store";
+import type { FetchRecord } from "./support/github-fixture";
 import { startLlmStub, type LlmStub } from "./support/llm-stub";
 
 const PKG = path.resolve(__dirname, "..");
 const FAKE_KEY = "sk-x4-fake-openai-key-0123456789abcdef";
 const FAKE_TOKEN = "x4-fake-github-token-0123456789abcdef";
 
-const fetched = vi.hoisted(() => [] as { url: string; authorization?: string }[]);
+const fetched = vi.hoisted(() => [] as FetchRecord[]);
 
 vi.mock("../src/repoScrapper/net/safe-fetch", async (importOriginal) => {
-  const original = await importOriginal<typeof import("../src/repoScrapper/net/safe-fetch")>();
-  const FILES: Record<string, { path: string; text: string }> = {
-    sha0: { path: "src/greet.ts", text: "export const greet = (n: string) => `hi ${n}`;\n" },
-    sha1: { path: "src/main.ts", text: "import { greet } from './greet';\nconsole.log(greet('x'));\n" },
-  };
-  const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "content-type": "application/json" } });
-  return {
-    ...original,
-    safeFetch: async (input: string | URL, init: { headers?: Record<string, string> } = {}) => {
-      const url = String(input);
-      fetched.push({ url, authorization: init.headers?.Authorization });
-      if (url === "https://api.github.com/repos/acme/tiny") return json({ default_branch: "main" });
-      if (url === "https://api.github.com/repos/acme/tiny/git/trees/main?recursive=1") {
-        return json({
-          sha: "t",
-          url,
-          truncated: false,
-          tree: Object.entries(FILES).map(([sha, f]) => ({ path: f.path, mode: "100644", type: "blob", sha, size: f.text.length })),
-        });
-      }
-      const blob = url.match(/\/git\/blobs\/(\w+)$/)?.[1];
-      if (blob && FILES[blob]) return json({ sha: blob, size: FILES[blob].text.length, encoding: "base64", content: Buffer.from(FILES[blob].text).toString("base64") });
-      return new Response("not found", { status: 404 });
-    },
-  };
+  const { fixtureSafeFetch } = await vi.importActual<typeof import("./support/github-fixture")>("./support/github-fixture");
+  return { ...(await importOriginal<object>()), safeFetch: fixtureSafeFetch(fetched) };
 });
 
 let dir: string;
@@ -125,6 +103,13 @@ describe("repo-docs generate, end to end", () => {
     // The crawl went to api.github.com only, with the token.
     expect(fetched.length).toBe(4);
     expect(fetched.every((f) => f.url.startsWith("https://api.github.com/repos/acme/tiny") && f.authorization === `Bearer ${FAKE_TOKEN}`)).toBe(true);
+
+    // Neither secret is written into the doc.
+    for (const name of names) {
+      const text = fs.readFileSync(path.join(out, name), "utf8");
+      expect(text).not.toContain(FAKE_KEY);
+      expect(text).not.toContain(FAKE_TOKEN);
+    }
 
     expect(stdout).toContain("Done: 4 files");
     expect(stderr).toContain("[Server Crawler]"); // --verbose passes the engine's lines through

@@ -4,7 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { parseCommand, UsageError, type GenerateOptions } from "../src/cli/args";
-import { baseUrlRefusal, loadSettings, Redactor, resolveRunConfig, SETTING_NAMES } from "../src/cli/config";
+import { baseUrlRefusal, loadSettings, Redactor, resolveRunConfig, sdkEnvRefusal, SETTING_NAMES } from "../src/cli/config";
 import { outputTarget } from "../src/cli/generate";
 import { ENV_KEYS } from "../src/llm/constants";
 
@@ -68,6 +68,9 @@ describe("parseCommand", () => {
     [["generate", "acme/tiny", "--out", " "], /--out must not be empty/],
     [["generate", "acme/tiny", "--provider", "mystery"], /Unknown --provider "mystery"/],
     [["generate", "acme/tiny", "--model", "a b"], /--model/],
+    [["generate", "acme/tiny", "--model", "org/../x"], /--model/],
+    [["generate", "acme/tiny", "--model", "/abs-model"], /--model/],
+    [["generate", "acme/tiny", "--model", "org/model/"], /--model/],
     [["generate", "acme/tiny", "--max-chapters", "0"], /--max-chapters must be a whole number from 1 to 20/],
     [["generate", "acme/tiny", "--max-chapters", "21"], /--max-chapters/],
     [["generate", "acme/tiny", "--max-llm-calls", "1.5"], /--max-llm-calls must be a whole number from 1 to 500/],
@@ -145,8 +148,11 @@ describe("settings", () => {
     }
   });
 
-  it("needs no key for a local provider and an endpoint for azure", () => {
-    expect(resolveRunConfig(options(["generate", "acme/tiny", "--provider", "ollama"]), {}).apiKey).toBeUndefined();
+  it("a local provider needs no key but does need --allow-loopback-llm; azure needs an endpoint", () => {
+    expect(() => resolveRunConfig(options(["generate", "acme/tiny", "--provider", "ollama"]), {})).toThrow(
+      /--provider ollama calls a model server on loopback \(http:\/\/localhost:11434\/v1\); pass --allow-loopback-llm/,
+    );
+    expect(resolveRunConfig(options(["generate", "acme/tiny", "--provider", "ollama", "--allow-loopback-llm"]), {}).apiKey).toBeUndefined();
     const azure = options(["generate", "acme/tiny", "--provider", "azure"]);
     expect(() => resolveRunConfig(azure, { AZURE_OPENAI_API_KEY: "az-key-123456" })).toThrow(/AZURE_OPENAI_ENDPOINT/);
     expect(() => resolveRunConfig(azure, { AZURE_OPENAI_API_KEY: "az-key-123456", AZURE_OPENAI_ENDPOINT: "https://me.openai.azure.com" })).toThrow(/ALLOWLIST/);
@@ -157,6 +163,16 @@ describe("settings", () => {
         REPO_DOCS_LLM_BASE_URL_ALLOWLIST: "https://me.openai.azure.com",
       }).baseUrl,
     ).toBe("https://me.openai.azure.com");
+  });
+
+  it("refuses the SDKs' own base-URL and token variables, by name only", () => {
+    expect(sdkEnvRefusal({})).toBeNull();
+    expect(sdkEnvRefusal({ OPENAI_BASE_URL: " " })).toBeNull();
+    for (const name of ["OPENAI_BASE_URL", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"]) {
+      const msg = sdkEnvRefusal({ [name]: "https://elsewhere.example/v1?k=hidden-value" });
+      expect(msg).toContain(`${name} is set in the environment`);
+      expect(msg).not.toContain("hidden-value");
+    }
   });
 
   it("Redactor scrubs every secret and its URL-encoded form", () => {

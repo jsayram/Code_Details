@@ -76,10 +76,10 @@ repo-docs generate <github-url> [options]
 | `--provider <id>` | `openai` | `openai`, `anthropic`, `google`, `groq`, `deepseek`, `openrouter`, `xai`, `azure` or `ollama` |
 | `--model <id>` | `gpt-4o-mini` for openai, else the provider's first model | The model to call |
 | `--max-chapters <n>` | 8 | Chapters to write, 1 to 20 |
-| `--max-llm-calls <n>` | 40 | Hard cap on model calls for this run, 1 to 500 |
+| `--max-llm-calls <n>` | 40 | Hard cap on model HTTP requests for this run, 1 to 500. Every try counts, retries included |
 | `--language <name>` | `english` | Language to write the docs in |
 | `--base-url <url>` | none | A custom server for an OpenAI-compatible provider (see Safety) |
-| `--allow-loopback-llm` | off | Lets `--base-url` point at 127.0.0.1, ::1 or localhost |
+| `--allow-loopback-llm` | off | Allows a model server on 127.0.0.1, ::1 or localhost: a loopback `--base-url`, or a local provider such as `ollama` |
 | `--env-file <path>` | see above | Settings file to read |
 | `--json` | off | One JSON object per line on stdout: `start`, `progress`, `llm-call`, `done` or `error` |
 | `--verbose` | off | Also prints the engine's own log lines, on stderr |
@@ -95,8 +95,8 @@ repo-docs generate https://github.com/owner/repo
 # Fewer chapters, in Spanish, into a folder of your choosing
 repo-docs generate owner/repo --max-chapters 4 --language spanish --out ./docs/owner-repo
 
-# A model server on this machine (Ollama needs no key)
-repo-docs generate owner/repo --provider ollama --model llama3.2
+# A model server on this machine (Ollama needs no key, but does need the loopback flag)
+repo-docs generate owner/repo --provider ollama --model llama3.2 --allow-loopback-llm
 
 # An OpenAI-compatible server on loopback, for example LM Studio
 repo-docs generate owner/repo --base-url http://127.0.0.1:1234/v1 --allow-loopback-llm
@@ -108,11 +108,12 @@ repo-docs generate owner/repo --base-url http://127.0.0.1:1234/v1 --allow-loopba
 
 **Where your keys go.**
 
-- The provider key goes only to that provider's API, or to the `--base-url` you allowed. A `--base-url` must have an origin listed in `REPO_DOCS_LLM_BASE_URL_ALLOWLIST`, or be on loopback with `--allow-loopback-llm`. URLs with a user name or password are refused. The list comes from your settings, never from the repository being read. `--base-url` is refused for `anthropic` and `google`, which don't use it.
+- The provider key goes only to that provider's API, or to the `--base-url` you allowed. A `--base-url` must have an origin listed in `REPO_DOCS_LLM_BASE_URL_ALLOWLIST`, or be on loopback with `--allow-loopback-llm`. A local provider such as `ollama` talks to loopback by default, so it needs the flag too. URLs with a user name or password are refused. The list comes from your settings, never from the repository being read. `--base-url` is refused for `anthropic` and `google`, which don't use it.
+- The provider SDKs would read `OPENAI_BASE_URL`, `ANTHROPIC_BASE_URL` and `ANTHROPIC_AUTH_TOKEN` from your shell on their own. The engine always passes its own endpoint, so they have no effect, and the CLI also refuses to run while any of them is set (it names the variable, never its value).
 - `GITHUB_TOKEN` is sent only to `api.github.com`. The crawler always goes through the engine's safe fetch, which refuses private and loopback addresses, pins DNS, checks every redirect, drops credentials on a redirect to another origin, and caps time and size. No option turns it off.
 - The token is optional. Without one, GitHub allows 60 API requests an hour from your IP, and each file is one request, so only small repositories fit.
 
-**Costs.** Each model call costs money on a paid provider. A run stops before the call that would go over `--max-llm-calls` (default 40), and it stops at the first `401` or `403` from the model server instead of retrying. A stopped run writes nothing. Big repositories make big prompts: the first call can carry up to about 70% of the model's context window. Set a spending limit with your provider as well.
+**Costs.** Each model call costs money on a paid provider. The CLI turns off the SDK's own retries, so every try is one HTTP request and the cap counts requests. A run stops before the request that would go over `--max-llm-calls` (default 40), and it stops at the first `401` or `403` from the model server instead of retrying. A failed step is still retried by the flow (up to 5 tries, 20 seconds apart), and each try counts toward the cap. A stopped run writes nothing. Big repositories make big prompts: the first call can carry up to about 70% of the model's context window. Set a spending limit with your provider as well.
 
 **Files.** The CLI writes only inside `--out` (or the default folder). The folder's name goes through the same checks the store uses, so `..`, slashes and dots can't move it elsewhere, and it won't write into a folder that already has files.
 

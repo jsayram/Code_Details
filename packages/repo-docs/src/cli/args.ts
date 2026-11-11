@@ -54,12 +54,14 @@ Options:
   --provider <id>         ${LLM_PROVIDERS.map((p) => p.id).join(", ")} (default ${DEFAULT_PROVIDER})
   --model <id>            Model id (default ${DEFAULT_OPENAI_MODEL} for openai, else the provider's first)
   --max-chapters <n>      Chapters to write, ${LIMITS.maxChapters[0]}-${LIMITS.maxChapters[1]} (default ${DEFAULT_MAX_CHAPTERS})
-  --max-llm-calls <n>     Stop after this many model calls, ${LIMITS.maxLlmCalls[0]}-${LIMITS.maxLlmCalls[1]} (default ${DEFAULT_MAX_LLM_CALLS})
+  --max-llm-calls <n>     Stop after this many model HTTP requests (the SDK doesn't
+                          retry; each try counts), ${LIMITS.maxLlmCalls[0]}-${LIMITS.maxLlmCalls[1]} (default ${DEFAULT_MAX_LLM_CALLS})
   --language <name>       Language to write in (default ${DEFAULT_LANGUAGE})
   --base-url <url>        Custom model server for an OpenAI-compatible provider.
                           Must be on REPO_DOCS_LLM_BASE_URL_ALLOWLIST, or loopback
                           with --allow-loopback-llm
-  --allow-loopback-llm    Allow a --base-url on 127.0.0.1, ::1 or localhost
+  --allow-loopback-llm    Allow a model server on 127.0.0.1, ::1 or localhost: a
+                          loopback --base-url, or a local provider such as ollama
   --env-file <path>       Settings file (default packages/repo-docs/.env, then ./.env)
   --json                  Print one JSON object per event on stdout
   --verbose               Also print the engine's own log lines (on stderr)
@@ -124,8 +126,8 @@ export function parseCommand(argv: string[], cwd: string): ParsedCommand {
   }
 
   const model = values.model ?? (provider === DEFAULT_PROVIDER ? DEFAULT_OPENAI_MODEL : providerConfig.models[0]?.id);
-  if (!model || !/^[\w.:/@-]{1,120}$/.test(model)) {
-    throw new UsageError("--model must be 1-120 characters of letters, digits and . : / @ _ -");
+  if (!model || !/^[\w.:/@-]{1,120}$/.test(model) || model.includes("..") || model.startsWith("/") || model.endsWith("/")) {
+    throw new UsageError("--model must be 1-120 characters of letters, digits and . : / @ _ -, without \"..\" or a leading or trailing /");
   }
 
   const language = values.language ?? DEFAULT_LANGUAGE;

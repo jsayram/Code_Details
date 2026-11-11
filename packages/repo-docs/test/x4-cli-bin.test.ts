@@ -15,10 +15,10 @@ let dir: string;
 beforeEach(() => (dir = fs.mkdtempSync(path.join(os.tmpdir(), "repo-docs-x4-bin-"))));
 afterEach(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-function cli(args: string[], envLines: string[] = []) {
+function cli(args: string[], envLines: string[] = [], env: NodeJS.ProcessEnv = {}) {
   const envFile = path.join(dir, "test.env");
   fs.writeFileSync(envFile, envLines.join("\n") + "\n");
-  const r = spawnSync(process.execPath, [BIN, ...args, "--env-file", envFile], { cwd: dir, env: {}, encoding: "utf8", timeout: 20_000 });
+  const r = spawnSync(process.execPath, [BIN, ...args, "--env-file", envFile], { cwd: dir, env, encoding: "utf8", timeout: 20_000 });
   return { code: r.status, stdout: r.stdout, stderr: r.stderr };
 }
 
@@ -59,7 +59,16 @@ describe("repo-docs bin", () => {
     expect(fs.readdirSync(dir)).toEqual(["test.env"]);
   });
 
-  it("--json reports a refusal as one JSON line on stdout", () => {
+  it.each(["OPENAI_BASE_URL", "ANTHROPIC_BASE_URL", "ANTHROPIC_AUTH_TOKEN"])("refuses to run with %s in the environment, naming it but not its value", (name) => {
+    const value = "http://127.0.0.1:9/v1?x4-env-value-marker";
+    const r = cli(["generate", "acme/tiny"], [`OPENAI_API_KEY=${FAKE_KEY}`], { [name]: value });
+    expect(r.code).toBe(2);
+    expect(r.stderr).toContain(`${name} is set in the environment`);
+    expect(r.stdout + r.stderr).not.toContain("x4-env-value-marker");
+    expect(r.stdout + r.stderr).not.toContain(FAKE_KEY);
+  });
+
+    it("--json reports a refusal as one JSON line on stdout", () => {
     const r = cli(["generate", "acme/tiny", "--json", "--base-url", "https://evil.example.com"], [`OPENAI_API_KEY=${FAKE_KEY}`]);
     expect(r.code).toBe(2);
     expect(r.stderr).toBe("");
