@@ -84,6 +84,13 @@ export interface SharedData {
   llm_model?: string;
   llm_api_key?: string;
   llm_base_url?: string;
+  /**
+   * HTTP retries inside the provider SDK per model call. Unset keeps the SDK's
+   * default (the app). The CLI sets 0, so each guarded call is one request and
+   * its per-run cap counts requests; the flow still retries a failed step,
+   * through the guard.
+   */
+  llm_sdk_max_retries?: number;
   model_context_window?: number;
   temperature?: number;
   use_cache?: boolean;
@@ -361,6 +368,7 @@ export class IdentifyAbstractions extends Node<SharedData> {
       model: llmModel,
       customApiKey: llmApiKey,
       customBaseUrl: llmBaseUrl,
+      sdkMaxRetries: this._shared?.llm_sdk_max_retries,
     };
     
     const response = await guardedCallLLM(this._shared?._llmGuard, llmOptions);
@@ -513,6 +521,7 @@ export class AnalyzeRelationships extends Node<SharedData> {
       model: llmModel,
       customApiKey: llmApiKey,
       customBaseUrl: llmBaseUrl,
+      sdkMaxRetries: this._shared?.llm_sdk_max_retries,
     });
     
     const yamlMatch = response.trim().match(/```yaml\s*([\s\S]*?)\s*```/);
@@ -635,6 +644,7 @@ export class OrderChapters extends Node<SharedData> {
       model: llmModel,
       customApiKey: llmApiKey,
       customBaseUrl: llmBaseUrl,
+      sdkMaxRetries: this._shared?.llm_sdk_max_retries,
     });
     
     const yamlMatch = response.trim().match(/```yaml\s*([\s\S]*?)\s*```/);
@@ -855,6 +865,7 @@ export class WriteChapters extends BatchNode<SharedData, WriteChapterItem> {
       model: llmModel,
       customApiKey: llmApiKey,
       customBaseUrl: llmBaseUrl,
+      sdkMaxRetries: this._shared?.llm_sdk_max_retries,
       maxTokens: 4000,
     });
     

@@ -22,6 +22,7 @@ import {
 import {
   PROVIDER_IDS,
   OPENAI_MODELS,
+  API_ENDPOINTS,
 } from './constants';
 import type {
   LLMCallOptions,
@@ -111,11 +112,19 @@ async function callAnthropic(
   model: string,
   prompt: string,
   temperature: number,
-  maxTokens: number
+  maxTokens: number,
+  maxRetries?: number
 ): Promise<{ content: string; usage?: { inputTokens: number; outputTokens: number } }> {
   const { default: Anthropic } = await import('@anthropic-ai/sdk');
   
-  const client = new Anthropic({ apiKey });
+  // Explicit base URL and no auth token: left unset, the SDK would read
+  // ANTHROPIC_BASE_URL / ANTHROPIC_AUTH_TOKEN from the environment (X4 audit).
+  const client = new Anthropic({
+    apiKey,
+    baseURL: API_ENDPOINTS.ANTHROPIC,
+    authToken: null,
+    ...(maxRetries === undefined ? {} : { maxRetries }),
+  });
   
   const response = await client.messages.create({
     model,
@@ -184,12 +193,16 @@ async function callOpenAICompatible(
   maxTokens: number,
   baseUrl?: string,
   extraHeaders?: Record<string, string>,
-  providerId?: string
+  providerId?: string,
+  maxRetries?: number
 ): Promise<{ content: string; usage?: { inputTokens: number; outputTokens: number } }> {
-  const clientConfig: ConstructorParameters<typeof OpenAI>[0] = { apiKey };
+  // Always an explicit base URL: left unset, the SDK would read OPENAI_BASE_URL
+  // from the environment and send the key and prompt there (X4 audit). The
+  // fallback is the SDK's own default, so OpenAI calls go where they did before.
+  const clientConfig: ConstructorParameters<typeof OpenAI>[0] = { apiKey, baseURL: baseUrl || API_ENDPOINTS.OPENAI };
   
-  if (baseUrl) {
-    clientConfig.baseURL = baseUrl;
+  if (maxRetries !== undefined) {
+    clientConfig.maxRetries = maxRetries;
   }
   
   if (extraHeaders) {
@@ -301,6 +314,7 @@ export async function callLLM({
   maxTokens = 8192,
   customApiKey,
   customBaseUrl,
+  sdkMaxRetries: maxRetries,
 }: LLMCallOptions): Promise<string> {
   console.log('[callLLM] Starting LLM call...');
   console.log('[callLLM] Provider:', providerId);
@@ -343,7 +357,7 @@ export async function callLLM({
     console.log('[callLLM] Routing to SDK for provider:', providerId);
     switch (providerId) {
       case PROVIDER_IDS.ANTHROPIC:
-        result = await callAnthropic(apiKey, actualModelId, prompt, temperature, maxTokens);
+        result = await callAnthropic(apiKey, actualModelId, prompt, temperature, maxTokens, maxRetries);
         break;
         
       case PROVIDER_IDS.GOOGLE:
@@ -362,7 +376,8 @@ export async function callLLM({
             'HTTP-Referer': process.env.SITE_URL || 'http://localhost:3000',
             'X-Title': 'CodeDetails LLM'
           },
-          providerId
+          providerId,
+          maxRetries
         );
         break;
         
@@ -382,7 +397,8 @@ export async function callLLM({
           maxTokens, 
           `${azureBaseUrl}/openai/deployments/${actualModelId}`,
           { 'api-key': apiKey },
-          providerId
+          providerId,
+          maxRetries
         );
         break;
         
@@ -396,7 +412,8 @@ export async function callLLM({
           maxTokens, 
           baseUrl,
           undefined,
-          providerId
+          providerId,
+          maxRetries
         );
     }
     

@@ -71,6 +71,8 @@ export interface LLMCallOptions {
   onCacheStatus?: (hit: boolean) => void;
   customApiKey?: string;
   customBaseUrl?: string;
+  /** HTTP retries inside the provider SDK for this call; unset keeps the SDK's default (2). Google's SDK doesn't retry. (Not SelfHealingOptions.maxRetries, which counts content reductions.) */
+  sdkMaxRetries?: number;
 }
 
 export interface LLMCallResult {
