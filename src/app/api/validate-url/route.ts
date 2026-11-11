@@ -6,7 +6,7 @@
 import { NextRequest } from 'next/server';
 import { urlValidationRequestSchema } from '@/types/schemas';
 import { serverError, validationError, success } from '@/lib/api-errors';
-import { safeFetch, UnsafeUrlError } from '@/backend/net/safe-fetch';
+import { safeFetch, UnsafeUrlError } from '@/repoScrapper/net/safe-fetch';
 
 export async function POST(request: NextRequest) {
   try {

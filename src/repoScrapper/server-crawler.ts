@@ -14,7 +14,7 @@ import {
 } from './errors';
 import { parseGitHubUrl, DEFAULT_MAX_FILE_SIZE } from './crawler';
 import { minimatch } from 'minimatch';
-import { safeFetch } from '@/backend/net/safe-fetch';
+import { safeFetch } from './net/safe-fetch';
 
 // ============================================================================
 // Types

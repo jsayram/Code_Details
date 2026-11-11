@@ -12,8 +12,8 @@ vi.mock("@/lib/auth-server", () => ({
 
 // H1: the route now fetches through safeFetch. Keep its URL checks, but send
 // the request to the fetch stand-in below instead of DNS and a socket.
-vi.mock("@/backend/net/safe-fetch", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("@/backend/net/safe-fetch")>();
+vi.mock("@/repoScrapper/net/safe-fetch", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("@/repoScrapper/net/safe-fetch")>();
   return {
     ...actual,
     safeFetch: async (input: string, init: RequestInit = {}) => {
