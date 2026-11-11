@@ -68,12 +68,18 @@ async function fetchPage(q: string, opts: { category?: string; cursor?: string |
   }
 }
 
-/** Matches per category for the query, or null when the facets didn't load. */
+/**
+ * Matches per category for the query, or null when the facets didn't load or
+ * are capped. Capped counts (over 1,024 matches) cover only part of the
+ * results, so a 0 there doesn't mean "no matches" and nothing may be disabled.
+ */
 async function fetchCategoryFacets(q: string, signal: AbortSignal): Promise<Record<string, number> | null> {
   try {
     const res = await fetch(`/api/search/facets?${new URLSearchParams({ q })}`, { signal });
     if (!res.ok) return null;
-    const category = ((await res.json()) as { data?: { category?: unknown } }).data?.category;
+    const data = ((await res.json()) as { data?: { category?: unknown; facetCounts?: unknown } }).data;
+    if (data?.facetCounts !== "exact") return null;
+    const category = data.category;
     return category && typeof category === "object" ? (category as Record<string, number>) : null;
   } catch {
     return null;
@@ -115,6 +121,9 @@ export function ProjectSearchResults({
   const [page, setPage] = useState<Page | null>(null);
   const [loadingMore, setLoadingMore] = useState(false);
   const receipt = useRef<string | null>(null);
+  // Bumped for every new search (query or category). A "Show more" answer for
+  // an older search is dropped instead of appended to the new one's results.
+  const generation = useRef(0);
   // Nothing is shown until the route has answered once, so a switched-off
   // search never flashes a loading card.
   const [known, setKnown] = useState(false);
@@ -123,6 +132,8 @@ export function ProjectSearchResults({
     if (!q || state === "off") return;
     const controller = new AbortController();
     receipt.current = null;
+    generation.current += 1;
+    setLoadingMore(false);
     setState("loading");
     let settle: ReturnType<typeof setTimeout> | undefined;
     fetchPage(q, { category, signal: controller.signal })
@@ -164,8 +175,10 @@ export function ProjectSearchResults({
 
   const loadMore = useCallback(async () => {
     if (!page?.nextCursor) return;
+    const asked = generation.current;
     setLoadingMore(true);
     const r = await fetchPage(q, { category, cursor: page.nextCursor }).catch(() => "error" as const);
+    if (asked !== generation.current) return;
     setLoadingMore(false);
     if (typeof r === "string") return;
     setPage(r);
