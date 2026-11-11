@@ -102,9 +102,11 @@ export class LLMError extends Error {
       provider?: string;
       model?: string;
       tokenInfo?: { requested?: number; limit?: number };
+      /** The original error, for server logs only; never part of toProblemDetail(). */
+      cause?: unknown;
     }
   ) {
-    super(message);
+    super(message, options?.cause === undefined ? undefined : { cause: options.cause });
     this.name = 'LLMError';
     this.code = code;
     this.status = LLM_ERROR_STATUS_CODES[code];
@@ -375,9 +377,19 @@ export function parseLLMError(
     );
   }
 
-  // Generic error
-  return providerError(provider, message);
+  // Unrecognized error: the provider's own text can carry endpoint or account
+  // details, so the client gets a generic detail. The original error stays on
+  // `cause`, which server logs (console.error) print.
+  return new LLMError(
+    LLM_ERROR_CODES.LLM_PROVIDER_ERROR,
+    UNKNOWN_PROVIDER_ERROR_DETAIL(provider),
+    { provider, cause: error }
+  );
 }
+
+/** Client-facing detail for a provider error parseLLMError doesn't recognize. */
+export const UNKNOWN_PROVIDER_ERROR_DETAIL = (provider: string) =>
+  `The request to ${provider} failed. Try again, or check the server log for details.`;
 
 // ============================================================================
 // Handler Helpers
