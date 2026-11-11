@@ -48,6 +48,8 @@ export async function guardedCallLLM(guard: LlmGuard | undefined, options: LLMCa
   }
 }
 import { serverGithubCrawler } from './server-crawler';
+// The same chapter names the DocStore saves under, so the index links resolve
+import { createChapterFilename } from './store/doc-store';
 import type { CrawlerOptions, CrawlerResult } from './types';
 
 // Import prompts from centralized prompts file (SINGLE SOURCE OF TRUTH)
@@ -154,27 +156,6 @@ export type ProgressCallback = (update: {
 // Helper Functions
 // ============================================================================
 
-/**
- * Create a safe filename from a chapter title
- * Format: 00_title-slug.md (matches output-utils.ts createChapterFilename)
- * 
- * IMPORTANT: This must match the format used by saveChapter() in output-utils.ts
- * so that index links work correctly!
- * 
- * @param order - 0-based chapter order (0, 1, 2, ...)
- * @param title - Full chapter title e.g. "Chapter 1: File Upload"
- */
-function createChapterFilename(order: number, title: string): string {
-  const paddedOrder = String(order).padStart(2, '0');
-  const safeTitle = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .slice(0, 50);
-  
-  return `${paddedOrder}_${safeTitle}.md`;
-}
 
 /**
  * Get content for specific file indices
@@ -765,7 +746,7 @@ export class WriteChapters extends BatchNode<SharedData, WriteChapterItem> {
     const chapterFilenamesMap: Record<number, ChapterFilenameInfo> = {};
     
     // First pass: Generate filenames
-    // IMPORTANT: Use 0-based index to match saveChapter() in output-utils.ts
+    // IMPORTANT: Use 0-based index to match the route's DocStore.saveChapter() calls
     chapterOrder.forEach((abstractionIndex, i) => {
       if (abstractionIndex < 0 || abstractionIndex >= abstractions.length) return;
       
