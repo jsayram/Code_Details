@@ -50,7 +50,7 @@ export async function guardedCallLLM(guard: LlmGuard | undefined, options: LLMCa
 import { serverGithubCrawler } from './server-crawler';
 // The same chapter names the DocStore saves under, so the index links resolve
 import { createChapterFilename } from './store/doc-store';
-import type { CrawlerOptions, CrawlerResult } from './types';
+import type { CrawlerResult } from './types';
 
 // Import prompts from centralized prompts file (SINGLE SOURCE OF TRUTH)
 import {
@@ -225,7 +225,8 @@ function getContentForIndicesTruncated(
  */
 export class FetchRepo extends Node<SharedData> {
   async prep(shared: SharedData) {
-    let { repo_url: repoUrl, project_name: projectName } = shared;
+    const repoUrl = shared.repo_url;
+    let projectName = shared.project_name;
     
     if (!projectName && repoUrl) {
       projectName = repoUrl.split('/').pop()?.replace(/\.git$/, '') || 'unknown';
@@ -382,6 +383,7 @@ export class IdentifyAbstractions extends Node<SharedData> {
       throw new Error('LLM did not return a valid YAML block for abstractions.');
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LLM YAML, checked field by field below
     const parsedAbstractions = yaml.load(yamlStr) as any[];
     
     if (!Array.isArray(parsedAbstractions)) {
@@ -531,12 +533,14 @@ export class AnalyzeRelationships extends Node<SharedData> {
       throw new Error('LLM did not return a valid YAML block for relationships.');
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LLM YAML, checked field by field below
     const parsedData = yaml.load(yamlStr) as any;
     
     if (!parsedData?.summary || !Array.isArray(parsedData.relationships)) {
       throw new Error('Bad YAML structure for relationships.');
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LLM YAML, checked field by field below
     const validatedRelationships: Relationship[] = parsedData.relationships.map((rel: any, index: number) => {
       if (!rel || typeof rel.from_abstraction === 'undefined' || typeof rel.to_abstraction === 'undefined' || typeof rel.label !== 'string') {
         throw new Error(`Malformed relationship at index ${index}`);
@@ -654,6 +658,7 @@ export class OrderChapters extends Node<SharedData> {
       throw new Error('LLM did not return a valid YAML block for chapter order.');
     }
     
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- LLM YAML, checked field by field below
     const parsedOrder = yaml.load(yamlStr) as any[];
     
     if (!Array.isArray(parsedOrder)) {

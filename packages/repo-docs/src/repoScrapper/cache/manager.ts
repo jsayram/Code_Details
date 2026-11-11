@@ -12,7 +12,6 @@ import type {
   CachedFile,
   FileChangeAnalysis,
   RegenerationPlan,
-  RegenerationMode,
 } from '../types';
 import { cacheError } from '../errors';
 

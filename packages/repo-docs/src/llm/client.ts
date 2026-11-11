@@ -34,6 +34,7 @@ import type {
 } from './types';
 import {
   LLMError,
+  LLM_ERROR_CODES,
   parseLLMError,
   authenticationError,
 } from './errors';
@@ -326,7 +327,7 @@ export async function callLLM({
   if (!provider) {
     console.log('[callLLM] ERROR: Unknown provider');
     throw new LLMError(
-      'LLM_PROVIDER_ERROR' as any,
+      LLM_ERROR_CODES.LLM_PROVIDER_ERROR,
       `Unknown provider: ${providerId}`,
       { provider: providerId }
     );

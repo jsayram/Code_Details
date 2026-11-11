@@ -9,8 +9,6 @@ import type { CrawlerOptions, CrawlerResult, FileStats } from './types';
 import { 
   parseGitHubError, 
   crawlerError, 
-  githubRateLimitError,
-  githubAuthError,
 } from './errors';
 import { parseGitHubUrl, DEFAULT_MAX_FILE_SIZE } from './crawler';
 import { minimatch } from 'minimatch';

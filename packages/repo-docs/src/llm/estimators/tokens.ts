@@ -8,7 +8,7 @@
  * Pure functions - no side effects, all dependencies injected
  */
 
-import { getModel, getProvider } from '../providers';
+import { getModel } from '../providers';
 import { MODEL_CONTEXT_WINDOWS } from '../constants';
 
 // ============================================================================
