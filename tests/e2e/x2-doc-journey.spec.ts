@@ -9,6 +9,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import JSZip from "jszip";
+import type { APIRequestContext } from "@playwright/test";
 import { ConvexHttpClient } from "convex/browser";
 import { makeFunctionReference } from "convex/server";
 import { authState, clientWithToken, convexToken, freshClientIp, linkPersona, releasePersona, signUp as fixtureSignUp, SYNTHETIC_PASSWORD, syntheticEmail, verifyEmail } from "../fixtures/better-auth";
@@ -54,6 +55,9 @@ const mutating = () => ({ origin: BASE_URL, "x-forwarded-for": freshClientIp() }
 
 let realBefore: string[] = [];
 let projectId = "";
+let ownerKey = "";
+// A Clerk-era subject left in an older doc: server-only, never in any response.
+const LEGACY_SUBJECT = "user_x2legacysynthetic";
 
 test.describe.serial("X2 doc journey through the DocStore", () => {
   test.beforeAll(async () => {
@@ -65,12 +69,12 @@ test.describe.serial("X2 doc journey through the DocStore", () => {
     const res = await fixtureSignUp(email, SYNTHETIC_PASSWORD);
     expect(res.status).toBe(200);
     await linkPersona(A.subject!, (await authState(email))!.authUserId);
-    const owner = (await clientWithToken((await convexToken(res.jar))!).query(docOwner, {}))!.userId;
+    const owner = ownerKey = (await clientWithToken((await convexToken(res.jar))!).query(docOwner, {}))!.userId;
     await releasePersona(A.subject!);
 
     const base = { repoOwner: "synthetic", llmProvider: "synthetic", llmModel: "synthetic" };
     seed(SLUG, {
-      "_meta.json": JSON.stringify({ projectSlug: SLUG, userId: owner, repoUrl: `https://github.com/synthetic/${SLUG}`, repoName: SLUG, ...base, createdAt: "2026-11-01T00:00:00.000Z", chapters: [{ filename: CHAPTER, title: "Getting Started", order: 0, abstractionsCovered: [] }] }, null, 2),
+      "_meta.json": JSON.stringify({ projectSlug: SLUG, userId: owner, legacyUserId: LEGACY_SUBJECT, repoUrl: `https://github.com/synthetic/${SLUG}`, repoName: SLUG, ...base, createdAt: "2026-11-01T00:00:00.000Z", chapters: [{ filename: CHAPTER, title: "Getting Started", order: 0, abstractionsCovered: [] }] }, null, 2),
       "-1_overview.md": `${frontmatter("Overview", -1)}# Journey overview\n\nSynthetic overview text.\n`,
       [CHAPTER]: `${frontmatter("Getting Started", 0)}# Getting Started\n\nSynthetic first chapter.\n`,
     });
@@ -85,6 +89,37 @@ test.describe.serial("X2 doc journey through the DocStore", () => {
     for (const slug of [SLUG, OLDER]) fs.rmSync(path.join(OUTPUT, slug), { recursive: true, force: true });
     await releasePersona(A.subject!);
     expect(realOutputListing(), "src/app/output changed during the X2 journey").toEqual(realBefore);
+  });
+
+  test("another signed-in user and a signed-out visitor are refused, as before X2", async ({ playwright }) => {
+    const before = fs.readFileSync(path.join(OUTPUT, SLUG, CHAPTER), "utf8");
+    const metaBefore = fs.readFileSync(path.join(OUTPUT, SLUG, "_meta.json"), "utf8");
+    const ctx = (): Promise<APIRequestContext> => playwright.request.newContext({ baseURL: BASE_URL, extraHTTPHeaders: { origin: BASE_URL, "x-forwarded-for": freshClientIp() }, maxRedirects: 0 });
+
+    // Signed out: the proxy answers 401 before any route runs.
+    const anon = await ctx();
+    for (const [method, url] of [["GET", `/api/docs/${SLUG}/${CHAPTER}`], ["GET", `/api/docs/${SLUG}/meta`], ["PUT", `/api/docs/${SLUG}/${CHAPTER}`], ["DELETE", `/api/docs/${SLUG}`]] as const) {
+      expect((await anon.fetch(url, { method, data: method === "PUT" ? { content: "x" } : undefined })).status(), `${method} ${url}`).toBe(401);
+    }
+    await anon.dispose();
+
+    // Another account, not A: the unlinked doc reads as missing (404) and changes are not its to make (403).
+    const other = await ctx();
+    const email = syntheticEmail("x2-other");
+    expect((await other.post("/api/auth/sign-up/email", { data: { email, password: SYNTHETIC_PASSWORD, name: "Synthetic Person" } })).status()).toBe(200);
+    await verifyEmail(email);
+    expect((await other.post("/api/auth/sign-in/email", { data: { email, password: SYNTHETIC_PASSWORD } })).status()).toBe(200);
+    expect((await other.get(`/api/docs/${SLUG}/${CHAPTER}`)).status()).toBe(404);
+    expect((await other.get(`/api/docs/${SLUG}/meta`)).status()).toBe(404);
+    expect((await other.get(`/api/docs/${SLUG}/download`)).status()).toBe(404);
+    expect((await other.put(`/api/docs/${SLUG}/${CHAPTER}`, { data: { content: "Overwritten by someone else." } })).status()).toBe(403);
+    expect((await other.patch(`/api/docs/${SLUG}/link-project`, { data: { projectId, projectSlug: LISTED.slug, projectTitle: LISTED.title } })).status()).toBe(403);
+    expect((await other.delete(`/api/docs/${SLUG}`)).status()).toBe(403);
+    expect(JSON.stringify(await (await other.get("/api/docs")).json())).not.toContain(SLUG);
+    await other.dispose();
+
+    expect(fs.readFileSync(path.join(OUTPUT, SLUG, CHAPTER), "utf8")).toBe(before);
+    expect(fs.readFileSync(path.join(OUTPUT, SLUG, "_meta.json"), "utf8")).toBe(metaBefore);
   });
 
   test("the owner opens, edits, links, finds on the project page, downloads and deletes a doc", async ({ page }) => {
@@ -143,7 +178,12 @@ test.describe.serial("X2 doc journey through the DocStore", () => {
     const zip = await JSZip.loadAsync(await zipRes.body());
     expect(Object.keys(zip.files).sort()).toEqual(fs.readdirSync(path.join(OUTPUT, SLUG)).sort());
     expect(await zip.file(CHAPTER)!.async("string")).toBe(stored);
-    expect(JSON.parse(await zip.file("_meta.json")!.async("string"))).toMatchObject({ projectSlug: SLUG, linkedProjectSlug: LISTED.slug });
+    // The ZIP's metadata is ownerMeta(): the owner's own key stays, the Clerk-era subject never leaves the server.
+    const zippedMeta = await zip.file("_meta.json")!.async("string");
+    expect(JSON.parse(zippedMeta)).toMatchObject({ projectSlug: SLUG, userId: ownerKey, linkedProjectSlug: LISTED.slug });
+    expect(JSON.parse(zippedMeta)).not.toHaveProperty("legacyUserId");
+    expect(zippedMeta).not.toContain(LEGACY_SUBJECT);
+    expect(readMeta(SLUG).legacyUserId).toBe(LEGACY_SUBJECT);
 
     // An older doc (index.md overview, chapters as plain filenames) still opens.
     await page.goto(`/github-scrapper/docs/${OLDER}`);
