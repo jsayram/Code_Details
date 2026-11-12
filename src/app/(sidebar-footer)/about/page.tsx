@@ -223,7 +223,7 @@ export default function AboutPage() {
                   <ul className="space-y-2">
                     <li className="flex items-center">
                       <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
-                      <span>Code Details Web Platform</span>
+                      <span>Code Details Platform</span>
                     </li>
                     <li className="flex items-center">
                       <ExternalLink size={16} className="mr-2 text-primary" aria-hidden="true" />
