@@ -72,7 +72,7 @@ Server keys stay on the server. Outbound fetches go through an SSRF guard. Custo
 
 ## History
 
-This repo was the home of an earlier Angular version that was never finished. That code now lives in a separate archive. The Next.js app was built in `jsayram/CodeDetailsWeb`; it moved here in November 2026 with its full history, and the old repo is archived.
+This repo first held an Angular version of Code Details that was never finished. That code is kept in a private archive; everything here is the current Next.js app.
 
 ## License
 

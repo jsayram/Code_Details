@@ -7,7 +7,7 @@
 # can only read (default_transaction_read_only, SELECT grants only; BYPASSRLS
 # because the source tables have RLS on and policies would hide rows); the
 # importer reads through `docker exec ... psql -U d00b_reader` and nothing else.
-# Never touches supabase_*_CodeDetailsWeb. Remove with source-down.sh.
+# Never touches supabase_*_Code_Details. Remove with source-down.sh.
 #
 # Usage: scripts/d00b-import/source-up.sh <capture dir> <evidence dir>
 set -euo pipefail

@@ -42,7 +42,7 @@ function violation(spec: string, fromFile: string): string | null {
   if (/^next(\/|$)/.test(spec)) return "next";
   if (/^convex(\/|$)/.test(spec)) return "convex";
   if (spec.startsWith("@/")) return "app alias";
-  if (/^(code-details|codedetailsweb)(\/|$)/.test(spec)) return "app package";
+  if (/^code-details(\/|$)/.test(spec)) return "app package";
   if (spec.startsWith(".")) {
     const target = path.relative(PKG, path.resolve(path.dirname(fromFile), spec));
     return target.startsWith("..") || path.isAbsolute(target) ? "leaves the package" : null;

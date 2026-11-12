@@ -179,7 +179,7 @@ Local Supabase data is stored in Docker volumes. Your data persists between `sto
 To view volumes:
 
 ```bash
-docker volume ls --filter label=com.supabase.cli.project=CodeDetailsWeb
+docker volume ls --filter label=com.supabase.cli.project=Code_Details
 ```
 
 To completely remove all data:
