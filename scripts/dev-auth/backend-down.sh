@@ -12,7 +12,7 @@ PIDFILE="$STATE/backend.pid"
 if [ -f "$PIDFILE" ]; then
   PID="$(cat "$PIDFILE")"
   # Only stop the process if it really is our backend binary.
-  if ps -p "$PID" -o command= 2>/dev/null | grep -q "convex-local-backend.*codedetails-d08e-manual"; then
+  if ps -ww -p "$PID" -o command= 2>/dev/null | grep -q "convex-local-backend.*codedetails-d08e-manual"; then
     kill "$PID"
     for _ in $(seq 1 20); do ps -p "$PID" >/dev/null 2>&1 || break; sleep 0.25; done
     echo "stopped D08e manual backend (pid $PID)"

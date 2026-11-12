@@ -13,7 +13,7 @@ PIDFILE="$STATE/backend.pid"
 if [ -f "$PIDFILE" ]; then
   PID="$(cat "$PIDFILE")"
   # Only stop the process if it really is this backend binary.
-  if ps -p "$PID" -o command= 2>/dev/null | grep -Eq "convex-local-backend.*--instance-name codedetails-dev( |\$)"; then
+  if ps -ww -p "$PID" -o command= 2>/dev/null | grep -Eq "convex-local-backend.*--instance-name codedetails-dev( |\$)"; then
     kill "$PID"
     for _ in $(seq 1 20); do ps -p "$PID" >/dev/null 2>&1 || break; sleep 0.25; done
     echo "stopped dev Convex backend (pid $PID)"

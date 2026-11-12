@@ -42,7 +42,7 @@ function violation(spec: string, fromFile: string): string | null {
   if (/^next(\/|$)/.test(spec)) return "next";
   if (/^convex(\/|$)/.test(spec)) return "convex";
   if (spec.startsWith("@/")) return "app alias";
-  if (/^codedetailsweb(\/|$)/.test(spec)) return "app package";
+  if (/^(code-details|codedetailsweb)(\/|$)/.test(spec)) return "app package";
   if (spec.startsWith(".")) {
     const target = path.relative(PKG, path.resolve(path.dirname(fromFile), spec));
     return target.startsWith("..") || path.isAbsolute(target) ? "leaves the package" : null;
@@ -122,7 +122,7 @@ describe("scraper engine import boundary", () => {
       'import x from "../../../../src/backend/llm/gate";',
       'import y = require("next/headers");',
       'import { callLLM } from "@/llm/client";',
-      'import z from "codedetailsweb/src/lib/utils";',
+      'import z from "code-details/src/lib/utils";',
     ].join("\n");
     expect(crossings(inEngine, bad)).toHaveLength(11);
   });

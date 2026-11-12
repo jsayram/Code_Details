@@ -3,7 +3,7 @@
  * CENTRALIZED LLM PROMPTS - SINGLE SOURCE OF TRUTH
  * ================================================================================
  * 
- * THIS FILE IS THE BRAIN OF ALL LLM PROMPTS IN CODEDETAILSWEB.
+ * THIS FILE IS THE BRAIN OF ALL LLM PROMPTS IN CODE DETAILS.
  * 
  * All prompts used by LLMs throughout the application should be defined here.
  * This ensures:
@@ -450,7 +450,7 @@ flowchart TD
 // ============================================================================
 // FUTURE: OTHER FEATURE PROMPTS
 // ============================================================================
-// Add prompts for other CodeDetailsWeb features here.
+// Add prompts for other Code Details features here.
 // Examples:
 // - Code explanation prompts
 // - Documentation generation prompts

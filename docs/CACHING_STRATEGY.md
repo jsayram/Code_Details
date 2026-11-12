@@ -2,7 +2,7 @@
 
 ## Overview
 
-CodeDetailsWeb implements a multi-layered caching strategy:
+Code Details implements a multi-layered caching strategy:
 
 1. **Server-Side**: Next.js `unstable_cache` with tag-based invalidation
 2. **Client-Side**: SWR (Stale-While-Revalidate) for React data fetching

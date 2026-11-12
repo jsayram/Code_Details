@@ -2,7 +2,7 @@
 
 ## Overview
 
-The CodeDetailsWeb platform implements a **two-stage deletion system** for projects with sophisticated handling of related data (favorites, tags, tag submissions, and images). This design balances user safety (preventing accidental permanent loss) with data integrity and user experience.
+The Code Details platform implements a **two-stage deletion system** for projects with sophisticated handling of related data (favorites, tags, tag submissions, and images). This design balances user safety (preventing accidental permanent loss) with data integrity and user experience.
 
 ---
 

@@ -9,7 +9,7 @@
 
 ## 🎯 Overview
 
-CodeDetailsWeb provides powerful sharing capabilities that allow users to:
+Code Details provides powerful sharing capabilities that allow users to:
 - Share individual projects with anyone via direct links
 - Share their entire project collection as a public portfolio
 - Allow visitors to browse, filter, and sort projects without signing in

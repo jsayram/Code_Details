@@ -1,6 +1,6 @@
 # Testing TODO - Complete Coverage Plan
 
-> **Note:** This document outlines comprehensive testing needed for the CodeDetailsWeb application.  
+> **Note:** This document outlines comprehensive testing needed for the Code Details application.  
 > Created: November 18, 2025  
 > Status: Planning Phase  
 > Test Frameworks: Jest (Unit), Playwright (E2E), GitHub Actions (CI/CD)
